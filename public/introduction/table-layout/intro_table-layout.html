@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PTEC - សៀវភៅណែនាំចុះវត្តមានតាមប្លង់តុ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Moul&display=swap" rel="stylesheet">
+    
+    <!-- Script to prevent FOUC (Flash of Unstyled Content) and ensure Iframe transparency -->
+    <script>
+        // Theme initialization & robust Iframe detection
+        let isDark = false;
+        if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            isDark = true;
+        }
+        
+        try {
+            // Check if loaded inside an iframe safely
+            if (window.self !== window.top) {
+                document.documentElement.classList.add('is-iframe');
+                // Try to sync theme directly from parent if same-origin
+                if (window.parent && window.parent.document) {
+                    isDark = window.parent.document.documentElement.classList.contains('dark');
+                }
+            }
+        } catch (e) {
+            // If accessing window.top throws a DOMException (cross-origin), we are in an iframe
+            document.documentElement.classList.add('is-iframe');
+        }
+
+        if (isDark) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+
+    <!-- Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Khmer OS Content"', 'sans-serif'],
+                        display: ['Moul', 'cursive'],
+                    },
+                    colors: {
+                        primary: '#0054a6',
+                        secondary: '#4facfe',
+                    },
+                    animation: {
+                        float: "float 5s ease-in-out infinite", /* Slowed down */
+                    },
+                    keyframes: {
+                        float: {
+                            "0%, 100%": { transform: "translateY(0)" },
+                            "50%": { transform: "translateY(-8px)" }, /* Reduced bounce distance */
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Base Theme Colors matching tutorial.html */
+        .dark body { background: #0f172a; }
+        body:not(.dark) { background: #f0f4f8; }
+        
+        /* Iframe Transparency & Hiding standalone UI */
+        html.is-iframe body { background: transparent !important; }
+        html.is-iframe #standalone-bg-animate { display: none !important; }
+
+        body { 
+            line-height: 1.8; 
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Animated Background - Already well optimized using radial gradients */
+        .bg-animate { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -2; 
+            background: radial-gradient(circle at 10% 20%, rgba(224, 231, 255, 0.8) 0%, transparent 40%), 
+                        radial-gradient(circle at 90% 80%, rgba(220, 252, 231, 0.8) 0%, transparent 40%), 
+                        radial-gradient(circle at 50% 50%, rgba(254, 243, 199, 0.8) 0%, transparent 50%); 
+            background-size: 150% 150%;
+            animation: moveBg 30s infinite alternate ease-in-out; 
+            transform: translateZ(0); /* Hardware acceleration */
+        }
+        
+        /* Dark Mode Animated Background */
+        .dark .bg-animate { 
+            background: radial-gradient(circle at 10% 20%, rgba(30, 27, 75, 0.8) 0%, transparent 40%), 
+                        radial-gradient(circle at 90% 80%, rgba(6, 78, 59, 0.8) 0%, transparent 40%), 
+                        radial-gradient(circle at 50% 50%, rgba(69, 26, 3, 0.8) 0%, transparent 50%); 
+        }
+
+        @keyframes moveBg { 
+            0% { transform: translate(0, 0) scale(1); background-position: 0% 0%; } 
+            50% { transform: translate(-2%, 2%) scale(1.02); background-position: 100% 50%; }
+            100% { transform: translate(2%, -2%) scale(1.05); background-position: 50% 100%; } 
+        }
+        @media (prefers-reduced-motion: reduce) { .bg-animate { animation: none; transform: none; } }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+        .dark ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        
+        .kbd-key { 
+            background: linear-gradient(180deg, #f8fafc, #f1f5f9);
+            border: 1px solid #cbd5e1; 
+            border-bottom: 2px solid #94a3b8; 
+            border-radius: 6px; 
+            padding: 2px 8px; 
+            font-weight: 600; 
+            color: #475569; 
+            font-size: 0.85em; 
+            display: inline-block; 
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        }
+        .dark .kbd-key {
+            background: linear-gradient(180deg, #1e293b, #0f172a);
+            border-color: #334155;
+            border-bottom-color: #475569;
+            color: #cbd5e1;
+        }
+        
+        /* OPTIMIZATION 1: Removed backdrop-filter for smooth scrolling */
+        .section-box { 
+            background: rgba(255, 255, 255, 0.98); /* Solid color replaces blur */
+            padding: 24px; 
+            border-radius: 24px; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            margin-bottom: 32px; 
+            border: 1px solid rgba(226, 232, 240, 0.8); 
+            position: relative; 
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .dark .section-box {
+            background: rgba(30, 41, 59, 0.98);
+            border-color: rgba(51, 65, 85, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        }
+        .section-box:hover {
+            box-shadow: 0 15px 25px -5px rgba(0, 0, 0, 0.08);
+            transform: translateY(-2px); /* Lighter translation */
+            border-color: rgba(203, 213, 225, 1);
+        }
+        .dark .section-box:hover {
+            box-shadow: 0 15px 25px -5px rgba(0, 0, 0, 0.4);
+            border-color: rgba(71, 85, 105, 1);
+        }
+
+        @media (min-width: 768px) {
+            .section-box { padding: 40px; border-radius: 32px; margin-bottom: 48px; }
+        }
+
+        @keyframes border-spin { 
+            0% { transform: rotate(0deg); } 
+            100% { transform: rotate(360deg); } 
+        }
+
+        .hero-icon-wrapper {
+            position: relative;
+            padding: 4px;
+            border-radius: 50%;
+            overflow: hidden;
+            display: inline-block;
+            box-shadow: 0 10px 20px -5px rgba(0, 84, 166, 0.2);
+            transition: box-shadow 0.3s ease;
+        }
+        .dark .hero-icon-wrapper { box-shadow: 0 10px 20px -5px rgba(79, 172, 254, 0.2); }
+        .group:hover .hero-icon-wrapper { box-shadow: 0 15px 30px -5px rgba(0, 84, 166, 0.4); }
+        .dark .group:hover .hero-icon-wrapper { box-shadow: 0 15px 30px -5px rgba(79, 172, 254, 0.4); }
+        
+        .hero-icon-wrapper::before {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%; width: 200%; height: 200%;
+            background: conic-gradient(transparent, #0054a6, transparent 30%);
+            animation: border-spin 6s linear infinite; /* Slowed down spin */
+        }
+        .dark .hero-icon-wrapper::before {
+            background: conic-gradient(transparent, #4facfe, transparent 30%);
+        }
+        
+        .hero-icon-inner {
+            background: white;
+            border-radius: 50%;
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .dark .hero-icon-inner { background: #1e293b; }
+
+        .image-wrapper { 
+            position: relative; 
+            width: 100%; 
+            height: auto; 
+            display: block; 
+            border-radius: 20px; 
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            transform: translateZ(0); /* Hardware acceleration */
+        }
+        .image-wrapper:hover {
+            transform: translateY(-4px); 
+            box-shadow: 0 15px 30px -10px rgba(0,0,0,0.15);
+        }
+        .dark .image-wrapper:hover {
+            box-shadow: 0 15px 30px -10px rgba(0,0,0,0.4);
+        }
+        .image-wrapper img { 
+            width: 100%; 
+            height: auto; 
+            display: block; 
+            object-fit: contain; 
+            border-radius: 16px; 
+        }
+
+        .pointer-container { position: absolute; z-index: 10; pointer-events: none; }
+        
+        /* OPTIMIZATION 2: Removed filter: drop-shadow and backdrop-filter */
+        .pointer-down { display: flex; flex-direction: column; align-items: center; animation: bounce-down 3s infinite ease-in-out; transform-origin: bottom center; }
+        .pointer-down-box { 
+            padding: 8px 14px; border-radius: 12px; font-weight: 700; font-size: 13px; color: white; text-align: center; white-space: nowrap; line-height: 1.4; 
+            border: 1px solid rgba(255,255,255,0.2); 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3); /* Replaced drop-shadow */
+        }
+        .pointer-down-arrow { width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 12px solid; }
+
+        .pointer-right { display: flex; align-items: center; animation: bounce-right 3s infinite ease-in-out; transform-origin: right center; }
+        .pointer-right-box { 
+            padding: 8px 14px; border-radius: 12px; font-weight: 700; font-size: 13px; color: white; text-align: center; white-space: nowrap; line-height: 1.4; 
+            border: 1px solid rgba(255,255,255,0.2); 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        .pointer-right-arrow { width: 0; height: 0; border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-left: 12px solid; }
+
+        @keyframes bounce-down { 0%, 100% { transform: translate(-50%, -5%); } 50% { transform: translate(-50%, 5%); } }
+        @keyframes bounce-right { 0%, 100% { transform: translate(-5%, -50%); } 50% { transform: translate(5%, -50%); } }
+
+        @media (max-width: 1024px) {
+            .pointer-down-box, .pointer-right-box { font-size: 11px; padding: 6px 12px; max-width: 120px; white-space: normal; }
+        }
+        @media (max-width: 767px) {
+            .pointer-down-box, .pointer-right-box { font-size: 9px; padding: 4px 8px; max-width: 90px; border-radius: 8px; }
+            .pointer-down-arrow { border-left-width: 6px; border-right-width: 6px; border-top-width: 8px; }
+            .pointer-right-arrow { border-top-width: 6px; border-bottom-width: 6px; border-left-width: 8px; }
+        }
+        @media (max-width: 479px) {
+            .pointer-down-box, .pointer-right-box { font-size: 8px; padding: 3px 6px; max-width: 75px; border-radius: 6px; }
+            .pointer-down-arrow { border-left-width: 5px; border-right-width: 5px; border-top-width: 6px; }
+            .pointer-right-arrow { border-top-width: 5px; border-bottom-width: 5px; border-left-width: 6px; }
+        }
+
+        /* PTEC Gradient Text Animation */
+        .animate-gradient-text {
+            background: linear-gradient(-45deg, #0054a6, #4facfe, #ff2d75, #0054a6);
+            background-size: 300%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: gradientText 10s ease infinite; /* Slowed down */
+        }
+        .dark .animate-gradient-text {
+            background: linear-gradient(-45deg, #4facfe, #0054a6, #ff2d75, #4facfe);
+            background-size: 300%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        @keyframes gradientText {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Intersection Observer Animations - Simplified transitions */
+        .reveal-up { opacity: 0; transform: translateY(20px); transition: opacity 0.6s ease-out, transform 0.6s ease-out; }
+        .reveal-left { opacity: 0; transform: translateX(-20px); transition: opacity 0.6s ease-out, transform 0.6s ease-out; }
+        .reveal-scale { opacity: 0; transform: scale(0.98); transition: opacity 0.6s ease-out, transform 0.6s ease-out; }
+        .reveal-visible { opacity: 1; transform: translate(0) scale(1); }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, ::before, ::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+            .reveal-up, .reveal-left, .reveal-scale { opacity: 1 !important; transform: none !important; }
+            .section-box:hover, .image-wrapper:hover { transform: none !important; }
+        }
+    </style>
+</head>
+<body class="text-slate-800 dark:text-gray-100 transition-colors duration-300 p-4 sm:p-6 md:p-8 lg:p-12 min-h-screen relative font-sans">
+
+    <!-- Match the animated background from tutorial.html -->
+    <div class="bg-animate" aria-hidden="true" id="standalone-bg-animate"></div>
+
+    <div class="max-w-5xl mx-auto relative z-10">
+        
+        <!-- Header Section -->
+        <header class="text-center mb-12 md:mb-16 relative pt-8">
+            <a href="/attendance/layout" target="_parent" class="group inline-block mb-6 relative cursor-pointer animate-float focus:outline-none focus:ring-4 focus:ring-blue-300 rounded-full reveal-scale">
+                <div class="hero-icon-wrapper transform transition-transform duration-300 group-hover:-translate-y-1">
+                    <div class="hero-icon-inner w-20 h-20 md:w-28 md:h-28">
+                        <i data-lucide="layout-grid" class="w-10 h-10 md:w-14 md:h-14 text-primary dark:text-secondary group-hover:scale-105 transition-transform duration-300"></i>
+                    </div>
+                </div>
+                <div class="absolute -bottom-4 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity duration-300 whitespace-nowrap z-20">
+                     <span class="text-xs font-bold text-blue-700 dark:text-blue-200 bg-blue-50 dark:bg-blue-900/90 px-3 py-1.5 rounded-full border border-blue-200 dark:border-blue-700 shadow-md">ចូលទៅកាន់ប្រព័ន្ធ</span>
+                </div>
+            </a>
+            
+            <h1 class="font-display text-3xl md:text-5xl lg:text-6xl animate-gradient-text mb-4 leading-normal reveal-up" style="transition-delay: 100ms;">Table Layout Guide</h1>
+            
+            <p class="text-lg md:text-xl text-slate-600 dark:text-gray-300 font-medium max-w-2xl mx-auto mb-8 reveal-up" style="transition-delay: 200ms;">
+                សៀវភៅណែនាំពីរបៀបរៀបចំប្លង់តុ និងការចុះវត្តមានសិស្សតាមទីតាំងជាក់ស្តែង
+            </p>
+
+            <!-- Pinging Badge -->
+            <div class="inline-flex items-center gap-3 px-5 py-2.5 rounded-full bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 shadow-sm reveal-up hover:shadow-md transition-shadow cursor-default" style="transition-delay: 300ms;">
+                <span class="relative flex h-3 w-3">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-3 w-3 bg-primary dark:bg-secondary"></span>
+                </span>
+                <p class="text-slate-700 dark:text-gray-200 text-sm md:text-lg font-bold">
+                    មុខងារចុះវត្តមានតាមប្លង់តុ (Table Layout Attendance)
+                </p>
+            </div>
+        </header>
+
+        <!-- Section 1 -->
+        <section class="section-box border-t-4 border-t-indigo-500 dark:border-t-indigo-400 reveal-up">
+            <div class="flex items-center gap-4 mb-6 md:mb-8">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0 border border-indigo-100 dark:border-indigo-800/50 shadow-sm reveal-scale">
+                    <i data-lucide="check-square" class="w-7 h-7 md:w-8 md:h-8"></i>
+                </div>
+                <div class="reveal-left">
+                    <span class="text-[10px] md:text-xs font-display tracking-wider text-indigo-600 dark:text-indigo-400 uppercase bg-indigo-100 dark:bg-indigo-900/40 px-3 py-1 rounded-full border border-indigo-200 dark:border-indigo-800/50">Part 1</span>
+                    <h2 class="font-display leading-normal text-xl md:text-3xl text-slate-800 dark:text-white mt-1 md:mt-2">ការចុះវត្តមាន និងការចំណាំពណ៌</h2>
+                </div>
+            </div>
+            
+            <p class="text-sm md:text-lg text-slate-600 dark:text-gray-300 mb-6 reveal-up">ការចុះវត្តមានគឺមានភាពងាយស្រួលបំផុត លោកគ្រូអ្នកគ្រូគ្រាន់តែចុចផ្ទាល់ទៅលើប្រអប់ឈ្មោះសិស្ស។ ប្រព័ន្ធប្រើប្រាស់ពណ៌ចំនួន៣ ដើម្បីសម្គាល់ស្ថានភាពវត្តមាន៖</p>
+            
+            <div class="image-wrapper mb-8 border-4 border-white dark:border-gray-800 shadow-lg bg-slate-50 dark:bg-gray-900 reveal-scale">
+                <!-- Added loading="lazy" for performance -->
+                <img loading="lazy" src="table-layout-1.png" alt="Table Layout Grid" onerror="this.onerror=null; this.src='https://placehold.co/800x450/1e293b/94a3b8?text=table-layout-1.png'">
+                
+                <div class="pointer-container top-[4%] left-[66%]">
+                    <div class="pointer-right">
+                        <div class="pointer-right-box bg-purple-600 dark:bg-purple-500">កែសម្រួលប្លង់តុ</div>
+                        <div class="pointer-right-arrow border-l-purple-600 dark:border-l-purple-500"></div>
+                    </div>
+                </div>
+
+                <div class="pointer-container top-[35%] left-[37%]">
+                    <div class="pointer-down">
+                        <div class="pointer-down-box bg-green-500 dark:bg-green-600">បៃតង = មានវត្តមាន</div>
+                        <div class="pointer-down-arrow border-t-green-500 dark:border-t-green-600"></div>
+                    </div>
+                </div>
+                <div class="pointer-container top-[60%] left-[6%]">
+                    <div class="pointer-down">
+                        <div class="pointer-down-box bg-yellow-500 dark:bg-yellow-600">លឿង = សុំច្បាប់</div>
+                        <div class="pointer-down-arrow border-t-yellow-500 dark:border-t-yellow-600"></div>
+                    </div>
+                </div>
+                <div class="pointer-container top-[60%] left-[20%]">
+                    <div class="pointer-down">
+                        <div class="pointer-down-box bg-red-500 dark:bg-red-600">ក្រហម = អវត្តមាន</div>
+                        <div class="pointer-down-arrow border-t-red-500 dark:border-t-red-600"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gradient-to-br from-indigo-50/80 to-blue-50/80 dark:from-indigo-900/20 dark:to-blue-900/20 p-5 md:p-6 rounded-2xl border border-indigo-100/50 dark:border-indigo-800/50 reveal-up">
+                <ul class="list-disc pl-5 md:pl-8 space-y-3 md:space-y-4 text-sm md:text-base text-slate-700 dark:text-gray-300 stagger-container">
+                    <li><strong class="text-green-600 dark:text-green-400">ស្ថានភាពដើម៖</strong> សិស្សទាំងអស់នឹងមានពណ៌បៃតង (វត្តមាន) ដោយស្វ័យប្រវត្តិ។</li>
+                    <li><strong class="text-indigo-700 dark:text-indigo-400">របៀបប្តូរស្ថានភាព៖</strong> គ្រាន់តែយកម៉ៅ (Mouse) ឬដៃ ចុចពីលើឈ្មោះសិស្ស នោះពណ៌នឹងផ្លាស់ប្តូរតាមលំដាប់ ពី <strong>បៃតង &rarr; លឿង &rarr; ក្រហម</strong>។</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Section 2 -->
+        <section class="section-box border-t-4 border-t-emerald-500 dark:border-t-emerald-400 reveal-up">
+            <div class="flex items-center gap-4 mb-6 md:mb-8">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0 border border-emerald-100 dark:border-emerald-800/50 shadow-sm reveal-scale">
+                    <i data-lucide="calendar" class="w-7 h-7 md:w-8 md:h-8"></i>
+                </div>
+                <div class="reveal-left">
+                    <span class="text-[10px] md:text-xs font-display tracking-wider text-emerald-600 dark:text-emerald-400 uppercase bg-emerald-100 dark:bg-emerald-900/40 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-800/50">Part 2</span>
+                    <h2 class="font-display leading-normal text-xl md:text-3xl text-slate-800 dark:text-white mt-1 md:mt-2">ការជ្រើសរើសថ្ងៃខែឆ្នាំ</h2>
+                </div>
+            </div>
+            
+            <p class="text-sm md:text-lg text-slate-600 dark:text-gray-300 mb-6 reveal-up">លោកអ្នកអាចត្រឡប់ទៅមើលទិន្នន័យវត្តមានចាស់ៗ ឬកត់ត្រាវត្តមានសម្រាប់ថ្ងៃណាមួយបានដោយសេរី តាមរយៈការប្តូរកាលបរិច្ឆេទនៅផ្នែកខាងលើ៖</p>
+
+            <div class="image-wrapper mb-8 border-4 border-white dark:border-gray-800 shadow-lg bg-slate-50 dark:bg-gray-900 reveal-scale">
+                <img loading="lazy" src="table-layout-2.png" alt="Date Picker" onerror="this.onerror=null; this.src='https://placehold.co/800x450/1e293b/94a3b8?text=table-layout-2.png'">
+                
+                <div class="pointer-container top-[30%] left-[20%]">
+                    <div class="pointer-down">
+                        <div class="pointer-down-box bg-emerald-600 dark:bg-emerald-500">ចុចទីនេះ ដើម្បីប្តូរថ្ងៃខែ</div>
+                        <div class="pointer-down-arrow border-t-emerald-600 dark:border-t-emerald-500"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gradient-to-r from-emerald-50/80 to-teal-50/80 dark:from-emerald-900/20 dark:to-teal-900/20 p-5 md:p-6 rounded-2xl border border-emerald-100 dark:border-emerald-800/50 flex flex-col sm:flex-row items-start gap-4 md:gap-6 reveal-up">
+                <div class="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-sm shrink-0 hidden sm:block border border-emerald-100 dark:border-emerald-700 cursor-default transition-transform hover:scale-105">
+                    <i data-lucide="calendar-search" class="w-8 h-8 text-emerald-500 dark:text-emerald-400"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-emerald-900 dark:text-emerald-400 mb-3 text-base md:text-xl flex items-center gap-2">
+                        ការផ្លាស់ប្តូរទិន្នន័យដោយស្វ័យប្រវត្តិ
+                    </h3>
+                    <p class="text-sm md:text-base text-slate-700 dark:text-gray-300">
+                        រាល់ពេលដែលលោកអ្នកធ្វើការផ្លាស់ប្តូរថ្ងៃខែ ពណ៌នៃវត្តមាននៅលើប្លង់តុនីមួយៗនឹងផ្លាស់ប្តូរភ្លាមៗទៅតាមទិន្នន័យដែលបានរក្សាទុកក្នុងថ្ងៃនោះ។ <span class="text-rose-500 dark:text-rose-400 italic text-xs md:text-sm">*ចំណាំ៖ ប្រព័ន្ធអាចមិនអនុញ្ញាតឱ្យចុះវត្តមាននៅថ្ងៃអាទិត្យ ឬថ្ងៃឈប់សម្រាកដែលបានចាក់សោ។</span>
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3 -->
+        <section class="section-box border-t-4 border-t-amber-500 dark:border-t-amber-400 reveal-up">
+            <div class="flex items-center gap-4 mb-6 md:mb-8">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0 border border-amber-100 dark:border-amber-800/50 shadow-sm reveal-scale">
+                    <i data-lucide="layout-template" class="w-7 h-7 md:w-8 md:h-8"></i>
+                </div>
+                <div class="reveal-left">
+                    <span class="text-[10px] md:text-xs font-display tracking-wider text-amber-600 dark:text-amber-400 uppercase bg-amber-100 dark:bg-amber-900/40 px-3 py-1 rounded-full border border-amber-200 dark:border-amber-800/50">Part 3 (Important)</span>
+                    <h2 class="font-display leading-normal text-xl md:text-3xl text-slate-800 dark:text-white mt-1 md:mt-2">ការកែសម្រួលប្លង់ថ្នាក់រៀន (Edit Mode)</h2>
+                </div>
+            </div>
+            
+            <p class="text-sm md:text-lg text-slate-600 dark:text-gray-300 mb-6 reveal-up">ដើម្បីប្តូរទម្រង់អង្គុយរបស់សិស្សឱ្យដូចនឹងថ្នាក់រៀនជាក់ស្តែង លោកអ្នកត្រូវចុចប៊ូតុង <strong class="bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 px-2 py-0.5 rounded border border-purple-200 dark:border-purple-800">កែសម្រួលប្លង់</strong> នៅជ្រុងខាងស្តាំខាងលើ នោះផ្ទាំងឧបករណ៍នឹងលេចឡើង៖</p>
+            
+            <div class="image-wrapper mb-8 border-4 border-white dark:border-gray-800 shadow-lg bg-slate-50 dark:bg-gray-900 reveal-scale">
+                <img loading="lazy" src="table-layout-4.png" alt="Edit Mode Layout Tools" onerror="this.onerror=null; this.src='https://placehold.co/800x150/1e293b/94a3b8?text=Edit+Mode+Tools'">
+                
+                <div class="pointer-container top-[-10%] left-[28%]">
+                    <div class="pointer-down">
+                        <div class="pointer-down-box bg-amber-600 dark:bg-amber-500">ប្រភេទប្លង់</div>
+                        <div class="pointer-down-arrow border-t-amber-600 dark:border-t-amber-500"></div>
+                    </div>
+                </div>
+                <div class="pointer-container top-[-10%] left-[46%]">
+                    <div class="pointer-down">
+                        <div class="pointer-down-box bg-sky-600 dark:bg-sky-500">តុសរុប</div>
+                        <div class="pointer-down-arrow border-t-sky-600 dark:border-t-sky-500"></div>
+                    </div>
+                </div>
+                <div class="pointer-container top-[-10%] left-[58%]">
+                    <div class="pointer-down">
+                        <div class="pointer-down-box bg-indigo-600 dark:bg-indigo-500">ចំនួនជួរ</div>
+                        <div class="pointer-down-arrow border-t-indigo-600 dark:border-t-indigo-500"></div>
+                    </div>
+                </div>
+                <div class="pointer-container top-[-10%] left-[73%]">
+                    <div class="pointer-down">
+                        <div class="pointer-down-box bg-rose-600 dark:bg-rose-500">សិស្ស/តុ</div>
+                        <div class="pointer-down-arrow border-t-rose-600 dark:border-t-rose-500"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid lg:grid-cols-3 gap-5">
+                <div tabindex="0" class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow duration-300 reveal-up" style="transition-delay: 100ms;">
+                    <i data-lucide="layout" class="w-10 h-10 text-amber-500 dark:text-amber-400 mb-3"></i>
+                    <h3 class="font-bold text-slate-800 dark:text-white mb-2 text-base">១. ជ្រើសរើសប្រភេទប្លង់</h3>
+                    <p class="text-sm text-slate-600 dark:text-gray-300">មាន៣ជម្រើសធំៗ៖ ប្លង់ធម្មតា(Grid), ប្លង់រាងអក្សរយូ(U-Shape), និងប្លង់អង្គុយជាក្រុមជារង្វង់។</p>
+                </div>
+
+                <div tabindex="0" class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow duration-300 reveal-up" style="transition-delay: 200ms;">
+                    <i data-lucide="grid-3x3" class="w-10 h-10 text-sky-500 dark:text-sky-400 mb-3"></i>
+                    <h3 class="font-bold text-slate-800 dark:text-white mb-2 text-base">២. កំណត់តុ និងជួរ</h3>
+                    <p class="text-sm text-slate-600 dark:text-gray-300">លោកអ្នកអាចកំណត់ចំនួនតុសរុប (ឧ. ២០តុ) និងចំនួនជួរឈរ (ឧ. ៤ជួរ) ទៅតាមទំហំថ្នាក់ជាក់ស្តែង។</p>
+                </div>
+
+                <div tabindex="0" class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow duration-300 reveal-up" style="transition-delay: 300ms;">
+                    <i data-lucide="users" class="w-10 h-10 text-rose-500 dark:text-rose-400 mb-3"></i>
+                    <h3 class="font-bold text-slate-800 dark:text-white mb-2 text-base">៣. ចំនួនសិស្សក្នុងមួយតុ</h3>
+                    <p class="text-sm text-slate-600 dark:text-gray-300">អាចកំណត់ចំនួនកៅអីក្នុងមួយតុបាន ឧទាហរណ៍៖ អង្គុយម្នាក់ឯង, អង្គុយ២នាក់, ឬអង្គុយ៥នាក់ក្នុងមួយក្រុម។</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 4 -->
+        <section class="section-box border-t-4 border-t-sky-500 dark:border-t-sky-400 reveal-up">
+            <div class="flex items-center gap-4 mb-6 md:mb-8">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-sky-50 dark:bg-sky-900/30 flex items-center justify-center text-sky-600 dark:text-sky-400 shrink-0 border border-sky-100 dark:border-sky-800/50 shadow-sm reveal-scale">
+                    <i data-lucide="user-plus" class="w-7 h-7 md:w-8 md:h-8"></i>
+                </div>
+                <div class="reveal-left">
+                    <span class="text-[10px] md:text-xs font-display tracking-wider text-sky-600 dark:text-sky-400 uppercase bg-sky-100 dark:bg-sky-900/40 px-3 py-1 rounded-full border border-sky-200 dark:border-sky-800/50">Part 4</span>
+                    <h2 class="font-display leading-normal text-xl md:text-3xl text-slate-800 dark:text-white mt-1 md:mt-2">ការចាត់ទីតាំងអង្គុយដល់សិស្ស</h2>
+                </div>
+            </div>
+            
+            <p class="text-sm md:text-lg text-slate-600 dark:text-gray-300 mb-6 reveal-up">នៅពេលលោកអ្នកកំពុងស្ថិតក្នុង <strong class="text-sky-600 dark:text-sky-400">មុខងារកែសម្រួលប្លង់ (Edit Mode)</strong> លោកអ្នកអាចចាត់សិស្សចូលតុបានយ៉ាងងាយ៖</p>
+
+            <div class="grid md:grid-cols-2 gap-5">
+                <div tabindex="0" class="bg-gradient-to-br from-blue-50/80 to-sky-50/80 dark:from-blue-900/20 dark:to-sky-900/20 p-5 md:p-6 rounded-2xl border border-blue-100 dark:border-blue-800/50 shadow-sm flex gap-4 group hover:shadow-md focus:outline-none transition-all duration-300 reveal-up" style="transition-delay: 100ms;">
+                    <div class="w-12 h-12 bg-white dark:bg-slate-800 text-sky-600 dark:text-sky-400 rounded-xl flex items-center justify-center shrink-0 border border-dashed border-sky-300 dark:border-sky-600 group-hover:scale-105 transition-transform">
+                        <i data-lucide="plus" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-slate-800 dark:text-white mb-1 text-base">បន្ថែមសិស្សចូលតុ</h3>
+                        <p class="text-sm text-slate-600 dark:text-gray-300">ចុចលើប្រអប់កៅអីទំនេរដែលមានសញ្ញា (+) នោះផ្ទាំងបញ្ជីឈ្មោះសិស្សនឹងលោតឡើងឱ្យលោកអ្នកជ្រើសរើស។</p>
+                    </div>
+                </div>
+
+                <div tabindex="0" class="bg-gradient-to-br from-rose-50/80 to-red-50/80 dark:from-rose-900/20 dark:to-red-900/20 p-5 md:p-6 rounded-2xl border border-rose-100 dark:border-rose-800/50 shadow-sm flex gap-4 group hover:shadow-md focus:outline-none transition-all duration-300 reveal-up" style="transition-delay: 200ms;">
+                    <div class="w-12 h-12 bg-rose-500 dark:bg-rose-600 text-white rounded-full flex items-center justify-center shrink-0">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-slate-800 dark:text-white mb-1 text-base">ដកសិស្សចេញពីតុ</h3>
+                        <p class="text-sm text-slate-600 dark:text-gray-300">យកម៉ៅទៅដាក់លើឈ្មោះសិស្សណាមួយ នោះនឹងមានសញ្ញាខ្វែង (x) ពណ៌ក្រហមលេចឡើងសម្រាប់ដកសិស្សនោះចេញវិញ។</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-6 flex items-start gap-3 bg-blue-50 dark:bg-blue-900/30 p-4 rounded-xl border border-blue-100 dark:border-blue-800/50 reveal-up">
+                <i data-lucide="info" class="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5"></i>
+                <p class="text-sm text-blue-800 dark:text-blue-200">
+                    <strong>កុំភ្លេចរក្សាទុក!</strong> បន្ទាប់ពីរៀបចំប្លង់ និងចាត់សិស្សចូលតុរួចរាល់ សូមចុចប៊ូតុង <strong>រក្សាទុក</strong> ពណ៌ខៀវ ដើម្បីបញ្ចប់ការកែសម្រួល។
+                </p>
+            </div>
+        </section>
+
+        <!-- Section 5: Video Tutorial -->
+        <section class="section-box border-t-4 border-t-rose-500 dark:border-t-rose-400 reveal-up">
+            <div class="flex items-center gap-4 mb-6 md:mb-8">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-rose-50 dark:bg-rose-900/30 flex items-center justify-center text-rose-600 dark:text-rose-400 shrink-0 border border-rose-100 dark:border-rose-800/50 shadow-sm reveal-scale">
+                    <i data-lucide="play-circle" class="w-7 h-7 md:w-8 md:h-8"></i>
+                </div>
+                <div class="reveal-left">
+                    <span class="text-[10px] md:text-xs font-display tracking-wider text-rose-600 dark:text-rose-400 uppercase bg-rose-100 dark:bg-rose-900/40 px-3 py-1 rounded-full border border-rose-200 dark:border-rose-800/50">Part 5</span>
+                    <h2 class="font-display leading-normal text-xl md:text-3xl text-slate-800 dark:text-white mt-1 md:mt-2">វីដេអូណែនាំការប្រើប្រាស់</h2>
+                </div>
+            </div>
+            
+            <p class="text-sm md:text-lg text-slate-600 dark:text-gray-300 mb-6 reveal-up">ដើម្បីស្វែងយល់កាន់តែច្បាស់ និងការអនុវត្តជាក់ស្តែងពីរបៀបប្រើប្រាស់មុខងារចុះវត្តមានតាមប្លង់តុនេះ សូមទស្សនាវីដេអូណែនាំខាងក្រោម៖</p>
+
+            <div class="relative w-full aspect-video rounded-2xl overflow-hidden border-4 border-white dark:border-gray-800 shadow-lg reveal-scale bg-slate-100 dark:bg-slate-800">
+                <iframe 
+                    class="absolute top-0 left-0 w-full h-full" 
+                    src="https://www.youtube.com/embed/ZfG2p2gqHqE" 
+                    title="YouTube video player" 
+                    frameborder="0" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                    allowfullscreen>
+                </iframe>
+            </div>
+
+            <div class="mt-8 flex justify-center reveal-up">
+                <a href="https://youtu.be/ZfG2p2gqHqE?list=RDdwI_qpm0PQ4" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 bg-rose-500 hover:bg-rose-600 text-white px-6 py-3 rounded-full font-bold shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-rose-300 dark:focus:ring-rose-800">
+                    <i data-lucide="external-link" class="w-5 h-5"></i>
+                    ចូលមើលផ្ទាល់នៅលើ YouTube
+                </a>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="mt-20 pb-16 text-center relative z-10">
+            <div class="w-20 h-1.5 bg-gradient-to-r from-blue-400 to-indigo-500 mx-auto rounded-full mb-8 shadow-sm reveal-scale"></div>
+            
+            <h3 class="font-display text-3xl md:text-4xl text-slate-800 dark:text-white mb-4 flex justify-center items-center gap-3 reveal-up">
+                <i data-lucide="party-popper" class="w-8 h-8 text-blue-500"></i> រួចរាល់ហើយ!
+            </h3>
+            <p class="text-slate-500 dark:text-gray-400 mb-12 max-w-2xl mx-auto text-sm md:text-base reveal-up" style="transition-delay: 100ms;">ប្រព័ន្ធចុះវត្តមានតាមប្លង់តុនេះ ត្រូវបានរចនាឡើងដើម្បីជួយលោកគ្រូអ្នកគ្រូមើលឃើញទិដ្ឋភាពថ្នាក់រៀនទាំងមូលកាន់តែច្បាស់ និងកត់ត្រាវត្តមានបានលឿនជាងមុន។</p>
+            
+            <!-- Card Footer -->
+            <a href="https://portfolio-ron-raksmey.netlify.app/" target="_blank" rel="noopener noreferrer" class="inline-block bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-lg border border-slate-200 dark:border-slate-700 max-w-sm w-full relative overflow-hidden group hover:shadow-xl hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-indigo-300 dark:focus:ring-indigo-600 transition-all duration-300 cursor-pointer reveal-scale" style="transition-delay: 200ms;">
+                <!-- Top Gradient Line -->
+                <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-400"></div>
+                
+                <div class="flex flex-col items-center">
+                    <div class="w-28 h-28 rounded-full border-4 border-white dark:border-slate-700 shadow-md overflow-hidden mb-5 relative bg-slate-100 dark:bg-slate-900">
+                        <img loading="lazy" src="../enrollment/RON-RAKSMEY.png" alt="Profile" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://placehold.co/150x150/1e293b/94a3b8?text=Profile'">
+                    </div>
+                    
+                    <p class="text-[11px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-bold mb-2 flex items-center gap-1 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors">
+                        <i data-lucide="code-2" class="w-3 h-3"></i> Developed By
+                    </p>
+                    <h4 class="font-display text-xl text-slate-800 dark:text-white mb-1 group-hover:text-indigo-700 dark:group-hover:text-indigo-400 transition-colors">គរុនិស្សិត រុន រស្មី</h4>
+                    <span class="text-xs text-slate-500 dark:text-gray-400 mt-2 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-4 py-1.5 rounded-full font-medium">
+                        <i data-lucide="graduation-cap" class="w-3.5 h-3.5 inline-block mb-0.5 mr-1"></i> ជំនាន់ទី៤
+                    </span>
+                </div>
+            </a>
+            
+            <div class="mt-12 text-sm text-slate-400 dark:text-slate-500 font-medium reveal-up" style="transition-delay: 300ms;">
+                &copy; 2026 Krusmart. រក្សាសិទ្ធិគ្រប់យ៉ាង។
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- Initialization Scripts -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize Lucide Icons
+            lucide.createIcons();
+
+            // -------------------------------------------------------------
+            // Iframe Sync & Standalone Theme Logic
+            // -------------------------------------------------------------
+            const isIframe = document.documentElement.classList.contains('is-iframe');
+            
+            // Sync theme changes LIVE from the parent document (tutorial.html)
+            if (isIframe) {
+                try {
+                    if (window.parent && window.parent.document) {
+                        const observer = new MutationObserver((mutations) => {
+                            mutations.forEach((mutation) => {
+                                if (mutation.attributeName === 'class') {
+                                    if (window.parent.document.documentElement.classList.contains('dark')) {
+                                        document.documentElement.classList.add('dark');
+                                    } else {
+                                        document.documentElement.classList.remove('dark');
+                                    }
+                                }
+                            });
+                        });
+                        observer.observe(window.parent.document.documentElement, { attributes: true });
+                    }
+                } catch (e) {
+                    // Ignore CORS errors if parent is inaccessible
+                }
+            }
+
+            // Fallback Storage Event (works across tabs if same origin)
+            window.addEventListener('storage', (event) => {
+                if (event.key === 'color-theme') {
+                    if (event.newValue === 'dark') {
+                        document.documentElement.classList.add('dark');
+                    } else {
+                        document.documentElement.classList.remove('dark');
+                    }
+                }
+            });
+
+            // -------------------------------------------------------------
+            // Intersection Observer for Scroll Reveals
+            // -------------------------------------------------------------
+            // Simplified threshold for better performance
+            const observerOptions = {
+                root: null,
+                rootMargin: '0px',
+                threshold: 0.05 
+            };
+
+            const observer = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('reveal-visible');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, observerOptions);
+
+            const revealElements = document.querySelectorAll('.reveal-up, .reveal-left, .reveal-scale');
+            revealElements.forEach(el => observer.observe(el));
+
+            const staggerContainers = document.querySelectorAll('.stagger-container');
+            staggerContainers.forEach(container => {
+                const listItems = container.querySelectorAll('li');
+                listItems.forEach((item, index) => {
+                    item.classList.add('reveal-left');
+                    // Ensure max delay isn't too long to prevent empty areas when scrolling fast
+                    item.style.transitionDelay = `${(index % 5) * 100}ms`; 
+                    observer.observe(item);
+                });
+            });
+        });
+    </script>
+</body>
+</html>

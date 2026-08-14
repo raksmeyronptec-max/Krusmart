@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PTEC - សៀវភៅណែនាំបញ្ចូលព័ត៌មានសិស្ស</title>
+    <!-- Optimized: Use script defer for Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@300;400;600;700&family=Moul&display=swap" rel="stylesheet">
+    
+    <script>
+        let isDark = false;
+        if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            isDark = true;
+        }
+        try {
+            if (window.self !== window.top) {
+                document.documentElement.classList.add('is-iframe');
+                if (window.parent && window.parent.document) {
+                    isDark = window.parent.document.documentElement.classList.contains('dark');
+                }
+            }
+        } catch (e) {
+            document.documentElement.classList.add('is-iframe');
+        }
+        if (isDark) { document.documentElement.classList.add('dark'); } 
+        else { document.documentElement.classList.remove('dark'); }
+    </script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Khmer OS Content', 'sans-serif'],
+                        display: ['Moul', 'cursive'],
+                    },
+                    colors: {
+                        primary: '#0054a6',
+                        secondary: '#4facfe',
+                    },
+                    /* Optimized: Removed constant heavy floating, replaced with lightweight hover transforms */
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Base Theme Colors */
+        .dark body { background: #0f172a; }
+        body:not(.dark) { background: #f0f4f8; }
+        
+        html.is-iframe body { background: transparent !important; }
+        html.is-iframe #standalone-bg-animate { display: none !important; }
+
+        body { 
+            line-height: 1.8; 
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* OPTIMIZED 1: Replaced heavy animated background with a static, beautiful multi-color gradient */
+        /* This saves massive amounts of CPU/GPU rendering power */
+        .bg-animate { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -2; 
+            background: radial-gradient(circle at 10% 20%, #e0e7ff 0%, transparent 50%), 
+                        radial-gradient(circle at 90% 80%, #dcfce7 0%, transparent 50%), 
+                        radial-gradient(circle at 50% 50%, #fef3c7 0%, transparent 60%);
+            background-color: #f0f4f8;
+        }
+        
+        .dark .bg-animate { 
+            background: radial-gradient(circle at 10% 20%, #1e1b4b 0%, transparent 50%), 
+                        radial-gradient(circle at 90% 80%, #064e3b 0%, transparent 50%), 
+                        radial-gradient(circle at 50% 50%, #451a03 0%, transparent 60%);
+            background-color: #0f172a;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+        .dark ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        
+        .kbd-key { 
+            background: linear-gradient(180deg, #f8fafc, #f1f5f9);
+            border: 1px solid #cbd5e1; 
+            border-bottom: 2px solid #94a3b8; 
+            border-radius: 6px; 
+            padding: 2px 8px; 
+            font-weight: 600; 
+            color: #475569; 
+            font-size: 0.85em; 
+            display: inline-block; 
+            font-family: ui-monospace, SFMono-Regular, monospace;
+        }
+        .dark .kbd-key {
+            background: linear-gradient(180deg, #1e293b, #0f172a);
+            border-color: #334155;
+            border-bottom-color: #475569;
+            color: #cbd5e1;
+        }
+        
+        /* OPTIMIZED 2: Reduced backdrop-filter blur and increased background opacity */
+        /* Blur is very expensive. Lowering it or relying on opacity makes scrolling smoother. */
+        .section-box { 
+            background: rgba(255, 255, 255, 0.92); 
+            backdrop-filter: blur(4px); /* Reduced from 12px */
+            -webkit-backdrop-filter: blur(4px);
+            padding: 24px; 
+            border-radius: 24px; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            margin-bottom: 32px; 
+            border: 1px solid rgba(255, 255, 255, 0.8); 
+            position: relative; 
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .dark .section-box {
+            background: rgba(30, 41, 59, 0.92);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+        .section-box:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+            transform: translateY(-2px);
+        }
+        .dark .section-box:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+        }
+
+        @media (min-width: 768px) {
+            .section-box { padding: 40px; border-radius: 32px; margin-bottom: 48px; }
+        }
+
+        /* OPTIMIZED 3: Replaced animated conic-gradient border with static styling */
+        .hero-icon-wrapper {
+            position: relative;
+            padding: 10px;
+            border-radius: 50%;
+            overflow: hidden;
+            display: inline-block;
+            background: rgba(0, 84, 166, 0.1);
+            border: 2px solid #0054a6;
+            transition: transform 0.3s ease, background 0.3s ease;
+        }
+        .dark .hero-icon-wrapper { 
+            background: rgba(79, 172, 254, 0.1);
+            border-color: #4facfe;
+        }
+        .group:hover .hero-icon-wrapper { 
+            transform: scale(1.05);
+            background: rgba(0, 84, 166, 0.2); 
+        }
+        .dark .group:hover .hero-icon-wrapper { 
+            background: rgba(79, 172, 254, 0.2); 
+        }
+        
+        .hero-icon-inner {
+            background: white;
+            border-radius: 50%;
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
+        }
+        .dark .hero-icon-inner { background: #1e293b; }
+
+        .image-wrapper { 
+            position: relative; 
+            width: 100%; 
+            height: auto; 
+            display: block; 
+            border-radius: 20px; 
+            transition: transform 0.3s ease;
+        }
+        .image-wrapper:hover {
+            transform: translateY(-4px); 
+        }
+        .image-wrapper img { 
+            width: 100%; 
+            height: auto; 
+            display: block; 
+            object-fit: contain; 
+            border-radius: 16px; 
+            background: #fff; /* Fallback */
+        }
+        .dark .image-wrapper img { background: #1e293b; }
+
+        /* OPTIMIZED 4: Removed expensive drop-shadow filter on animated elements */
+        .pointer-container { position: absolute; z-index: 10; pointer-events: none; }
+        
+        .pointer-down { display: flex; flex-direction: column; align-items: center; animation: bounce-down 2s infinite ease-in-out; }
+        .pointer-down-box { 
+            padding: 8px 14px; border-radius: 12px; font-weight: 700; font-size: 13px; color: white; text-align: center; white-space: nowrap; line-height: 1.4; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2); /* Used box-shadow instead of filter: drop-shadow */
+        }
+        .pointer-down-arrow { width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 12px solid; }
+
+        .pointer-right { display: flex; align-items: center; animation: bounce-right 2s infinite ease-in-out; }
+        .pointer-right-box { 
+            padding: 8px 14px; border-radius: 12px; font-weight: 700; font-size: 13px; color: white; text-align: center; white-space: nowrap; line-height: 1.4; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+        .pointer-right-arrow { width: 0; height: 0; border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-left: 12px solid; }
+
+        /* Smoother, less extreme bounce */
+        @keyframes bounce-down { 0%, 100% { transform: translate(-50%, -5%); } 50% { transform: translate(-50%, 5%); } }
+        @keyframes bounce-right { 0%, 100% { transform: translate(-5%, -50%); } 50% { transform: translate(5%, -50%); } }
+
+        @media (max-width: 1024px) {
+            .pointer-down-box, .pointer-right-box { font-size: 11px; padding: 6px 12px; max-width: 120px; white-space: normal; }
+        }
+        @media (max-width: 767px) {
+            .pointer-down-box, .pointer-right-box { font-size: 9px; padding: 4px 8px; max-width: 90px; border-radius: 8px; }
+            .pointer-down-arrow { border-left-width: 6px; border-right-width: 6px; border-top-width: 8px; }
+            .pointer-right-arrow { border-top-width: 6px; border-bottom-width: 6px; border-left-width: 8px; }
+        }
+        @media (max-width: 479px) {
+            .pointer-down-box, .pointer-right-box { font-size: 8px; padding: 3px 6px; max-width: 75px; border-radius: 6px; }
+            .pointer-down-arrow { border-left-width: 5px; border-right-width: 5px; border-top-width: 6px; }
+            .pointer-right-arrow { border-top-width: 5px; border-bottom-width: 5px; border-left-width: 6px; }
+        }
+
+        /* OPTIMIZED 5: Static gradient text. Still looks great, zero performance cost */
+        .animate-gradient-text {
+            background: linear-gradient(90deg, #0054a6, #4facfe, #0054a6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .dark .animate-gradient-text {
+            background: linear-gradient(90deg, #4facfe, #a855f7, #4facfe);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Optimize intersection observer classes */
+        .reveal-up { opacity: 0; transform: translateY(20px); transition: opacity 0.6s ease-out, transform 0.6s ease-out; will-change: opacity, transform; }
+        .reveal-left { opacity: 0; transform: translateX(-20px); transition: opacity 0.6s ease-out, transform 0.6s ease-out; will-change: opacity, transform; }
+        .reveal-scale { opacity: 0; transform: scale(0.98); transition: opacity 0.6s ease-out, transform 0.6s ease-out; will-change: opacity, transform; }
+        .reveal-visible { opacity: 1; transform: translate(0) scale(1); }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, ::before, ::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+            .reveal-up, .reveal-left, .reveal-scale { opacity: 1 !important; transform: none !important; }
+            .section-box:hover, .image-wrapper:hover { transform: none !important; }
+        }
+    </style>
+</head>
+<body class="text-slate-800 dark:text-gray-100 transition-colors duration-300 p-4 sm:p-6 md:p-8 lg:p-12 min-h-screen relative font-sans">
+
+    <!-- Static, highly optimized background -->
+    <div class="bg-animate" aria-hidden="true" id="standalone-bg-animate"></div>
+
+    <div class="max-w-5xl mx-auto relative z-10">
+        
+        <!-- Header Section -->
+        <header class="text-center mb-12 md:mb-16 relative pt-8">
+            <a href="/enrollment" target="_parent" class="group inline-block mb-6 relative cursor-pointer focus:outline-none focus:ring-4 focus:ring-blue-300 rounded-full reveal-scale">
+                <div class="hero-icon-wrapper">
+                    <div class="hero-icon-inner">
+                        <i data-lucide="user-plus" class="w-10 h-10 md:w-12 md:h-12 text-primary dark:text-secondary group-hover:scale-110 transition-transform duration-300"></i>
+                    </div>
+                </div>
+                <div class="absolute -bottom-4 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap z-20">
+                     <span class="text-xs font-bold text-blue-700 dark:text-blue-200 bg-blue-50 dark:bg-blue-900 px-3 py-1.5 rounded-full border border-blue-200 dark:border-blue-700 shadow-md">ចូលទៅកាន់ប្រព័ន្ធ</span>
+                </div>
+            </a>
+            
+            <h1 class="font-display text-3xl md:text-5xl lg:text-6xl animate-gradient-text mb-4 leading-normal reveal-up" style="transition-delay: 100ms;">Introduction To Enrollment</h1>
+            
+            <p class="text-lg md:text-xl text-slate-600 dark:text-gray-300 font-medium max-w-2xl mx-auto mb-8 reveal-up" style="transition-delay: 200ms;">
+                សៀវភៅណែនាំងាយស្រួលយល់សម្រាប់ការគ្រប់គ្រងទិន្នន័យសិស្ស
+            </p>
+            <div class="flex justify-center mb-8 reveal-up" style="transition-delay: 250ms;">
+                <a href="#video-tutorial" class="inline-flex items-center gap-2.5 bg-[#e11d48] hover:bg-[#be123c] text-white px-8 py-3.5 rounded-full font-display text-lg md:text-xl shadow-lg transition-all duration-300 hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-rose-300 dark:focus:ring-rose-800 tracking-wide">
+                    <svg class="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                    </svg>
+                    ទស្សនាវីដេអូណែនាំ
+                </a>
+            </div>
+            
+            <!-- Simplified Badge -->
+            <div class="inline-flex items-center gap-3 px-5 py-2.5 rounded-full bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 shadow-sm reveal-up cursor-default" style="transition-delay: 300ms;">
+                <span class="relative flex h-3 w-3">
+                  <span class="absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75 animate-pulse"></span>
+                  <span class="relative inline-flex rounded-full h-3 w-3 bg-primary dark:bg-secondary"></span>
+                </span>
+                <p class="text-slate-700 dark:text-gray-200 text-sm md:text-lg font-bold">
+                    ប្រព័ន្ធគ្រប់គ្រង និងបញ្ចូលទិន្នន័យសិស្ស (ជំនាន់ ២.០)
+                </p>
+            </div>
+        </header>
+
+        <!-- Section 1 -->
+        <section class="section-box border-t-4 border-t-indigo-500 dark:border-t-indigo-400 reveal-up">
+            <div class="flex items-center gap-4 mb-6 md:mb-8">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0 border border-indigo-100 dark:border-indigo-800/50 reveal-scale">
+                    <i data-lucide="file-edit" class="w-7 h-7 md:w-8 md:h-8"></i>
+                </div>
+                <div class="reveal-left">
+                    <span class="text-[10px] md:text-xs font-display tracking-wider text-indigo-600 dark:text-indigo-400 uppercase bg-indigo-100 dark:bg-indigo-900/40 px-3 py-1 rounded-full border border-indigo-200 dark:border-indigo-800/50">Part 1</span>
+                    <h2 class="text-xl md:text-3xl font-display text-slate-800 dark:text-white mt-1 md:mt-2">ការបំពេញព័ត៌មានមូលដ្ឋាន</h2>
+                </div>
+            </div>
+            
+            <p class="text-sm md:text-lg font-medium text-slate-600 dark:text-gray-300 mb-6 reveal-up">ដើម្បីបញ្ចូលសិស្សថ្មី លោកអ្នកត្រូវបំពេញព័ត៌មានសំខាន់ៗមួយចំនួន។ សូមកត់សម្គាល់ថា ប្រអប់ដែលមានសញ្ញាផ្កាយ <strong class="text-rose-500 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/30 px-2 py-0.5 rounded border border-rose-100 dark:border-rose-800/50">(*)</strong> គឺជាព័ត៌មានចាំបាច់ដែលមិនអាចរំលងបាន៖</p>
+            
+            <!-- Optimized: Added loading="lazy" to all images -->
+            <div class="image-wrapper mb-8 border border-slate-200 dark:border-gray-700 shadow-sm bg-slate-50 dark:bg-gray-900 reveal-scale p-1">
+                <img src="1_enrollment.png" alt="Basic Info" loading="lazy" onerror="this.onerror=null; this.src='https://placehold.co/800x400/1e293b/94a3b8?text=1_enrollment.png'">
+                
+                <div class="pointer-container top-[25%] left-[37%]">
+                    <div class="pointer-down">
+                        <div class="pointer-down-box bg-indigo-600 dark:bg-indigo-500">១. បញ្ចូលអត្តលេខ</div>
+                        <div class="pointer-down-arrow border-t-indigo-600 dark:border-t-indigo-500"></div>
+                    </div>
+                </div>
+                <div class="pointer-container top-[25%] left-[57%]">
+                    <div class="pointer-down">
+                        <div class="pointer-down-box bg-indigo-600 dark:bg-indigo-500">២. បញ្ចូលថ្នាក់ទី</div>
+                        <div class="pointer-down-arrow border-t-indigo-600 dark:border-t-indigo-500"></div>
+                    </div>
+                </div>
+                <div class="pointer-container top-[25%] left-[77%]">
+                    <div class="pointer-down">
+                        <div class="pointer-down-box bg-indigo-600 dark:bg-indigo-500">៣. បញ្ចូលឈ្មោះសិស្ស</div>
+                        <div class="pointer-down-arrow border-t-indigo-600 dark:border-t-indigo-500"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-indigo-50 dark:bg-indigo-900/20 p-5 md:p-6 rounded-2xl border border-indigo-100 dark:border-indigo-800/50 reveal-up">
+                <ul class="list-disc pl-5 md:pl-8 space-y-3 md:space-y-4 text-sm md:text-base text-slate-700 dark:text-gray-300 stagger-container">
+                    <li><strong class="text-indigo-700 dark:text-indigo-400">អត្តលេខ*:</strong> ជាលេខសម្គាល់សិស្ស (Student ID)។ ឧទាហរណ៍៖ ០០១, ០០២...</li>
+                    <li><strong class="text-indigo-700 dark:text-indigo-400">ថ្នាក់ទី*:</strong> បញ្ចូលកម្រិតថ្នាក់ដែលសិស្សកំពុងរៀន ឧទាហរណ៍៖ <kbd class="kbd-key text-[12px] md:text-[14px]">១ក</kbd>។</li>
+                    <li><strong class="text-indigo-700 dark:text-indigo-400">ឈ្មោះសិស្ស* និង ភេទ*:</strong> វាយបញ្ចូលឈ្មោះពេញ និងជ្រើសរើសភេទ (ប្រុស/ស្រី) ពីបញ្ជីទម្លាក់ចុះ។</li>
+                    <li><strong class="text-indigo-700 dark:text-indigo-400">ថ្ងៃខែឆ្នាំកំណើត*:</strong> ចុចលើប្រអប់ដើម្បីជ្រើសរើសថ្ងៃខែឆ្នាំកំណើតចេញពីប្រតិទិន។</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Section 2 -->
+        <section class="section-box border-t-4 border-t-emerald-500 dark:border-t-emerald-400 reveal-up">
+            <div class="flex items-center gap-4 mb-6 md:mb-8">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0 border border-emerald-100 dark:border-emerald-800/50 reveal-scale">
+                    <i data-lucide="image" class="w-7 h-7 md:w-8 md:h-8"></i>
+                </div>
+                <div class="reveal-left">
+                    <span class="text-[10px] md:text-xs font-bold tracking-wider text-emerald-600 dark:text-emerald-400 uppercase bg-emerald-100 dark:bg-emerald-900/40 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-800/50">Part 2</span>
+                    <h2 class="text-xl md:text-3xl font-display text-slate-800 dark:text-white mt-1 md:mt-2">ការកំណត់រូបថតតំណាង (Profile Photo)</h2>
+                </div>
+            </div>
+            
+            <p class="text-sm md:text-lg font-medium text-slate-600 dark:text-gray-300 mb-6 reveal-up">ប្រព័ន្ធផ្តល់ជម្រើស ៣ យ៉ាងក្នុងការកំណត់រូបថតឱ្យសិស្ស ដែលមានទីតាំងនៅខាងឆ្វេងដៃបំផុត៖</p>
+
+            <div class="image-wrapper mb-8 border border-slate-200 dark:border-gray-700 shadow-sm bg-slate-50 dark:bg-gray-900 reveal-scale p-1">
+                <img src="1_enrollment.png" alt="Avatar Selection" loading="lazy" onerror="this.onerror=null; this.src='https://placehold.co/800x400/1e293b/94a3b8?text=1_enrollment.png'">
+                
+                <div class="pointer-container top-[53%] left-[5%]">
+                    <div class="pointer-right">
+                        <div class="pointer-right-box bg-emerald-600 dark:bg-emerald-500">១. ជ្រើសរូបតុក្កតាស្រាប់ៗ</div>
+                        <div class="pointer-right-arrow border-l-emerald-600 dark:border-l-emerald-500"></div>
+                    </div>
+                </div>
+                <div class="pointer-container top-[59%] left-[5%]">
+                    <div class="pointer-right">
+                        <div class="pointer-right-box bg-blue-600 dark:bg-blue-500">២. ជ្រើសរូបផ្ទាល់ពីទូរស័ព្ទ</div>
+                        <div class="pointer-right-arrow border-l-blue-600 dark:border-l-blue-500"></div>
+                    </div>
+                </div>
+                <div class="pointer-container top-[65%] left-[5%]">
+                    <div class="pointer-right">
+                        <div class="pointer-right-box bg-slate-800 dark:bg-slate-700">៣. ទាញយករូបពី URL</div>
+                        <div class="pointer-right-arrow border-l-slate-800 dark:border-l-slate-700"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-5 md:gap-8 items-center">
+                <div class="space-y-4">
+                    <div tabindex="0" class="bg-white dark:bg-slate-800 p-4 md:p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-400 transition-all transform hover:-translate-y-1 group reveal-left" style="transition-delay: 100ms;">
+                        <h3 class="font-bold text-emerald-700 dark:text-emerald-400 mb-2 border-b border-slate-100 dark:border-slate-700 pb-2 text-base md:text-lg flex items-center gap-2">
+                            <i data-lucide="bot" class="w-5 h-5 group-hover:scale-110 transition-transform"></i> ១. ជ្រើសរូបតុក្កតា (Avatars)
+                        </h3>
+                        <p class="text-sm md:text-base text-slate-600 dark:text-gray-300">ចុចប៊ូតុងនេះ ផ្ទាំងមួយនឹងលោតឡើងបង្ហាញរូបតុក្កតាដ៏ស្រស់ស្អាតជាច្រើន (បង្កើតដោយ AI) ដើម្បីយកមកធ្វើជារូបតំណាងសិស្សបានយ៉ាងឆាប់រហ័ស។</p>
+                    </div>
+                    <div tabindex="0" class="bg-white dark:bg-slate-800 p-4 md:p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all transform hover:-translate-y-1 group reveal-left" style="transition-delay: 200ms;">
+                        <h3 class="font-bold text-blue-700 dark:text-blue-400 mb-2 border-b border-slate-100 dark:border-slate-700 pb-2 text-base md:text-lg flex items-center gap-2">
+                            <i data-lucide="upload-cloud" class="w-5 h-5 group-hover:-translate-y-1 transition-transform"></i> ២. ជ្រើសរូបផ្ទាល់ (Upload)
+                        </h3>
+                        <p class="text-sm md:text-base text-slate-600 dark:text-gray-300">ទាញយករូបថតពីក្នុងទូរស័ព្ទ ឬកុំព្យូទ័រ។ <span class="text-rose-500 dark:text-rose-400 italic block mt-2 bg-rose-50 dark:bg-rose-900/30 px-2 py-1 rounded inline-block text-xs md:text-sm">*ទំហំមិនត្រូវលើសពី 2MB។</span></p>
+                    </div>
+                </div>
+                
+                <div class="flex justify-center p-2 relative reveal-scale" style="transition-delay: 300ms;">
+                    <img src="2_enrollment.png" alt="Avatar Grid" loading="lazy" class="w-full max-w-sm rounded-2xl border border-slate-200 dark:border-slate-700 shadow-md transform md:rotate-2 hover:rotate-0 transition-transform duration-300 relative z-10 p-1 bg-white dark:bg-slate-800" onerror="this.onerror=null; this.src='https://placehold.co/400x300/1e293b/94a3b8?text=2_enrollment.png'">
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3 -->
+        <section class="section-box border-t-4 border-t-amber-500 dark:border-t-amber-400 reveal-up">
+            <div class="flex items-center gap-4 mb-6 md:mb-8">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0 border border-amber-100 dark:border-amber-800/50 reveal-scale">
+                    <i data-lucide="map-pin" class="w-7 h-7 md:w-8 md:h-8"></i>
+                </div>
+                <div class="reveal-left">
+                    <span class="text-[10px] md:text-xs font-bold tracking-wider text-amber-600 dark:text-amber-400 uppercase bg-amber-100 dark:bg-amber-900/40 px-3 py-1 rounded-full border border-amber-200 dark:border-amber-800/50">Part 3</span>
+                    <h2 class="text-xl md:text-3xl font-display text-slate-800 dark:text-white mt-1 md:mt-2">ការបញ្ចូលទីតាំងភូមិសាស្ត្រឆ្លាតវៃ</h2>
+                </div>
+            </div>
+            
+            <p class="text-sm md:text-lg font-medium text-slate-600 dark:text-gray-300 mb-6 reveal-up">នៅពេលលោកអ្នកបំពេញទីកន្លែងកំណើត ឬទីកន្លែងបច្ចុប្បន្ន លោកអ្នកមិនចាំបាច់វាយអត្ថបទវែងៗនោះទេ៖</p>
+
+            <div class="image-wrapper mb-8 border border-slate-200 dark:border-gray-700 shadow-sm bg-slate-50 dark:bg-gray-900 reveal-scale p-1">
+                <img src="3_enrollment.png" alt="Smart Location" loading="lazy" onerror="this.onerror=null; this.src='https://placehold.co/800x400/1e293b/94a3b8?text=3_enrollment.png'">
+                
+                <div class="pointer-container top-[21%] left-[37%]">
+                    <div class="pointer-down">
+                        <div class="pointer-down-box bg-amber-600 dark:bg-amber-500">វាយអក្សរ១-២តួ ទីនេះមុខគេ</div>
+                        <div class="pointer-down-arrow border-t-amber-600 dark:border-t-amber-500"></div>
+                    </div>
+                </div>
+                
+                <div class="pointer-container top-[21%] left-[56%] opacity-95">
+                    <div class="pointer-down">
+                        <div class="pointer-down-box bg-slate-700 dark:bg-slate-600">វានឹងទម្លាក់ជម្រើសស្វ័យប្រវត្តិ</div>
+                        <div class="pointer-down-arrow border-t-slate-700 dark:border-t-slate-600"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-amber-50 dark:bg-amber-900/20 p-5 md:p-6 rounded-2xl border border-amber-100 dark:border-amber-800/50 flex flex-col sm:flex-row items-start gap-4 md:gap-6 reveal-up">
+                <div class="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-sm shrink-0 hidden sm:block border border-amber-100 dark:border-amber-700">
+                    <i data-lucide="search" class="w-8 h-8 text-amber-500 dark:text-amber-400"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-amber-900 dark:text-amber-400 mb-3 text-base md:text-xl flex items-center gap-2">
+                        <i data-lucide="search" class="w-5 h-5 text-amber-500 sm:hidden"></i>
+                        ប្រព័ន្ធទាញទិន្នន័យស្វ័យប្រវត្តិ (Autocomplete)
+                    </h3>
+                    <ul class="list-disc pl-5 mt-2 text-sm md:text-base text-slate-700 dark:text-gray-300 space-y-3 stagger-container">
+                        <li><strong>របៀបប្រើប្រាស់៖</strong> គ្រាន់តែវាយបញ្ចូលអក្សរ ១ ឬ ២ តួ នៅត្រង់ប្រអប់ <strong class="bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 rounded text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">រាជធានី/ខេត្ត</strong> នោះបញ្ជីឈ្មោះខេត្តនឹងលោតទម្លាក់ចុះមក។</li>
+                        <li><strong>ភាពប្រទាក់ក្រឡា (Cascading):</strong> បន្ទាប់ពីជ្រើសរើស ខេត្ត រួច ប្រអប់ <strong class="bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 rounded text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">ស្រុក/ខណ្ឌ</strong> នឹងបង្ហាញតែឈ្មោះស្រុកណាដែលនៅក្នុងខេត្តនោះប៉ុណ្ណោះ។</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 4 -->
+        <section class="section-box border-t-4 border-t-sky-500 dark:border-t-sky-400 reveal-up">
+            <div class="flex items-center gap-4 mb-6 md:mb-8">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-sky-50 dark:bg-sky-900/30 flex items-center justify-center text-sky-600 dark:text-sky-400 shrink-0 border border-sky-100 dark:border-sky-800/50 reveal-scale">
+                    <i data-lucide="file-spreadsheet" class="w-7 h-7 md:w-8 md:h-8"></i>
+                </div>
+                <div class="reveal-left">
+                    <span class="text-[10px] md:text-xs font-bold tracking-wider text-sky-600 dark:text-sky-400 uppercase bg-sky-100 dark:bg-sky-900/40 px-3 py-1 rounded-full border border-sky-200 dark:border-sky-800/50">Part 4 (Important)</span>
+                    <h2 class="text-xl md:text-3xl font-display text-slate-800 dark:text-white mt-1 md:mt-2">ការនាំចូល និងទាញយកឯកសារ Excel</h2>
+                </div>
+            </div>
+            
+            <p class="text-sm md:text-lg font-medium text-slate-600 dark:text-gray-300 mb-6 reveal-up">ដើម្បីសន្សំពេលវេលា ប្រព័ន្ធអនុញ្ញាតឱ្យលោកអ្នកបញ្ចូលសិស្សរាប់រយនាក់ក្នុងពេលតែមួយតាមរយៈឯកសារ Excel៖</p>
+            
+            <div class="image-wrapper mb-8 border border-slate-200 dark:border-gray-700 shadow-sm bg-slate-50 dark:bg-gray-900 reveal-scale p-1">
+                <img src="5_enrollment.png" alt="Excel Import Export" loading="lazy" onerror="this.onerror=null; this.src='https://placehold.co/800x400/1e293b/94a3b8?text=5_enrollment.png'">
+                
+                <div class="pointer-container top-[79%] left-[31%]">
+                    <div class="pointer-down">
+                        <div class="pointer-down-box bg-[#2653e7] dark:bg-blue-600">១. ទាញយកគំរូសិន</div>
+                        <div class="pointer-down-arrow border-t-[#2653e7] dark:border-t-blue-600"></div>
+                    </div>
+                </div>
+                
+                <div class="pointer-container top-[79%] left-[48%]">
+                    <div class="pointer-down">
+                        <div class="pointer-down-box bg-[#df4b06] dark:bg-orange-600">២. នាំចូលឯកសារ</div>
+                        <div class="pointer-down-arrow border-t-[#df4b06] dark:border-t-orange-600"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid lg:grid-cols-2 gap-5">
+                <div tabindex="0" class="bg-blue-50 dark:bg-blue-900/20 p-5 md:p-6 rounded-2xl border border-blue-100 dark:border-blue-800/50 shadow-sm group hover:-translate-y-1 transition-transform duration-300 reveal-up" style="transition-delay: 100ms;">
+                    <h3 class="font-bold text-blue-900 dark:text-blue-300 mb-3 text-base md:text-xl flex items-center gap-2">
+                        <span class="bg-blue-600 dark:bg-blue-500 text-white w-6 h-6 rounded-full inline-flex items-center justify-center text-sm shadow-sm group-hover:scale-110 transition-transform">1</span> 
+                        ទាញយកគំរូ Excel
+                    </h3>
+                    <p class="text-sm md:text-base text-slate-700 dark:text-gray-300">ចុចលើប៊ូតុងពណ៌ខៀវខាងក្រោមគេបង្អស់ លោកអ្នកនឹងទទួលបាន File គំរូ។ សូមវាយបញ្ចូលទិន្នន័យសិស្សចូលក្នុង File នោះ រួច Save។</p>
+                </div>
+
+                <div tabindex="0" class="bg-orange-50 dark:bg-orange-900/20 p-5 md:p-6 rounded-2xl border border-orange-100 dark:border-orange-800/50 shadow-sm group hover:-translate-y-1 transition-transform duration-300 reveal-up" style="transition-delay: 200ms;">
+                    <h3 class="font-bold text-orange-900 dark:text-orange-300 mb-3 text-base md:text-xl flex items-center gap-2">
+                        <span class="bg-orange-500 dark:bg-orange-500 text-white w-6 h-6 rounded-full inline-flex items-center justify-center text-sm shadow-sm group-hover:scale-110 transition-transform">2</span> 
+                        នាំចូលទិន្នន័យ (Import)
+                    </h3>
+                    <p class="text-sm md:text-base text-slate-700 dark:text-gray-300">ចុចលើប៊ូតុងពណ៌ទឹកក្រូច រួចជ្រើសរើស File ដែលអ្នកបានរៀបចំ។ ប្រព័ន្ធនឹងអានទិន្នន័យ និងរក្សាទុកចូលក្នុង Database ដោយស្វ័យប្រវត្តិ។</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 5 -->
+        <section class="section-box border-t-4 border-t-teal-500 dark:border-t-teal-400 reveal-up">
+            <div class="flex items-center gap-4 mb-6 md:mb-8">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-teal-50 dark:bg-teal-900/30 flex items-center justify-center text-teal-600 dark:text-teal-400 shrink-0 border border-teal-100 dark:border-teal-800/50 reveal-scale">
+                    <i data-lucide="database" class="w-7 h-7 md:w-8 md:h-8"></i>
+                </div>
+                <div class="reveal-left">
+                    <span class="text-[10px] md:text-xs font-bold tracking-wider text-teal-600 dark:text-teal-400 uppercase bg-teal-100 dark:bg-teal-900/40 px-3 py-1 rounded-full border border-teal-200 dark:border-teal-800/50">Part 5</span>
+                    <h2 class="text-xl md:text-3xl font-display text-slate-800 dark:text-white mt-1 md:mt-2">ការរក្សាទុក និងកែប្រែទិន្នន័យ</h2>
+                </div>
+            </div>
+            
+            <div class="image-wrapper mb-8 border border-slate-200 dark:border-gray-700 shadow-sm bg-slate-50 dark:bg-gray-900 reveal-scale p-1">
+                <img src="5_enrollment.png" alt="Save Data" loading="lazy" onerror="this.onerror=null; this.src='https://placehold.co/800x400/1e293b/94a3b8?text=5_enrollment.png'">
+                
+                <div class="pointer-container top-[79%] left-[18%]">
+                    <div class="pointer-down">
+                        <div class="pointer-down-box bg-[#10b981] dark:bg-teal-600">ចុចរក្សាទុកទិន្នន័យ</div>
+                        <div class="pointer-down-arrow border-t-[#10b981] dark:border-t-teal-600"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-5">
+                <div tabindex="0" class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex gap-4 group hover:-translate-y-1 transition-transform duration-300 reveal-up" style="transition-delay: 100ms;">
+                    <div class="w-12 h-12 bg-teal-100 dark:bg-teal-900/40 text-teal-600 dark:text-teal-400 rounded-xl flex items-center justify-center shrink-0">
+                        <i data-lucide="cloud-lightning" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-slate-800 dark:text-white mb-1 text-base group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors">ការរក្សាទុក (Cloud Storage)</h3>
+                        <p class="text-sm text-slate-600 dark:text-gray-300">ទិន្នន័យនឹងត្រូវរក្សាទុកទៅក្នុង Cloud Database (Firebase) ដោយមានសុវត្ថិភាពខ្ពស់ ដែលអាចបើកមើលពីឧបករណ៍ណាក៏បាន។</p>
+                    </div>
+                </div>
+
+                <div tabindex="0" class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex gap-4 group hover:-translate-y-1 transition-transform duration-300 reveal-up" style="transition-delay: 200ms;">
+                    <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center shrink-0">
+                        <i data-lucide="refresh-cw" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-slate-800 dark:text-white mb-1 text-base group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors">កែប្រែទិន្នន័យ (Edit Mode)</h3>
+                        <p class="text-sm text-slate-600 dark:text-gray-300">នៅពេលអ្នកចូលកែប្រែសិស្ស ប៊ូតុងរក្សាទុកនឹងប្តូរឈ្មោះទៅជា <strong class="bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded text-xs border border-blue-200 dark:border-blue-800">ធ្វើបច្ចុប្បន្នភាព</strong> ដោយស្វ័យប្រវត្តិ។</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 6 -->
+        <section class="section-box border-t-4 border-t-rose-500 dark:border-t-rose-400 reveal-up" id="video-tutorial">
+            <div class="flex items-center gap-4 mb-6 md:mb-8">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-rose-50 dark:bg-rose-900/30 flex items-center justify-center text-rose-600 dark:text-rose-400 shrink-0 border border-rose-100 dark:border-rose-800/50 reveal-scale">
+                    <i data-lucide="video" class="w-7 h-7 md:w-8 md:h-8"></i>
+                </div>
+                <div class="reveal-left">
+                    <span class="text-[10px] md:text-xs font-bold tracking-wider text-rose-600 dark:text-rose-400 uppercase bg-rose-100 dark:bg-rose-900/40 px-3 py-1 rounded-full border border-rose-200 dark:border-rose-800/50">Part 6</span>
+                    <h2 class="text-xl md:text-3xl font-display text-slate-800 dark:text-white mt-1 md:mt-2">វីដេអូណែនាំការប្រើប្រាស់</h2>
+                </div>
+            </div>
+            
+            <p class="text-sm md:text-lg font-medium text-slate-600 dark:text-gray-300 mb-6 reveal-up">ដើម្បីកាន់តែងាយយល់ និងឃើញការអនុវត្តផ្ទាល់ សូមទស្សនាវីដេអូនៅខាងក្រោមនេះ៖</p>
+            
+            <!-- Optimized: loading="lazy" for Iframe -->
+            <div class="p-2 md:p-3 bg-slate-800 dark:bg-slate-900 rounded-2xl md:rounded-3xl shadow-md border border-rose-100 dark:border-rose-900/50 reveal-scale">
+                <div class="relative w-full rounded-xl md:rounded-2xl overflow-hidden bg-black" style="padding-top: 56.25%;">
+                    <iframe class="absolute top-0 left-0 w-full h-full" 
+                            src="https://www.youtube.com/embed/zPi4HtJIV-Y?si=kri1YOmxwU2prEUE" 
+                            title="YouTube video player" 
+                            frameborder="0" 
+                            loading="lazy"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                            allowfullscreen>
+                    </iframe>
+                </div>     
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="mt-20 pb-16 text-center relative z-10">
+            <div class="w-20 h-1.5 bg-gradient-to-r from-blue-400 to-indigo-500 mx-auto rounded-full mb-8 shadow-sm reveal-scale"></div>
+            
+            <h3 class="font-display text-3xl md:text-4xl text-slate-800 dark:text-white mb-4 flex justify-center items-center gap-3 reveal-up">
+                <i data-lucide="party-popper" class="w-8 h-8 text-blue-500"></i> រួចរាល់ហើយ!
+            </h3>
+            <p class="text-slate-500 dark:text-gray-400 mb-12 max-w-2xl mx-auto text-sm md:text-base reveal-up" style="transition-delay: 100ms;">ប្រព័ន្ធត្រូវបានរចនាឡើងដើម្បីជួយសម្រួលការងារលោកគ្រូអ្នកគ្រូក្នុងការគ្រប់គ្រងទិន្នន័យសិស្សឱ្យកាន់តែមានភាពងាយស្រួល និងរហ័ស។</p>
+            
+            <!-- Card Footer -->
+            <a href="https://portfolio-ron-raksmey.netlify.app/" target="_blank" rel="noopener noreferrer" class="inline-block bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 max-w-sm w-full relative overflow-hidden group hover:-translate-y-1 transition-transform duration-300 cursor-pointer reveal-scale" style="transition-delay: 200ms;">
+                <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-400"></div>
+                
+                <div class="flex flex-col items-center">
+                    <div class="w-28 h-28 rounded-full border-4 border-slate-100 dark:border-slate-700 overflow-hidden mb-5 relative bg-slate-100 dark:bg-slate-900">
+                        <img src="RON-RAKSMEY.png" alt="Profile" loading="lazy" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://placehold.co/150x150/1e293b/94a3b8?text=Profile'">
+                    </div>
+                    
+                    <p class="text-[11px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-bold mb-2 flex items-center gap-1 group-hover:text-blue-500 transition-colors">
+                        <i data-lucide="code-2" class="w-3 h-3"></i> Developed By
+                    </p>
+                    <h4 class="font-display text-xl text-slate-800 dark:text-white mb-1 group-hover:text-indigo-600 transition-colors">គរុនិស្សិត រុន រស្មី</h4>
+                    <span class="text-xs text-slate-500 dark:text-gray-400 mt-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 px-4 py-1.5 rounded-full font-medium shadow-sm">
+                        <i data-lucide="graduation-cap" class="w-3.5 h-3.5 inline-block mb-0.5 text-slate-400 mr-1"></i> ជំនាន់ទី៤
+                    </span>
+                </div>
+            </a>
+            
+            <div class="mt-12 text-sm text-slate-400 dark:text-slate-500 font-medium reveal-up" style="transition-delay: 300ms;">
+                &copy; 2026 Krusmart. រក្សាសិទ្ធិគ្រប់យ៉ាង។
+            </div>
+        </footer>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+
+            const isIframe = document.documentElement.classList.contains('is-iframe');
+            
+            if (isIframe) {
+                try {
+                    if (window.parent && window.parent.document) {
+                        const observer = new MutationObserver((mutations) => {
+                            mutations.forEach((mutation) => {
+                                if (mutation.attributeName === 'class') {
+                                    if (window.parent.document.documentElement.classList.contains('dark')) {
+                                        document.documentElement.classList.add('dark');
+                                    } else {
+                                        document.documentElement.classList.remove('dark');
+                                    }
+                                }
+                            });
+                        });
+                        observer.observe(window.parent.document.documentElement, { attributes: true });
+                    }
+                } catch (e) {}
+            }
+
+            window.addEventListener('storage', (event) => {
+                if (event.key === 'color-theme') {
+                    if (event.newValue === 'dark') {
+                        document.documentElement.classList.add('dark');
+                    } else {
+                        document.documentElement.classList.remove('dark');
+                    }
+                }
+            });
+
+            /* Optimized Intersection Observer logic */
+            const observerOptions = {
+                root: null,
+                rootMargin: '50px', /* Pre-load slightly before scrolling into view */
+                threshold: 0.1 
+            };
+
+            const observer = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('reveal-visible');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, observerOptions);
+
+            const revealElements = document.querySelectorAll('.reveal-up, .reveal-left, .reveal-scale');
+            revealElements.forEach(el => observer.observe(el));
+
+            const staggerContainers = document.querySelectorAll('.stagger-container');
+            staggerContainers.forEach(container => {
+                const listItems = container.querySelectorAll('li');
+                listItems.forEach((item, index) => {
+                    item.classList.add('reveal-left');
+                    /* Max delay to prevent items from loading too late */
+                    item.style.transitionDelay = `${Math.min(index * 100, 400)}ms`;
+                    observer.observe(item);
+                });
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PTEC - សៀវភៅណែនាំតារាងកិត្តិយស</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Moul&display=swap" rel="stylesheet">
+    
+    <!-- Script to prevent FOUC and ensure Iframe transparency -->
+    <script>
+        let isDark = false;
+        if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            isDark = true;
+        }
+        try {
+            if (window.self !== window.top) {
+                document.documentElement.classList.add('is-iframe');
+                if (window.parent && window.parent.document) {
+                    isDark = window.parent.document.documentElement.classList.contains('dark');
+                }
+            }
+        } catch (e) {
+            document.documentElement.classList.add('is-iframe');
+        }
+        if (isDark) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+
+    <!-- Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Khmer OS Content"', 'sans-serif'],
+                        display: ['Moul', 'cursive'],
+                    },
+                    colors: {
+                        primary: '#002060',
+                        secondary: '#3b82f6',
+                        gold: '#fbbf24',
+                    },
+                    animation: {
+                        float: "float 4s ease-in-out infinite",
+                    },
+                    keyframes: {
+                        float: {
+                            "0%, 100%": { transform: "translate3d(0, 0, 0)" }, /* Used translate3d for GPU acceleration */
+                            "50%": { transform: "translate3d(0, -12px, 0)" },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Base Theme Colors */
+        .dark body { background: #0f172a; }
+        body:not(.dark) { background: #f0f4f8; }
+        
+        /* Iframe Transparency */
+        html.is-iframe body { background: transparent !important; }
+        html.is-iframe #standalone-bg-animate { display: none !important; }
+
+        body { 
+            line-height: 1.8; 
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* OPTIMIZED: Static Background instead of heavy animation */
+        .bg-animate { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -2; 
+            background: radial-gradient(circle at 10% 20%, #e0e7ff 0%, transparent 40%), 
+                        radial-gradient(circle at 90% 80%, #dcfce7 0%, transparent 40%), 
+                        radial-gradient(circle at 50% 50%, #fef3c7 0%, transparent 50%); 
+        }
+        
+        /* Dark Mode Background */
+        .dark .bg-animate { 
+            background: radial-gradient(circle at 10% 20%, #1e1b4b 0%, transparent 40%), 
+                        radial-gradient(circle at 90% 80%, #064e3b 0%, transparent 40%), 
+                        radial-gradient(circle at 50% 50%, #451a03 0%, transparent 50%); 
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+        .dark ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        
+        /* OPTIMIZED: Removed backdrop-filter (blur) for performance */
+        .section-box { 
+            background: #ffffff; /* Solid color is much faster */
+            padding: 24px; 
+            border-radius: 24px; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            margin-bottom: 32px; 
+            border: 1px solid #e2e8f0; 
+            position: relative; 
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
+            will-change: transform; /* Hint for browser optimization */
+        }
+        .dark .section-box {
+            background: #1e293b;
+            border-color: #334155;
+        }
+        .section-box:hover {
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            transform: translate3d(0, -4px, 0);
+        }
+        .dark .section-box:hover {
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        @media (min-width: 768px) {
+            .section-box { padding: 40px; border-radius: 32px; margin-bottom: 48px; }
+        }
+
+        /* OPTIMIZED: Simplified Hero Icon, removed complex spinning border */
+        .hero-icon-wrapper {
+            position: relative;
+            padding: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            background: linear-gradient(135deg, #fbbf24, #002060);
+            box-shadow: 0 10px 25px -5px rgba(0, 32, 96, 0.3);
+            transition: box-shadow 0.3s ease;
+        }
+        .dark .hero-icon-wrapper { 
+            background: linear-gradient(135deg, #fbbf24, #3b82f6);
+            box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.2); 
+        }
+        .group:hover .hero-icon-wrapper { box-shadow: 0 15px 35px -5px rgba(0, 32, 96, 0.5); }
+        
+        .hero-icon-inner {
+            background: white;
+            border-radius: 50%;
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .dark .hero-icon-inner { background: #1e293b; }
+
+        .image-wrapper { 
+            position: relative; 
+            width: 100%; 
+            height: auto; 
+            display: block; 
+            border-radius: 20px; 
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s ease;
+            will-change: transform;
+        }
+        .image-wrapper:hover {
+            transform: translate3d(0, -8px, 0) scale(1.02); 
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.15);
+        }
+        .dark .image-wrapper:hover {
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.4);
+        }
+        .image-wrapper img { 
+            width: 100%; 
+            height: auto; 
+            display: block; 
+            object-fit: contain; 
+            border-radius: 16px; 
+        }
+
+        /* Pointer Annotations - OPTIMIZED: Removed filter: drop-shadow and blurred backdrop */
+        .pointer-container { position: absolute; z-index: 10; pointer-events: none; }
+        
+        .pointer-down { display: flex; flex-direction: column; align-items: center; animation: bounce-down 2.5s infinite; transform-origin: bottom center; will-change: transform; }
+        .pointer-down-box { 
+            padding: 8px 14px; border-radius: 12px; font-weight: 700; font-size: 13px; color: white; text-align: center; white-space: nowrap; line-height: 1.4; 
+            border: 1px solid rgba(255,255,255,0.4); box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+        .pointer-down-arrow { width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 12px solid; }
+
+        .pointer-right { display: flex; align-items: center; animation: bounce-right 2.5s infinite; transform-origin: right center; will-change: transform; }
+        .pointer-right-box { 
+            padding: 8px 14px; border-radius: 12px; font-weight: 700; font-size: 13px; color: white; text-align: center; white-space: nowrap; line-height: 1.4; 
+            border: 1px solid rgba(255,255,255,0.4); box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+        .pointer-right-arrow { width: 0; height: 0; border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-left: 12px solid; }
+
+        /* Using translate3d for GPU acceleration */
+        @keyframes bounce-down { 0%, 100% { transform: translate3d(-50%, -10%, 0); } 50% { transform: translate3d(-50%, 5%, 0); } }
+        @keyframes bounce-right { 0%, 100% { transform: translate3d(-10%, -50%, 0); } 50% { transform: translate3d(5%, -50%, 0); } }
+
+        @media (max-width: 1024px) {
+            .pointer-down-box, .pointer-right-box { font-size: 11px; padding: 6px 12px; max-width: 120px; white-space: normal; }
+        }
+        @media (max-width: 767px) {
+            .pointer-down-box, .pointer-right-box { font-size: 9px; padding: 4px 8px; max-width: 90px; border-radius: 8px; }
+            .pointer-down-arrow { border-left-width: 6px; border-right-width: 6px; border-top-width: 8px; }
+            .pointer-right-arrow { border-top-width: 6px; border-bottom-width: 6px; border-left-width: 8px; }
+        }
+
+        /* OPTIMIZED: Static Gradient Text (Removed heavy CPU animation) */
+        .animate-gradient-text {
+            background: linear-gradient(to right, #002060, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .dark .animate-gradient-text {
+            background: linear-gradient(to right, #fbbf24, #60a5fa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Scroll Reveals - Optimized with translate3d */
+        .reveal-up { opacity: 0; transform: translate3d(0, 40px, 0); transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
+        .reveal-left { opacity: 0; transform: translate3d(-30px, 0, 0); transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
+        .reveal-scale { opacity: 0; transform: scale(0.95) translateZ(0); transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
+        .reveal-visible { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+    </style>
+</head>
+<body class="text-slate-800 dark:text-gray-100 transition-colors duration-300 p-4 sm:p-6 md:p-8 lg:p-12 min-h-screen relative font-sans">
+
+    <div class="bg-animate" aria-hidden="true" id="standalone-bg-animate"></div>
+
+    <div class="max-w-5xl mx-auto relative z-10">
+        
+        <!-- Header Section -->
+        <header class="text-center mb-12 md:mb-16 relative pt-8">
+            <a href="/honor-roll" target="_parent" class="group inline-block mb-6 relative cursor-pointer animate-float focus:outline-none focus:ring-4 focus:ring-blue-300 rounded-full reveal-scale">
+                <div class="hero-icon-wrapper transform transition-transform duration-300">
+                    <div class="hero-icon-inner w-20 h-20 md:w-28 md:h-28">
+                        <i data-lucide="award" class="w-10 h-10 md:w-14 md:h-14 text-gold dark:text-gold group-hover:scale-110 transition-transform duration-300 drop-shadow-sm"></i>
+                    </div>
+                </div>
+                <div class="absolute -bottom-4 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity duration-300 whitespace-nowrap z-20">
+                     <span class="text-xs font-bold text-blue-800 dark:text-blue-100 bg-blue-100 dark:bg-blue-900 px-3 py-1.5 rounded-full border border-blue-200 dark:border-blue-700 shadow-md">ចូលទៅកាន់មុខងារ</span>
+                </div>
+            </a>
+            
+            <h1 class="font-display text-3xl md:text-5xl lg:text-6xl animate-gradient-text mb-4 leading-normal drop-shadow-sm reveal-up" style="transition-delay: 100ms;">Honor Roll Guide</h1>
+            
+            <p class="text-lg md:text-xl text-slate-600 dark:text-gray-300 font-medium max-w-2xl mx-auto mb-8 reveal-up" style="transition-delay: 200ms;">
+                សៀវភៅណែនាំពីរបៀបបង្កើត និងបោះពុម្ពតារាងកិត្តិយសសិស្សឆ្នើមប្រចាំខែ ឆមាស និងប្រចាំឆ្នាំដោយស្វ័យប្រវត្តិ
+            </p>
+
+            <!-- YouTube Watch Button (Top) -->
+            <div class="flex justify-center mb-8 reveal-up" style="transition-delay: 250ms;">
+                <a href="#video-tutorial" class="inline-flex items-center gap-2.5 bg-[#e11d48] hover:bg-[#be123c] text-white px-8 py-3.5 rounded-[30px] font-display text-lg md:text-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-rose-300 dark:focus:ring-rose-800 tracking-wide" style="will-change: transform;">
+                    <svg class="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                    </svg>
+                    ទស្សនាវីដេអូណែនាំ
+                </a>
+            </div>
+
+            <!-- Pinging Badge -->
+            <div class="inline-flex items-center gap-3 px-5 py-2.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm reveal-up cursor-default" style="transition-delay: 300ms;">
+                <span class="relative flex h-3 w-3">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-3 w-3 bg-gold"></span>
+                </span>
+                <p class="text-slate-700 dark:text-gray-200 text-sm md:text-lg font-bold">
+                    មុខងារតារាងកិត្តិយស (Honor Roll)
+                </p>
+            </div>
+        </header>
+
+        <!-- Section 1: Selection Screen -->
+        <section class="section-box border-t-4 border-t-blue-600 dark:border-t-blue-500 reveal-up">
+            <div class="flex items-center gap-4 mb-6 md:mb-8">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0 border border-blue-100 dark:border-blue-800/50 shadow-sm reveal-scale">
+                    <i data-lucide="filter" class="w-7 h-7 md:w-8 md:h-8"></i>
+                </div>
+                <div class="reveal-left">
+                    <span class="text-[10px] md:text-xs font-display tracking-wider text-blue-600 dark:text-blue-400 uppercase bg-blue-100 dark:bg-blue-900/40 px-3 py-1 rounded-full border border-blue-200 dark:border-blue-800/50">Part 1</span>
+                    <h2 class="font-display leading-normal text-xl md:text-3xl text-slate-800 dark:text-white mt-1 md:mt-2">ការកំណត់ជម្រើសដើម្បីទាញយក</h2>
+                </div>
+            </div>
+            
+            <p class="text-sm md:text-lg text-slate-600 dark:text-gray-300 mb-6 reveal-up">មុននឹងប្រព័ន្ធគណនាលទ្ធផលសិស្សឆ្នើម លោកអ្នកអាចជ្រើសរើសប្រភេទនៃតារាងកិត្តិយសដែលចង់បាន ដូចជាជម្រើសប្រចាំខែ ប្រចាំឆមាស ឬប្រចាំឆ្នាំ និងអាចជ្រើសរើសម៉ូដស៊ុមលិខិតផងដែរ៖</p>
+            
+            <div class="image-wrapper mb-8 border-4 border-slate-100 dark:border-slate-700 shadow-lg bg-slate-50 dark:bg-gray-900 reveal-scale">
+                <img src="1.png" alt="Honor Roll Selection Screen" onerror="this.onerror=null; this.src='https://placehold.co/800x450/1e293b/94a3b8?text=1.png'">
+                
+                <!-- Pointers for Image 1 -->
+                <div class="pointer-container top-[30%] left-[50%]">
+                    <div class="pointer-down">
+                        <div class="pointer-down-box bg-blue-600 dark:bg-blue-500">ជ្រើសរើសប្រភេទ (ខែ/ឆមាស/ឆ្នាំ)</div>
+                        <div class="pointer-down-arrow border-t-blue-600 dark:border-t-blue-500"></div>
+                    </div>
+                </div>
+                <div class="pointer-container top-[42%] left-[26%]">
+                    <div class="pointer-down">
+                        <div class="pointer-down-box bg-indigo-500 dark:bg-indigo-600">ជ្រើសរើសម៉ូដស៊ុម (Border)</div>
+                        <div class="pointer-down-arrow border-t-indigo-500 dark:border-t-indigo-600"></div>
+                    </div>
+                </div>
+                <div class="pointer-container top-[56%] left-[48%]">
+                    <div class="pointer-down">
+                        <div class="pointer-down-box bg-emerald-500 dark:bg-emerald-600">ចុច "មើលគំរូ" ដើម្បីទាញទិន្នន័យ</div>
+                        <div class="pointer-down-arrow border-t-emerald-500 dark:border-t-emerald-600"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-blue-50 dark:bg-slate-800 p-5 md:p-6 rounded-2xl border border-blue-100 dark:border-slate-700 reveal-up">
+                <ul class="list-disc pl-5 md:pl-8 space-y-3 md:space-y-4 text-sm md:text-base text-slate-700 dark:text-gray-300 stagger-container">
+                    <li><strong class="text-blue-700 dark:text-blue-400">ប្រភេទតារាង៖</strong> ចុចលើប៉ូតុង ប្រចាំខែ ឆមាស ឬឆ្នាំ ប្រព័ន្ធនឹងផ្លាស់ប្តូរជម្រើសកាលបរិច្ឆេទដោយស្វ័យប្រវត្តិ។</li>
+                    <li><strong class="text-indigo-700 dark:text-indigo-400">ស៊ុមលិខិត៖</strong> មានផ្តល់ជូនម៉ូដស៊ុមចំនួន ៤ ជម្រើស ដែលស័ក្តិសមសម្រាប់បោះពុម្ពជាសន្លឹកកិត្តិយសផ្លូវការ។</li>
+                    <li><strong class="text-emerald-700 dark:text-emerald-400">ទាញយកទិន្នន័យ៖</strong> ពេលចុចមើលគំរូ ប្រព័ន្ធនឹងទាញយកពិន្ទុពី Database មកធ្វើការគណនាមធ្យមភាគ និងតម្រៀបចំណាត់ថ្នាក់ដោយស្វ័យប្រវត្តិភ្លាមៗ។</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Section 2: Print Preview -->
+        <section class="section-box border-t-4 border-t-amber-500 dark:border-t-amber-400 reveal-up">
+            <div class="flex items-center gap-4 mb-6 md:mb-8">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0 border border-amber-100 dark:border-amber-800/50 shadow-sm reveal-scale">
+                    <i data-lucide="printer" class="w-7 h-7 md:w-8 md:h-8"></i>
+                </div>
+                <div class="reveal-left">
+                    <span class="text-[10px] md:text-xs font-display tracking-wider text-amber-600 dark:text-amber-400 uppercase bg-amber-100 dark:bg-amber-900/40 px-3 py-1 rounded-full border border-amber-200 dark:border-amber-800/50">Part 2</span>
+                    <h2 class="font-display leading-normal text-xl md:text-3xl text-slate-800 dark:text-white mt-1 md:mt-2">ការបង្ហាញទម្រង់មុនបោះពុម្ព (Print Preview)</h2>
+                </div>
+            </div>
+            
+            <p class="text-sm md:text-lg text-slate-600 dark:text-gray-300 mb-6 reveal-up">បន្ទាប់ពីប្រព័ន្ធបានគណនារួចរាល់ វានឹងបង្ហាញទម្រង់តារាងកិត្តិយសនៅលើក្រដាសទំហំ A4 ដែលត្រៀមរួចជាស្រេចសម្រាប់ការបោះពុម្ព៖</p>
+
+            <div class="image-wrapper mb-8 border-4 border-slate-100 dark:border-slate-700 shadow-lg bg-slate-50 dark:bg-gray-900 reveal-scale">
+                <img src="2.png" alt="Print Preview of Honor Roll" onerror="this.onerror=null; this.src='https://placehold.co/800x450/1e293b/94a3b8?text=2.png'">
+                
+                <!-- Pointers for Image 2 -->
+                <div class="pointer-container top-[5%] left-[90%]">
+                    <div class="pointer-down">
+                        <div class="pointer-down-box bg-sky-600 dark:bg-sky-500">ប៊ូតុងបោះពុម្ព (Print)</div>
+                        <div class="pointer-down-arrow border-t-sky-600 dark:border-t-sky-500"></div>
+                    </div>
+                </div>
+                <div class="pointer-container top-[45%] left-[45%]">
+                    <div class="pointer-down">
+                        <div class="pointer-down-box bg-amber-500 dark:bg-amber-600">សិស្សជ័យលាភីលេខ១</div>
+                        <div class="pointer-down-arrow border-t-amber-500 dark:border-t-amber-600"></div>
+                    </div>
+                </div>
+                <div class="pointer-container top-[82%] left-[28%]">
+                    <div class="pointer-down">
+                        <div class="pointer-down-box bg-purple-500 dark:bg-purple-600">ចំណាត់ថ្នាក់តាមលំដាប់ពីរ៉ាមីត</div>
+                        <div class="pointer-down-arrow border-t-purple-500 dark:border-t-purple-600"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-amber-50 dark:bg-slate-800 p-5 md:p-6 rounded-2xl border border-amber-100 dark:border-slate-700 flex flex-col sm:flex-row items-start gap-4 md:gap-6 reveal-up">
+                <div class="bg-white dark:bg-slate-700 p-3 rounded-xl shadow-sm shrink-0 hidden sm:block border border-amber-100 dark:border-slate-600 transform hover:-rotate-6 transition-transform cursor-default">
+                    <i data-lucide="crown" class="w-8 h-8 text-amber-500 dark:text-amber-400"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-amber-900 dark:text-amber-400 mb-3 text-base md:text-xl flex items-center gap-2">
+                        ការរៀបចំទម្រង់ពីរ៉ាមីត (Pyramid Layout)
+                    </h3>
+                    <p class="text-sm md:text-base text-slate-700 dark:text-gray-300 mb-2">
+                        សិស្សដែលទទួលបានចំណាត់ថ្នាក់ពីលេខ ១ ដល់លេខ ៥ នឹងត្រូវបង្ហាញជាមួយរូបថត ឈ្មោះ មធ្យមភាគ និងនិទ្ទេស។ ប្រព័ន្ធរៀបចំកាតសិស្សតាមទម្រង់ពីរ៉ាមីតយ៉ាងស្រស់ស្អាត ដោយអ្នកលេខ១ស្ថិតនៅកំពូលគេ។
+                    </p>
+                    <p class="text-rose-500 dark:text-rose-400 italic text-xs md:text-sm">
+                        *ចំណាំ៖ រាល់ព័ត៌មានផ្នែកខាងលើ (ឈ្មោះសាលា ថ្នាក់) និងខាងក្រោម (កាលបរិច្ឆេទ ហត្ថលេខា) ត្រូវបានទាញយកស្វ័យប្រវត្តិពីទម្រង់ប្រវត្តិរូប (Profile) របស់លោកគ្រូអ្នកគ្រូ។
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3: Features Grid -->
+        <section class="section-box border-t-4 border-t-emerald-500 dark:border-t-emerald-400 reveal-up">
+            <div class="flex items-center gap-4 mb-6 md:mb-8">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0 border border-emerald-100 dark:border-emerald-800/50 shadow-sm reveal-scale">
+                    <i data-lucide="sparkles" class="w-7 h-7 md:w-8 md:h-8"></i>
+                </div>
+                <div class="reveal-left">
+                    <span class="text-[10px] md:text-xs font-display tracking-wider text-emerald-600 dark:text-emerald-400 uppercase bg-emerald-100 dark:bg-emerald-900/40 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-800/50">Features</span>
+                    <h2 class="font-display leading-normal text-xl md:text-3xl text-slate-800 dark:text-white mt-1 md:mt-2">លក្ខណៈពិសេសនៃមុខងារនេះ</h2>
+                </div>
+            </div>
+
+            <div class="grid lg:grid-cols-3 gap-5">
+                <div tabindex="0" class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden group hover:shadow-md hover:-translate-y-1 transition-all duration-300 reveal-up" style="transition-delay: 100ms; will-change: transform;">
+                    <i data-lucide="calculator" class="w-10 h-10 text-emerald-500 dark:text-emerald-400 mb-3 group-hover:scale-110 transition-transform"></i>
+                    <h3 class="font-bold text-slate-800 dark:text-white mb-2 text-base">គណនាស្វ័យប្រវត្តិ</h3>
+                    <p class="text-sm text-slate-600 dark:text-gray-300">មិនចាំបាច់រៀបចំណាត់ថ្នាក់ដោយដៃ ប្រព័ន្ធនឹងទាញទិន្នន័យពីបញ្ជីពិន្ទុ រួចគណនា និងរើសយក Top 5 ដោយស្វ័យប្រវត្តិ។</p>
+                </div>
+
+                <div tabindex="0" class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden group hover:shadow-md hover:-translate-y-1 transition-all duration-300 reveal-up" style="transition-delay: 200ms; will-change: transform;">
+                    <i data-lucide="palette" class="w-10 h-10 text-rose-500 dark:text-rose-400 mb-3 group-hover:scale-110 transition-transform"></i>
+                    <h3 class="font-bold text-slate-800 dark:text-white mb-2 text-base">រចនាបថស្អាតទាក់ទាញ</h3>
+                    <p class="text-sm text-slate-600 dark:text-gray-300">ពណ៌នៃលេខចំណាត់ថ្នាក់ត្រូវបានបែងចែកច្បាស់លាស់ (មាស ប្រាក់ សំរឹទ្ធ...) រួមជាមួយជម្រើសស៊ុមដ៏ស្រស់ស្អាត។</p>
+                </div>
+
+                <div tabindex="0" class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden group hover:shadow-md hover:-translate-y-1 transition-all duration-300 reveal-up" style="transition-delay: 300ms; will-change: transform;">
+                    <i data-lucide="file-check" class="w-10 h-10 text-blue-500 dark:text-blue-400 mb-3 group-hover:scale-110 transition-transform"></i>
+                    <h3 class="font-bold text-slate-800 dark:text-white mb-2 text-base">ត្រូវខ្នាត A4 ឥតខ្ចោះ</h3>
+                    <p class="text-sm text-slate-600 dark:text-gray-300">គ្រប់ទម្រង់ត្រូវបានរចនាឡើងយ៉ាងម៉ត់ចត់ដើម្បីធានាថា ពេលបោះពុម្ពចេញមក គឺត្រូវខ្នាតក្រដាស A4 ដោយមិនមានការរំកិល។</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 4: Video Tutorial (Bottom) -->
+        <section id="video-tutorial" class="section-box border-t-4 border-t-rose-500 dark:border-t-rose-400 reveal-up">
+            <div class="flex items-center gap-4 mb-6 md:mb-8">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-rose-50 dark:bg-rose-900/30 flex items-center justify-center text-rose-600 dark:text-rose-400 shrink-0 border border-rose-100 dark:border-rose-800/50 shadow-sm reveal-scale">
+                    <i data-lucide="play-circle" class="w-7 h-7 md:w-8 md:h-8"></i>
+                </div>
+                <div class="reveal-left">
+                    <span class="text-[10px] md:text-xs font-display tracking-wider text-rose-600 dark:text-rose-400 uppercase bg-rose-100 dark:bg-rose-900/40 px-3 py-1 rounded-full border border-rose-200 dark:border-rose-800/50">Video Guide</span>
+                    <h2 class="font-display leading-normal text-xl md:text-3xl text-slate-800 dark:text-white mt-1 md:mt-2">វីដេអូណែនាំការប្រើប្រាស់</h2>
+                </div>
+            </div>
+            
+            <p class="text-sm md:text-lg text-slate-600 dark:text-gray-300 mb-6 reveal-up">ដើម្បីស្វែងយល់កាន់តែច្បាស់ និងការអនុវត្តជាក់ស្តែងពីរបៀបបង្កើតតារាងកិត្តិយស សូមទស្សនាវីដេអូណែនាំខាងក្រោម៖</p>
+
+            <div class="relative w-full aspect-video rounded-2xl overflow-hidden border-4 border-slate-100 dark:border-slate-700 shadow-lg reveal-scale bg-slate-100 dark:bg-slate-800">
+                <iframe 
+                    class="absolute top-0 left-0 w-full h-full" 
+                    src="https://www.youtube.com/embed/ZfG2p2gqHqE" 
+                    title="YouTube video player" 
+                    frameborder="0" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                    allowfullscreen>
+                </iframe>
+            </div>
+
+            <div class="mt-8 flex justify-center reveal-up">
+                <a href="https://youtu.be/ZfG2p2gqHqE" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2.5 bg-[#e11d48] hover:bg-[#be123c] text-white px-8 py-3.5 rounded-[30px] font-display text-lg md:text-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-rose-300 dark:focus:ring-rose-800 tracking-wide" style="will-change: transform;">
+                    <svg class="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                    </svg>
+                    ចូលមើលផ្ទាល់នៅលើ YouTube
+                </a>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="mt-20 pb-16 text-center relative z-10">
+            <div class="w-20 h-1.5 bg-blue-500 mx-auto rounded-full mb-8 shadow-sm reveal-scale"></div>
+            
+            <h3 class="font-display text-3xl md:text-4xl text-slate-800 dark:text-white mb-4 flex justify-center items-center gap-3 reveal-up">
+                <i data-lucide="party-popper" class="w-8 h-8 text-gold animate-bounce"></i> រួចរាល់ហើយ!
+            </h3>
+            <p class="text-slate-500 dark:text-gray-400 mb-12 max-w-2xl mx-auto text-sm md:text-base reveal-up" style="transition-delay: 100ms;">ឥឡូវនេះលោកអ្នកអាចបង្កើតតារាងកិត្តិយសដើម្បីលើកទឹកចិត្តសិស្សានុសិស្សបានយ៉ាងឆាប់រហ័ស និងមានភាពស្រស់ស្អាតបំផុត។</p>
+            
+            <!-- Card Footer -->
+            <a href="https://portfolio-ron-raksmey.netlify.app/" target="_blank" rel="noopener noreferrer" class="inline-block bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-lg border border-slate-200 dark:border-slate-700 max-w-sm w-full relative overflow-hidden group hover:shadow-2xl hover:-translate-y-2 focus:outline-none focus:ring-4 focus:ring-indigo-300 dark:focus:ring-indigo-600 transition-all duration-300 cursor-pointer reveal-scale" style="transition-delay: 200ms; will-change: transform;">
+                <!-- Top Gradient Line -->
+                <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-400 group-hover:h-2 transition-all"></div>
+                
+                <div class="flex flex-col items-center">
+                    <div class="w-28 h-28 rounded-full border-4 border-slate-100 dark:border-slate-700 shadow-md overflow-hidden mb-5 relative group-hover:scale-110 group-hover:rounded-xl group-focus:scale-110 group-focus:rounded-xl transition-all duration-500 bg-slate-100 dark:bg-slate-900">
+                        <img src="../../enrollment/RON-RAKSMEY.png" alt="Profile" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://placehold.co/150x150/1e293b/94a3b8?text=Profile'">
+                    </div>
+                    
+                    <p class="text-[11px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-bold mb-2 flex items-center gap-1 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors">
+                        <i data-lucide="code-2" class="w-3 h-3"></i> Developed By
+                    </p>
+                    <h4 class="font-display text-xl text-slate-800 dark:text-white mb-1 group-hover:text-indigo-700 dark:group-hover:text-indigo-400 transition-colors">គរុនិស្សិត រុន រស្មី</h4>
+                    <span class="text-xs text-slate-500 dark:text-gray-400 mt-2 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-4 py-1.5 rounded-full font-medium shadow-sm group-hover:bg-indigo-50 dark:group-hover:bg-indigo-900/50 group-hover:border-indigo-200 dark:group-hover:border-indigo-700 transition-colors">
+                        <i data-lucide="graduation-cap" class="w-3.5 h-3.5 inline-block mb-0.5 text-slate-400 dark:text-gray-500 mr-1 group-hover:text-indigo-500 dark:group-hover:text-indigo-400"></i> ជំនាន់ទី៤
+                    </span>
+                </div>
+            </a>
+            
+            <div class="mt-12 text-sm text-slate-400 dark:text-slate-500 font-medium reveal-up" style="transition-delay: 300ms;">
+                &copy; 2026 Krusmart. រក្សាសិទ្ធិគ្រប់យ៉ាង។
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- Initialization Scripts -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+
+            const isIframe = document.documentElement.classList.contains('is-iframe');
+            
+            if (isIframe) {
+                try {
+                    if (window.parent && window.parent.document) {
+                        const observer = new MutationObserver((mutations) => {
+                            mutations.forEach((mutation) => {
+                                if (mutation.attributeName === 'class') {
+                                    if (window.parent.document.documentElement.classList.contains('dark')) {
+                                        document.documentElement.classList.add('dark');
+                                    } else {
+                                        document.documentElement.classList.remove('dark');
+                                    }
+                                }
+                            });
+                        });
+                        observer.observe(window.parent.document.documentElement, { attributes: true });
+                    }
+                } catch (e) {
+                    // Ignore CORS errors if parent is inaccessible
+                }
+            }
+
+            window.addEventListener('storage', (event) => {
+                if (event.key === 'color-theme') {
+                    if (event.newValue === 'dark') {
+                        document.documentElement.classList.add('dark');
+                    } else {
+                        document.documentElement.classList.remove('dark');
+                    }
+                }
+            });
+
+            // Intersection Observer for Scroll Reveals
+            const observerOptions = {
+                root: null,
+                rootMargin: '0px',
+                threshold: 0.15 
+            };
+
+            const observer = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('reveal-visible');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, observerOptions);
+
+            const revealElements = document.querySelectorAll('.reveal-up, .reveal-left, .reveal-scale');
+            revealElements.forEach(el => observer.observe(el));
+
+            const staggerContainers = document.querySelectorAll('.stagger-container');
+            staggerContainers.forEach(container => {
+                const listItems = container.querySelectorAll('li');
+                listItems.forEach((item, index) => {
+                    item.classList.add('reveal-left');
+                    item.style.transitionDelay = `${index * 150}ms`;
+                    observer.observe(item);
+                });
+            });
+        });
+    </script>
+</body>
+</html>

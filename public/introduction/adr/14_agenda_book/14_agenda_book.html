@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PTEC - សៀវភៅណែនាំប្រព័ន្ធរបៀបវារៈកិច្ចប្រជុំ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Moul&family=Battambang:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- Script to prevent FOUC and ensure Iframe transparency -->
+    <script>
+        let isDark = false;
+        if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            isDark = true;
+        }
+        
+        try {
+            if (window.self !== window.top) {
+                document.documentElement.classList.add('is-iframe');
+                if (window.parent && window.parent.document) {
+                    isDark = window.parent.document.documentElement.classList.contains('dark');
+                }
+            }
+        } catch (e) {
+            document.documentElement.classList.add('is-iframe');
+        }
+
+        if (isDark) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+
+    <!-- Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Battambang"', 'sans-serif'],
+                        display: ['Moul', 'cursive'],
+                    },
+                    colors: {
+                        primary: '#2563eb', // Blue-600
+                        secondary: '#3b82f6', // Blue-500
+                    },
+                    animation: {
+                        float: "float 4s ease-in-out infinite",
+                    },
+                    keyframes: {
+                        float: {
+                            "0%, 100%": { transform: "translate3d(0, 0, 0)" }, 
+                            "50%": { transform: "translate3d(0, -12px, 0)" },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        .dark body { background: #0f172a; }
+        body:not(.dark) { background: #eff6ff; } /* Light blue background */
+        
+        html.is-iframe body { background: transparent !important; }
+        html.is-iframe #standalone-bg-animate { display: none !important; }
+
+        body { 
+            line-height: 1.8; 
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Static Background */
+        .bg-animate { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -2; 
+            background: radial-gradient(circle at 10% 20%, #eff6ff 0%, transparent 40%), 
+                        radial-gradient(circle at 90% 80%, #dbeafe 0%, transparent 40%), 
+                        radial-gradient(circle at 50% 50%, #f0fdf4 0%, transparent 50%); 
+        }
+        
+        .dark .bg-animate { 
+            background: radial-gradient(circle at 10% 20%, #1e3a8a 0%, transparent 40%), 
+                        radial-gradient(circle at 90% 80%, #172554 0%, transparent 40%), 
+                        radial-gradient(circle at 50% 50%, #022c22 0%, transparent 50%); 
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+        .dark ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        
+        .section-box { 
+            background: #ffffff;
+            padding: 24px; 
+            border-radius: 24px; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            margin-bottom: 32px; 
+            border: 1px solid #e2e8f0; 
+            position: relative; 
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
+            will-change: transform;
+        }
+        .dark .section-box {
+            background: #1e293b;
+            border-color: #334155;
+        }
+        .section-box:hover {
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            transform: translate3d(0, -4px, 0);
+        }
+        .dark .section-box:hover {
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        @media (min-width: 768px) {
+            .section-box { padding: 40px; border-radius: 32px; margin-bottom: 48px; }
+        }
+
+        .hero-icon-wrapper {
+            position: relative;
+            padding: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.3);
+            transition: box-shadow 0.3s ease;
+        }
+        .dark .hero-icon-wrapper { 
+            background: linear-gradient(135deg, #60a5fa, #2563eb);
+            box-shadow: 0 10px 25px -5px rgba(96, 165, 250, 0.2); 
+        }
+        .group:hover .hero-icon-wrapper { box-shadow: 0 15px 35px -5px rgba(59, 130, 246, 0.5); }
+        
+        .hero-icon-inner {
+            background: white;
+            border-radius: 50%;
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .dark .hero-icon-inner { background: #1e293b; }
+
+        .image-wrapper { 
+            position: relative; 
+            width: 100%; 
+            height: auto; 
+            display: block; 
+            border-radius: 20px; 
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s ease;
+            will-change: transform;
+            overflow: hidden;
+        }
+        .image-wrapper:hover {
+            transform: translate3d(0, -8px, 0) scale(1.02); 
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.15);
+        }
+        .dark .image-wrapper:hover { box-shadow: 0 25px 50px -12px rgba(0,0,0,0.4); }
+        .image-wrapper img { 
+            width: 100%; 
+            height: auto; 
+            display: block; 
+            object-fit: cover; 
+            border: 1px solid #e2e8f0;
+        }
+        .dark .image-wrapper img { border-color: #334155; }
+
+        .animate-gradient-text {
+            background: linear-gradient(to right, #1d4ed8, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .dark .animate-gradient-text {
+            background: linear-gradient(to right, #60a5fa, #93c5fd);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Intersection Observer Animations */
+        .reveal-up { opacity: 0; transform: translate3d(0, 40px, 0); transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
+        .reveal-left { opacity: 0; transform: translate3d(-30px, 0, 0); transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
+        .reveal-scale { opacity: 0; transform: scale(0.95) translateZ(0); transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
+        .reveal-visible { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+    </style>
+</head>
+<body class="text-slate-800 dark:text-gray-100 transition-colors duration-300 p-4 sm:p-6 md:p-8 lg:p-12 min-h-screen relative font-sans">
+
+    <!-- Background -->
+    <div class="bg-animate" aria-hidden="true" id="standalone-bg-animate"></div>
+
+    <div class="max-w-5xl mx-auto relative z-10">
+        
+        <!-- Back to Dashboard Button -->
+        <div class="pt-4 sm:pt-6 px-4 sm:px-0 reveal-left">
+            <a href="/administration" target="_parent" class="group inline-flex items-center gap-2 text-slate-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 font-bold transition-all duration-300 bg-white/70 dark:bg-slate-800/70 backdrop-blur-md px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md hover:bg-white dark:hover:bg-slate-800 w-max">
+                <i data-lucide="arrow-left" class="w-5 h-5 group-hover:-translate-x-1 transition-transform duration-300"></i>
+                ត្រឡប់ទៅផ្ទាំងដើម
+            </a>
+        </div>
+
+        <!-- Header Section -->
+        <header class="text-center mb-12 md:mb-16 relative pt-4 md:pt-8">
+            <a href="/administration" target="_parent" class="group inline-block mb-6 relative cursor-pointer animate-float focus:outline-none focus:ring-4 focus:ring-blue-300 rounded-full reveal-scale">
+                <div class="hero-icon-wrapper transform transition-transform duration-300">
+                    <div class="hero-icon-inner w-20 h-20 md:w-28 md:h-28">
+                        <i data-lucide="book-open" class="w-10 h-10 md:w-14 md:h-14 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform duration-300 drop-shadow-sm"></i>
+                    </div>
+                </div>
+                <div class="absolute -bottom-4 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity duration-300 whitespace-nowrap z-20">
+                     <span class="text-xs font-bold text-blue-800 dark:text-blue-200 bg-blue-100 dark:bg-blue-900 px-3 py-1.5 rounded-full border border-blue-200 dark:border-blue-700 shadow-md">ចូលទៅកាន់ប្រព័ន្ធ</span>
+                </div>
+            </a>
+            
+            <h1 class="font-display text-3xl md:text-5xl lg:text-6xl animate-gradient-text mb-4 leading-loose py-2 drop-shadow-sm reveal-up" style="transition-delay: 100ms;">Agenda Book</h1>
+            
+            <p class="text-lg md:text-xl text-slate-600 dark:text-gray-300 font-medium max-w-2xl mx-auto mb-6 reveal-up" style="transition-delay: 200ms;">
+                ឧបករណ៍ឌីជីថលសម្រាប់កត់ត្រារបៀបវារៈកិច្ចប្រជុំប្រចាំខែ ឬកិច្ចប្រជុំផ្សេងៗ ងាយស្រួលក្នុងការគ្រប់គ្រង តាមដានប្រវត្តិ និងបោះពុម្ពជាទម្រង់របាយការណ៍ផ្លូវការ។
+            </p>
+
+            <div class="flex justify-center mb-8 reveal-up" style="transition-delay: 250ms;">
+                <a href="#tutorial-video" class="inline-flex items-center gap-2.5 bg-blue-600 hover:bg-blue-700 text-white px-8 py-3.5 rounded-[30px] font-display text-lg md:text-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-800 tracking-wide">
+                    <i data-lucide="play" class="w-6 h-6"></i>
+                    ស្វែងយល់បន្ថែម
+                </a>
+            </div>
+        </header>
+
+        <!-- Part 1: Data Entry -->
+        <section class="section-box border-t-4 border-t-blue-500 dark:border-t-blue-400 reveal-up">
+            <div class="flex items-center gap-4 mb-6 md:mb-8">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0 border border-blue-100 dark:border-blue-800/50 shadow-sm reveal-scale">
+                    <i data-lucide="edit" class="w-7 h-7 md:w-8 md:h-8"></i>
+                </div>
+                <div class="reveal-left">
+                    <span class="text-[10px] md:text-xs font-display tracking-wider text-blue-600 dark:text-blue-400 uppercase bg-blue-100 dark:bg-blue-900/40 px-3 py-1 rounded-full border border-blue-200 dark:border-blue-800/50">Part 1</span>
+                    <h2 class="font-display leading-normal text-xl md:text-3xl text-slate-800 dark:text-white mt-1 md:mt-2">ការកត់ត្រាកិច្ចប្រជុំថ្មី</h2>
+                </div>
+            </div>
+            
+            <div class="text-sm md:text-base text-slate-600 dark:text-gray-300 mb-6 reveal-up space-y-3">
+                <p>ចំណុចនេះគឺជាកន្លែងសម្រាប់ចាប់ផ្តើមបញ្ចូលទិន្នន័យនៃកិច្ចប្រជុំនីមួយៗ។ ដើម្បីកត់ត្រាបានត្រឹមត្រូវ លោកអ្នកត្រូវបំពេញនូវចំណុចសំខាន់ៗដូចជា៖</p>
+                <ul class="list-disc pl-6 space-y-2 text-slate-700 dark:text-gray-300">
+                    <li><strong class="text-blue-700 dark:text-blue-400">កាលបរិច្ឆេទ និង កម្មវត្ថុ៖</strong> កំណត់ថ្ងៃខែឆ្នាំប្រជុំ និងសរសេរប្រធានបទគោលនៃកិច្ចប្រជុំ (ឧទាហរណ៍៖ កិច្ចប្រជុំបូកសរុបលទ្ធផលសិក្សាប្រចាំខែ...)។</li>
+                    <li><strong class="text-blue-700 dark:text-blue-400">សេចក្តីលម្អិត៖</strong> ប្រអប់ធំសម្រាប់រៀបរាប់ដំណើរការកិច្ចប្រជុំ ឬខ្លឹមសារពិភាក្សាលម្អិតផ្សេងៗ។</li>
+                    <li><strong class="text-blue-700 dark:text-blue-400">របៀបវារៈទាំង ៦៖</strong> ជាចំណុចពិសេសដែលអនុញ្ញាតឱ្យលោកអ្នកបំបែកប្រធានបទប្រជុំជាចំណុចៗរហូតដល់៦ចំណុច ដើម្បីងាយស្រួលអាននៅពេលបោះពុម្ព។ អ្នកមិនចាំបាច់បំពេញទាំងអស់នោះទេ បំពេញត្រឹមតែចំណុចណាដែលមានជាក់ស្តែង។</li>
+                </ul>
+            </div>
+            
+            <!-- Image 1 from Google Drive Link -->
+            <div class="image-wrapper mb-6 border-4 border-slate-100 dark:border-slate-700 shadow-lg bg-slate-50 dark:bg-gray-900 reveal-scale">
+                <img src="https://lh3.googleusercontent.com/d/1QzYq7qJDzyG1Q_3rkgEEhbKPtl35aT9-" alt="Data Entry Recommendation Form" onerror="this.onerror=null; this.src='https://placehold.co/1200x600/1e293b/94a3b8?text=Data+Entry+View'">
+            </div>
+        </section>
+
+        <!-- Part 2: History & Tracking -->
+        <section class="section-box border-t-4 border-t-sky-500 dark:border-t-sky-400 reveal-up">
+            <div class="flex items-center gap-4 mb-6 md:mb-8">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-sky-50 dark:bg-sky-900/30 flex items-center justify-center text-sky-600 dark:text-sky-400 shrink-0 border border-sky-100 dark:border-sky-800/50 shadow-sm reveal-scale">
+                    <i data-lucide="history" class="w-7 h-7 md:w-8 md:h-8"></i>
+                </div>
+                <div class="reveal-left">
+                    <span class="text-[10px] md:text-xs font-display tracking-wider text-sky-600 dark:text-sky-400 uppercase bg-sky-100 dark:bg-sky-900/40 px-3 py-1 rounded-full border border-sky-200 dark:border-sky-800/50">Part 2</span>
+                    <h2 class="font-display leading-normal text-xl md:text-3xl text-slate-800 dark:text-white mt-1 md:mt-2">ការគ្រប់គ្រងប្រវត្តិកិច្ចប្រជុំ</h2>
+                </div>
+            </div>
+            
+            <div class="text-sm md:text-base text-slate-600 dark:text-gray-300 mb-6 reveal-up space-y-3">
+                <p>រាល់កិច្ចប្រជុំដែលអ្នកបានចុច "រក្សាទុក" នឹងលោតចូលមកក្នុងតារាងប្រវត្តិដោយស្វ័យប្រវត្តិ។ តារាងនេះជួយរៀបចំទិន្នន័យតាមលំដាប់កាលបរិច្ឆេទ និងអនុញ្ញាតឱ្យលោកអ្នកធ្វើការគ្រប់គ្រងតាមរយៈប៊ូតុងទាំង៣ ផ្នែកខាងស្តាំ៖</p>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                    <div class="bg-indigo-50 dark:bg-slate-800 p-4 rounded-xl border border-indigo-100 dark:border-slate-700 flex items-center gap-3">
+                        <div class="p-2 bg-white dark:bg-slate-700 rounded-lg shadow-sm text-indigo-600"><i data-lucide="printer" class="w-5 h-5"></i></div>
+                        <div><strong class="text-indigo-800 dark:text-indigo-300 block text-sm">បោះពុម្ព</strong><span class="text-xs text-slate-500 dark:text-slate-400">ចុចដើម្បីរៀបចំក្រដាសព្រីន A4</span></div>
+                    </div>
+                    <div class="bg-amber-50 dark:bg-slate-800 p-4 rounded-xl border border-amber-100 dark:border-slate-700 flex items-center gap-3">
+                        <div class="p-2 bg-white dark:bg-slate-700 rounded-lg shadow-sm text-amber-600"><i data-lucide="edit" class="w-5 h-5"></i></div>
+                        <div><strong class="text-amber-800 dark:text-amber-300 block text-sm">កែប្រែ</strong><span class="text-xs text-slate-500 dark:text-slate-400">ទាញទិន្នន័យមកកែតម្រូវឡើងវិញ</span></div>
+                    </div>
+                    <div class="bg-rose-50 dark:bg-slate-800 p-4 rounded-xl border border-rose-100 dark:border-slate-700 flex items-center gap-3">
+                        <div class="p-2 bg-white dark:bg-slate-700 rounded-lg shadow-sm text-rose-600"><i data-lucide="trash-2" class="w-5 h-5"></i></div>
+                        <div><strong class="text-rose-800 dark:text-rose-300 block text-sm">លុប</strong><span class="text-xs text-slate-500 dark:text-slate-400">លុបទិន្នន័យនេះចេញពីប្រព័ន្ធ</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Image 2 from Google Drive Link -->
+            <div class="image-wrapper mb-6 border-4 border-slate-100 dark:border-slate-700 shadow-lg bg-slate-50 dark:bg-gray-900 reveal-scale">
+                <img src="https://lh3.googleusercontent.com/d/1FKfGKYZBNzD1Ma-9NRE9ks9J9OlbVXcH" alt="Recommendation History Table" onerror="this.onerror=null; this.src='https://placehold.co/1200x300/1e293b/94a3b8?text=History+Table+View'">
+            </div>
+        </section>
+
+        <!-- Part 3: Signature Settings -->
+        <section class="section-box border-t-4 border-t-indigo-500 dark:border-t-indigo-400 reveal-up">
+            <div class="flex items-center gap-4 mb-6 md:mb-8">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0 border border-indigo-100 dark:border-indigo-800/50 shadow-sm reveal-scale">
+                    <i data-lucide="pen-tool" class="w-7 h-7 md:w-8 md:h-8"></i>
+                </div>
+                <div class="reveal-left">
+                    <span class="text-[10px] md:text-xs font-display tracking-wider text-indigo-600 dark:text-indigo-400 uppercase bg-indigo-100 dark:bg-indigo-900/40 px-3 py-1 rounded-full border border-indigo-200 dark:border-indigo-800/50">Part 3</span>
+                    <h2 class="font-display leading-normal text-xl md:text-3xl text-slate-800 dark:text-white mt-1 md:mt-2">ការកំណត់ហត្ថលេខា</h2>
+                </div>
+            </div>
+            
+            <p class="text-sm md:text-base text-slate-600 dark:text-gray-300 mb-6 reveal-up">
+                ចំណុចនេះមានភាពចាំបាច់ខ្លាំងមុនពេលអ្នកសម្រេចចិត្តបោះពុម្ព។ ដើម្បីកុំឱ្យពិបាកចុះហត្ថលេខាផ្ទាល់ដៃរាល់ពេល ប្រព័ន្ធបានផ្តល់ជម្រើសឱ្យលោកអ្នកកំណត់រូបភាពហត្ថលេខាទុកជាមុន។ លោកអ្នកគ្រាន់តែចុចលើប៊ូតុង <strong>"ហត្ថលេខា"</strong> នៅខាងស្តាំផ្នែកខាងលើ រួចបញ្ចូល៖
+            </p>
+            
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm reveal-up flex flex-col md:flex-row gap-6">
+                <div class="flex-1 space-y-2">
+                    <h4 class="font-bold text-indigo-700 dark:text-indigo-400 flex items-center gap-2 border-b border-slate-100 dark:border-slate-700 pb-2"><i data-lucide="user-check" class="w-4 h-4"></i> ផ្នែកនាយកសាលា</h4>
+                    <p class="text-sm text-slate-600 dark:text-gray-400">វាយបញ្ចូលឈ្មោះនាយកសាលាដែលត្រូវពិនិត្យឯកសារ និងទាញយករូបភាពហត្ថលេខាបញ្ចូលក្នុងប្រព័ន្ធ។</p>
+                </div>
+                <div class="hidden md:block w-px bg-slate-200 dark:bg-slate-700"></div>
+                <div class="flex-1 space-y-2">
+                    <h4 class="font-bold text-indigo-700 dark:text-indigo-400 flex items-center gap-2 border-b border-slate-100 dark:border-slate-700 pb-2"><i data-lucide="user" class="w-4 h-4"></i> ផ្នែកគ្រូបន្ទុកថ្នាក់</h4>
+                    <p class="text-sm text-slate-600 dark:text-gray-400">វាយបញ្ចូលឈ្មោះរបស់អ្នក (អ្នកកត់ត្រា) និងទាញយករូបភាពហត្ថលេខាបញ្ចូលក្នុងប្រព័ន្ធដូចគ្នា។</p>
+                </div>
+            </div>
+            <p class="text-xs text-rose-500 mt-3 font-medium">ចំណាំ៖ លោកអ្នកអាចប្រើប៊ូតុង (+) ឬ (-) ដើម្បីពង្រីកបង្រួមទំហំហត្ថលេខាឱ្យសមាមាត្រទៅនឹងក្រដាស។</p>
+        </section>
+
+        <!-- Part 4: Print Preview -->
+        <section class="section-box border-t-4 border-t-purple-500 dark:border-t-purple-400 reveal-up">
+            <div class="flex items-center gap-4 mb-6 md:mb-8">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-purple-50 dark:bg-purple-900/30 flex items-center justify-center text-purple-600 dark:text-purple-400 shrink-0 border border-purple-100 dark:border-purple-800/50 shadow-sm reveal-scale">
+                    <i data-lucide="printer" class="w-7 h-7 md:w-8 md:h-8"></i>
+                </div>
+                <div class="reveal-left">
+                    <span class="text-[10px] md:text-xs font-display tracking-wider text-purple-600 dark:text-purple-400 uppercase bg-purple-100 dark:bg-purple-900/40 px-3 py-1 rounded-full border border-purple-200 dark:border-purple-800/50">Part 4</span>
+                    <h2 class="font-display leading-normal text-xl md:text-3xl text-slate-800 dark:text-white mt-1 md:mt-2">ការមើលមុនបោះពុម្ព (Print Preview)</h2>
+                </div>
+            </div>
+            
+            <p class="text-sm md:text-base text-slate-600 dark:text-gray-300 mb-6 reveal-up">
+                នៅពេលលោកអ្នកចុចប៊ូតុង "បោះពុម្ព" នៅលើកិច្ចប្រជុំណាមួយ ប្រព័ន្ធនឹងទាញទិន្នន័យនោះមករៀបចំជាទម្រង់ក្រដាស A4 ដោយស្វ័យប្រវត្តិ។ នៅក្នុងផ្ទាំង Print Preview នេះ លោកអ្នកនឹងឃើញមាន <strong>ទំព័រគម្របសៀវភៅ</strong> ដ៏ស្រស់ស្អាត និង <strong>ទំព័រខ្លឹមសារកិច្ចប្រជុំ</strong> ដែលមានរចនាសម្ព័ន្ធត្រឹមត្រូវតាមស្តង់ដាររដ្ឋបាល រួមបញ្ចូលទាំងហត្ថលេខាដែលបានកំណត់រួចជាស្រេចនៅផ្នែកខាងក្រោម។ លោកអ្នកគ្រាន់តែចុចប៊ូតុង "បោះពុម្ភ" (ពណ៌ខៀវ) នៅខាងលើ ដើម្បីធ្វើការ Print ចេញជាក្រដាសផ្លូវការ។
+            </p>
+
+            <!-- Image 3 from Google Drive Link -->
+            <div class="image-wrapper border-4 border-slate-100 dark:border-slate-700 shadow-md bg-slate-50 dark:bg-gray-900 mb-6 reveal-scale">
+                <img src="https://lh3.googleusercontent.com/d/1d1mVaYo_KRyN0RLF7vYUXNFiU1-H9-ND" alt="Print Preview Dashboard" onerror="this.onerror=null; this.src='https://placehold.co/1200x800/1e293b/94a3b8?text=Print+Preview'">
+            </div>
+        </section>
+
+        <!-- Part 5: Video Tutorial -->
+        <section id="tutorial-video" class="section-box border-t-4 border-t-rose-500 dark:border-t-rose-400 reveal-up">
+            <div class="flex items-center gap-4 mb-6 md:mb-8">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-rose-50 dark:bg-rose-900/30 flex items-center justify-center text-rose-600 dark:text-rose-400 shrink-0 border border-rose-100 dark:border-rose-800/50 shadow-sm reveal-scale">
+                    <svg class="w-7 h-7 md:w-8 md:h-8" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                    </svg>
+                </div>
+                <div class="reveal-left">
+                    <span class="inline-flex items-center gap-1.5 text-[10px] md:text-xs font-display tracking-wider text-rose-600 dark:text-rose-400 uppercase bg-rose-100 dark:bg-rose-900/40 px-3 py-1 rounded-full border border-rose-200 dark:border-rose-800/50">
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                        </svg>
+                        Part 5
+                    </span>
+                    <h2 class="font-display leading-normal text-xl md:text-3xl text-slate-800 dark:text-white mt-1 md:mt-2">វីដេអូណែនាំការប្រើប្រាស់ (Video Tutorial)</h2>
+                </div>
+            </div>
+            
+            <p class="text-sm md:text-lg text-slate-600 dark:text-gray-300 mb-6 reveal-up">ទស្សនាវីដេអូខាងក្រោមដើម្បីស្វែងយល់បន្ថែមពីការអនុវត្តផ្ទាល់នៃរបៀបប្រើប្រាស់ប្រព័ន្ធសៀវភៅរបៀបវារៈកិច្ចប្រជុំនេះឱ្យកាន់តែច្បាស់។</p>
+
+            <div class="relative w-full aspect-video rounded-2xl overflow-hidden border-4 border-slate-100 dark:border-slate-700 shadow-lg reveal-scale bg-slate-100 dark:bg-slate-800">
+                <iframe 
+                    class="absolute top-0 left-0 w-full h-full" 
+                    src="https://www.youtube.com/embed/dAWuxHn0kj8" 
+                    title="YouTube video player" 
+                    frameborder="0" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                    allowfullscreen>
+                </iframe>
+            </div>
+
+            <div class="mt-8 flex justify-center reveal-up">
+                <a href="https://youtu.be/dAWuxHn0kj8" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400 dark:hover:bg-rose-800/50 border border-rose-200 dark:border-rose-700/50 px-6 py-3 rounded-xl font-bold shadow-sm hover:shadow-md transition-all duration-300 focus:outline-none" style="will-change: transform;">
+                    <i data-lucide="external-link" class="w-5 h-5"></i>
+                    មើលនៅលើ YouTube
+                </a>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="mt-20 pb-16 text-center relative z-10">
+            <div class="w-20 h-1.5 bg-blue-500 mx-auto rounded-full mb-8 shadow-sm reveal-scale"></div>
+            
+            <h3 class="font-display text-3xl md:text-4xl text-slate-800 dark:text-white mb-4 flex justify-center items-center gap-3 reveal-up">
+                <i data-lucide="party-popper" class="w-8 h-8 text-blue-500 animate-bounce"></i> រួចរាល់ហើយ!
+            </h3>
+           
+            <p class="text-slate-500 dark:text-gray-400 mb-8 max-w-2xl mx-auto text-sm md:text-base reveal-up" style="transition-delay: 100ms;">
+                ចំណាយពេលតិច ធ្វើការបានលឿនជាងមុន។ ការកត់ត្រាកិច្ចប្រជុំនឹងលែងជាការងារដែលស្មុគស្មាញ និងចំណាយពេលយូរទៀតហើយជាមួយប្រព័ន្ធមួយនេះ។
+            </p>
+
+            <a href="/administration" target="_parent" class="inline-flex items-center gap-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-10 py-4 rounded-full font-bold text-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 focus:outline-none reveal-scale mb-12" style="transition-delay: 150ms; will-change: transform;">
+                <i data-lucide="arrow-right-circle" class="w-6 h-6"></i>
+                ចូលប្រើប្រាស់ប្រព័ន្ធឥឡូវនេះ
+            </a>
+            
+            <div class="flex justify-center reveal-up" style="transition-delay: 200ms;">
+                <a href="https://portfolio-ron-raksmey.netlify.app/" target="_blank" rel="noopener noreferrer" class="inline-block bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-lg border border-slate-200 dark:border-slate-700 max-w-sm w-full relative overflow-hidden group hover:shadow-xl hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-600 transition-all duration-300 cursor-pointer">
+                    <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-400 via-indigo-500 to-cyan-500"></div>
+                    
+                    <div class="flex flex-col items-center">
+                        <div class="w-28 h-28 rounded-full border-4 border-white dark:border-slate-700 shadow-md overflow-hidden mb-5 relative bg-slate-100 dark:bg-slate-900 group-hover:scale-105 transition-transform duration-500">
+                            <img loading="lazy" src="../../enrollment/RON-RAKSMEY.png" alt="Profile" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://placehold.co/150x150/1e293b/94a3b8?text=Profile'">
+                        </div>
+                        
+                        <p class="text-[11px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-bold mb-2 flex items-center gap-1 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors">
+                            <i data-lucide="code-2" class="w-3 h-3"></i> Developed By
+                        </p>
+                        <h4 class="font-display text-xl text-slate-800 dark:text-white mb-1 group-hover:text-indigo-700 dark:group-hover:text-indigo-400 transition-colors">គរុនិស្សិត រុន រស្មី</h4>
+                        <span class="text-xs text-slate-500 dark:text-gray-400 mt-2 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-4 py-1.5 rounded-full font-medium">
+                            <i data-lucide="graduation-cap" class="w-3.5 h-3.5 inline-block mb-0.5 mr-1 text-blue-500"></i> ជំនាន់ទី៤
+                        </span>
+                    </div>
+                </a>
+            </div>
+            
+            <div class="mt-12 text-sm text-slate-400 dark:text-slate-500 font-medium reveal-up" style="transition-delay: 300ms;">
+                &copy; 2026 Krusmart. រក្សាសិទ្ធិគ្រប់យ៉ាង។
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- Initialization Scripts -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+
+            const isIframe = document.documentElement.classList.contains('is-iframe');
+            
+            if (isIframe) {
+                try {
+                    if (window.parent && window.parent.document) {
+                        const observer = new MutationObserver((mutations) => {
+                            mutations.forEach((mutation) => {
+                                if (mutation.attributeName === 'class') {
+                                    if (window.parent.document.documentElement.classList.contains('dark')) {
+                                        document.documentElement.classList.add('dark');
+                                    } else {
+                                        document.documentElement.classList.remove('dark');
+                                    }
+                                }
+                            });
+                        });
+                        observer.observe(window.parent.document.documentElement, { attributes: true });
+                    }
+                } catch (e) {}
+            }
+
+            window.addEventListener('storage', (event) => {
+                if (event.key === 'color-theme') {
+                    if (event.newValue === 'dark') {
+                        document.documentElement.classList.add('dark');
+                    } else {
+                        document.documentElement.classList.remove('dark');
+                    }
+                }
+            });
+
+            // Intersection Observer for Animations
+            const observerOptions = {
+                root: null,
+                rootMargin: '0px',
+                threshold: 0.15 
+            };
+
+            const observer = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('reveal-visible');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, observerOptions);
+
+            const revealElements = document.querySelectorAll('.reveal-up, .reveal-left, .reveal-scale');
+            revealElements.forEach(el => observer.observe(el));
+        });
+    </script>
+</body>
+</html>

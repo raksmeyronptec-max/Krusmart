@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PTEC - បញ្ជីរបាយការណ៍ពិន្ទុ</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Icons (FontAwesome for compatibility) and Lucide -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Moul&family=Battambang:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- Script to prevent FOUC and handle Dark Mode -->
+    <script>
+        let isDark = false;
+        if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            isDark = true;
+        }
+        
+        try {
+            if (window.self !== window.top) {
+                document.documentElement.classList.add('is-iframe');
+                if (window.parent && window.parent.document) {
+                    isDark = window.parent.document.documentElement.classList.contains('dark');
+                }
+            }
+        } catch (e) {
+            document.documentElement.classList.add('is-iframe');
+        }
+
+        if (isDark) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+
+    <!-- Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Battambang"', 'sans-serif'],
+                        display: ['Moul', 'cursive'],
+                    },
+                    colors: {
+                        primary: '#0054a6',
+                        secondary: '#4facfe',
+                    },
+                    animation: {
+                        float: "float 4s ease-in-out infinite",
+                    },
+                    keyframes: {
+                        float: {
+                            "0%, 100%": { transform: "translate3d(0, 0, 0)" },
+                            "50%": { transform: "translate3d(0, -10px, 0)" },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        .dark body { background: #0f172a; }
+        body:not(.dark) { background: #f0f4f8; }
+        
+        html.is-iframe body { background: transparent !important; }
+        html.is-iframe #standalone-bg-animate { display: none !important; }
+
+        body { 
+            line-height: 1.8; 
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Animated Background */
+        .bg-animate { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -2; 
+            background: radial-gradient(circle at 10% 20%, #e0e7ff 0%, transparent 40%), 
+                        radial-gradient(circle at 90% 80%, #dcfce7 0%, transparent 40%), 
+                        radial-gradient(circle at 50% 50%, #fef3c7 0%, transparent 50%); 
+        }
+        
+        .dark .bg-animate { 
+            background: radial-gradient(circle at 10% 20%, #1e1b4b 0%, transparent 40%), 
+                        radial-gradient(circle at 90% 80%, #064e3b 0%, transparent 40%), 
+                        radial-gradient(circle at 50% 50%, #451a03 0%, transparent 50%); 
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+        .dark ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        
+        /* Gradient Text */
+        .animate-gradient-text {
+            background: linear-gradient(to right, #0054a6, #4facfe);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .dark .animate-gradient-text {
+            background: linear-gradient(to right, #4facfe, #0ea5e9);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Hero Icon Wrapper */
+        .hero-icon-wrapper {
+            position: relative;
+            padding: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            background: linear-gradient(135deg, #4facfe, #0054a6);
+            box-shadow: 0 10px 25px -5px rgba(0, 84, 166, 0.3);
+            transition: box-shadow 0.3s ease;
+        }
+        .dark .hero-icon-wrapper { 
+            background: linear-gradient(135deg, #4facfe, #0ea5e9);
+            box-shadow: 0 10px 25px -5px rgba(79, 172, 254, 0.2); 
+        }
+        .hero-icon-inner {
+            background: white;
+            border-radius: 50%;
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .dark .hero-icon-inner { background: #1e293b; }
+
+        /* Animations */
+        .reveal-up { opacity: 0; transform: translate3d(0, 40px, 0); transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
+        .reveal-scale { opacity: 0; transform: scale(0.9) translateZ(0); transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
+        .reveal-visible { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+    </style>
+</head>
+<body class="text-slate-800 dark:text-gray-100 transition-colors duration-300 p-4 sm:p-6 md:p-8 min-h-screen relative font-sans">
+
+    <!-- Background -->
+    <div class="bg-animate" aria-hidden="true" id="standalone-bg-animate"></div>
+
+    <div class="max-w-7xl mx-auto relative z-10">
+        
+        <!-- Header Section -->
+        <header class="text-center mb-10 md:mb-14 relative pt-4 md:pt-8">
+            <div class="inline-block mb-6 relative animate-float reveal-scale">
+                <div class="hero-icon-wrapper transform transition-transform duration-300">
+                    <div class="hero-icon-inner w-20 h-20 md:w-24 md:h-24">
+                        <i class="fas fa-chart-pie text-4xl md:text-5xl text-primary dark:text-secondary drop-shadow-sm"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <h1 class="font-display text-2xl md:text-4xl lg:text-5xl animate-gradient-text mb-4 leading-loose py-4 drop-shadow-sm reveal-up" style="transition-delay: 100ms;">ប្រព័ន្ធរបាយការណ៍ពិន្ទុ</h1>
+            
+            <p class="text-base md:text-lg text-slate-600 dark:text-gray-300 font-medium max-w-3xl mx-auto mb-6 reveal-up" style="transition-delay: 200ms;">
+                សូមជ្រើសរើសប្រភេទរបាយការណ៍ពិន្ទុប្រចាំខែ ឆមាស ឬប្រចាំឆ្នាំ ដែលលោកអ្នកចង់គ្រប់គ្រងពីបញ្ជីខាងក្រោម។
+            </p>
+        </header>
+
+        <!-- Grid Container -->
+        <div id="dashboard-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+            <!-- Dynamic Content will be injected here -->
+        </div>
+
+        <!-- Footer -->
+        <footer class="mt-16 pb-10 text-center relative z-10 reveal-up" style="transition-delay: 400ms;">
+            <div class="w-16 h-1.5 bg-blue-500 mx-auto rounded-full mb-8 shadow-sm"></div>
+            
+            <div class="inline-block bg-white dark:bg-slate-800 px-6 py-4 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 max-w-sm w-full transition-all duration-300">
+                <p class="text-[11px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-bold mb-1">
+                    <i class="fas fa-code mr-1"></i> Krusmart
+                </p>
+                <h4 class="font-display text-sm md:text-base text-slate-800 dark:text-white">ប្រព័ន្ធគ្រប់គ្រងសាលារៀន</h4>
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- Data and Render Script -->
+    <script>
+        // Data derived from the Score Dashboard request
+        const formsData = [
+            { id: 'score_entry', icon: 'fa-calendar-days', title: '១. បញ្ជីបូកលទ្ធផលសរុប', src: 'subject_score_print.html', color: 'blue' },
+            { id: 'ranking', icon: 'fa-chart-bar', title: '២. ចំណាត់ថ្នាក់ និងនិទ្ទេស', src: 'monthly_ranking_report.html', color: 'rose' },
+            { id: 'avg_yearly', icon: 'fa-chart-line', title: '៣. មធ្យមភាគប្រចាំឆ្នាំ', src: 'average_monthly_report.html', color: 'emerald' },
+            { id: 'annual_subject', icon: 'fa-file-lines', title: '៤. មុខវិជ្ជាប្រចាំឆ្នាំ', src: 'annual_subject_report.html', color: 'purple' },
+            { id: 'subject_results', icon: 'fa-chart-pie', title: '៥. លទ្ធផលតាមមុខវិជ្ជា', src: 'subject-results-report.html', color: 'cyan' },
+            { id: 'promoted', icon: 'fa-arrow-trend-up', title: '៦. សិស្សឡើងថ្នាក់', src: 'list_student_promoted.html', color: 'teal' },
+            { id: 'repeated', icon: 'fa-circle-exclamation', title: '៧. សិស្សត្រួតថ្នាក់', src: 'repeated_student.html', color: 'orange' }
+        ];
+
+        // Tailwind Color Mappings
+        const colorMaps = {
+            blue: { bg: 'bg-blue-50 dark:bg-blue-900/30', text: 'text-blue-600 dark:text-blue-400', border: 'border-blue-100 dark:border-blue-800/50', hoverText: 'group-hover:text-blue-600 dark:group-hover:text-blue-400' },
+            emerald: { bg: 'bg-emerald-50 dark:bg-emerald-900/30', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-100 dark:border-emerald-800/50', hoverText: 'group-hover:text-emerald-600 dark:group-hover:text-emerald-400' },
+            amber: { bg: 'bg-amber-50 dark:bg-amber-900/30', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-100 dark:border-amber-800/50', hoverText: 'group-hover:text-amber-600 dark:group-hover:text-amber-400' },
+            purple: { bg: 'bg-purple-50 dark:bg-purple-900/30', text: 'text-purple-600 dark:text-purple-400', border: 'border-purple-100 dark:border-purple-800/50', hoverText: 'group-hover:text-purple-600 dark:group-hover:text-purple-400' },
+            teal: { bg: 'bg-teal-50 dark:bg-teal-900/30', text: 'text-teal-600 dark:text-teal-400', border: 'border-teal-100 dark:border-teal-800/50', hoverText: 'group-hover:text-teal-600 dark:group-hover:text-teal-400' },
+            pink: { bg: 'bg-pink-50 dark:bg-pink-900/30', text: 'text-pink-600 dark:text-pink-400', border: 'border-pink-100 dark:border-pink-800/50', hoverText: 'group-hover:text-pink-600 dark:group-hover:text-pink-400' },
+            indigo: { bg: 'bg-indigo-50 dark:bg-indigo-900/30', text: 'text-indigo-600 dark:text-indigo-400', border: 'border-indigo-100 dark:border-indigo-800/50', hoverText: 'group-hover:text-indigo-600 dark:group-hover:text-indigo-400' },
+            rose: { bg: 'bg-rose-50 dark:bg-rose-900/30', text: 'text-rose-600 dark:text-rose-400', border: 'border-rose-100 dark:border-rose-800/50', hoverText: 'group-hover:text-rose-600 dark:group-hover:text-rose-400' },
+            orange: { bg: 'bg-orange-50 dark:bg-orange-900/30', text: 'text-orange-600 dark:text-orange-400', border: 'border-orange-100 dark:border-orange-800/50', hoverText: 'group-hover:text-orange-600 dark:group-hover:text-orange-400' },
+            cyan: { bg: 'bg-cyan-50 dark:bg-cyan-900/30', text: 'text-cyan-600 dark:text-cyan-400', border: 'border-cyan-100 dark:border-cyan-800/50', hoverText: 'group-hover:text-cyan-600 dark:group-hover:text-cyan-400' },
+            red: { bg: 'bg-red-50 dark:bg-red-900/30', text: 'text-red-600 dark:text-red-400', border: 'border-red-100 dark:border-red-800/50', hoverText: 'group-hover:text-red-600 dark:group-hover:text-red-400' },
+        };
+
+        // Navigation Function
+        window.openForm = function(src, title, id) {
+            if (window.parent && typeof window.parent.loadPage === 'function') {
+                // If running inside a frame that has loadPage
+                window.parent.loadPage(src || '', title, id);
+            } else {
+                // Direct navigation fallback
+                if (src && src !== '') {
+                    window.location.href = src;
+                }
+            }
+        };
+
+        // Render the Grid
+        document.addEventListener('DOMContentLoaded', () => {
+            const gridContainer = document.getElementById('dashboard-grid');
+            
+            formsData.forEach((item, index) => {
+                const colors = colorMaps[item.color] || colorMaps['blue'];
+                const delay = (index * 40) + 100;
+
+                const cardHTML = `
+                    <div 
+                        onclick="window.openForm('${item.src}', '${item.title}', '${item.id}')" 
+                        class="bg-white dark:bg-slate-800 rounded-2xl p-5 md:p-6 shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 cursor-pointer group relative overflow-hidden reveal-up flex flex-col items-center text-center"
+                        style="transition-delay: ${delay}ms; will-change: transform;"
+                    >
+                        <!-- Top Accent Line -->
+                        <div class="absolute top-0 left-0 w-full h-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 ${colors.bg.split(' ')[0].replace('50', '500')}"></div>
+                        
+                        <!-- Icon -->
+                        <div class="w-16 h-16 rounded-2xl ${colors.bg} ${colors.text} flex items-center justify-center mb-4 border ${colors.border} group-hover:scale-110 transition-transform duration-300 shadow-sm">
+                            <i class="fas ${item.icon} text-2xl md:text-3xl"></i>
+                        </div>
+                        
+                        <!-- Title -->
+                        <h3 class="font-bold text-slate-800 dark:text-white text-[13px] md:text-sm font-battambang leading-relaxed ${colors.hoverText} transition-colors">
+                            ${item.title}
+                        </h3>
+                        
+                        <!-- Action Hint -->
+                        <div class="mt-4 text-[11px] md:text-xs text-slate-400 dark:text-slate-500 font-medium flex items-center gap-1 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all duration-300">
+                            ចូលទៅកាន់ <i class="fas fa-arrow-right ml-1"></i>
+                        </div>
+                    </div>
+                `;
+                
+                gridContainer.innerHTML += cardHTML;
+            });
+
+            // Initialize Animations
+            lucide.createIcons();
+
+            const observerOptions = { root: null, rootMargin: '0px', threshold: 0.1 };
+            const observer = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('reveal-visible');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, observerOptions);
+
+            const revealElements = document.querySelectorAll('.reveal-up, .reveal-scale');
+            revealElements.forEach(el => observer.observe(el));
+        });
+    </script>
+</body>
+</html>

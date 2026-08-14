@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>សៀវភៅណែនាំ - KruSmart</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@300;400;600;700&family=Moul&display=swap" rel="stylesheet">
+    
+    <!-- Script to prevent FOUC (Flash of Unstyled Content) in Dark Mode -->
+    <script>
+        if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Custom Tailwind Config -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: { primary: '#0054a6' },
+                    animation: {
+                        'spin-slow': 'spin 3s linear infinite',
+                    }
+                }
+            }
+        }
+    </script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        :root { --primary: #0054a6; }
+        
+        /* OPTIMIZED for mobile: removed overflow: hidden to prevent iOS scrolling issues. Used flexbox layout instead. */
+        html, body { 
+            font-family: 'Kantumruy Pro', sans-serif; 
+            margin: 0; 
+            padding: 0; 
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        /* Dark Mode Body Background */
+        .dark body { background: #0f172a; }
+        body:not(.dark) { background: #f0f4f8; }
+        
+        .kh-moul { font-family: 'Moul', cursive; }
+        
+        /* Static Background */
+        .bg-animate { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; 
+            background: radial-gradient(circle at 10% 20%, #e0e7ff 0%, transparent 40%), 
+                        radial-gradient(circle at 90% 80%, #dcfce7 0%, transparent 40%), 
+                        radial-gradient(circle at 50% 50%, #fef3c7 0%, transparent 50%); 
+        }
+        
+        /* Dark Mode Static Background */
+        .dark .bg-animate { 
+            background: radial-gradient(circle at 10% 20%, #1e1b4b 0%, transparent 40%), 
+                        radial-gradient(circle at 90% 80%, #064e3b 0%, transparent 40%), 
+                        radial-gradient(circle at 50% 50%, #451a03 0%, transparent 50%); 
+        }
+
+        /* Custom Scrollbar */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { 
+            background: #cbd5e1; 
+            border-radius: 10px; 
+            border: 1px solid rgba(255, 255, 255, 0.6); 
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        /* Dark Mode Scrollbar */
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb { 
+            background: #475569; 
+            border-color: rgba(30, 41, 59, 0.6); 
+        }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+        /* Solid Container Background */
+        .iframe-container {
+            background: #ffffff; 
+            border: 1px solid #e2e8f0; 
+            box-shadow: 0 10px 30px -10px rgba(0, 84, 166, 0.15);
+            transition: all 0.3s ease;
+            transform: translateZ(0); 
+        }
+
+        .dark .iframe-container {
+            background: #1e293b; 
+            border-color: #334155; 
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Menu Animation Classes */
+        .menu-hidden {
+            opacity: 0;
+            transform: translate3d(0, -10px, 0) scale(0.95);
+            pointer-events: none;
+            visibility: hidden;
+        }
+        .menu-visible {
+            opacity: 1;
+            transform: translate3d(0, 0, 0) scale(1);
+            pointer-events: auto;
+            visibility: visible;
+        }
+
+        /* Micro-interactions */
+        .btn-press { transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1); }
+        .btn-press:active { transform: scale(0.92); }
+        
+        .menu-item-hover { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        .menu-item-hover:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); 
+        }
+        .menu-item-hover:active { transform: translateY(0) scale(0.98); }
+    </style>
+</head>
+<body class="min-h-[100dvh] flex flex-col relative w-full dark:text-gray-100 transition-colors duration-300">
+    <div class="bg-animate" aria-hidden="true"></div>
+
+    <!-- Header / Navigation -->
+    <header class="flex-none bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm relative z-50 w-full transition-colors duration-300">
+        <div class="max-w-7xl mx-auto px-3 md:px-6 lg:px-8 py-2 md:py-3 flex justify-between items-center relative">
+            
+            <div class="flex items-center gap-2 md:gap-3">
+                <a href="/dashboard" target="_parent" aria-label="Go back" class="btn-press flex items-center justify-center w-9 h-9 md:w-11 md:h-11 bg-blue-50 dark:bg-gray-800 text-[#0054a6] dark:text-[#4facfe] hover:bg-blue-100 dark:hover:bg-gray-700 rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#0054a6] dark:focus:ring-[#4facfe]">
+                    <i data-lucide="arrow-left" class="w-5 h-5 md:w-6 md:h-6"></i>
+                </a>
+                <h1 class="kh-moul text-[#0054a6] dark:text-[#4facfe] text-base md:text-xl lg:text-2xl flex items-center gap-2 truncate max-w-[180px] sm:max-w-xs md:max-w-full transition-colors">
+                    សៀវភៅណែនាំ
+                </h1>
+            </div>
+            
+            <div class="flex items-center gap-2 md:gap-4">
+                <!-- Theme Toggle Button -->
+                <button type="button" class="btn-press theme-toggle-btn p-2 md:p-2.5 text-gray-500 dark:text-gray-400 bg-blue-50 dark:bg-gray-800 rounded-lg md:rounded-xl hover:bg-blue-100 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-[#0054a6] dark:focus:ring-[#4facfe]">
+                    <i data-lucide="moon" class="theme-toggle-dark-icon hidden w-5 h-5"></i>
+                    <i data-lucide="sun" class="theme-toggle-light-icon hidden w-5 h-5"></i>
+                </button>
+
+                <!-- Menu Toggle Button -->
+                <button id="mobile-menu-toggle" aria-expanded="false" aria-controls="mobile-menu" aria-label="Toggle navigation menu" class="btn-press p-2 md:px-4 md:py-2 text-[#0054a6] dark:text-[#4facfe] focus:outline-none focus:ring-2 focus:ring-[#0054a6] dark:focus:ring-[#4facfe] bg-blue-50 dark:bg-gray-800 rounded-lg md:rounded-xl hover:bg-blue-100 dark:hover:bg-gray-700 transition-colors duration-200 ease-in-out flex items-center gap-2">
+                    <i data-lucide="menu" class="w-5 h-5 md:w-6 md:h-6"></i>
+                    <span class="hidden md:inline-block font-bold text-sm">បញ្ជីម៉ឺនុយ</span>
+                </button>
+                <a href="/dashboard" target="_parent" aria-label="Close" class="btn-press hidden md:flex text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition-colors duration-200 ease-in-out focus:outline-none rounded-full p-1 hover:bg-red-50 dark:hover:bg-red-900/30">
+                    <i data-lucide="x-circle" class="w-7 h-7 lg:w-8 lg:h-8"></i>
+                </a>
+            </div>
+
+            <!-- Dropdown Menu with Search -->
+            <div id="mobile-menu" role="menu" aria-hidden="true" class="menu-hidden absolute right-3 md:right-6 lg:right-8 top-[110%] w-[calc(100%-1.5rem)] sm:w-80 md:w-96 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-2xl rounded-xl md:rounded-2xl overflow-hidden transform origin-top-right transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]" style="will-change: transform, opacity;">
+                
+                <!-- Menu Header & Search Bar -->
+                <div class="bg-gray-50 dark:bg-gray-800 px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex flex-col gap-3 sticky top-0 z-10 transition-colors">
+                    <div class="flex justify-between items-center font-bold text-gray-700 dark:text-gray-200">
+                        <span class="text-sm md:text-base">ជ្រើសរើសទំព័រ</span>
+                        <button id="close-menu-btn" aria-label="Close menu" class="btn-press text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors p-1 bg-white dark:bg-gray-800 rounded-md shadow-sm border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700">
+                            <i data-lucide="x" class="w-4 h-4 md:w-5 md:h-5"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Search Input -->
+                    <div class="relative w-full">
+                        <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-gray-400 dark:text-gray-500"></i>
+                        <input type="text" id="menu-search" placeholder="ស្វែងរកទំព័រ..." class="w-full pl-9 pr-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0054a6] dark:focus:ring-[#4facfe] text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 transition-shadow">
+                    </div>
+                </div>
+
+                <!-- Menu List (Scrollable) -->
+                <nav id="mobile-tabs" class="flex flex-col p-2 gap-1 max-h-[50vh] md:max-h-[60vh] overflow-y-auto custom-scrollbar bg-white dark:bg-gray-900 transition-colors" aria-label="Main Navigation">
+                    <!-- Menu tabs generated by JS -->
+                </nav>
+
+                <!-- No Results State (Hidden by default) -->
+                <div id="no-search-results" class="hidden p-6 text-center text-gray-500 dark:text-gray-400 text-sm bg-white dark:bg-gray-900">
+                    រកមិនឃើញទំព័រនេះទេ...
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 w-full max-w-7xl mx-auto p-3 md:p-4 lg:p-6 flex flex-col relative z-0 min-h-0">
+        <!-- Content Area (Using Iframe) -->
+        <div class="iframe-container w-full flex-1 rounded-xl md:rounded-2xl lg:rounded-3xl overflow-hidden relative flex flex-col min-h-0">
+            <!-- Loader Container -->
+            <div id="iframe-loader" class="absolute inset-0 flex flex-col items-center justify-center bg-white dark:bg-gray-900 z-10 transition-opacity duration-300">
+                <div class="relative w-12 h-12 md:w-16 md:h-16 mb-4">
+                    <div class="absolute inset-0 border-4 border-blue-200 dark:border-blue-900 rounded-full transform-gpu"></div>
+                    <div class="absolute inset-0 border-4 border-[#0054a6] dark:border-[#4facfe] rounded-full border-t-transparent animate-spin-slow transform-gpu"></div>
+                </div>
+                <span class="text-sm md:text-base font-bold text-[#0054a6] dark:text-[#4facfe] animate-pulse kh-moul transition-colors">កំពុងរៀបចំឯកសារ...</span>
+            </div>
+            
+            <!-- Content Iframe -->
+            <iframe id="content-iframe" src="" loading="lazy" title="Content Viewer" class="w-full flex-1 h-full border-0 relative z-20 opacity-0 transition-opacity duration-500 bg-transparent" onload="hideLoader()"></iframe>
+        </div>
+    </main>
+
+    <!-- Theme Toggle Initialization & Logic -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const themeToggleBtns = document.querySelectorAll('.theme-toggle-btn');
+            
+            // Setup icons on load
+            if (document.documentElement.classList.contains('dark')) {
+                document.querySelectorAll('.theme-toggle-light-icon').forEach(icon => icon.classList.remove('hidden'));
+            } else {
+                document.querySelectorAll('.theme-toggle-dark-icon').forEach(icon => icon.classList.remove('hidden'));
+            }
+
+            themeToggleBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.theme-toggle-dark-icon').forEach(icon => icon.classList.toggle('hidden'));
+                    document.querySelectorAll('.theme-toggle-light-icon').forEach(icon => icon.classList.toggle('hidden'));
+                    
+                    if (document.documentElement.classList.contains('dark')) {
+                        document.documentElement.classList.remove('dark');
+                        localStorage.setItem('color-theme', 'light');
+                    } else {
+                        document.documentElement.classList.add('dark');
+                        localStorage.setItem('color-theme', 'dark');
+                    }
+                });
+            });
+        });
+    </script>
+
+    <script>
+        const menuItems = [
+            { id: 'enrollment', name: 'បញ្ចូលព័ត៌មានសិស្ស', icon: 'user-plus', url: 'enrollment/Intro_enrollment.html', color: 'from-blue-500 to-blue-600' },
+            { id: 'student-list', name: 'បញ្ជីឈ្មោះសិស្ស', icon: 'users', url: 'student-list/Intro_student-list.html', color: 'from-purple-500 to-purple-600' },
+            { id: 'table-layout', name: 'ចុះវត្តមានតាមប្លង់តុ', icon: 'layout-grid', url: 'table-layout/Intro_table-layout.html', color: 'from-orange-500 to-orange-600' },
+            { id: 'monthly-attendance', name: 'បញ្ជីវត្តមានប្រចាំខែ', icon: 'calendar-check', url: 'attendance/Intro_attendance.html', color: 'from-pink-500 to-pink-600' },
+            { id: 'homework-score', name: 'បញ្ចូលពិន្ទុកិច្ចការផ្ទះ', icon: 'book-marked', url: 'homework/Intro_homework.html', color: 'from-indigo-500 to-indigo-600' },
+            { id: 'send-homework', name: "បញ្ជូនកិច្ចការផ្ទះទៅអាណាព្យាបាល",icon: "send",url: "homework/Intro_send-homework.html",color: "bg-fuchsia-500"},
+            { id: 'enter-score', name: 'បញ្ចូលពិន្ទុ', icon: 'edit-3', url: 'score/enter_monthly_score/enter_mothly_score.html', color: 'from-green-500 to-emerald-600' },
+            { id: 'subject-scores', name: 'តារាងពិន្ទុសរុប', icon: 'table-2', url: 'score/subject-scores/Intro_subject_score.html', color: 'from-teal-500 to-teal-600' },
+            { id: 'ranking', name: 'តារាងចំណាត់ថ្នាក់', icon: 'bar-chart-3', url: 'ranking/ranking/ranking_print.html', color: 'from-purple-600 to-purple-800' },
+            { id: 'total-analysis', name: 'វិភាគទិន្នន័យសរុប', icon: 'line-chart', url: 'score_analyse/total_analyse.html', color: 'from-rose-600 to-pink-700'},
+            { id: 'subject-analysis', name: 'វិភាគតាមមុខវិជ្ជា', icon: 'target', url: 'score_analyse/analyse_by_subject.html', color: 'from-blue-600 to-indigo-700' },
+            { id: 'admin', name: 'រដ្ឋបាលថ្នាក់រៀន', icon: 'folder-open', url: 'adr/Main_adr.html', color: 'from-blue-700 to-indigo-800' },
+            { id: 'parent-report', name: 'របាយការណ៍មាតាបិតា', icon: 'book-open-check', url: 'parent-report.html', color: 'from-sky-500 to-blue-600' },
+            { id: 'student-codes', name: 'លេខកូដសិស្ស (ឪពុកម្តាយ)', icon: 'key', url: 'student-codes.html', color: 'from-emerald-500 to-teal-600' },
+            { id: 'honor-roll', name: 'តារាងកិត្តិយស', icon: 'award', url: 'ranking/honor-roll/Intro_honor-roll.html', color: 'from-rose-500 to-rose-600' },
+            { id: 'annual-summary', name: 'បញ្ជីបូកសរុបលទ្ធផលប្រចាំឆ្នាំ', icon: 'pie-chart', url: 'years_score/new_dashboard.html', color: 'from-cyan-500 to-cyan-600' },
+            { id: 'tracking-book', name: 'សៀវភៅតាមដាន', icon: 'book-open', url: 'student_tracking/student_tracking/Intro_student_tracking.html', color: 'from-sky-500 to-sky-600' },
+            { id: 'record-book', name: 'សៀវភៅសិក្ខាគារិក',icon: 'book-user', url: 'student_tracking/book_record/Intro_record_book.html', color: 'from-emerald-600 to-teal-700' },
+            { id: 'certificate', name: 'ទាញយកវិញ្ញាបនបត្រ', icon: 'file-badge', url: 'certificate/Intro_certificate.html', color: 'from-yellow-500 to-orange-500' },
+            { id: 'cleaning', name: 'កាលវិភាគសម្អាតថ្នាក់', icon: 'sparkles', url: 'cleaning_schedule/Intro_cleaning_schedule.html', color: 'from-cyan-400 to-blue-500' },
+            { id: 'inventory', name: 'បញ្ជីសារពើភ័ណ្ឌ', icon: 'package', url: 'inventory/inventory.html', color: 'from-amber-500 to-amber-600' },
+            { id: 'id-card', name: 'បោះពុម្ពកាតសិស្ស', icon: 'contact-2', url: 'id_student/Intro_id_student.html', color: 'from-indigo-600 to-blue-700' },
+            { id: 'age-analysis', name: 'វិភាគអាយុ និងកម្ពស់', icon: 'calendar-days', url: 'student_age_list/Intro_student_age_list.html', color: 'from-emerald-500 to-teal-600' },
+            { id: 'notifications', name: 'ផ្ញើសារទៅអាណាព្យាបាល', icon: 'bell', url: 'teacher-notifications/teacher-notifications.html', color: 'from-red-600 to-blue-700' },
+            { id: 'profile', name: 'ព័ត៌មានគណនី', icon: 'user-cog', url: 'profile/profile.html', color: 'from-slate-500 to-slate-600' }
+        ];
+
+        // Core UI Elements
+        const toggleBtn = document.getElementById('mobile-menu-toggle');
+        const closeBtn = document.getElementById('close-menu-btn');
+        const mobileMenu = document.getElementById('mobile-menu');
+        const iframe = document.getElementById('content-iframe');
+        const loader = document.getElementById('iframe-loader');
+        const searchInput = document.getElementById('menu-search');
+        const noResultsMsg = document.getElementById('no-search-results');
+
+        // Toggle Menu State
+        function setMenuState(isOpen) {
+            if (isOpen) {
+                mobileMenu.classList.remove('menu-hidden');
+                mobileMenu.classList.add('menu-visible');
+                mobileMenu.setAttribute('aria-hidden', 'false');
+                toggleBtn.setAttribute('aria-expanded', 'true');
+                // Focus search bar after opening menu
+                setTimeout(() => searchInput.focus(), 100);
+            } else {
+                mobileMenu.classList.remove('menu-visible');
+                mobileMenu.classList.add('menu-hidden');
+                mobileMenu.setAttribute('aria-hidden', 'true');
+                toggleBtn.setAttribute('aria-expanded', 'false');
+                searchInput.blur();
+            }
+        }
+
+        // Setup Event Listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            toggleBtn.addEventListener('click', () => {
+                const isCurrentlyOpen = mobileMenu.classList.contains('menu-visible');
+                setMenuState(!isCurrentlyOpen);
+            });
+            
+            if(closeBtn) {
+                closeBtn.addEventListener('click', () => setMenuState(false));
+            }
+
+            // Close menu when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!mobileMenu.contains(e.target) && !toggleBtn.contains(e.target)) {
+                    setMenuState(false);
+                }
+            });
+
+            // Handle back/forward browser navigation
+            window.addEventListener('popstate', (event) => {
+                if (event.state && event.state.id) {
+                    loadContent(event.state.id, false);
+                } else if (menuItems.length > 0) {
+                    loadContent(menuItems[0].id, false);
+                }
+            });
+
+            // Search Filter Logic (Debounced)
+            let searchTimeout;
+            searchInput.addEventListener('input', (e) => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    const term = e.target.value.toLowerCase();
+                    let hasVisibleItems = false;
+                    
+                    document.querySelectorAll('.menu-btn').forEach(btn => {
+                        const text = btn.textContent.toLowerCase();
+                        if (text.includes(term)) {
+                            btn.style.display = 'flex';
+                            hasVisibleItems = true;
+                        } else {
+                            btn.style.display = 'none';
+                        }
+                    });
+
+                    // Show/Hide "No Results" message
+                    if (hasVisibleItems) {
+                        noResultsMsg.classList.add('hidden');
+                    } else {
+                        noResultsMsg.classList.remove('hidden');
+                    }
+                }, 250); // 250ms debounce
+            });
+        });
+
+        // Hide loader when iframe finishes loading
+        function hideLoader() {
+            if(iframe.src && iframe.src !== window.location.href) {
+                iframe.classList.remove('opacity-0');
+                loader.classList.add('opacity-0');
+                setTimeout(() => {
+                    if (iframe.classList.contains('opacity-0') === false) {
+                        loader.classList.add('hidden');
+                    }
+                }, 300);
+            }
+        }
+
+        // Load Content & Manage History/Persistence
+        function loadContent(itemId, pushHistory = true) {
+            const item = menuItems.find(i => i.id === itemId);
+            if (!item) return;
+
+            // Save to LocalStorage for persistence
+            localStorage.setItem('ptec_last_tutorial_page', item.id);
+
+            // Show Loading State
+            iframe.classList.add('opacity-0');
+            loader.classList.remove('hidden');
+            setTimeout(() => loader.classList.remove('opacity-0'), 10);
+
+            // Load Content via Iframe
+            iframe.src = item.url;
+
+            // Manage Browser History
+            if (pushHistory) {
+                const newUrl = new URL(window.location);
+                newUrl.searchParams.set('page', item.id);
+                history.pushState({ id: item.id }, '', newUrl);
+            }
+
+            // Close menu if open
+            setMenuState(false);
+
+            // Update Active State Visuals dynamically
+            document.querySelectorAll('.menu-btn').forEach(btn => {
+                const isActive = btn.dataset.id === item.id;
+                
+                if (isActive) {
+                    btn.classList.remove('border-transparent', 'hover:bg-gray-50', 'hover:border-gray-100', 'dark:hover:bg-gray-800', 'dark:hover:border-gray-700', 'text-gray-700', 'dark:text-gray-300');
+                    btn.classList.add('bg-blue-50', 'dark:bg-gray-800', 'border-blue-100', 'dark:border-gray-700', 'text-[#0054a6]', 'dark:text-[#4facfe]', 'shadow-sm', 'active-menu');
+                    btn.setAttribute('aria-current', 'page');
+                } else {
+                    btn.classList.remove('bg-blue-50', 'dark:bg-gray-800', 'border-blue-100', 'dark:border-gray-700', 'text-[#0054a6]', 'dark:text-[#4facfe]', 'shadow-sm', 'active-menu');
+                    btn.classList.add('border-transparent', 'hover:bg-gray-50', 'hover:border-gray-100', 'dark:hover:bg-gray-800', 'dark:hover:border-gray-700', 'text-gray-700', 'dark:text-gray-300');
+                    btn.removeAttribute('aria-current');
+                }
+            });
+        }
+
+        // Render Menu Items
+        function renderMenu() {
+            const mobileTabsContainer = document.getElementById('mobile-tabs');
+            
+            const menuHTML = menuItems.map(t => `
+                <a href="?page=${t.id}" data-id="${t.id}" role="menuitem" class="menu-btn menu-item-hover flex items-center gap-3 px-3 py-2.5 rounded-lg md:rounded-xl border border-transparent hover:bg-gray-50 dark:hover:bg-gray-800 hover:border-gray-100 dark:hover:border-gray-700 text-gray-700 dark:text-gray-300 text-[13px] md:text-sm font-bold w-full outline-none focus:ring-2 focus:ring-[#0054a6]/50 dark:focus:ring-[#4facfe]/50">
+                    <div class="w-7 h-7 md:w-8 md:h-8 rounded-md md:rounded-lg bg-gradient-to-br ${t.color} flex items-center justify-center text-white shrink-0 shadow-sm transform-gpu transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]">
+                        <i data-lucide="${t.icon}" class="w-3.5 h-3.5 md:w-4 md:h-4"></i>
+                    </div>
+                    <span class="truncate">${t.name}</span>
+                </a>
+            `).join('');
+            
+            if(mobileTabsContainer) {
+                mobileTabsContainer.innerHTML = menuHTML;
+                
+                // Event Delegation for menu items
+                mobileTabsContainer.addEventListener('click', (e) => {
+                    const btn = e.target.closest('.menu-btn');
+                    if (!btn) return;
+                    e.preventDefault(); 
+                    const id = btn.dataset.id;
+                    loadContent(id, true);
+                });
+            }
+            
+            lucide.createIcons();
+            
+            // Initial Load Logic (Priority: 1. URL Param -> 2. LocalStorage -> 3. Default First Item)
+            const urlParams = new URLSearchParams(window.location.search);
+            const pageId = urlParams.get('page');
+            const lastPageId = localStorage.getItem('ptec_last_tutorial_page');
+            
+            if (pageId && menuItems.find(i => i.id === pageId)) {
+                loadContent(pageId, false);
+                history.replaceState({ id: pageId }, '', window.location.href);
+            } else if (lastPageId && menuItems.find(i => i.id === lastPageId)) {
+                loadContent(lastPageId, false);
+                const initialUrl = new URL(window.location);
+                initialUrl.searchParams.set('page', lastPageId);
+                history.replaceState({ id: lastPageId }, '', initialUrl);
+            } else if (menuItems.length > 0) {
+                loadContent(menuItems[0].id, false);
+                const initialUrl = new URL(window.location);
+                initialUrl.searchParams.set('page', menuItems[0].id);
+                history.replaceState({ id: menuItems[0].id }, '', initialUrl);
+            }
+        }
+
+        window.onload = renderMenu;
+    </script>
+</body>
+</html>

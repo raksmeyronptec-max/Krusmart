@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PTEC - Subject Score Analysis Guide</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Moul&family=Battambang:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- Script to prevent FOUC (Flash of Unstyled Content) and ensure Iframe transparency -->
+    <script>
+        let isDark = false;
+        if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            isDark = true;
+        }
+        
+        try {
+            if (window.self !== window.top) {
+                document.documentElement.classList.add('is-iframe');
+                if (window.parent && window.parent.document) {
+                    isDark = window.parent.document.documentElement.classList.contains('dark');
+                }
+            }
+        } catch (e) {
+            document.documentElement.classList.add('is-iframe');
+        }
+
+        if (isDark) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+
+    <!-- Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Battambang"', 'sans-serif'],
+                        display: ['Moul', 'cursive'],
+                    },
+                    colors: {
+                        primary: '#0054a6',
+                        secondary: '#4facfe',
+                    },
+                    animation: {
+                        float: "float 4s ease-in-out infinite",
+                    },
+                    keyframes: {
+                        float: {
+                            "0%, 100%": { transform: "translate3d(0, 0, 0)" }, /* GPU Acceleration */
+                            "50%": { transform: "translate3d(0, -12px, 0)" },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        .dark body { background: #0f172a; }
+        body:not(.dark) { background: #f0f4f8; }
+        
+        html.is-iframe body { background: transparent !important; }
+        html.is-iframe #standalone-bg-animate { display: none !important; }
+
+        body { 
+            line-height: 1.8; 
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* OPTIMIZED: Static Background */
+        .bg-animate { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -2; 
+            background: radial-gradient(circle at 10% 20%, #e0e7ff 0%, transparent 40%), 
+                        radial-gradient(circle at 90% 80%, #dcfce7 0%, transparent 40%), 
+                        radial-gradient(circle at 50% 50%, #fef3c7 0%, transparent 50%); 
+        }
+        
+        .dark .bg-animate { 
+            background: radial-gradient(circle at 10% 20%, #1e1b4b 0%, transparent 40%), 
+                        radial-gradient(circle at 90% 80%, #064e3b 0%, transparent 40%), 
+                        radial-gradient(circle at 50% 50%, #451a03 0%, transparent 50%); 
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+        .dark ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        
+        /* OPTIMIZED: Removed Blur Filter */
+        .section-box { 
+            background: #ffffff;
+            padding: 24px; 
+            border-radius: 24px; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            margin-bottom: 32px; 
+            border: 1px solid #e2e8f0; 
+            position: relative; 
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
+            will-change: transform;
+        }
+        .dark .section-box {
+            background: #1e293b;
+            border-color: #334155;
+        }
+        .section-box:hover {
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            transform: translate3d(0, -4px, 0);
+        }
+        .dark .section-box:hover {
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        @media (min-width: 768px) {
+            .section-box { padding: 40px; border-radius: 32px; margin-bottom: 48px; }
+        }
+
+        /* OPTIMIZED: Simplified Hero Icon */
+        .hero-icon-wrapper {
+            position: relative;
+            padding: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            background: linear-gradient(135deg, #4facfe, #0054a6);
+            box-shadow: 0 10px 25px -5px rgba(0, 84, 166, 0.3);
+            transition: box-shadow 0.3s ease;
+        }
+        .dark .hero-icon-wrapper { 
+            background: linear-gradient(135deg, #4facfe, #0ea5e9);
+            box-shadow: 0 10px 25px -5px rgba(79, 172, 254, 0.2); 
+        }
+        .group:hover .hero-icon-wrapper { box-shadow: 0 15px 35px -5px rgba(0, 84, 166, 0.5); }
+        
+        .hero-icon-inner {
+            background: white;
+            border-radius: 50%;
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .dark .hero-icon-inner { background: #1e293b; }
+
+        .image-wrapper { 
+            position: relative; 
+            width: 100%; 
+            height: auto; 
+            display: block; 
+            border-radius: 20px; 
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s ease;
+            will-change: transform;
+        }
+        .image-wrapper:hover {
+            transform: translate3d(0, -8px, 0) scale(1.02); 
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.15);
+        }
+        .dark .image-wrapper:hover { box-shadow: 0 25px 50px -12px rgba(0,0,0,0.4); }
+        .image-wrapper img { 
+            width: 100%; 
+            height: auto; 
+            display: block; 
+            object-fit: contain; 
+            border-radius: 16px; 
+        }
+
+        /* Pointer Styles - OPTIMIZED: Removed shadow drop filter */
+        .pointer-container { position: absolute; z-index: 10; pointer-events: none; }
+        
+        .pointer-down { display: flex; flex-direction: column; align-items: center; animation: bounce-down 2.5s infinite; transform-origin: bottom center; will-change: transform; }
+        .pointer-right { display: flex; align-items: center; animation: bounce-right 2.5s infinite; transform-origin: right center; will-change: transform; }
+        
+        .pointer-down-box { 
+            padding: 8px 14px; border-radius: 12px; font-weight: 700; font-size: 13px; color: white; text-align: center; white-space: nowrap; line-height: 1.4; 
+            border: 1px solid rgba(255,255,255,0.4); box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+        .pointer-down-arrow { width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 12px solid; }
+
+        @keyframes bounce-down { 0%, 100% { transform: translate3d(-50%, -10%, 0); } 50% { transform: translate3d(-50%, 5%, 0); } }
+
+        @media (max-width: 1024px) {
+            .pointer-down-box { font-size: 11px; padding: 6px 12px; max-width: 120px; white-space: normal; }
+        }
+        @media (max-width: 767px) {
+            .pointer-down-box { font-size: 9px; padding: 4px 8px; max-width: 90px; border-radius: 8px; }
+            .pointer-down-arrow { border-left-width: 6px; border-right-width: 6px; border-top-width: 8px; }
+        }
+
+        /* OPTIMIZED: Static Gradient Text */
+        .animate-gradient-text {
+            background: linear-gradient(to right, #0054a6, #4facfe);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .dark .animate-gradient-text {
+            background: linear-gradient(to right, #4facfe, #0ea5e9);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Intersection Observer Animations - OPTIMIZED: Used translate3d */
+        .reveal-up { opacity: 0; transform: translate3d(0, 40px, 0); transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
+        .reveal-left { opacity: 0; transform: translate3d(-30px, 0, 0); transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
+        .reveal-scale { opacity: 0; transform: scale(0.95) translateZ(0); transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
+        .reveal-visible { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+        
+        /* Math Highlight Custom Styles */
+        .math-box {
+            background: rgba(243, 244, 246, 0.8);
+            border-left: 4px solid #3b82f6;
+            padding: 10px 15px;
+            border-radius: 0 8px 8px 0;
+            margin: 10px 0;
+            font-family: 'Battambang', cursive;
+        }
+        .dark .math-box {
+            background: rgba(30, 41, 59, 0.8);
+            border-left-color: #60a5fa;
+        }
+    </style>
+</head>
+<body class="text-slate-800 dark:text-gray-100 transition-colors duration-300 p-4 sm:p-6 md:p-8 lg:p-12 min-h-screen relative font-sans">
+
+    <!-- Background -->
+    <div class="bg-animate" aria-hidden="true" id="standalone-bg-animate"></div>
+
+    <div class="max-w-5xl mx-auto relative z-10">
+        
+        <!-- Header Section -->
+        <header class="text-center mb-12 md:mb-16 relative pt-8">
+            <a href="/score-analyse" target="_parent" class="group inline-block mb-6 relative cursor-pointer animate-float focus:outline-none focus:ring-4 focus:ring-blue-300 rounded-full reveal-scale">
+                <div class="hero-icon-wrapper transform transition-transform duration-300">
+                    <div class="hero-icon-inner w-20 h-20 md:w-28 md:h-28">
+                        <i data-lucide="pie-chart" class="w-10 h-10 md:w-14 md:h-14 text-primary dark:text-secondary group-hover:scale-110 transition-transform duration-300 drop-shadow-sm"></i>
+                    </div>
+                </div>
+                <div class="absolute -bottom-4 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity duration-300 whitespace-nowrap z-20">
+                     <span class="text-xs font-bold text-blue-700 dark:text-blue-200 bg-blue-50 dark:bg-blue-900 px-3 py-1.5 rounded-full border border-blue-200 dark:border-blue-700 shadow-md">ចូលទៅកាន់ប្រព័ន្ធ</span>
+                </div>
+            </a>
+            
+            <h1 class="font-display text-3xl md:text-5xl lg:text-6xl animate-gradient-text mb-4 leading-normal drop-shadow-sm reveal-up" style="transition-delay: 100ms;">Subject Score Analysis Guide</h1>
+            
+            <p class="text-lg md:text-xl text-slate-600 dark:text-gray-300 font-medium max-w-2xl mx-auto mb-6 reveal-up" style="transition-delay: 200ms;">
+                ការពន្យល់យ៉ាងលម្អិតអំពីរបៀបអានទិន្នន័យ ក្រាប និងរូបមន្តវាយតម្លៃវឌ្ឍនភាពសិស្ស ដើម្បីជួយលោកគ្រូ អ្នកគ្រូវិភាគបានយ៉ាងងាយស្រួល។
+            </p>
+            <div class="flex justify-center mb-8 reveal-up" style="transition-delay: 250ms;">
+                <a href="#video-tutorial" class="inline-flex items-center gap-2.5 bg-[#e11d48] hover:bg-[#be123c] text-white px-8 py-3.5 rounded-[30px] font-display text-lg md:text-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-rose-300 dark:focus:ring-rose-800 tracking-wide" style="will-change: transform;">
+                    <svg class="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                    </svg>
+                    ទស្សនាវីដេអូណែនាំ
+                </a>
+            </div>
+        </header>
+
+        <!-- Section 1: Dashboard Overview and Metrics -->
+        <section class="section-box border-t-4 border-t-blue-500 dark:border-t-blue-400 reveal-up">
+            <div class="flex items-center gap-4 mb-6 md:mb-8">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0 border border-blue-100 dark:border-blue-800/50 shadow-sm reveal-scale">
+                    <i data-lucide="bar-chart-3" class="w-7 h-7 md:w-8 md:h-8"></i>
+                </div>
+                <div class="reveal-left">
+                    <span class="text-[10px] md:text-xs font-display tracking-wider text-blue-600 dark:text-blue-400 uppercase bg-blue-100 dark:bg-blue-900/40 px-3 py-1 rounded-full border border-blue-200 dark:border-blue-800/50">ផ្នែកទី១</span>
+                    <h2 class="font-display leading-normal text-xl md:text-3xl text-slate-800 dark:text-white mt-1 md:mt-2">ទិដ្ឋភាពរួម និងអត្ថន័យនៃតួលេខ</h2>
+                </div>
+            </div>
+            
+            <p class="text-sm md:text-lg text-slate-600 dark:text-gray-300 mb-6 reveal-up">ផ្ទាំងខាងក្រោមនេះបង្ហាញពីព័ត៌មានជារួមអំពីមុខវិជ្ជាណាមួយ ដែលលោកអ្នកបានជ្រើសរើស។ តើប្រអប់ពណ៌នីមួយៗមានន័យយ៉ាងណា?</p>
+            
+            <div class="image-wrapper mb-10 border-4 border-slate-100 dark:border-slate-700 shadow-lg bg-slate-50 dark:bg-gray-900 reveal-scale">
+                <img src="1.png" alt="Dashboard Overview" onerror="this.onerror=null; this.src='https://placehold.co/1200x600/1e293b/94a3b8?text=1.jpg'">
+                
+                <div class="pointer-container top-[-5%] left-[65%]">
+                    <div class="pointer-down">
+                        <div class="pointer-down-box bg-indigo-600 dark:bg-indigo-500">កន្លែងជ្រើសរើស ខែ ឆ្នាំ និងទាញយក Excel</div>
+                        <div class="pointer-down-arrow border-t-indigo-600 dark:border-t-indigo-500"></div>
+                    </div>
+                </div>
+
+                <div class="pointer-container top-[10%] left-[20%]">
+                    <div class="pointer-down">
+                        <div class="pointer-down-box bg-blue-600 dark:bg-blue-500">កន្លែងជ្រើសរើសមុខវិជ្ជាត្រូវវិភាគ</div>
+                        <div class="pointer-down-arrow border-t-blue-600 dark:border-t-blue-500"></div>
+                    </div>
+                </div>
+
+                <div class="pointer-container top-[25%] left-[50%]">
+                    <div class="pointer-down">
+                        <div class="pointer-down-box bg-emerald-600 dark:bg-emerald-500">ប្រអប់សូចនាករសំខាន់ៗទាំង៤</div>
+                        <div class="pointer-down-arrow border-t-emerald-600 dark:border-t-emerald-500"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Deep Dive into Formulas -->
+            <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm mb-8 reveal-up">
+                <h3 class="font-display text-lg md:text-xl text-blue-700 dark:text-blue-400 mb-4 flex items-center gap-2">
+                    <i data-lucide="calculator" class="w-5 h-5"></i> ការពន្យល់ពីរូបមន្តនៃប្រអប់ពណ៌ទាំង៤
+                </h3>
+                
+                <div class="space-y-6">
+                    <!-- AVG -->
+                    <div>
+                        <div class="flex items-center gap-2 font-bold text-slate-800 dark:text-white text-lg">
+                            <span class="w-3 h-3 rounded-full bg-blue-500"></span> ប្រអប់ពណ៌ខៀវ៖ មធ្យមភាគថ្នាក់ (AVG)
+                        </div>
+                        <p class="text-sm text-slate-600 dark:text-gray-300 mt-1 ml-5">
+                            តួលេខនេះប្រាប់ថាតើ <b>ជាមធ្យមសិស្សក្នុងថ្នាក់ទាំងមូលរៀនបានកម្រិតណា</b> លើមុខវិជ្ជានេះ។ បើលេខនេះខ្ពស់ មានន័យថាគ្រូបង្រៀនបានល្អ សិស្សយល់ច្រើន។ បើលេខនេះទាប គ្រូប្រហែលជាត្រូវប្តូរវិធីសាស្ត្របង្រៀន។
+                        </p>
+                        <div class="math-box ml-5 text-sm text-slate-700 dark:text-gray-200">
+                            <b>របៀបគិត៖</b> យកពិន្ទុរបស់សិស្សទាំងអស់បូកបញ្ចូលគ្នា រួចចែកនឹងចំនួនសិស្សសរុប។<br>
+                            <i>ឧទាហរណ៍៖ សិស្ស៣នាក់ បានពិន្ទុ ៦, ៨, និង ១០។ មធ្យមភាគថ្នាក់ = (៦+៨+១០) / ៣ = ៨.០</i>
+                        </div>
+                    </div>
+
+                    <!-- Pass Rate -->
+                    <div>
+                        <div class="flex items-center gap-2 font-bold text-slate-800 dark:text-white text-lg">
+                            <span class="w-3 h-3 rounded-full bg-green-500"></span> ប្រអប់ពណ៌បៃតង៖ អត្រាជាប់ (ភាគរយសិស្ស)
+                        </div>
+                        <p class="text-sm text-slate-600 dark:text-gray-300 mt-1 ml-5">
+                            តួលេខនេះប្រាប់ថា <b>តើមានសិស្សប៉ុន្មានភាគរយដែលរៀនទាន់ (បានមធ្យមភាគចាប់ពី ៥.០ ឡើងទៅ)</b>។ ដូចក្នុងរូបភាពបង្ហាញ ៩៥.៣% មានន័យថាសិស្សស្ទើរតែពេញមួយថ្នាក់សុទ្ធតែរៀនចេះមុខវិជ្ជានេះ។
+                        </p>
+                        <div class="math-box ml-5 text-sm text-slate-700 dark:text-gray-200">
+                            <b>របៀបគិត៖</b> យក (ចំនួនសិស្សដែលបានពិន្ទុចាប់ពី ៥.០ ឡើង) ចែកនឹង (ចំនួនសិស្សសរុប) រួចគុណនឹង ១០០។
+                        </div>
+                    </div>
+
+                    <!-- Max & Min -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 ml-5">
+                        <div>
+                            <div class="font-bold text-purple-700 dark:text-purple-400">ប្រអប់ពណ៌ស្វាយ៖ ពិន្ទុខ្ពស់បំផុត (MAX)</div>
+                            <p class="text-sm text-slate-600 dark:text-gray-300 mt-1">ប្រាប់ពីពិន្ទុរបស់សិស្សដែលរៀនពូកែជាងគេបង្អស់ក្នុងថ្នាក់ សម្រាប់ខែនេះ។</p>
+                        </div>
+                        <div>
+                            <div class="font-bold text-red-700 dark:text-red-400">ប្រអប់ពណ៌ក្រហម៖ ពិន្ទុទាបបំផុត (MIN)</div>
+                            <p class="text-sm text-slate-600 dark:text-gray-300 mt-1">ប្រាប់ពីពិន្ទុរបស់សិស្សដែលខ្សោយជាងគេបង្អស់។ ជាសញ្ញាអាសន្នអោយគ្រូដឹងថាមានសិស្សកំពុងធ្លាក់ដុនដាបខ្លាំងកម្រិតណា។</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Graphs Explanation -->
+            <div class="grid lg:grid-cols-2 gap-5 mb-6">
+                <div tabindex="0" class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden group hover:-translate-y-1 transition-all duration-300 reveal-up" style="will-change: transform;">
+                    <i data-lucide="pie-chart" class="w-8 h-8 text-indigo-500 dark:text-indigo-400 mb-3"></i>
+                    <h3 class="font-bold text-slate-800 dark:text-white mb-2 text-base">របៀបមើល ក្រាបរង្វង់ (ចំណែកថ្នាក់សិស្ស)</h3>
+                    <p class="text-sm text-slate-600 dark:text-gray-300 mb-2">
+                        ក្រាបនេះមានតួនាទីកាត់សិស្សជា ៤ ចំណែក ដើម្បីអោយគ្រូមើលដឹងភ្លាមៗថា សិស្សភាគច្រើននៅក្នុងថ្នាក់ជាសិស្សកម្រិតណា៖
+                    </p>
+                    <ul class="text-sm text-slate-600 dark:text-gray-300 space-y-1 list-disc pl-5">
+                        <li><span class="text-purple-500 font-bold">ពណ៌ស្វាយ៖</span> សិស្សពូកែខ្លាំង (ពិន្ទុ ៩ ដល់ ១០)</li>
+                        <li><span class="text-blue-500 font-bold">ពណ៌ខៀវ៖</span> សិស្សល្អបង្គួរ (ពិន្ទុ ៧ ដល់ ៨.៩)</li>
+                        <li><span class="text-yellow-500 font-bold">ពណ៌លឿង៖</span> សិស្សមធ្យម (ពិន្ទុ ៥ ដល់ ៦.៩)</li>
+                        <li><span class="text-red-500 font-bold">ពណ៌ក្រហម៖</span> សិស្សខ្សោយ (ពិន្ទុក្រោម ៥ ធ្លាក់)</li>
+                    </ul>
+                </div>
+
+                <div tabindex="0" class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden group hover:-translate-y-1 transition-all duration-300 reveal-up" style="will-change: transform;">
+                    <i data-lucide="trending-up" class="w-8 h-8 text-blue-500 dark:text-blue-400 mb-3"></i>
+                    <h3 class="font-bold text-slate-800 dark:text-white mb-2 text-base">របៀបមើល ក្រាបបន្ទាត់ (និន្នាការថ្នាក់)</h3>
+                    <p class="text-sm text-slate-600 dark:text-gray-300">
+                        ក្រាបខ្សែបន្ទាត់នេះ បង្ហាញពី <b>មធ្យមភាគរបស់ថ្នាក់ទាំងមូលតាំងពីខែទី១ ដល់ខែបច្ចុប្បន្ន</b>។
+                    </p>
+                    <div class="mt-2 text-sm text-slate-700 dark:text-gray-300 p-3 bg-blue-50 dark:bg-slate-700 border border-slate-100 dark:border-slate-600 rounded-lg">
+                        💡 <b>អត្ថន័យខ្សែបន្ទាត់៖</b><br>
+                        - បើខ្សែបន្ទាត់ <b>ងើបឡើងលើ</b> = ថ្នាក់រៀនមានការវិវឌ្ឍ សិស្សយល់មេរៀនកាន់តែច្រើននៅខែថ្មី។<br>
+                        - បើខ្សែបន្ទាត់ <b>ធ្លាក់ចុះក្រោម</b> = សិស្សកំពុងចុះខ្សោយ ជាសញ្ញាប្រាប់គ្រូអោយប្តូរវិធីសាស្ត្របង្រៀន ឬមេរៀនប្រហែលជាពិបាកពេក។
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 2: Top and Bottom Students -->
+        <section class="section-box border-t-4 border-t-emerald-500 dark:border-t-emerald-400 reveal-up">
+            <div class="flex items-center gap-4 mb-6 md:mb-8">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0 border border-emerald-100 dark:border-emerald-800/50 shadow-sm reveal-scale">
+                    <i data-lucide="medal" class="w-7 h-7 md:w-8 md:h-8"></i>
+                </div>
+                <div class="reveal-left">
+                    <span class="text-[10px] md:text-xs font-display tracking-wider text-emerald-600 dark:text-emerald-400 uppercase bg-emerald-100 dark:bg-emerald-900/40 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-800/50">ផ្នែកទី២</span>
+                    <h2 class="font-display leading-normal text-xl md:text-3xl text-slate-800 dark:text-white mt-1 md:mt-2">ការស្វែងរកសិស្សឆ្នើម និងសិស្សខ្សោយ</h2>
+                </div>
+            </div>
+            
+            <p class="text-sm md:text-lg text-slate-600 dark:text-gray-300 mb-6 reveal-up">ផ្នែកនេះប្រព័ន្ធបានទាញយកសិស្សដែលមានពិន្ទុខ្ពស់ជាងគេ ៥នាក់ និងទាបជាងគេ ៥នាក់ មកបង្ហាញដោយស្វ័យប្រវត្តិ៖</p>
+
+            <div class="image-wrapper mb-8 border-4 border-slate-100 dark:border-slate-700 shadow-lg bg-slate-50 dark:bg-gray-900 reveal-scale">
+                <img src="2.png" alt="Top and Bottom Students" onerror="this.onerror=null; this.src='https://placehold.co/1200x500/1e293b/94a3b8?text=2.png'">
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-5">
+                <div class="bg-green-50 dark:bg-slate-800 p-5 rounded-2xl border border-green-100 dark:border-slate-700 flex items-start gap-4 reveal-up">
+                    <div class="bg-green-100 dark:bg-slate-700 border border-green-200 dark:border-slate-600 p-3 rounded-xl shrink-0">
+                        <i data-lucide="trophy" class="w-6 h-6 text-green-600 dark:text-green-400"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-green-800 dark:text-green-400 mb-2">ហេតុអ្វីតារាងពណ៌បៃតង (Top 5) សំខាន់?</h3>
+                        <p class="text-sm text-slate-700 dark:text-gray-300">
+                            វាជួយគ្រូអោយស្គាល់សិស្សដែលពូកែ។ គ្រូអាច <b>ផ្តល់ជារង្វាន់ លើកទឹកចិត្ត ឬចាត់តាំងពួកគេអោយធ្វើជាប្រធានក្រុម</b> ដើម្បីជួយបង្រៀនមិត្តភក្តិផ្សេងទៀតដែលរៀនមិនទាន់។
+                        </p>
+                    </div>
+                </div>
+
+                <div class="bg-red-50 dark:bg-slate-800 p-5 rounded-2xl border border-red-100 dark:border-slate-700 flex items-start gap-4 reveal-up">
+                    <div class="bg-red-100 dark:bg-slate-700 border border-red-200 dark:border-slate-600 p-3 rounded-xl shrink-0">
+                        <i data-lucide="alert-triangle" class="w-6 h-6 text-red-600 dark:text-red-400"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-red-800 dark:text-red-400 mb-2">ហេតុអ្វីតារាងពណ៌ក្រហម (Bottom 5) សំខាន់?</h3>
+                        <p class="text-sm text-slate-700 dark:text-gray-300">
+                            វាជាតារាង <b>សង្គ្រោះបន្ទាន់</b>! សិស្ស ៥នាក់នេះគឺជាអ្នកដែលត្រូវការជំនួយពីគ្រូខ្លាំងជាងគេ។ គ្រូត្រូវហៅពួកគេមកណែនាំបន្ថែម ហៅមាតាបិតាមកជួប ឬរៀបចំការបំប៉នក្រៅម៉ោងជាបន្ទាន់។
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4 p-4 bg-indigo-50 dark:bg-slate-800 rounded-xl border border-indigo-100 dark:border-slate-700 flex items-center gap-3 text-sm text-indigo-800 dark:text-indigo-300 reveal-up">
+                <i data-lucide="mouse-pointer-click" class="w-5 h-5 animate-pulse"></i>
+                <span class="text-slate-700 dark:text-gray-300"><b>គន្លឹះពិសេស៖</b> លោកអ្នកគ្រាន់តែចុច (Click) លើឈ្មោះសិស្សណាមួយនៅក្នុងតារាងទាំងពីរនេះ ប្រព័ន្ធនឹងលោតយកឈ្មោះសិស្សនោះទៅវិភាគលម្អិតនៅផ្នែកខាងក្រោមដោយស្វ័យប្រវត្តិ។</span>
+            </div>
+        </section>
+
+        <!-- Section 3: Individual Student Deep Dive -->
+        <section class="section-box border-t-4 border-t-purple-500 dark:border-t-purple-400 reveal-up">
+            <div class="flex items-center gap-4 mb-6 md:mb-8">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-purple-50 dark:bg-purple-900/30 flex items-center justify-center text-purple-600 dark:text-purple-400 shrink-0 border border-purple-100 dark:border-purple-800/50 shadow-sm reveal-scale">
+                    <i data-lucide="search" class="w-7 h-7 md:w-8 md:h-8"></i>
+                </div>
+                <div class="reveal-left">
+                    <span class="text-[10px] md:text-xs font-display tracking-wider text-purple-600 dark:text-purple-400 uppercase bg-purple-100 dark:bg-purple-900/40 px-3 py-1 rounded-full border border-purple-200 dark:border-purple-800/50">ផ្នែកទី៣</span>
+                    <h2 class="font-display leading-normal text-xl md:text-3xl text-slate-800 dark:text-white mt-1 md:mt-2">ការតាមដានសិស្សម្នាក់ៗ (មុខកាត់សិស្ស)</h2>
+                </div>
+            </div>
+            
+            <p class="text-sm md:text-lg text-slate-600 dark:text-gray-300 mb-6 reveal-up">
+                ជារឿយៗ គ្រូត្រូវវាយតម្លៃថាតើសិស្ស "ម្នាក់នេះ" រៀនមានការរីកចម្រើនដែរឬទេ បើធៀបនឹងខែមុនៗរបស់គេ។ ផ្នែកនេះបង្កើតឡើងដើម្បីដោះស្រាយបញ្ហានេះ៖
+            </p>
+
+            <div class="image-wrapper mb-8 border-4 border-slate-100 dark:border-slate-700 shadow-lg bg-slate-50 dark:bg-gray-900 reveal-scale">
+                <img src="3.png" alt="Individual Student Analysis" onerror="this.onerror=null; this.src='https://placehold.co/1200x500/1e293b/94a3b8?text=3.png'">
+                
+                <div class="pointer-container top-[-5%] left-[80%]">
+                    <div class="pointer-down">
+                        <div class="pointer-down-box bg-indigo-600 dark:bg-indigo-500">ចុចទីនេះដើម្បីរើសឈ្មោះសិស្ស</div>
+                        <div class="pointer-down-arrow border-t-indigo-600 dark:border-t-indigo-500"></div>
+                    </div>
+                </div>
+
+                <div class="pointer-container top-[10%] left-[20%]">
+                    <div class="pointer-down">
+                        <div class="pointer-down-box bg-emerald-600 dark:bg-emerald-500">ប្រវត្តិពិន្ទុផ្ទាល់ខ្លួនរបស់គាត់</div>
+                        <div class="pointer-down-arrow border-t-emerald-600 dark:border-t-emerald-500"></div>
+                    </div>
+                </div>
+
+                <div class="pointer-container top-[40%] left-[30%]">
+                    <div class="pointer-down">
+                        <div class="pointer-down-box bg-purple-500 dark:bg-purple-600">ខ្សែបន្ទាត់ក្រាបបង្ហាញថាគាត់កំពុងមានការវិវឌ្ឍន៍</div>
+                        <div class="pointer-down-arrow border-t-purple-500 dark:border-t-purple-600"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm reveal-up space-y-5">
+                
+                <div class="flex items-start gap-4">
+                    <div class="bg-blue-100 dark:bg-slate-700 border border-blue-200 dark:border-slate-600 p-2 rounded-lg text-blue-600 dark:text-blue-400 mt-1"><i data-lucide="user" class="w-5 h-5"></i></div>
+                    <div>
+                        <h4 class="font-bold text-slate-800 dark:text-white text-lg">ប្រអប់ទិន្នន័យផ្ទាល់ខ្លួនទាំង៤</h4>
+                        <p class="text-sm text-slate-600 dark:text-gray-300 mt-1">
+                            ផ្ទុយពីប្រអប់នៅផ្នែកទី១ ទិន្នន័យត្រង់នេះគឺសម្រាប់<b>តែសិស្សម្នាក់គត់</b> ដែលអ្នកបានរើសប៉ុណ្ណោះ។ <br>
+                            - <b>មធ្យមភាគផ្ទាល់ខ្លួន (៧.៨០)៖</b> បញ្ជាក់ថាចាប់តាំងពីដើមឆ្នាំមក សិស្សម្នាក់នេះរៀនមុខវិជ្ជានេះបានមធ្យម ៧.៨០។<br>
+                            - <b>ពិន្ទុខ្ពស់បំផុត (៨) និងទាបបំផុត (៧)៖</b> បង្ហាញពីគម្លាតពិន្ទុរបស់គាត់។ បើគម្លាតនេះតូច (ឧ. ៧ និង ៨) មានន័យថាគាត់រៀនមានលំនឹង។ បើគម្លាតធំ (ឧ. ៤ និង ១០) មានន័យថាគាត់រៀនមិនទៀងទាត់ ជួនចេះ ជួនអត់។
+                        </p>
+                    </div>
+                </div>
+
+                <hr class="border-slate-200 dark:border-slate-700">
+
+                <div class="flex items-start gap-4">
+                    <div class="bg-purple-100 dark:bg-slate-700 border border-purple-200 dark:border-slate-600 p-2 rounded-lg text-purple-600 dark:text-purple-400 mt-1"><i data-lucide="activity" class="w-5 h-5"></i></div>
+                    <div>
+                        <h4 class="font-bold text-slate-800 dark:text-white text-lg">របៀបអានក្រាបវឌ្ឍនភាពសិស្ស</h4>
+                        <p class="text-sm text-slate-600 dark:text-gray-300 mt-1">
+                            ខ្សែបន្ទាត់ពណ៌ស្វាយក្នុងរូបភាពទី៣ បង្ហាញពីប្រវត្តិពិន្ទុរបស់ "កើត ស៊ីម៉ី"។ 
+                            យើងឃើញថាចាប់ពីខែវិច្ឆិកា ដល់ខែធ្នូ គាត់ទទួលបាន ៨ ស្មើគ្នា។ លុះដល់ខែមករា ពិន្ទុគាត់ធ្លាក់មក ៧ តែគាត់ខិតខំវិញនៅខែកុម្ភៈ និងមីនា រហូតឡើងបាន ៨ វិញ។<br>
+                            <span class="text-rose-500 font-bold">ចំណាំ៖</span> ក្រាបនេះមានប្រយោជន៍ខ្លាំងណាស់ ពេលហៅមាតាបិតាសិស្សមកប្រជុំ គ្រូគ្រាន់តែបង្ហាញក្រាបនេះ ពួកគាត់នឹងយល់ភ្លាមពីការសិក្សារបស់កូន។
+                        </p>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+         <section class="section-box border-t-4 border-t-rose-500 dark:border-t-rose-400 reveal-up">
+            <div class="flex items-center gap-4 mb-6 md:mb-8">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-rose-50 dark:bg-rose-900/30 flex items-center justify-center text-rose-600 dark:text-rose-400 shrink-0 border border-rose-100 dark:border-rose-800/50 shadow-sm reveal-scale">
+                    <i data-lucide="play-circle" class="w-7 h-7 md:w-8 md:h-8"></i>
+                </div>
+                <div class="reveal-left">
+                    <span class="text-[10px] md:text-xs font-display tracking-wider text-rose-600 dark:text-rose-400 uppercase bg-rose-100 dark:bg-rose-900/40 px-3 py-1 rounded-full border border-rose-200 dark:border-rose-800/50">Part 4</span>
+                    <h2 class="font-display leading-normal text-xl md:text-3xl text-slate-800 dark:text-white mt-1 md:mt-2">វីដេអូណែនាំការប្រើប្រាស់</h2>
+                </div>
+            </div>
+            
+            <p class="text-sm md:text-lg text-slate-600 dark:text-gray-300 mb-6 reveal-up">ដើម្បីស្វែងយល់កាន់តែច្បាស់ និងការអនុវត្តជាក់ស្តែងពីរបៀបបោះពុម្ពតារាងចំណាត់ថ្នាក់នេះ សូមទស្សនាវីដេអូណែនាំខាងក្រោម៖</p>
+
+            <div class="relative w-full aspect-video rounded-2xl overflow-hidden border-4 border-slate-100 dark:border-slate-700 shadow-lg reveal-scale bg-slate-100 dark:bg-slate-800">
+                <iframe 
+                    class="absolute top-0 left-0 w-full h-full" 
+                    src="https://www.youtube.com/embed/YOUR_VIDEO_ID_HERE" 
+                    title="YouTube video player" 
+                    frameborder="0" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                    allowfullscreen>
+                </iframe>
+            </div>
+
+            <div class="mt-8 flex justify-center reveal-up">
+                <a href="https://youtu.be/YOUR_VIDEO_LINK_HERE" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 bg-rose-500 hover:bg-rose-600 text-white px-6 py-3 rounded-full font-bold shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-rose-300 dark:focus:ring-rose-800" style="will-change: transform;">
+                    <i data-lucide="external-link" class="w-5 h-5"></i>
+                    ចូលមើលផ្ទាល់នៅលើ YouTube
+                </a>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="mt-20 pb-16 text-center relative z-10">
+            <div class="w-20 h-1.5 bg-blue-500 mx-auto rounded-full mb-8 shadow-sm reveal-scale"></div>
+            
+            <h3 class="font-display text-3xl md:text-4xl text-slate-800 dark:text-white mb-4 flex justify-center items-center gap-3 reveal-up">
+                <i data-lucide="check-circle" class="w-8 h-8 text-green-500"></i> លោកអ្នកអាចចាប់ផ្តើមបានហើយ!
+            </h3>
+            <p class="text-slate-500 dark:text-gray-400 mb-12 max-w-2xl mx-auto text-sm md:text-base reveal-up" style="transition-delay: 100ms;">
+                សូមចងចាំថា ទិន្នន័យគ្រាន់តែជាតួលេខ ប៉ុន្តែសេចក្តីសន្និដ្ឋាន និងសកម្មភាពជួយសិស្សរបស់លោកគ្រូ អ្នកគ្រូ ទើបជាគន្លឹះនៃភាពជោគជ័យនៃការអប់រំ។
+            </p>
+            
+            <!-- Card Footer -->
+            <a href="https://ron-raksmey.netlify.app/" target="_blank" rel="noopener noreferrer" class="inline-block bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-lg border border-slate-200 dark:border-slate-700 max-w-sm w-full relative overflow-hidden group hover:shadow-2xl hover:-translate-y-2 focus:outline-none focus:ring-4 focus:ring-indigo-300 dark:focus:ring-indigo-600 transition-all duration-300 cursor-pointer reveal-scale" style="transition-delay: 200ms; will-change: transform;">
+                <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-400 group-hover:h-2 transition-all"></div>
+                
+                <div class="flex flex-col items-center">
+                    <div class="w-28 h-28 rounded-full border-4 border-slate-100 dark:border-slate-700 shadow-md overflow-hidden mb-5 relative group-hover:scale-110 group-hover:rounded-xl group-focus:scale-110 group-focus:rounded-xl transition-all duration-500 bg-slate-100 dark:bg-slate-900">
+                        <img src="../enrollment/RON-RAKSMEY.png" alt="Profile" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://placehold.co/150x150/1e293b/94a3b8?text=Profile'">
+                    </div>
+                    
+                    <p class="text-[11px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-bold mb-2 flex items-center gap-1 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors">
+                        <i data-lucide="code-2" class="w-3 h-3"></i> Developed By
+                    </p>
+                    <h4 class="font-display text-xl text-slate-800 dark:text-white mb-1 group-hover:text-indigo-700 dark:group-hover:text-indigo-400 transition-colors">គរុនិស្សិត រុន រស្មី</h4>
+                    <span class="text-xs text-slate-500 dark:text-gray-400 mt-2 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-4 py-1.5 rounded-full font-medium shadow-sm group-hover:bg-indigo-50 dark:group-hover:bg-indigo-900/50 group-hover:border-indigo-200 dark:group-hover:border-indigo-700 transition-colors">
+                        <i data-lucide="graduation-cap" class="w-3.5 h-3.5 inline-block mb-0.5 text-slate-400 dark:text-gray-500 mr-1 group-hover:text-indigo-500 dark:group-hover:text-indigo-400"></i> ជំនាន់ទី៤
+                    </span>
+                </div>
+            </a>
+            
+            <div class="mt-12 text-sm text-slate-400 dark:text-slate-500 font-medium reveal-up" style="transition-delay: 300ms;">
+                &copy; 2026 Krusmart. រក្សាសិទ្ធិគ្រប់យ៉ាង។
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- Initialization Scripts -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+
+            const isIframe = document.documentElement.classList.contains('is-iframe');
+            
+            if (isIframe) {
+                try {
+                    if (window.parent && window.parent.document) {
+                        const observer = new MutationObserver((mutations) => {
+                            mutations.forEach((mutation) => {
+                                if (mutation.attributeName === 'class') {
+                                    if (window.parent.document.documentElement.classList.contains('dark')) {
+                                        document.documentElement.classList.add('dark');
+                                    } else {
+                                        document.documentElement.classList.remove('dark');
+                                    }
+                                }
+                            });
+                        });
+                        observer.observe(window.parent.document.documentElement, { attributes: true });
+                    }
+                } catch (e) {}
+            }
+
+            window.addEventListener('storage', (event) => {
+                if (event.key === 'color-theme') {
+                    if (event.newValue === 'dark') {
+                        document.documentElement.classList.add('dark');
+                    } else {
+                        document.documentElement.classList.remove('dark');
+                    }
+                }
+            });
+
+            // Intersection Observer for Animations
+            const observerOptions = {
+                root: null,
+                rootMargin: '0px',
+                threshold: 0.15 
+            };
+
+            const observer = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('reveal-visible');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, observerOptions);
+
+            const revealElements = document.querySelectorAll('.reveal-up, .reveal-left, .reveal-scale');
+            revealElements.forEach(el => observer.observe(el));
+        });
+    </script>
+</body>
+</html>

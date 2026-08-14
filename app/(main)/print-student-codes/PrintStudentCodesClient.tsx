@@ -1,0 +1,157 @@
+'use client'
+
+import { ArrowLeft, Key, Printer, Info, Copy, Users } from 'lucide-react'
+import Link from 'next/link'
+
+export default function PrintStudentCodesClient({ initialStudents, teacherUid }: { initialStudents: any[], teacherUid: string }) {
+
+    const copyToClipboard = (text: string) => {
+        navigator.clipboard.writeText(text).then(() => {
+            alert(`✅ បានចម្លងអត្តលេខសិស្ស៖ ${text}`)
+        }).catch(err => {
+            console.error('Failed to copy text: ', err)
+            alert('បរាជ័យក្នុងការ Copy។ សូម Copy លេខកូដដោយផ្ទាល់។')
+        })
+    }
+
+    const printPage = () => {
+        window.print()
+    }
+
+    return (
+        <div className="min-h-screen bg-[#f0f4f8] text-slate-800 font-battambang flex flex-col print:bg-white print:m-0 print:p-0">
+            <style jsx global>{`
+                .print-codes-mode {
+                    position: absolute;
+                    left: -9999px;
+                    top: 0;
+                    opacity: 0;
+                    pointer-events: none;
+                    z-index: -1;
+                }
+                
+                @media print {
+                    .no-print { display: none !important; }
+                    body { background: white !important; margin: 0; padding: 0; }
+                    .print-codes-mode {
+                        position: relative !important;
+                        left: 0 !important;
+                        opacity: 1 !important;
+                        display: grid !important;
+                        grid-template-columns: repeat(2, 1fr);
+                        gap: 15px;
+                        padding: 10px;
+                        width: 100%;
+                    }
+                    .student-code-card {
+                        border: 2px dashed #0054a6;
+                        border-radius: 12px;
+                        padding: 15px;
+                        break-inside: avoid;
+                        page-break-inside: avoid;
+                    }
+                    * {
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    @page { margin: 10mm; }
+                }
+            `}</style>
+
+            <div className="no-print sticky top-0 z-50 px-4 md:px-8 py-3 bg-white/90 backdrop-blur-lg border-b border-gray-200 shadow-sm flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                    <Link href="/dashboard" className="text-gray-500 hover:text-[#0054a6] hover:bg-blue-50 p-2 rounded-xl transition flex items-center gap-2 font-bold">
+                        <ArrowLeft className="w-5 h-5" /> <span className="hidden sm:inline">ត្រឡប់ក្រោយ</span>
+                    </Link>
+                    <div className="h-6 w-px bg-gray-300"></div>
+                    <h1 className="font-moul text-lg sm:text-xl text-[#0054a6] flex items-center gap-2">
+                        <Key className="w-6 h-6 text-blue-500" /> លេខកូដសិស្ស និង QR Code
+                    </h1>
+                </div>
+                
+                <button onClick={printPage} className="bg-[#0054a6] hover:bg-blue-700 text-white px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-md transition transform hover:scale-105">
+                    <Printer className="w-4 h-4" /> <span className="hidden sm:inline">បោះពុម្ពកាត</span>
+                </button>
+            </div>
+
+            <div className="no-print max-w-5xl mx-auto w-full p-4 sm:p-6 flex-1 flex flex-col">
+                <div className="p-4 bg-yellow-50 text-sm text-yellow-800 border border-yellow-200 rounded-xl mb-6 flex gap-3 items-start shadow-sm">
+                    <Info className="w-5 h-5 flex-shrink-0 mt-0.5 text-yellow-600" />
+                    <p>សូមចែករំលែក <b>"លេខកូដថ្នាក់"</b> និង <b>"អត្តលេខសិស្ស"</b> ឫឱ្យមាតាបិតាស្កេន <b>"QR Code"</b> ដើម្បីឱ្យពួកគាត់អាចចូលប្រើប្រាស់ Parent Portal បាន។ អ្នកអាចចុចបោះពុម្ពខាងលើ ដើម្បីកាត់កាតចែកសិស្សយកទៅជូនឪពុកម្តាយ។</p>
+                </div>
+
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 flex-1 p-4 sm:p-6">
+                    {initialStudents.length === 0 ? (
+                        <div className="text-center py-20 text-gray-500 font-bold">
+                            <Users className="w-12 h-12 mx-auto mb-3 opacity-40" />មិនទាន់មានទិន្នន័យសិស្សនៅក្នុងប្រព័ន្ធទេ!
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {initialStudents.map(s => {
+                                const loginUrl = `https://portal.krusmart.org/?tid=${teacherUid}&sid=${s.id}`
+                                const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&color=0054a6&data=${encodeURIComponent(loginUrl)}`
+
+                                return (
+                                    <div key={s.id} className="border border-gray-200 rounded-xl p-4 bg-slate-50 flex justify-between items-center shadow-sm hover:border-blue-400 hover:shadow-md transition duration-300">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-12 h-12 rounded-full border-2 border-white shadow-sm flex items-center justify-center font-bold bg-blue-100 text-blue-600 shrink-0">
+                                                {s.gender === 'ស្រី' || s.gender === 'F' ? 'ស' : 'ប'}
+                                            </div>
+                                            <div className="overflow-hidden">
+                                                <p className="font-bold text-gray-800 text-base truncate">{s.name_kh || s.full_name || 'គ្មានឈ្មោះ'}</p>
+                                                <p className="text-sm text-gray-500">អត្តលេខ: <span className="font-mono font-bold text-[#0054a6]">{s.id}</span></p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <img src={qrCodeUrl} alt="QR" className="w-12 h-12 border border-gray-200 rounded-lg shadow-sm" title="QR Code សម្រាប់ស្កេនចូល" />
+                                            <button onClick={() => copyToClipboard(s.id)} className="text-blue-600 bg-white hover:bg-blue-100 p-2.5 rounded-xl transition border border-gray-200 shadow-sm shrink-0" title="ចម្លងអត្តលេខសិស្ស">
+                                                <Copy className="w-5 h-5" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            <div className="print-codes-mode">
+                {initialStudents.map(s => {
+                    const loginUrl = `https://portal.krusmart.org/?tid=${teacherUid}&sid=${s.id}`
+                    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&color=0054a6&data=${encodeURIComponent(loginUrl)}`
+
+                    return (
+                        <div key={s.id} className="student-code-card">
+                            <h3 className="font-moul" style={{ margin: '0 0 10px 0', color: '#0054a6', fontSize: '14px', textAlign: 'center', borderBottom: '1px solid #e5e7eb', paddingBottom: '8px' }}>
+                                កាតគណនីអាណាព្យាបាល
+                            </h3>
+                            <p style={{ margin: '6px 0', fontSize: '13px', color: '#374151' }}>សិស្ស៖ <strong style={{ color: '#1f2937', fontSize: '14px' }}>{s.name_kh || s.full_name || 'គ្មានឈ្មោះ'}</strong></p>
+                            
+                            <table style={{ width: '100%', background: '#f8fafc', padding: '10px', borderRadius: '8px', marginTop: '10px', borderCollapse: 'collapse', border: 'none' }}>
+                                <tbody>
+                                    <tr>
+                                        <td style={{ verticalAlign: 'middle', padding: '8px' }}>
+                                            <p style={{ margin: '0 0 6px 0', fontSize: '12px', color: '#475569' }}>១. លេខកូដថ្នាក់ (Teacher UID)៖<br />
+                                                <strong style={{ fontFamily: 'monospace', fontSize: '13px', color: '#0054a6' }}>{teacherUid}</strong>
+                                            </p>
+                                            <p style={{ margin: 0, fontSize: '12px', color: '#475569' }}>២. អត្តលេខសិស្ស (Student ID)៖<br />
+                                                <strong style={{ fontFamily: 'monospace', fontSize: '14px', color: '#0054a6' }}>{s.id}</strong>
+                                            </p>
+                                        </td>
+                                        <td style={{ width: '80px', textAlign: 'center', verticalAlign: 'middle', borderLeft: '1px dashed #cbd5e1', paddingLeft: '10px', paddingTop: '8px', paddingBottom: '8px' }}>
+                                            <img src={qrCodeUrl} alt="QR Code" style={{ width: '65px', height: '65px', borderRadius: '4px', border: '1px solid #e2e8f0', display: 'inline-block' }} />
+                                            <p style={{ fontSize: '9px', color: '#64748b', marginTop: '4px', fontWeight: 'bold', marginBottom: 0 }}>ស្កេនដើម្បីចូល</p>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            
+                            <p style={{ margin: '12px 0 0 0', fontSize: '10px', color: '#64748b', textAlign: 'center' }}>*សូមស្កេន QR Code ឬប្រើលេខកូដទាំង២ ដើម្បីចូលប្រព័ន្ធ</p>
+                        </div>
+                    )
+                })}
+            </div>
+        </div>
+    )
+}

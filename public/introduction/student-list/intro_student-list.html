@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PTEC - សៀវភៅណែនាំបញ្ជីឈ្មោះសិស្ស</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@300;400;600;700&family=Moul&display=swap" rel="stylesheet">
+    
+    <!-- Script to prevent FOUC (Flash of Unstyled Content) in Dark Mode -->
+    <script>
+        if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+
+    <!-- Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Khmer OS Content', 'sans-serif'],
+                        display: ['Moul', 'cursive'],
+                    },
+                    colors: {
+                        primary: '#0054a6',
+                        secondary: '#4facfe',
+                    },
+                    animation: {
+                        blob: "blob 15s infinite ease-in-out", /* Slowed down for better performance */
+                    },
+                    keyframes: {
+                        blob: {
+                            "0%": { transform: "translate(0px, 0px) scale(1)" },
+                            "33%": { transform: "translate(30px, -50px) scale(1.05)" },
+                            "66%": { transform: "translate(-20px, 20px) scale(0.95)" },
+                            "100%": { transform: "translate(0px, 0px) scale(1)" },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { 
+            background-color: #f8fafc;
+            /* Simplified body background */
+            background-image: radial-gradient(circle at 0% 0%, rgba(241, 245, 249, 1) 0, transparent 50%);
+            line-height: 1.8; 
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .dark body { 
+            background-color: #0f172a; 
+            background-image: none;
+        }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+        .dark ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        
+        /* OPTIMIZATION 1: Removed backdrop-filter to stop extreme scroll lag */
+        .section-box { 
+            background: rgba(255, 255, 255, 0.98); /* Solid mostly-opaque background instead of blur */
+            padding: 24px; 
+            border-radius: 24px; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            margin-bottom: 32px; 
+            border: 1px solid rgba(226, 232, 240, 0.8); 
+            position: relative; 
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .section-box:hover {
+            box-shadow: 0 15px 25px -5px rgba(0, 0, 0, 0.08);
+            transform: translateY(-2px); /* Reduced movement distance */
+            border-color: rgba(203, 213, 225, 1);
+        }
+
+        .dark .section-box {
+            background: rgba(30, 41, 59, 0.98); 
+            border-color: rgba(51, 65, 85, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        }
+        .dark .section-box:hover {
+            box-shadow: 0 15px 25px -5px rgba(0, 0, 0, 0.4);
+            border-color: rgba(71, 85, 105, 1);
+        }
+
+        @media (min-width: 768px) {
+            .section-box { padding: 40px; border-radius: 32px; margin-bottom: 48px; }
+        }
+
+        @keyframes border-spin { 
+            0% { transform: rotate(0deg); } 
+            100% { transform: rotate(360deg); } 
+        }
+        
+        /* Floating Animation */
+        @keyframes float-subtle {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-6px); } /* Reduced for smoother rendering */
+        }
+        .animate-floating {
+            animation: float-subtle 5s ease-in-out infinite; /* Slower */
+            transform: translateZ(0); /* Hardware acceleration */
+        }
+
+        .hero-icon-wrapper {
+            position: relative;
+            padding: 4px;
+            border-radius: 50%;
+            overflow: hidden;
+            display: inline-block;
+            box-shadow: 0 10px 20px -5px rgba(0, 84, 166, 0.2);
+            transition: transform 0.3s ease;
+        }
+        .hero-icon-wrapper::before {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%; width: 200%; height: 200%;
+            background: conic-gradient(transparent, #0054a6, transparent 30%);
+            animation: border-spin 6s linear infinite; /* Slower spin */
+        }
+        .dark .hero-icon-wrapper::before {
+            background: conic-gradient(transparent, #4facfe, transparent 30%);
+        }
+        .hero-icon-inner {
+            background: white;
+            border-radius: 50%;
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .dark .hero-icon-inner {
+            background: #1e293b;
+        }
+
+        /* Gradient Text - Slowed down significantly */
+        .animate-gradient-text {
+            background: linear-gradient(-45deg, #0054a6, #4facfe, #ff2d75, #0054a6);
+            background-size: 300%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: gradientText 10s ease infinite;
+        }
+        @keyframes gradientText {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* OPTIMIZATION 2: Removed filter: blur(80px) and used standard radial gradients */
+        .blob {
+            position: absolute;
+            z-index: -1;
+            opacity: 0.5;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        /* Custom soft gradients instead of expensive CSS blur filter */
+        .blob-1 { background: radial-gradient(circle, rgba(191,219,254,0.8) 0%, rgba(191,219,254,0) 70%); }
+        .blob-2 { background: radial-gradient(circle, rgba(186,230,253,0.8) 0%, rgba(186,230,253,0) 70%); }
+        .blob-3 { background: radial-gradient(circle, rgba(199,210,254,0.8) 0%, rgba(199,210,254,0) 70%); }
+        
+        .dark .blob-1 { background: radial-gradient(circle, rgba(30,58,138,0.4) 0%, rgba(30,58,138,0) 70%); }
+        .dark .blob-2 { background: radial-gradient(circle, rgba(12,74,110,0.4) 0%, rgba(12,74,110,0) 70%); }
+        .dark .blob-3 { background: radial-gradient(circle, rgba(49,46,129,0.4) 0%, rgba(49,46,129,0) 70%); }
+
+        .animation-delay-2000 { animation-delay: 2s; }
+        .animation-delay-4000 { animation-delay: 4s; }
+
+        .image-wrapper { 
+            position: relative; 
+            width: 100%; 
+            height: auto; 
+            display: block; 
+            border-radius: 20px; 
+            transition: transform 0.4s ease, box-shadow 0.4s ease;
+            transform: translateZ(0); /* Hardware acceleration */
+        }
+        .image-wrapper:hover {
+            transform: translateY(-4px); 
+            box-shadow: 0 15px 30px -10px rgba(0,0,0,0.2);
+        }
+        .image-wrapper img, .image-wrapper video { 
+            width: 100%; 
+            height: auto; 
+            display: block; 
+            object-fit: contain; 
+            border-radius: 16px; 
+        }
+
+        .pointer-container { position: absolute; z-index: 10; pointer-events: none; }
+        
+        /* OPTIMIZATION 3: Removed filter: drop-shadow, using box-shadow on inner elements */
+        .pointer-down { display: flex; flex-direction: column; align-items: center; animation: bounce-down 3s infinite ease-in-out; }
+        .pointer-down-box { 
+            padding: 8px 14px; border-radius: 12px; font-weight: 700; font-size: 13px; color: white; text-align: center; white-space: nowrap; line-height: 1.4; 
+            border: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3); /* Replaced drop-shadow */
+        }
+        .pointer-down-arrow { width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 12px solid; }
+
+        .pointer-right { display: flex; align-items: center; animation: bounce-right 3s infinite ease-in-out; }
+        .pointer-right-box { 
+            padding: 8px 14px; border-radius: 12px; font-weight: 700; font-size: 13px; color: white; text-align: center; white-space: nowrap; line-height: 1.4; 
+            border: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        .pointer-right-arrow { width: 0; height: 0; border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-left: 12px solid; }
+
+        .pointer-up { display: flex; flex-direction: column-reverse; align-items: center; animation: bounce-up 3s infinite ease-in-out; }
+        .pointer-up-box { 
+            padding: 8px 14px; border-radius: 12px; font-weight: 700; font-size: 13px; color: white; text-align: center; white-space: nowrap; line-height: 1.4; 
+            border: 1px solid rgba(255,255,255,0.2); 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        .pointer-up-arrow { width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-bottom: 12px solid; }
+
+        @keyframes bounce-down { 0%, 100% { transform: translate(-50%, -5%); } 50% { transform: translate(-50%, 5%); } }
+        @keyframes bounce-right { 0%, 100% { transform: translate(-5%, -50%); } 50% { transform: translate(5%, -50%); } }
+        @keyframes bounce-up { 0%, 100% { transform: translate(-50%, 5%); } 50% { transform: translate(-50%, -5%); } }
+
+        /* --- Scroll Reveal Animations --- */
+        /* OPTIMIZATION 4: Removed will-change to save RAM */
+        .reveal {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+        }
+        .reveal-left { transform: translateX(-20px); }
+        .reveal-right { transform: translateX(20px); }
+        .reveal-scale { transform: scale(0.98); }
+
+        .reveal.active {
+            opacity: 1;
+            transform: translate(0) scale(1);
+        }
+
+        .delay-100 { transition-delay: 100ms; }
+        .delay-200 { transition-delay: 200ms; }
+        .delay-300 { transition-delay: 300ms; }
+
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation: none !important;
+                transition: none !important;
+                transform: none !important;
+            }
+            .reveal, .reveal-left, .reveal-right, .reveal-scale {
+                opacity: 1 !important;
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .pointer-down-box, .pointer-right-box, .pointer-up-box { font-size: 11px; padding: 6px 12px; max-width: 120px; white-space: normal; }
+        }
+        @media (max-width: 767px) {
+            .pointer-down-box, .pointer-right-box, .pointer-up-box { font-size: 9px; padding: 4px 8px; max-width: 90px; border-radius: 8px; }
+            .pointer-down-arrow { border-left-width: 6px; border-right-width: 6px; border-top-width: 8px; }
+            .pointer-right-arrow { border-top-width: 6px; border-bottom-width: 6px; border-left-width: 8px; }
+            .pointer-up-arrow { border-left-width: 6px; border-right-width: 6px; border-bottom-width: 8px; }
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-6 md:p-8 lg:p-12 min-h-screen relative font-sans text-slate-800 dark:text-gray-100 bg-slate-50 dark:bg-[#0f172a] transition-colors duration-300">
+
+    <!-- Optimized Background Blobs (No heavy CSS filters) -->
+    <div class="blob blob-1 w-[40rem] h-[40rem] top-[-10rem] left-[-10rem] animate-blob"></div>
+    <div class="blob blob-2 w-[40rem] h-[40rem] top-20 right-[-10rem] animate-blob animation-delay-2000"></div>
+    <div class="blob blob-3 w-[40rem] h-[40rem] bottom-[-10rem] left-10 animate-blob animation-delay-4000"></div>
+
+    <div class="max-w-5xl mx-auto relative z-10 pt-8 sm:pt-10">
+        
+        <!-- Header Section -->
+        <header class="text-center mb-12 md:mb-16 relative">
+            <a href="/student-list" target="_parent" class="group inline-block mb-6 relative cursor-pointer animate-floating mt-4">
+                <div class="hero-icon-wrapper transform group-hover:-translate-y-1">
+                    <div class="hero-icon-inner w-20 h-20 md:w-28 md:h-28">
+                        <i data-lucide="users" class="w-10 h-10 md:w-14 md:h-14 text-[#0054a6] dark:text-[#4facfe] group-hover:scale-105 transition-transform duration-300"></i>
+                    </div>
+                </div>
+                <div class="absolute -bottom-4 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap z-20 translate-y-2 group-hover:translate-y-0">
+                     <span class="text-xs font-bold text-white dark:text-slate-800 bg-[#0054a6] dark:bg-[#4facfe] px-3 py-1.5 rounded-full shadow-md">ចូលទៅកាន់បញ្ជីសិស្ស</span>
+                </div>
+            </a>
+            
+            <h1 class="reveal font-display text-3xl md:text-5xl lg:text-6xl animate-gradient-text mb-4 leading-normal pb-2">Introduction To Student List</h1>
+            
+            <p class="reveal delay-100 text-lg md:text-xl text-slate-600 dark:text-slate-300 font-medium max-w-2xl mx-auto mb-8">
+                សៀវភៅណែនាំពីរបៀបគ្រប់គ្រង បោះពុម្ព និងទាញយកទិន្នន័យសិស្ស
+            </p>
+            <div class="flex justify-center mb-8 reveal" style="transition-delay: 150ms;">
+                <a href="#video-tutorial" class="inline-flex items-center gap-2.5 bg-[#e11d48] hover:bg-[#be123c] text-white px-8 py-3.5 rounded-[30px] font-display text-lg md:text-xl shadow-lg transition-all duration-300 hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-rose-300 dark:focus:ring-rose-800 tracking-wide">
+                    <svg class="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                    </svg>
+                    ទស្សនាវីដេអូណែនាំ
+                </a>
+            </div>
+
+            <!-- Pinging Badge -->
+            <div class="reveal delay-200 inline-flex items-center gap-3 px-5 py-2.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm cursor-default">
+                <span class="relative flex h-3 w-3">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
+                </span>
+                <p class="text-slate-700 dark:text-slate-200 text-sm md:text-lg font-bold">
+                    ប្រព័ន្ធគ្រប់គ្រង និងបញ្ជីឈ្មោះសិស្ស (ជំនាន់ ២.០)
+                </p>
+            </div>
+        </header>
+
+        <!-- Section 1 -->
+        <section class="section-box border-t-4 border-t-[#0054a6] dark:border-t-[#4facfe] reveal reveal-scale">
+            <div class="flex items-center gap-4 mb-6 md:mb-8">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-blue-50 dark:bg-slate-700 flex items-center justify-center text-[#0054a6] dark:text-[#4facfe] shrink-0 border border-blue-100 dark:border-slate-600 shadow-sm">
+                    <i data-lucide="table-properties" class="w-7 h-7 md:w-8 md:h-8"></i>
+                </div>
+                <div>
+                    <span class="text-[10px] md:text-xs font-display tracking-wider text-[#0054a6] dark:text-[#4facfe] uppercase bg-blue-100 dark:bg-blue-900/40 px-3 py-1 rounded-full border border-blue-200 dark:border-blue-800">Part 1</span>
+                    <h2 class="text-xl md:text-3xl font-display text-slate-800 dark:text-white mt-1 md:mt-2">ទិដ្ឋភាពទូទៅនៃបញ្ជីឈ្មោះសិស្ស</h2>
+                </div>
+            </div>
+            
+            <p class="text-sm md:text-lg font-medium text-slate-600 dark:text-slate-300 mb-6">ទំព័រនេះរៀបចំទិន្នន័យសិស្សទាំងអស់ជាទម្រង់តារាង ដែលងាយស្រួលមើល និងមានភាពរហ័សក្នុងការស្វែងរកព័ត៌មាន៖</p>
+            
+            <div class="image-wrapper mb-8 border-4 border-white dark:border-slate-700 shadow-lg bg-slate-50 dark:bg-slate-800">
+                <img loading="lazy" src="1-studen-list.png" alt="Student List Overview" onerror="this.onerror=null; this.src='https://placehold.co/1000x500/1e293b/4facfe?text=Student+List'">
+                
+                <div class="pointer-container top-[8%] left-[68%]">
+                    <div class="pointer-down">
+                        <div class="pointer-down-box bg-[#0054a6] dark:bg-[#4facfe] dark:text-slate-900">ទម្រង់បោះពុម្ព និង ទាញយក<br>ប្តូរទៅកាន់ទម្រង់បោះពុម្ព</div>
+                        <div class="pointer-down-arrow border-t-[#0054a6] dark:border-t-[#4facfe]"></div>
+                    </div>
+                </div>
+                
+                <div class="pointer-container top-[48%] left-[80%]">
+                    <div class="pointer-right">
+                        <div class="pointer-right-box bg-rose-600">កែប្រែ ឬ លុប</div>
+                        <div class="pointer-right-arrow border-l-rose-600"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gradient-to-br from-blue-50/80 to-sky-50/80 dark:from-blue-900/20 dark:to-sky-900/20 p-5 md:p-6 rounded-2xl border border-blue-100/50 dark:border-slate-700">
+                <ul class="list-disc pl-5 md:pl-8 space-y-3 md:space-y-4 text-sm md:text-base text-slate-700 dark:text-slate-300 stagger-container">
+                    <li class="stagger-item"><strong class="text-[#0054a6] dark:text-[#4facfe]">តារាងទិន្នន័យ៖</strong> បង្ហាញព័ត៌មានលម្អិតដូចជា អត្តលេខ ឈ្មោះ ភេទ ថ្ងៃខែឆ្នាំកំណើត អាយុ អាសយដ្ឋាន និងព័ត៌មានអាណាព្យាបាល។</li>
+                    <li class="stagger-item"><strong class="text-[#0054a6] dark:text-[#4facfe]">រូបតំណាង (Avatars)៖</strong> ជួយឱ្យលោកអ្នកងាយស្រួលចំណាំសិស្សម្នាក់ៗ។ លោកអ្នកអាចចុចលើរូបដើម្បីមើលរូបថតពេញទំហំធំ។</li>
+                    <li class="stagger-item"><strong class="text-[#0054a6] dark:text-[#4facfe]">Sticky Column៖</strong> ឈ្មោះសិស្សនឹងនៅជាប់ជានិច្ច ទោះបីជាអ្នកអូសតារាងទៅខាងស្តាំដើម្បីមើលព័ត៌មានផ្សេងៗក៏ដោយ។</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Section 2 -->
+        <section class="section-box border-t-4 border-t-emerald-500 reveal reveal-scale">
+            <div class="flex items-center gap-4 mb-6 md:mb-8">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0 border border-emerald-100 dark:border-emerald-800 shadow-sm">
+                    <i data-lucide="edit-3" class="w-7 h-7 md:w-8 md:h-8"></i>
+                </div>
+                <div>
+                    <span class="text-[10px] md:text-xs font-display tracking-wider text-emerald-600 dark:text-emerald-400 uppercase bg-emerald-100 dark:bg-emerald-900/40 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">Part 2</span>
+                    <h2 class="text-xl md:text-3xl font-display text-slate-800 dark:text-white mt-1 md:mt-2">ការគ្រប់គ្រង និងកែប្រែទិន្នន័យ</h2>
+                </div>
+            </div>
+            
+            <p class="text-sm md:text-lg font-medium text-slate-600 dark:text-slate-300 mb-6">នៅខាងចុងតារាងនីមួយៗ មានប៊ូតុងសម្រាប់ធ្វើសកម្មភាពទៅលើទិន្នន័យសិស្ស៖</p>
+
+            <div class="grid md:grid-cols-2 gap-5 md:gap-8 items-center">
+                <div class="space-y-4">
+                    <div class="bg-white dark:bg-slate-800 p-4 md:p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow group">
+                        <h3 class="font-bold text-blue-700 dark:text-blue-400 mb-2 border-b border-slate-100 dark:border-slate-700 pb-2 text-base md:text-lg flex items-center gap-2">
+                            <i data-lucide="edit" class="w-5 h-5 text-blue-500"></i> ប៊ូតុងកែសម្រួល (Edit)
+                        </h3>
+                        <p class="text-sm md:text-base text-slate-600 dark:text-slate-300">ចុចលើប៊ូតុងនេះ ប្រព័ន្ធនឹងនាំអ្នកត្រឡប់ទៅកាន់ទំព័រ <strong class="text-blue-600 dark:text-[#4facfe]">បញ្ចូលព័ត៌មាន</strong> វិញ ដោយទាញយកទិន្នន័យចាស់មកបង្ហាញស្រាប់ ដើម្បីឱ្យអ្នកកែប្រែ និងចុចរក្សាទុក (Update)។</p>
+                    </div>
+                    <div class="bg-white dark:bg-slate-800 p-4 md:p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow group">
+                        <h3 class="font-bold text-rose-700 dark:text-rose-400 mb-2 border-b border-slate-100 dark:border-slate-700 pb-2 text-base md:text-lg flex items-center gap-2">
+                            <i data-lucide="trash-2" class="w-5 h-5 text-rose-500"></i> ប៊ូតុងលុប (Delete)
+                        </h3>
+                        <p class="text-sm md:text-base text-slate-600 dark:text-slate-300">សម្រាប់លុបទិន្នន័យសិស្សណាម្នាក់ចេញពីប្រព័ន្ធទាំងស្រុង។ វានឹងលោតផ្ទាំងបញ្ជាក់ (Confirm) មុននឹងលុបដើម្បីការពារការលុបច្រឡំ។</p>
+                    </div>
+                </div>
+                
+                <div class="flex flex-col gap-4">
+                    <div class="bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 p-5 rounded-xl shadow-sm">
+                        <h4 class="font-bold text-rose-800 dark:text-rose-400 flex items-center gap-2 mb-2">
+                            <i data-lucide="alert-triangle" class="w-5 h-5 text-rose-600 dark:text-rose-500"></i> ការលុបទាំងអស់ (Delete All)
+                        </h4>
+                        <p class="text-sm text-rose-700 dark:text-rose-300">នៅផ្នែកខាងលើនៃតារាង មានប៊ូតុង <strong class="bg-rose-600 dark:bg-rose-500 text-white px-2 py-0.5 rounded shadow-sm">លុបទាំងអស់</strong>។ សូមប្រុងប្រយ័ត្នក្នុងការប្រើប្រាស់ប៊ូតុងនេះ ព្រោះវានឹងលុបទិន្នន័យសិស្សទាំងអស់ចេញពី Database របស់អ្នក។</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3 -->
+        <section class="section-box border-t-4 border-t-amber-500 reveal reveal-scale">
+            <div class="flex items-center gap-4 mb-6 md:mb-8">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0 border border-amber-100 dark:border-amber-800 shadow-sm">
+                    <i data-lucide="printer" class="w-7 h-7 md:w-8 md:h-8"></i>
+                </div>
+                <div>
+                    <span class="text-[10px] md:text-xs font-display tracking-wider text-amber-600 dark:text-amber-400 uppercase bg-amber-100 dark:bg-amber-900/40 px-3 py-1 rounded-full border border-amber-200 dark:border-amber-800">Part 3</span>
+                    <h2 class="text-xl md:text-3xl font-display text-slate-800 dark:text-white mt-1 md:mt-2">ទម្រង់របាយការណ៍បោះពុម្ព</h2>
+                </div>
+            </div>
+            
+            <p class="text-sm md:text-lg font-medium text-slate-600 dark:text-slate-300 mb-6">នៅពេលលោកអ្នកចុចប៊ូតុង <strong class="text-[#0054a6] dark:text-[#4facfe]">ទម្រង់បោះពុម្ព និង ទាញយក</strong> ប្រព័ន្ធនឹងរៀបចំទិន្នន័យទៅជាទម្រង់ស្តង់ដារផ្លូវការរបស់ក្រសួងអប់រំ៖</p>
+
+            <div class="image-wrapper mb-8 border-4 border-white dark:border-slate-700 shadow-lg bg-slate-50 dark:bg-slate-800">
+                <img loading="lazy" src="2-student-list.png" alt="Print Format" onerror="this.onerror=null; this.src='https://placehold.co/1000x500/1e293b/4facfe?text=Print+Format'">
+                
+                <div class="pointer-container top-[10%] left-[46%]">
+                    <div class="pointer-up">
+                        <div class="pointer-up-box bg-[#ef4444]">ប៊ូតុងបោះពុម្ព (Print)</div>
+                        <div class="pointer-up-arrow border-b-[#ef4444]"></div>
+                    </div>
+                </div>
+                
+                <div class="pointer-container top-[10%] left-[65%] opacity-95">
+                    <div class="pointer-up">
+                        <div class="pointer-up-box bg-[#10b981]">ទាញយកជា Excel</div>
+                        <div class="pointer-up-arrow border-b-[#10b981]"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid lg:grid-cols-2 gap-5">
+                <div class="bg-gradient-to-br from-amber-50/80 to-orange-50/80 dark:from-amber-900/20 dark:to-orange-900/20 p-5 md:p-6 rounded-2xl border border-amber-100 dark:border-amber-800/50 shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow">
+                    <i data-lucide="file-text" class="w-24 h-24 absolute -bottom-4 -right-4 text-amber-500 dark:text-amber-400 opacity-10"></i>
+                    <h3 class="font-bold text-amber-900 dark:text-amber-300 mb-3 text-base md:text-xl flex items-center gap-2">
+                        <span class="bg-amber-600 dark:bg-amber-500 text-white w-6 h-6 rounded-full inline-flex items-center justify-center text-sm"><i data-lucide="printer" class="w-3 h-3"></i></span> 
+                        ការបោះពុម្ព (Print)
+                    </h3>
+                    <p class="text-sm md:text-base text-slate-700 dark:text-slate-300 relative z-10">ទម្រង់នេះត្រូវបានរៀបចំឡើងជាលក្ខណៈ Landscape ដោយមានក្បាលក្បួនត្រឹមត្រូវ។ នៅពេលអ្នកចុចប៊ូតុង <strong class="text-rose-600 dark:text-rose-400">បោះពុម្ព (Print)</strong> ប៊ូតុងបញ្ជាផ្សេងៗនឹងត្រូវលាក់បាត់ដោយស្វ័យប្រវត្តិ ដើម្បីឱ្យការ Print ចេញមកមានភាពស្អាតល្អ។</p>
+                </div>
+
+                <div class="bg-gradient-to-br from-green-50/80 to-emerald-50/80 dark:from-green-900/20 dark:to-emerald-900/20 p-5 md:p-6 rounded-2xl border border-green-100 dark:border-green-800/50 shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow">
+                    <i data-lucide="download-cloud" class="w-24 h-24 absolute -bottom-4 -right-4 text-green-500 dark:text-green-400 opacity-10"></i>
+                    <h3 class="font-bold text-green-900 dark:text-green-300 mb-3 text-base md:text-xl flex items-center gap-2">
+                        <span class="bg-green-600 dark:bg-green-500 text-white w-6 h-6 rounded-full inline-flex items-center justify-center text-sm"><i data-lucide="file-spreadsheet" class="w-3 h-3"></i></span> 
+                        ទាញយកទិន្នន័យ (Export Excel)
+                    </h3>
+                    <p class="text-sm md:text-base text-slate-700 dark:text-slate-300 relative z-10">លោកអ្នកអាចទាញយកទិន្នន័យតារាងនេះទៅជាឯកសារ <strong class="text-green-700 dark:text-green-400">Excel (.xlsx)</strong> បានភ្លាមៗ ដើម្បីរក្សាទុកជាឯកសារ Backup ឬយកទៅប្រើប្រាស់ក្នុងកម្មវិធីផ្សេងៗទៀត។</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 4: Video Tutorial -->
+        <section class="section-box border-t-4 border-t-purple-500 reveal reveal-scale">
+            <div class="flex items-center gap-4 mb-6 md:mb-8">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center text-purple-600 dark:text-purple-400 shrink-0 border border-purple-100 dark:border-purple-800 shadow-sm">
+                    <i data-lucide="play-circle" class="w-7 h-7 md:w-8 md:h-8"></i>
+                </div>
+                <div>
+                    <span class="text-[10px] md:text-xs font-display tracking-wider text-purple-600 dark:text-purple-400 uppercase bg-purple-100 dark:bg-purple-900/40 px-3 py-1 rounded-full border border-purple-200 dark:border-purple-800">Part 4</span>
+                    <h2 class="text-xl md:text-3xl font-bold text-slate-800 dark:text-white mt-1 md:mt-2">វីដេអូណែនាំការប្រើប្រាស់</h2>
+                </div>
+            </div>
+            
+            <p class="text-sm md:text-lg font-medium text-slate-600 dark:text-slate-300 mb-6">សូមទស្សនាវីដេអូខាងក្រោមដើម្បីស្វែងយល់លម្អិតពីរបៀបប្រើប្រាស់ប្រព័ន្ធនេះមួយជំហានម្តងៗ៖</p>
+
+            <div class="image-wrapper mb-8 border-4 border-white dark:border-slate-700 shadow-lg bg-slate-900">
+                <video controls class="w-full h-auto outline-none" poster="https://placehold.co/1000x500/1e293b/4facfe?text=Play+Video+Tutorial">
+                    <source src="https://www.youtube.com/embed/zPi4HtJIV-Y?si=kri1YOmxwU2prEUE" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="mt-20 pb-16 text-center relative z-10 flex flex-col items-center">
+            <div class="w-20 h-1.5 bg-gradient-to-r from-[#0054a6] to-[#4facfe] mx-auto rounded-full mb-8 shadow-sm"></div>
+            
+            <h3 class="font-display text-3xl md:text-4xl text-slate-800 dark:text-white mb-4 flex justify-center items-center gap-3">
+                <i data-lucide="check-circle-2" class="w-8 h-8 text-[#0054a6] dark:text-[#4facfe]"></i> រួចរាល់ហើយ!
+            </h3>
+            <p class="text-slate-500 dark:text-slate-400 mb-12 max-w-2xl mx-auto text-sm md:text-base">ឥឡូវនេះ លោកអ្នកអាចចាប់ផ្តើមគ្រប់គ្រង និងទាញយកទិន្នន័យសិស្សរបស់លោកអ្នកបានយ៉ាងងាយស្រួលនិងមានប្រសិទ្ធភាព។</p>
+            
+            <!-- Card Footer -->
+            <a href="https://portfolio-ron-raksmey.netlify.app/" target="_blank" rel="noopener noreferrer" class="inline-block bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-lg border border-slate-200 dark:border-slate-700 max-w-sm w-full relative overflow-hidden group hover:-translate-y-2 transition-all duration-300">
+                <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-[#0054a6] via-[#4facfe] to-emerald-400"></div>
+                
+                <div class="flex flex-col items-center">
+                    <div class="w-28 h-28 rounded-full border-4 border-white dark:border-slate-700 shadow-md overflow-hidden mb-5 bg-slate-100 dark:bg-slate-800">
+                        <img loading="lazy" src="../enrollment/RON-RAKSMEY.png" alt="Profile" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://placehold.co/150x150/1e293b/4facfe?text=Profile'">
+                    </div>
+                    
+                    <p class="text-[11px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-bold mb-2 flex items-center gap-1">
+                        <i data-lucide="code-2" class="w-3 h-3 text-[#4facfe]"></i> Developed By
+                    </p>
+                    <h4 class="font-display text-xl text-slate-800 dark:text-white mb-1">គរុនិស្សិត រុន រស្មី</h4>
+                    <span class="text-xs text-slate-500 dark:text-slate-400 mt-2 bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 px-4 py-1.5 rounded-full font-medium">
+                        <i data-lucide="graduation-cap" class="w-3.5 h-3.5 inline-block mb-0.5 mr-1"></i> ជំនាន់ទី៤
+                    </span>
+                </div>
+            </a>
+            
+            <div class="mt-12 text-sm text-slate-400 dark:text-slate-500 font-medium">
+                &copy; 2026 Krusmart. រក្សាសិទ្ធិគ្រប់យ៉ាង។
+            </div>
+        </footer>
+
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        // Optimized Intersection Observer
+        document.addEventListener("DOMContentLoaded", () => {
+            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+            if (!prefersReducedMotion) {
+                // Reduced threshold and removed margin for less CPU intensive checks
+                const observer = new IntersectionObserver((entries, obs) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            entry.target.classList.add('active');
+                            obs.unobserve(entry.target);
+                        }
+                    });
+                }, { threshold: 0.05 });
+
+                const revealElements = document.querySelectorAll('.reveal, .reveal-left, .reveal-right, .reveal-scale, .stagger-item');
+                revealElements.forEach((el, i) => {
+                    if(el.classList.contains('stagger-item')) {
+                       el.style.transitionDelay = `${(i % 5) * 100}ms`; // Simplified stagger
+                    }
+                    observer.observe(el);
+                });
+            } else {
+                const allReveals = document.querySelectorAll('.reveal, .reveal-left, .reveal-right, .reveal-scale, .stagger-item');
+                allReveals.forEach(el => el.classList.add('active'));
+            }
+        });
+    </script>
+</body>
+</html>

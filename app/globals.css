@@ -1,0 +1,160 @@
+@import "tailwindcss";
+
+@theme inline {
+  /* Brand Colors */
+  --color-brand-primary: #0054a6;
+  --color-brand-secondary: #4facfe;
+
+  /* Design-system semantic tokens (light/dark aware — see :root / .dark below).
+     Used by the shared form + navigation components in components/ui/. */
+  --color-bg-app: var(--background);
+  --color-bg-surface: var(--surface);
+  --color-paper: var(--surface-muted);
+  --color-divider: var(--divider);
+  --color-text-heading: var(--text-heading);
+  --color-text-body: var(--text-body);
+  --color-text-muted: var(--text-muted);
+  --color-brand: var(--brand);
+  --color-brand-contrast: var(--brand-contrast);
+  --color-focus-ring: var(--focus-ring);
+
+  /* Fonts */
+  --font-kantumruy: 'Kantumruy Pro', sans-serif;
+  --font-moul: 'Moul', cursive;
+
+  /* Animations */
+  --animate-gradient-text: gradientText 6s ease infinite;
+  --animate-slide-up-scale: slideUpScale 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-marquee: marquee 20s linear infinite;
+
+  @keyframes gradientText {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  @keyframes slideUpScale {
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  @keyframes marquee {
+    0% { transform: translateX(0%); }
+    100% { transform: translateX(-100%); }
+  }
+}
+
+@custom-variant dark (&:is(.dark, .dark *));
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+
+  /* Semantic surface/text/brand ramp. Values chosen to match the greys the
+     app already uses (slate-50/200/500, gray-800) so migrated components sit
+     flush with un-migrated ones during the rollout. */
+  --surface: #ffffff;
+  --surface-muted: #f8fafc; /* slate-50  */
+  --divider: #e2e8f0; /* slate-200 */
+  --text-heading: #0f172a; /* slate-900 */
+  --text-body: #334155; /* slate-700 */
+  --text-muted: #64748b; /* slate-500 */
+  --brand: #0054a6;
+  --brand-contrast: #ffffff;
+  --focus-ring: #0054a6;
+}
+
+.dark {
+  --background: #0f172a; /* Tailwind slate-900 */
+  --foreground: #f3f4f6; /* Tailwind gray-100 */
+
+  --surface: #1f2937; /* gray-800 — the card colour used across the app */
+  --surface-muted: #111827; /* gray-900 */
+  --divider: #374151; /* gray-700 */
+  --text-heading: #f3f4f6; /* gray-100 */
+  --text-body: #e5e7eb; /* gray-200 */
+  --text-muted: #9ca3af; /* gray-400 */
+  --brand: #4facfe;
+  --brand-contrast: #0b1220;
+  --focus-ring: #4facfe;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-kantumruy), Arial, Helvetica, sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  line-height: 1.6;
+}
+
+/* Base Headings matching Moul font if desired */
+.kh-moul {
+  font-family: var(--font-moul);
+  line-height: 1.8;
+}
+
+/* Custom Utilities from Legacy App */
+@layer utilities {
+  .animate-gradient-text {
+    background: linear-gradient(-45deg, #0054a6, #4ca6f5, #ff2d75, #0054a6);
+    background-size: 300%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: gradientText 6s ease infinite;
+  }
+
+  .card-entrance {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+    animation: slideUpScale 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .animate-marquee {
+    animation: marquee 20s linear infinite;
+  }
+
+  .btn-pulse {
+    position: relative;
+    z-index: 1;
+  }
+  
+  .btn-pulse::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: 0 0 0 0 rgba(0, 84, 166, 0.6);
+    animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+    z-index: -1;
+  }
+
+  @keyframes pulse-ring {
+    70% { box-shadow: 0 0 0 12px rgba(0, 84, 166, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(0, 84, 166, 0); }
+  }
+
+  /* Dark mode specific animated background */
+  .dark .bg-animate { 
+    background: radial-gradient(circle at 10% 20%, #1e1b4b 0%, transparent 40%), 
+                radial-gradient(circle at 90% 80%, #064e3b 0%, transparent 40%), 
+                radial-gradient(circle at 50% 50%, #451a03 0%, transparent 50%); 
+  }
+
+  /* Accessibility: Reduce motion */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-gradient-text, .card-entrance, .btn-pulse::before { 
+      transition: none !important; 
+      animation: none !important; 
+    }
+    .card-entrance { 
+      opacity: 1; 
+      transform: none; 
+    }
+  }
+
+  /* Hide number input arrows */
+  input[type="number"]::-webkit-inner-spin-button, 
+  input[type="number"]::-webkit-outer-spin-button { 
+    -webkit-appearance: none; 
+    margin: 0; 
+  }
+}

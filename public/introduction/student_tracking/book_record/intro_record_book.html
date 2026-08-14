@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PTEC - សៀវភៅណែនាំសៀវភៅសិក្ខាគារិក</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Moul&family=Battambang:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- Script to prevent FOUC and ensure Iframe transparency -->
+    <script>
+        let isDark = false;
+        if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            isDark = true;
+        }
+        
+        try {
+            if (window.self !== window.top) {
+                document.documentElement.classList.add('is-iframe');
+                if (window.parent && window.parent.document) {
+                    isDark = window.parent.document.documentElement.classList.contains('dark');
+                }
+            }
+        } catch (e) {
+            document.documentElement.classList.add('is-iframe');
+        }
+
+        if (isDark) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+
+    <!-- Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Battambang"', 'sans-serif'],
+                        display: ['Moul', 'cursive'],
+                    },
+                    colors: {
+                        primary: '#0054a6',
+                        secondary: '#4facfe',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        .dark body { background: #0f172a; }
+        body:not(.dark) { background: #f0f4f8; }
+        
+        html.is-iframe body { background: transparent !important; }
+        html.is-iframe #standalone-bg-animate { display: none !important; }
+
+        body { 
+            line-height: 1.8; 
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Static Background */
+        .bg-animate { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -2; 
+            background: radial-gradient(circle at 10% 20%, rgba(224, 231, 255, 0.8) 0%, transparent 40%), 
+                        radial-gradient(circle at 90% 80%, rgba(220, 252, 231, 0.8) 0%, transparent 40%), 
+                        radial-gradient(circle at 50% 50%, rgba(254, 243, 199, 0.8) 0%, transparent 50%); 
+        }
+        
+        .dark .bg-animate { 
+            background: radial-gradient(circle at 10% 20%, rgba(30, 27, 75, 0.8) 0%, transparent 40%), 
+                        radial-gradient(circle at 90% 80%, rgba(6, 78, 59, 0.8) 0%, transparent 40%), 
+                        radial-gradient(circle at 50% 50%, rgba(69, 26, 3, 0.8) 0%, transparent 50%); 
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+        .dark ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        
+        .section-box { 
+            background: rgba(255, 255, 255, 0.98);
+            padding: 24px; 
+            border-radius: 24px; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            margin-bottom: 32px; 
+            border: 1px solid rgba(226, 232, 240, 0.8); 
+            position: relative; 
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .dark .section-box {
+            background: rgba(30, 41, 59, 0.98);
+            border-color: rgba(51, 65, 85, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+        }
+        .section-box:hover {
+            box-shadow: 0 15px 25px -5px rgba(0, 0, 0, 0.08);
+            transform: translateY(-2px);
+            border-color: rgba(203, 213, 225, 1);
+        }
+        .dark .section-box:hover {
+            box-shadow: 0 15px 25px -5px rgba(0, 0, 0, 0.4);
+            border-color: rgba(71, 85, 105, 1);
+        }
+
+        @media (min-width: 768px) {
+            .section-box { padding: 40px; border-radius: 32px; margin-bottom: 48px; }
+        }
+
+        .hero-icon-wrapper {
+            position: relative;
+            padding: 4px;
+            border-radius: 50%;
+            overflow: hidden;
+            display: inline-block;
+            box-shadow: 0 10px 20px -5px rgba(0, 84, 166, 0.2);
+            transition: box-shadow 0.3s ease;
+        }
+        .dark .hero-icon-wrapper { box-shadow: 0 10px 20px -5px rgba(79, 172, 254, 0.2); }
+        .group:hover .hero-icon-wrapper { box-shadow: 0 15px 30px -5px rgba(0, 84, 166, 0.4); }
+        
+        .hero-icon-wrapper::before {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%; width: 200%; height: 200%;
+            background: conic-gradient(transparent, #0054a6, transparent 30%);
+        }
+        .dark .hero-icon-wrapper::before { background: conic-gradient(transparent, #4facfe, transparent 30%); }
+        
+        .hero-icon-inner {
+            background: white;
+            border-radius: 50%;
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .dark .hero-icon-inner { background: #1e293b; }
+
+        .image-wrapper { 
+            position: relative; 
+            width: 100%; 
+            height: auto; 
+            display: block; 
+            border-radius: 20px; 
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            transform: translateZ(0);
+        }
+        .image-wrapper:hover {
+            transform: translateY(-4px); 
+            box-shadow: 0 15px 30px -10px rgba(0,0,0,0.15);
+        }
+        .image-wrapper img { 
+            width: 100%; 
+            height: auto; 
+            display: block; 
+            object-fit: contain; 
+            border-radius: 16px; 
+        }
+
+        .animate-gradient-text {
+            background: linear-gradient(-45deg, #0054a6, #4facfe, #8b5cf6, #0054a6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .dark .animate-gradient-text {
+            background: linear-gradient(-45deg, #4facfe, #0054a6, #a78bfa, #4facfe);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Intersection Observer Animations */
+        .reveal-up { opacity: 0; transform: translateY(20px); transition: opacity 0.6s ease-out, transform 0.6s ease-out; }
+        .reveal-left { opacity: 0; transform: translateX(-20px); transition: opacity 0.6s ease-out, transform 0.6s ease-out; }
+        .reveal-scale { opacity: 0; transform: scale(0.98); transition: opacity 0.6s ease-out, transform 0.6s ease-out; }
+        .reveal-visible { opacity: 1; transform: translate(0) scale(1); }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, ::before, ::after { transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+            .reveal-up, .reveal-left, .reveal-scale { opacity: 1 !important; transform: none !important; }
+            .section-box:hover, .image-wrapper:hover { transform: none !important; }
+        }
+    </style>
+</head>
+<body class="text-slate-800 dark:text-gray-100 transition-colors duration-300 p-4 sm:p-6 md:p-8 lg:p-12 min-h-screen relative font-sans">
+
+    <!-- Background -->
+    <div class="bg-animate" aria-hidden="true" id="standalone-bg-animate"></div>
+
+    <div class="max-w-5xl mx-auto relative z-10">
+        
+        <!-- Header Section -->
+        <header class="text-center mb-12 md:mb-16 relative pt-8">
+            <a href="/record-book" target="_parent" class="group inline-block mb-6 relative cursor-pointer focus:outline-none rounded-full reveal-scale">
+                <div class="hero-icon-wrapper transform transition-transform duration-300 group-hover:-translate-y-1">
+                    <div class="hero-icon-inner w-20 h-20 md:w-28 md:h-28">
+                        <i data-lucide="book-open" class="w-10 h-10 md:w-14 md:h-14 text-primary dark:text-secondary group-hover:scale-105 transition-transform duration-300"></i>
+                    </div>
+                </div>
+                <div class="absolute -bottom-4 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap z-20">
+                     <span class="text-xs font-bold text-blue-700 dark:text-blue-200 bg-blue-50 dark:bg-blue-900/90 px-3 py-4 rounded-full border border-blue-200 dark:border-blue-700 shadow-md">ចូលទៅកាន់សៀវភៅសិក្ខាគារិក</span>
+                </div>
+            </a>
+            
+            <h1 class="font-display text-3xl md:text-5xl lg:text-6xl animate-gradient-text mb-4 py-4 leading-normal reveal-up" style="transition-delay: 100ms;">សៀវភៅសិក្ខាគារិក (A4 Landscape)</h1>
+            
+            <p class="text-lg md:text-xl text-slate-600 dark:text-gray-300 font-medium max-w-2xl mx-auto mb-6 reveal-up" style="transition-delay: 200ms;">
+                ប្រព័ន្ធបង្កើតសៀវភៅតាមដានលទ្ធផលសិក្សាសិស្សដោយស្វ័យប្រវត្តិ ដែលរៀបចំឡើងជាទម្រង់ A4 Landscape ងាយស្រួលបោះពុម្ព និងបត់ជាសៀវភៅ (Booklet)។
+            </p>
+
+            <div class="flex justify-center mb-8 reveal-up flex-wrap gap-4" style="transition-delay: 250ms;">
+                <a href="/record-book" target="_parent" class="inline-flex items-center gap-2.5 bg-blue-600 hover:bg-blue-700 text-white px-8 py-3.5 rounded-[30px] font-display text-lg md:text-xl shadow-lg transition-all duration-300 hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-800 tracking-wide">
+                    <i data-lucide="play" class="w-6 h-6"></i>
+                    ចូលប្រើប្រាស់ឥឡូវនេះ
+                </a>
+                <a href="#video-tutorial" class="inline-flex items-center gap-2.5 bg-[#e11d48] hover:bg-[#be123c] text-white px-8 py-3.5 rounded-[30px] font-display text-lg md:text-xl shadow-lg transition-all duration-300 hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-rose-300 dark:focus:ring-rose-800 tracking-wide">
+                    <svg class="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                    </svg>
+                    ទស្សនាវីដេអូណែនាំ
+                </a>
+            </div>
+        </header>
+
+        <!-- Section 1: Overview & Selection -->
+        <section class="section-box border-t-4 border-t-blue-500 dark:border-t-blue-400 reveal-up">
+            <div class="flex items-center gap-4 mb-6 md:mb-8">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0 border border-blue-100 dark:border-blue-800/50 shadow-sm reveal-scale">
+                    <i data-lucide="layout-grid" class="w-7 h-7 md:w-8 md:h-8"></i>
+                </div>
+                <div class="reveal-left">
+                    <span class="text-[10px] md:text-xs font-display tracking-wider text-blue-600 dark:text-blue-400 uppercase bg-blue-100 dark:bg-blue-900/40 px-3 py-1 rounded-full border border-blue-200 dark:border-blue-800/50">ផ្នែកទី ១</span>
+                    <h2 class="font-display leading-normal text-xl md:text-3xl text-slate-800 dark:text-white mt-1 md:mt-2">ផ្ទាំងជ្រើសរើស និងគ្រប់គ្រងសិស្ស</h2>
+                </div>
+            </div>
+            
+            <p class="text-sm md:text-lg text-slate-600 dark:text-gray-300 mb-6 reveal-up">នៅពេលលោកអ្នកចូលមកកាន់ទំព័រនេះដំបូង ប្រព័ន្ធនឹងបង្ហាញបញ្ជីឈ្មោះសិស្សទាំងអស់ដែលមានក្នុងថ្នាក់ ដើម្បីងាយស្រួលក្នុងការស្វែងរក និងបោះពុម្ពសៀវភៅតាមដាន៖</p>
+            
+            <div class="image-wrapper mb-10 border-4 border-white dark:border-gray-800 shadow-lg bg-slate-50 dark:bg-gray-900 reveal-scale">
+                <img loading="lazy" src="https://lh3.googleusercontent.com/d/1R6sGAmuOQwqeNj30SmWYedXn8hGhBg8L" alt="Selection Screen" onerror="this.onerror=null; this.src='https://placehold.co/1200x600/1e293b/94a3b8?text=Selection+Screen'">
+            </div>
+
+            <div class="grid lg:grid-cols-2 gap-5 mb-6">
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm group hover:shadow-md transition-shadow reveal-up">
+                    <i data-lucide="filter" class="w-8 h-8 text-blue-500 mb-3"></i>
+                    <h3 class="font-bold text-slate-800 dark:text-white mb-2 text-base">ជ្រើសរើសឆ្នាំសិក្សា</h3>
+                    <p class="text-sm text-slate-600 dark:text-gray-300">អ្នកអាចជ្រើសរើសឆ្នាំសិក្សា (ឧ. ២០២៥-២០២៦) នៅផ្នែកខាងលើ។ ទិន្នន័យពិន្ទុ និងអវត្តមាននឹងត្រូវបានទាញយកតាមឆ្នាំសិក្សាដែលបានរើស។</p>
+                </div>
+
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm group hover:shadow-md transition-shadow reveal-up" style="transition-delay: 100ms;">
+                    <i data-lucide="search" class="w-8 h-8 text-blue-500 mb-3"></i>
+                    <h3 class="font-bold text-slate-800 dark:text-white mb-2 text-base">ការស្វែងរកសិស្ស</h3>
+                    <p class="text-sm text-slate-600 dark:text-gray-300">ប្រើប្រអប់ស្វែងរកដើម្បីវាយបញ្ចូលឈ្មោះ ឬអត្តលេខសិស្ស។ បញ្ជីសិស្សនឹងត្រូវបានចម្រាញ់ភ្លាមៗ (Real-time Filtering)។</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 2: Data Automation -->
+        <section class="section-box border-t-4 border-t-emerald-500 dark:border-t-emerald-400 reveal-up">
+            <div class="flex items-center gap-4 mb-6 md:mb-8">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0 border border-emerald-100 dark:border-emerald-800/50 shadow-sm reveal-scale">
+                    <i data-lucide="database-zap" class="w-7 h-7 md:w-8 md:h-8"></i>
+                </div>
+                <div class="reveal-left">
+                    <span class="text-[10px] md:text-xs font-display tracking-wider text-emerald-600 dark:text-emerald-400 uppercase bg-emerald-100 dark:bg-emerald-900/40 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-800/50">ផ្នែកទី ២</span>
+                    <h2 class="font-display leading-normal text-xl md:text-3xl text-slate-800 dark:text-white mt-1 md:mt-2">ការគណនា និងទាញទិន្នន័យស្វ័យប្រវត្តិ</h2>
+                </div>
+            </div>
+            
+            <p class="text-sm md:text-lg text-slate-600 dark:text-gray-300 mb-6 reveal-up">ចំណុចពិសេសបំផុតនៃប្រព័ន្ធនេះ គឺលោកគ្រូអ្នកគ្រូមិនចាំបាច់អង្គុយបូកសរុបពិន្ទុ ឬអវត្តមានដោយដៃទៀតនោះទេ៖</p>
+
+            <div class="image-wrapper mb-8 border-4 border-white dark:border-gray-800 shadow-lg bg-slate-50 dark:bg-gray-900 reveal-scale">
+                <img loading="lazy" src="https://lh3.googleusercontent.com/d/1NyA-HWogfGZLYJyBLO_sQ4kpThvAwrLR" alt="Data Calculation View" onerror="this.onerror=null; this.src='https://placehold.co/1200x600/1e293b/94a3b8?text=Data+Calculation'">
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-4 mb-4 reveal-up">
+                <div class="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl border border-emerald-100 dark:border-emerald-800/50">
+                    <i data-lucide="calculator" class="w-6 h-6 text-emerald-600 mb-2"></i>
+                    <h4 class="font-bold text-sm text-emerald-900 dark:text-emerald-300 mb-1">គណនាចំណាត់ថ្នាក់</h4>
+                    <p class="text-xs text-slate-600 dark:text-gray-400">ប្រព័ន្ធនឹងប្រៀបធៀបពិន្ទុសិស្សទាំងអស់ក្នុងថ្នាក់ និងទាញយកចំណាត់ថ្នាក់មុខវិជ្ជា និងមធ្យមភាគដោយស្វ័យប្រវត្តិទាំង ២ឆមាស។</p>
+                </div>
+                <div class="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl border border-emerald-100 dark:border-emerald-800/50">
+                    <i data-lucide="award" class="w-6 h-6 text-emerald-600 mb-2"></i>
+                    <h4 class="font-bold text-sm text-emerald-900 dark:text-emerald-300 mb-1">និទ្ទេស និងមូលវិចារ</h4>
+                    <p class="text-xs text-slate-600 dark:text-gray-400">គណនានិទ្ទេស (A ដល់ F) ព្រមទាំងផ្តល់មូលវិចាររបស់គ្រូ និងនាយកសាលាទៅតាមកម្រិតពិន្ទុដែលសិស្សទទួលបាន។</p>
+                </div>
+                <div class="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl border border-emerald-100 dark:border-emerald-800/50">
+                    <i data-lucide="user-x" class="w-6 h-6 text-emerald-600 mb-2"></i>
+                    <h4 class="font-bold text-sm text-emerald-900 dark:text-emerald-300 mb-1">របាយការណ៍អវត្តមាន</h4>
+                    <p class="text-xs text-slate-600 dark:text-gray-400">ទាញយកប្រវត្តិអវត្តមាន (មានច្បាប់ និងឥតច្បាប់) ដែលបានកត់ត្រាជារៀងរាល់ថ្ងៃ មកបែងចែកតាមឆមាសទី១ និងទី២ បញ្ចូលក្នុងសៀវភៅ។</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3: Print Layout -->
+        <section class="section-box border-t-4 border-t-purple-500 dark:border-t-purple-400 reveal-up">
+            <div class="flex items-center gap-4 mb-6 md:mb-8">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-purple-50 dark:bg-purple-900/30 flex items-center justify-center text-purple-600 dark:text-purple-400 shrink-0 border border-purple-100 dark:border-purple-800/50 shadow-sm reveal-scale">
+                    <i data-lucide="book-open-check" class="w-7 h-7 md:w-8 md:h-8"></i>
+                </div>
+                <div class="reveal-left">
+                    <span class="text-[10px] md:text-xs font-display tracking-wider text-purple-600 dark:text-purple-400 uppercase bg-purple-100 dark:bg-purple-900/40 px-3 py-1 rounded-full border border-purple-200 dark:border-purple-800/50">ផ្នែកទី ៣</span>
+                    <h2 class="font-display leading-normal text-xl md:text-3xl text-slate-800 dark:text-white mt-1 md:mt-2">ទម្រង់បោះពុម្ព (A4 Landscape)</h2>
+                </div>
+            </div>
+            
+            <p class="text-sm md:text-lg text-slate-600 dark:text-gray-300 mb-6 reveal-up">
+                ទម្រង់ត្រូវបានរៀបចំយ៉ាងយកចិត្តទុកដាក់ក្នុងទំហំក្រដាស A4 ផ្ដេក (Landscape) ងាយស្រួលបោះពុម្ព រួចបត់ជាពីរធ្វើជាកូនសៀវភៅ (Booklet) យ៉ាងមានរបៀប៖
+            </p>
+
+            <div class="image-wrapper mb-8 border-4 border-white dark:border-gray-800 shadow-lg bg-slate-50 dark:bg-gray-900 reveal-scale">
+                <img loading="lazy" src="https://lh3.googleusercontent.com/d/1dGd93n24nlh2ROBaeQq5mveXgirQfSUw" alt="Booklet Layout Form" onerror="this.onerror=null; this.src='https://placehold.co/1200x600/1e293b/94a3b8?text=Booklet+Layout'">
+            </div>
+
+            <div class="bg-purple-50 dark:bg-purple-900/20 p-6 rounded-2xl border border-purple-200 dark:border-purple-800/50 reveal-up">
+                <h3 class="font-bold text-purple-900 dark:text-purple-300 mb-3 text-lg flex items-center gap-2">
+                    <i data-lucide="layers" class="w-5 h-5"></i> រចនាសម្ព័ន្ធនៃទំព័រ៖
+                </h3>
+                <ul class="list-disc pl-5 space-y-3 text-sm md:text-base text-slate-700 dark:text-gray-300">
+                    <li><strong>ទំព័រទី១ (ក្របសៀវភៅ)៖</strong> បង្ហាញពីព័ត៌មានអត្តសញ្ញាណសិស្ស រូបថត អាសយដ្ឋាន និងឈ្មោះអាណាព្យាបាល ដែលទាញចេញពីប្រវត្តិរូប (Profile) ដែលបានចុះឈ្មោះ។ (បើមិនមានទិន្នន័យ វានឹងបង្ហាញជាបន្ទាត់ចុចៗសម្រាប់សរសេរដៃ)។</li>
+                    <li><strong>ទំព័រទី២ (សេចក្តីណែនាំ)៖</strong> លក្ខខណ្ឌ និងរបៀបគណនាចំណាត់ថ្នាក់តាមស្តង់ដារក្រសួង។</li>
+                    <li><strong>ទំព័រទី៣-៤ (តារាងពិន្ទុ)៖</strong> បង្ហាញលទ្ធផលពិន្ទុឆមាស ចំណាត់ថ្នាក់ អវត្តមាន ការវាយតម្លៃសីលធម៌ និងកន្លែងសម្រាប់ចុះហត្ថលេខាពីនាយកសាលា និងគ្រូប្រចាំថ្នាក់។</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Section 4: Batch Printing -->
+        <section class="section-box border-t-4 border-t-rose-500 dark:border-t-rose-400 reveal-up">
+            <div class="flex items-center gap-4 mb-6 md:mb-8">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-rose-50 dark:bg-rose-900/30 flex items-center justify-center text-rose-600 dark:text-rose-400 shrink-0 border border-rose-100 dark:border-rose-800/50 shadow-sm reveal-scale">
+                    <i data-lucide="printer" class="w-7 h-7 md:w-8 md:h-8"></i>
+                </div>
+                <div class="reveal-left">
+                    <span class="text-[10px] md:text-xs font-display tracking-wider text-rose-600 dark:text-rose-400 uppercase bg-rose-100 dark:bg-rose-900/40 px-3 py-1 rounded-full border border-rose-200 dark:border-rose-800/50">ផ្នែកទី ៤</span>
+                    <h2 class="font-display leading-normal text-xl md:text-3xl text-slate-800 dark:text-white mt-1 md:mt-2">មុខងារបោះពុម្ពសរុប (Print All)</h2>
+                </div>
+            </div>
+            
+            <p class="text-sm md:text-lg text-slate-600 dark:text-gray-300 mb-6 reveal-up">ដើម្បីសន្សំពេលវេលា ប្រព័ន្ធអនុញ្ញាតឱ្យលោកអ្នកបោះពុម្ពសៀវភៅសិស្សទាំងអស់ក្នុងពេលតែមួយ៖</p>
+
+            <div class="flex flex-col sm:flex-row gap-6 items-center bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm reveal-up">
+                <div class="w-full sm:w-1/3 flex justify-center">
+                    <button class="px-5 py-3 rounded-lg font-bold flex items-center gap-2 text-sm bg-green-600 text-white border border-green-600 shadow-lg pointer-events-none">
+                        <i data-lucide="printer" class="w-5 h-5"></i> បោះពុម្ពសិស្សទាំងអស់ (A4)
+                    </button>
+                </div>
+                <div class="w-full sm:w-2/3">
+                    <p class="text-slate-700 dark:text-gray-300 text-sm leading-relaxed">
+                        គ្រាន់តែចុចលើប៊ូតុងពណ៌បៃតងនេះ ប្រព័ន្ធនឹងទាញយកទិន្នន័យសិស្សទាំងអស់ក្នុងថ្នាក់ រៀបចំជាទំព័រ A4 បន្តបន្ទាប់គ្នា។ លោកអ្នកគ្រាន់តែចុច <strong>Print (Ctrl+P)</strong> ម្តងគត់ ម៉ាស៊ីនព្រីននឹងបោះពុម្ពសៀវភៅសម្រាប់សិស្សគ្រប់គ្នាដោយស្វ័យប្រវត្តិ។
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 5: Video Tutorial -->
+        <section id="video-tutorial" class="section-box border-t-4 border-t-amber-500 dark:border-t-amber-400 reveal-up">
+            <div class="flex items-center gap-4 mb-6 md:mb-8">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0 border border-amber-100 dark:border-amber-800/50 shadow-sm reveal-scale">
+                    <i data-lucide="play-circle" class="w-7 h-7 md:w-8 md:h-8"></i>
+                </div>
+                <div class="reveal-left">
+                    <span class="text-[10px] md:text-xs font-display tracking-wider text-amber-600 dark:text-amber-400 uppercase bg-amber-100 dark:bg-amber-900/40 px-3 py-1 rounded-full border border-amber-200 dark:border-amber-800/50">ផ្នែកទី ៥</span>
+                    <h2 class="font-display leading-normal text-xl md:text-3xl text-slate-800 dark:text-white mt-1 md:mt-2">វីដេអូណែនាំការប្រើប្រាស់</h2>
+                </div>
+            </div>
+            
+            <p class="text-sm md:text-lg text-slate-600 dark:text-gray-300 mb-6 reveal-up">ដើម្បីស្វែងយល់កាន់តែច្បាស់ និងការអនុវត្តជាក់ស្តែងពីរបៀបប្រើប្រាស់ប្រព័ន្ធសៀវភៅសិក្ខាគារិកនេះ សូមទស្សនាវីដេអូណែនាំខាងក្រោម៖</p>
+
+            <div class="relative w-full aspect-video rounded-2xl overflow-hidden border-4 border-white dark:border-gray-800 shadow-lg reveal-scale bg-slate-100 dark:bg-slate-800">
+                <iframe 
+                    class="absolute top-0 left-0 w-full h-full" 
+                    src="https://www.youtube.com/embed/dAWuxHn0kj8" 
+                    title="YouTube video player" 
+                    frameborder="0" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                    allowfullscreen>
+                </iframe>
+            </div>
+
+            <div class="mt-8 flex justify-center reveal-up">
+                <a href="https://youtu.be/dAWuxHn0kj8" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-full font-bold shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-amber-300 dark:focus:ring-amber-800">
+                    <i data-lucide="external-link" class="w-5 h-5"></i>
+                    ចូលមើលផ្ទាល់នៅលើ YouTube
+                </a>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="mt-20 pb-16 text-center relative z-10">
+            <div class="w-20 h-1.5 bg-gradient-to-r from-blue-400 to-indigo-500 mx-auto rounded-full mb-8 shadow-sm reveal-scale"></div>
+            
+            <h3 class="font-display text-3xl md:text-4xl text-slate-800 dark:text-white mb-4 flex justify-center items-center gap-3 reveal-up">
+                <i data-lucide="sparkles" class="w-8 h-8 text-blue-500"></i> រួចរាល់ហើយ!
+            </h3>
+            <p class="text-slate-500 dark:text-gray-400 mb-12 max-w-2xl mx-auto text-sm md:text-base reveal-up" style="transition-delay: 100ms;">
+                ការរៀបចំសៀវភៅសិក្ខាគារិកសម្រាប់សិស្ស លែងជាការងារស្មុគស្មាញ និងចំណាយពេលយូរទៀតហើយ ជាមួយប្រព័ន្ធ PTEC។
+            </p>
+            
+            <!-- Card Footer -->
+            <a href="https://portfolio-ron-raksmey.netlify.app/" target="_blank" rel="noopener noreferrer" class="inline-block bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-lg border border-slate-200 dark:border-slate-700 max-w-sm w-full relative overflow-hidden group hover:shadow-xl hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-indigo-300 dark:focus:ring-indigo-600 transition-all duration-300 cursor-pointer reveal-scale" style="transition-delay: 200ms;">
+                <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-400"></div>
+                
+                <div class="flex flex-col items-center">
+                    <div class="w-28 h-28 rounded-full border-4 border-white dark:border-slate-700 shadow-md overflow-hidden mb-5 relative bg-slate-100 dark:bg-slate-900">
+                        <img loading="lazy" src="../../enrollment/RON-RAKSMEY.png" alt="Profile" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://placehold.co/150x150/1e293b/94a3b8?text=Developer'">
+                    </div>
+                    
+                    <p class="text-[11px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-bold mb-2 flex items-center gap-1 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors">
+                        <i data-lucide="code-2" class="w-3 h-3"></i> Developed By
+                    </p>
+                    <h4 class="font-display text-xl text-slate-800 dark:text-white mb-1 group-hover:text-indigo-700 dark:group-hover:text-indigo-400 transition-colors">គរុនិស្សិត រុន រស្មី</h4>
+                    <span class="text-xs text-slate-500 dark:text-gray-400 mt-2 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-4 py-1.5 rounded-full font-medium">
+                        <i data-lucide="graduation-cap" class="w-3.5 h-3.5 inline-block mb-0.5 mr-1"></i> ជំនាន់ទី៤
+                    </span>
+                </div>
+            </a>
+            
+            <div class="mt-12 text-sm text-slate-400 dark:text-slate-500 font-medium reveal-up" style="transition-delay: 300ms;">
+                &copy; 2026 Krusmart. រក្សាសិទ្ធិគ្រប់យ៉ាង។
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- Initialization Scripts -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+
+            const isIframe = document.documentElement.classList.contains('is-iframe');
+            
+            if (isIframe) {
+                try {
+                    if (window.parent && window.parent.document) {
+                        const observer = new MutationObserver((mutations) => {
+                            mutations.forEach((mutation) => {
+                                if (mutation.attributeName === 'class') {
+                                    if (window.parent.document.documentElement.classList.contains('dark')) {
+                                        document.documentElement.classList.add('dark');
+                                    } else {
+                                        document.documentElement.classList.remove('dark');
+                                    }
+                                }
+                            });
+                        });
+                        observer.observe(window.parent.document.documentElement, { attributes: true });
+                    }
+                } catch (e) {}
+            }
+
+            window.addEventListener('storage', (event) => {
+                if (event.key === 'color-theme') {
+                    if (event.newValue === 'dark') {
+                        document.documentElement.classList.add('dark');
+                    } else {
+                        document.documentElement.classList.remove('dark');
+                    }
+                }
+            });
+
+            // Intersection Observer for Animations
+            const observerOptions = {
+                root: null,
+                rootMargin: '0px',
+                threshold: 0.05 
+            };
+
+            const observer = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('reveal-visible');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, observerOptions);
+
+            const revealElements = document.querySelectorAll('.reveal-up, .reveal-left, .reveal-scale');
+            revealElements.forEach(el => observer.observe(el));
+        });
+    </script>
+</body>
+</html>

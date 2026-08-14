@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="km" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PTEC - សៀវភៅណែនាំប្រព័ន្ធរបាយការណ៍សរុប</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Script to prevent FOUC & Handle Dark Mode Sync -->
+    <script>
+        let isDark = false;
+        if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            isDark = true;
+        }
+        
+        try {
+            if (window.self !== window.top) {
+                document.documentElement.classList.add('is-iframe');
+                if (window.parent && window.parent.document) {
+                    isDark = window.parent.document.documentElement.classList.contains('dark');
+                }
+            }
+        } catch (e) {}
+
+        if (isDark) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            900: '#1e3a8a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Import Khmer OS Fonts from external source if available, otherwise fallback */
+        @font-face {
+            font-family: 'Khmer OS Content';
+            src: local('Khmer OS Content');
+        }
+        @font-face {
+            font-family: 'Khmer OS Muol Light';
+            src: local('Khmer OS Muol Light');
+        }
+
+        body {
+            font-family: 'Khmer OS Content', Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            line-height: 1.8;
+        }
+        
+        .font-moul {
+            font-family: 'Khmer OS Muol Light', cursive;
+            font-weight: normal;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #475569;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Animations */
+        .reveal-up {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .reveal-left {
+            opacity: 0;
+            transform: translateX(-30px);
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .reveal-scale {
+            opacity: 0;
+            transform: scale(0.95);
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .reveal-visible {
+            opacity: 1;
+            transform: translate(0) scale(1);
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        }
+        
+        .dark .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            border-color: rgba(51, 65, 85, 0.5);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #2563eb, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .dark .gradient-text {
+            background: linear-gradient(135deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        /* Layout Adjustments */
+        html { scroll-padding-top: 2rem; }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 transition-colors duration-300">
+
+    <div class="flex h-screen overflow-hidden">
+        
+        <!-- Sidebar Navigation -->
+        <aside class="w-64 flex-shrink-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border-r border-slate-200 dark:border-slate-700 hidden md:flex flex-col h-full z-10 transition-colors duration-300">
+            <div class="p-6">
+                <div class="flex items-center gap-3 text-primary-600 dark:text-primary-400 mb-8">
+                    <div class="p-2 bg-primary-50 dark:bg-primary-900/30 rounded-lg">
+                        <i data-lucide="book-open-check" class="w-6 h-6"></i>
+                    </div>
+                    <span class="font-moul text-lg">PTEC</span>
+                </div>
+                
+                <nav class="space-y-1">
+                    <a href="#overview" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors">
+                        <i data-lucide="compass" class="w-4 h-4"></i> ទិដ្ឋភាពទូទៅ
+                    </a>
+                    <a href="#dashboard" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-slate-100 transition-colors">
+                        <i data-lucide="layout-dashboard" class="w-4 h-4"></i> ទិដ្ឋភាពរួម (Dashboard)
+                    </a>
+                    <a href="#monthly" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-slate-100 transition-colors">
+                        <i data-lucide="calendar-days" class="w-4 h-4"></i> របាយការណ៍ប្រចាំខែ
+                    </a>
+                    <a href="#annual" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-slate-100 transition-colors">
+                        <i data-lucide="calendar-check" class="w-4 h-4"></i> របាយការណ៍ប្រចាំឆ្នាំ
+                    </a>
+                    <a href="#status" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-slate-100 transition-colors">
+                        <i data-lucide="users" class="w-4 h-4"></i> ស្ថានភាពសិស្ស
+                    </a>
+                    <a href="#formulas" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-slate-100 transition-colors">
+                        <i data-lucide="calculator" class="w-4 h-4"></i> រូបមន្ត និងការគណនា
+                    </a>
+                    <a href="#export" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-slate-100 transition-colors">
+                        <i data-lucide="printer" class="w-4 h-4"></i> ការបោះពុម្ព
+                    </a>
+                    <a href="#video-guide" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-slate-100 transition-colors">
+                        <i data-lucide="youtube" class="w-4 h-4 text-red-500"></i> វីដេអូណែនាំ
+                    </a>
+                </nav>
+            </div>
+            <div class="mt-auto p-6 border-t border-slate-200 dark:border-slate-700">
+                <p class="text-xs text-slate-500 dark:text-slate-400 text-center">Version 1.0 &copy; 2026 PTEC</p>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-y-auto relative scroll-smooth">
+            
+            <!-- Background Decorative Elements -->
+            <div class="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-primary-50 to-transparent dark:from-primary-900/10 pointer-events-none z-0"></div>
+            
+            <div class="max-w-4xl mx-auto px-6 py-12 relative z-10">
+                
+                <!-- Hero Section -->
+                <header class="mb-16 text-center reveal-scale">
+                    <div class="inline-flex items-center justify-center p-3 bg-white dark:bg-slate-800 shadow-sm rounded-2xl mb-6 border border-slate-200 dark:border-slate-700">
+                        <i data-lucide="book-open-check" class="w-8 h-8 text-primary-600 dark:text-primary-400"></i>
+                    </div>
+                    <h1 class="text-3xl md:text-4xl font-moul mb-4 text-slate-800 dark:text-white leading-tight">
+                        សៀវភៅណែនាំអំពី <br/>
+                        <span class="gradient-text">ប្រព័ន្ធគ្រប់គ្រងរបាយការណ៍សិស្ស</span>
+                    </h1>
+                    <p class="text-slate-600 dark:text-slate-400 max-w-2xl mx-auto text-lg leading-relaxed">
+                        ឯកសារជំនួយនេះរៀបចំឡើងដើម្បីជួយលោកគ្រូ អ្នកគ្រូ ងាយស្រួលយល់អំពីរបៀបទាញយករបាយការណ៍ មើលស្ថិតិសិស្ស និងយល់ដឹងពីរបៀបដែលប្រព័ន្ធគណនាពិន្ទុដោយស្វ័យប្រវត្តិ។
+                    </p>
+                </header>
+
+                <!-- Section: YouTube Video Guide -->
+                <section id="video-guide" class="mb-16 reveal-up">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-8 h-8 rounded bg-red-100 dark:bg-red-900/50 flex items-center justify-center text-red-600 dark:text-red-400">
+                            <i data-lucide="youtube" class="w-5 h-5"></i>
+                        </div>
+                        <h2 class="text-xl font-moul text-slate-800 dark:text-slate-100">វីដេអូណែនាំការប្រើប្រាស់ (Video Tutorial)</h2>
+                    </div>
+                    
+                    <div class="glass-card rounded-2xl p-4 md:p-6 shadow-sm">
+                        <p class="text-slate-600 dark:text-slate-300 mb-4">
+                            លោកគ្រូ អ្នកគ្រូ អាចទស្សនាវីដេអូខាងក្រោមនេះ ដើម្បីស្វែងយល់បន្ថែមអំពីរបៀបទាញយករបាយការណ៍ និងការបោះពុម្ពឯកសារចេញពីប្រព័ន្ធមួយជំហានម្តងៗ។
+                        </p>
+                        
+                        <!-- YouTube Iframe Container (Responsive) -->
+                        <div class="relative w-full overflow-hidden rounded-xl bg-slate-200 dark:bg-slate-800" style="padding-top: 56.25%;">
+                            <!-- Replace 'YOUR_YOUTUBE_VIDEO_ID' with the actual YouTube video ID -->
+                            <iframe 
+                                class="absolute top-0 left-0 w-full h-full border-0" 
+                                src="https://www.youtube.com/embed/5QE9zg23SbU?si=POxDIkKwPPdGP5ze" 
+                                title="PTEC Video Tutorial"  
+                                frameborder="0" 
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                                allowfullscreen>
+                            </iframe>
+                            
+                            <!-- Placeholder if no video ID is set yet -->
+                            <div class="absolute inset-0 flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 z-[-1]">
+                                <i data-lucide="video" class="w-12 h-12 mb-2 opacity-50"></i>
+                                <span>កន្លែងដាក់វីដេអូ YouTube</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Section: Overview -->
+                <section id="overview" class="mb-16 reveal-up">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-8 h-8 rounded bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                            <i data-lucide="compass" class="w-5 h-5"></i>
+                        </div>
+                        <h2 class="text-xl font-moul text-slate-800 dark:text-slate-100">តើប្រព័ន្ធនេះមានមុខងារអ្វីខ្លះ?</h2>
+                    </div>
+                    
+                    <div class="glass-card rounded-2xl p-6 md:p-8">
+                        <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-6">
+                            ប្រព័ន្ធនេះជួយសម្រួលដល់ការធ្វើរបាយការណ៍ប្រចាំខែ និងប្រចាំឆ្នាំ ដោយកាត់បន្ថយការគណនាដោយដៃ។ អ្នកអាចមើលឃើញ និងបោះពុម្ពរបាយការណ៍ជាច្រើនប្រភេទដូចជា៖
+                        </p>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 stagger-container">
+                            <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 flex gap-4">
+                                <i data-lucide="pie-chart" class="w-6 h-6 text-indigo-500 shrink-0"></i>
+                                <div>
+                                    <h3 class="font-bold text-slate-800 dark:text-slate-200 mb-1">ទិដ្ឋភាពរួម (Dashboard)</h3>
+                                    <p class="text-sm text-slate-500 dark:text-slate-400">ផ្ទាំងសង្ខេបបង្ហាញចំនួនសិស្សសរុប សិស្សស្រី និងព័ត៌មានទូទៅនៃថ្នាក់រៀនរបស់អ្នក។</p>
+                                </div>
+                            </div>
+                            <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 flex gap-4">
+                                <i data-lucide="calendar" class="w-6 h-6 text-emerald-500 shrink-0"></i>
+                                <div>
+                                    <h3 class="font-bold text-slate-800 dark:text-slate-200 mb-1">របាយការណ៍ប្រចាំខែ</h3>
+                                    <p class="text-sm text-slate-500 dark:text-slate-400">សម្រាប់មើលមធ្យមភាគប្រចាំខែ និងចំណាត់ថ្នាក់សិស្សប្រចាំខែនីមួយៗ។</p>
+                                </div>
+                            </div>
+                            <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 flex gap-4">
+                                <i data-lucide="award" class="w-6 h-6 text-amber-500 shrink-0"></i>
+                                <div>
+                                    <h3 class="font-bold text-slate-800 dark:text-slate-200 mb-1">របាយការណ៍ប្រចាំឆ្នាំ</h3>
+                                    <p class="text-sm text-slate-500 dark:text-slate-400">សរុបលទ្ធផលពេញមួយឆ្នាំសិក្សា និងបង្ហាញពិន្ទុលម្អិតតាមមុខវិជ្ជា។</p>
+                                </div>
+                            </div>
+                            <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 flex gap-4">
+                                <i data-lucide="users" class="w-6 h-6 text-rose-500 shrink-0"></i>
+                                <div>
+                                    <h3 class="font-bold text-slate-800 dark:text-slate-200 mb-1">ស្ថានភាពសិស្ស</h3>
+                                    <p class="text-sm text-slate-500 dark:text-slate-400">បែងចែកបញ្ជីសិស្សដែលត្រូវឡើងថ្នាក់ និងសិស្សដែលត្រូវត្រួតថ្នាក់ដោយស្វ័យប្រវត្តិ។</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Section: Dashboard -->
+                <section id="dashboard" class="mb-16 reveal-up">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-8 h-8 rounded bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                            <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+                        </div>
+                        <h2 class="text-xl font-moul text-slate-800 dark:text-slate-100">១. ទិដ្ឋភាពរួម (Dashboard)</h2>
+                    </div>
+                    
+                    <div class="glass-card rounded-2xl p-6 relative overflow-hidden">
+                        <div class="absolute -right-6 -top-6 text-slate-100 dark:text-slate-800/50 rotate-12">
+                            <i data-lucide="pie-chart" class="w-32 h-32"></i>
+                        </div>
+                        <div class="relative z-10">
+                            <div class="flex items-start gap-4 mb-4 border-b border-slate-100 dark:border-slate-700/50 pb-4">
+                                <div class="bg-indigo-50 dark:bg-slate-700 rounded-lg px-3 py-1 font-semibold text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-slate-600">
+                                    ផ្ទាំងស្ថិតិសិស្ស និងពិន្ទុ
+                                </div>
+                            </div>
+                            <p class="text-slate-600 dark:text-slate-300 mb-4">
+                                នៅពេលអ្នកចូលមកកាន់ប្រព័ន្ធ ផ្ទាំងនេះនឹងបង្ហាញមុនគេ។ វាជួយឲ្យគ្រូបន្ទុកថ្នាក់ដឹងពីចំនួនសិស្សសរុប សិស្សស្រី និងទិដ្ឋភាពទូទៅនៃថ្នាក់របស់ខ្លួនភ្លាមៗ ដោយមិនបាច់រាប់ចំនួនសិស្សដោយដៃឡើយ។
+                            </p>
+                            <ul class="space-y-2 text-sm text-slate-600 dark:text-slate-400">
+                                <li class="flex items-center gap-2"><i data-lucide="check-circle-2" class="w-4 h-4 text-green-500"></i> បង្ហាញទិន្នន័យសិស្សសរុប និងសិស្សស្រី</li>
+                                <li class="flex items-center gap-2"><i data-lucide="check-circle-2" class="w-4 h-4 text-green-500"></i> ទាញយកទិន្នន័យពីប្រព័ន្ធដោយស្វ័យប្រវត្តិ</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Section: Monthly Reports -->
+                <section id="monthly" class="mb-16 reveal-up">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-8 h-8 rounded bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                            <i data-lucide="calendar-days" class="w-5 h-5"></i>
+                        </div>
+                        <h2 class="text-xl font-moul text-slate-800 dark:text-slate-100">២. របាយការណ៍ប្រចាំខែ</h2>
+                    </div>
+
+                    <div class="space-y-4 stagger-container">
+                        <!-- Report 1 -->
+                        <div class="glass-card rounded-xl p-5 border-l-4 border-l-emerald-500">
+                            <h3 class="font-bold text-lg text-slate-800 dark:text-slate-200 mb-2">របាយការណ៍ចំណាត់ថ្នាក់ និងនិទ្ទេសប្រចាំខែ</h3>
+                            <p class="text-sm text-slate-600 dark:text-slate-400">
+                                របាយការណ៍នេះបង្ហាញពីចំណាត់ថ្នាក់របស់សិស្ស មធ្យមភាគ និងនិទ្ទេសសម្រាប់ខែនីមួយៗ។ លោកគ្រូ អ្នកគ្រូ អាចប្រៀបធៀបការវិវត្តន៍នៃការសិក្សារបស់សិស្សពីខែមួយទៅខែមួយបានយ៉ាងងាយស្រួល។
+                            </p>
+                        </div>
+                        
+                        <!-- Report 2 -->
+                        <div class="glass-card rounded-xl p-5 border-l-4 border-l-emerald-500">
+                            <h3 class="font-bold text-lg text-slate-800 dark:text-slate-200 mb-2">របាយការណ៍មធ្យមភាគ</h3>
+                            <p class="text-sm text-slate-600 dark:text-slate-400">
+                                បង្ហាញសង្ខេបនូវមធ្យមភាគពិន្ទុរបស់សិស្សប្រចាំខែ ឆមាស និងប្រចាំឆ្នាំនៅក្នុងតារាងតែមួយ ងាយស្រួលក្នុងការមើលលទ្ធផលរួម។
+                            </p>
+                        </div>
+
+                        <!-- Report 3 -->
+                        <div class="glass-card rounded-xl p-5 border-l-4 border-l-emerald-500">
+                            <h3 class="font-bold text-lg text-slate-800 dark:text-slate-200 mb-2">របាយការណ៍លទ្ធផលតាមមុខវិជ្ជា</h3>
+                            <p class="text-sm text-slate-600 dark:text-slate-400">
+                                បង្ហាញពិន្ទុលម្អិតរបស់សិស្សម្នាក់ៗ ទៅតាមមុខវិជ្ជានីមួយៗ (ដូចជា គណិតវិទ្យា អក្សរសាស្ត្រខ្មែរ ។ល។) ដែលបានសិក្សាក្នុងខែ ឬឆមាសដែលលោកគ្រូអ្នកគ្រូបានជ្រើសរើស។
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Section: Annual Reports -->
+                <section id="annual" class="mb-16 reveal-up">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-8 h-8 rounded bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                            <i data-lucide="calendar-check" class="w-5 h-5"></i>
+                        </div>
+                        <h2 class="text-xl font-moul text-slate-800 dark:text-slate-100">៣. របាយការណ៍ប្រចាំឆ្នាំ</h2>
+                    </div>
+
+                    <div class="glass-card rounded-2xl p-6">
+                        <div class="flex items-start gap-4 mb-4 pb-4 border-b border-slate-100 dark:border-slate-700/50">
+                            <div class="p-3 bg-amber-50 dark:bg-slate-700 rounded-xl">
+                                <i data-lucide="award" class="w-6 h-6 text-amber-500"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-lg text-slate-800 dark:text-slate-200">របាយការណ៍មុខវិជ្ជាប្រចាំឆ្នាំ</h3>
+                                <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">របាយការណ៍សរុបលទ្ធផលចុងឆ្នាំ</p>
+                            </div>
+                        </div>
+                        <p class="text-slate-600 dark:text-slate-300 mb-4 text-sm leading-relaxed">
+                            របាយការណ៍នេះមានសារៈសំខាន់បំផុតសម្រាប់ចុងឆ្នាំសិក្សា។ ប្រព័ន្ធនឹងទាញយកទិន្នន័យគ្រប់ខែមកគណនាដោយស្វ័យប្រវត្តិដើម្បីរក មធ្យមភាគប្រចាំឆ្នាំ និងចំណាត់ថ្នាក់បញ្ចប់ឆ្នាំសិក្សា របស់សិស្សម្នាក់ៗ។ វាត្រូវបានរចនាឡើងយ៉ាងពិសេសសម្រាប់បោះពុម្ពលើក្រដាសធំ (A3) ងាយស្រួលអាននិងរក្សាទុក។
+                        </p>
+                    </div>
+                </section>
+
+                <!-- Section: Student Status -->
+                <section id="status" class="mb-16 reveal-up">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-8 h-8 rounded bg-rose-100 dark:bg-rose-900/50 flex items-center justify-center text-rose-600 dark:text-rose-400">
+                            <i data-lucide="users" class="w-5 h-5"></i>
+                        </div>
+                        <h2 class="text-xl font-moul text-slate-800 dark:text-slate-100">៤. ស្ថានភាពការសិក្សារបស់សិស្ស</h2>
+                    </div>
+
+                    <p class="text-slate-600 dark:text-slate-300 mb-6">
+                        ផ្នែកនេះជួយអ្នកក្នុងការកត់ត្រា និងបែងចែកសិស្សដែលត្រូវឡើងថ្នាក់ និងសិស្សដែលត្រូវរៀនត្រួតថ្នាក់ឡើងវិញដោយស្វ័យប្រវត្តិ ដោយផ្អែកលើមធ្យមភាគចុងឆ្នាំរបស់ពួកគេ។
+                    </p>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 stagger-container">
+                        <!-- Promoted -->
+                        <div class="glass-card rounded-2xl p-6 border-t-4 border-t-blue-500">
+                            <div class="flex justify-between items-start mb-4">
+                                <h3 class="font-bold text-lg text-slate-800 dark:text-slate-200">បញ្ជីសិស្សឡើងថ្នាក់</h3>
+                                <i data-lucide="trending-up" class="w-6 h-6 text-blue-500"></i>
+                            </div>
+                            <p class="text-sm text-slate-600 dark:text-slate-400">
+                                ប្រព័ន្ធនឹងចម្រាញ់យកតែឈ្មោះសិស្សណាដែលទទួលបានមធ្យមភាគគ្រប់គ្រាន់សម្រាប់ឡើងទៅថ្នាក់បន្ទាប់មកបង្ហាញនៅទីនេះ។
+                            </p>
+                        </div>
+
+                        <!-- Repeated -->
+                        <div class="glass-card rounded-2xl p-6 border-t-4 border-t-rose-500">
+                            <div class="flex justify-between items-start mb-4">
+                                <h3 class="font-bold text-lg text-slate-800 dark:text-slate-200">បញ្ជីសិស្សត្រួតថ្នាក់</h3>
+                                <i data-lucide="alert-circle" class="w-6 h-6 text-rose-500"></i>
+                            </div>
+                            <p class="text-sm text-slate-600 dark:text-slate-400">
+                                បង្ហាញបញ្ជីឈ្មោះសិស្សដែលលទ្ធផលនៃការសិក្សារបស់ពួកគេមិនទាន់ដល់កម្រិតស្តង់ដារ និងត្រូវតម្រូវអោយរៀនថ្នាក់ដដែលម្តងទៀតនៅឆ្នាំបន្ទាប់។
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Section: Formulas & Calculations -->
+                <section id="formulas" class="mb-16 reveal-up">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-8 h-8 rounded bg-fuchsia-100 dark:bg-fuchsia-900/50 flex items-center justify-center text-fuchsia-600 dark:text-fuchsia-400">
+                            <i data-lucide="calculator" class="w-5 h-5"></i>
+                        </div>
+                        <h2 class="text-xl font-moul text-slate-800 dark:text-slate-100">៥. តើប្រព័ន្ធគណនាពិន្ទុដោយរបៀបណា?</h2>
+                    </div>
+
+                    <p class="text-slate-600 dark:text-slate-300 mb-6">
+                        នេះគឺជាការពន្យល់លម្អិតអំពីរបៀបដែលប្រព័ន្ធគណនាលទ្ធផល ការផ្តល់និទ្ទេស និងការកំណត់ចំណាត់ថ្នាក់សិស្ស ដើម្បីធានាបាននូវតម្លាភាព និងភាពត្រឹមត្រូវ។
+                    </p>
+
+                    <div class="glass-card rounded-2xl p-6 md:p-8 space-y-8">
+                        
+                        <!-- 1. Average Calculation -->
+                        <div>
+                            <h3 class="font-bold text-lg text-slate-800 dark:text-slate-200 mb-3 flex items-center gap-2">
+                                <span class="bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300 w-6 h-6 rounded-full inline-flex items-center justify-center text-sm">១</span> ការគណនាមធ្យមភាគ (Average)
+                            </h3>
+                            <div class="bg-slate-50 dark:bg-slate-800/80 rounded-xl p-5 border border-slate-200 dark:border-slate-700">
+                                <p class="text-sm text-slate-600 dark:text-slate-400 mb-3">មធ្យមភាគ គឺជាការយកពិន្ទុសរុបមកចែកអោយចំនួនមុខវិជ្ជា។</p>
+                                <ul class="space-y-4 text-sm text-slate-600 dark:text-slate-400">
+                                    <li class="flex flex-col gap-1">
+                                        <b class="text-slate-800 dark:text-slate-200">មធ្យមភាគប្រចាំខែ៖</b> 
+                                        <span class="bg-white dark:bg-slate-700 p-2 rounded border border-slate-100 dark:border-slate-600 inline-block font-mono text-primary-600 dark:text-primary-400 mt-1">
+                                            (ពិន្ទុសរុបគ្រប់មុខវិជ្ជាក្នុងខែ) ÷ (ចំនួនមុខវិជ្ជាសរុប)
+                                        </span>
+                                        <span class="text-xs text-slate-500 mt-1">ឧទាហរណ៍៖ សិស្សបានពិន្ទុសរុប ៨០ លើ ៥មុខវិជ្ជា។ មធ្យមភាគគឺ ៨០ ÷ ៥ = ១៦។</span>
+                                    </li>
+                                    <li class="flex flex-col gap-1">
+                                        <b class="text-slate-800 dark:text-slate-200">មធ្យមភាគប្រចាំឆ្នាំ៖</b>
+                                        <span>ប្រព័ន្ធបូកមធ្យមភាគប្រចាំខែនីមួយៗ រួចចែកនឹងចំនួនខែដែលបានរៀនជាក់ស្តែង ដើម្បីស្វែងរកមធ្យមភាគរួមពេញមួយឆ្នាំ។</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- 2. Grading -->
+                        <div>
+                            <h3 class="font-bold text-lg text-slate-800 dark:text-slate-200 mb-3 flex items-center gap-2">
+                                <span class="bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300 w-6 h-6 rounded-full inline-flex items-center justify-center text-sm">២</span> ការផ្តល់និទ្ទេស (A, B, C, D, E, F)
+                            </h3>
+                            <div class="bg-slate-50 dark:bg-slate-800/80 rounded-xl p-5 border border-slate-200 dark:border-slate-700">
+                                <p class="text-sm text-slate-600 dark:text-slate-400 mb-4">ប្រព័ន្ធផ្តល់និទ្ទេសដោយស្វ័យប្រវត្តិ ដោយផ្អែកលើមធ្យមភាគ (ពិន្ទុអតិបរមា ១០)។ លោកគ្រូអ្នកគ្រូអាចប្រើរូបមន្ត Excel នេះសម្រាប់ចម្លងចូលឯកសារផ្ទាល់ខ្លួនបាន៖</p>
+                                
+                                <div class="mb-5 bg-slate-100 dark:bg-slate-900/50 p-4 rounded-lg border border-slate-200 dark:border-slate-600 font-mono text-sm overflow-x-auto">
+                                    <p class="text-xs text-slate-500 mb-2 font-sans font-semibold">រូបមន្តគណនា (ឧទាហរណ៍ P13 ជាក្រឡាមធ្យមភាគ)៖</p>
+                                    <code class="text-pink-600 dark:text-pink-400 block">=IF(P13&lt;5,"F",IF(P13&lt;6,"E",IF(P13&lt;7,"D",IF(P13&lt;8,"C",IF(P13&lt;9,"B","A")))))</code>
+                                </div>
+
+                                <ul class="space-y-2 text-sm text-slate-600 dark:text-slate-400 mb-5">
+                                    <li><i data-lucide="info" class="w-4 h-4 inline text-blue-500 mb-0.5 mr-1"></i> <b class="text-slate-800 dark:text-slate-200">P13</b> តំណាងអោយប្រអប់ (Cell) ដែលមានលេខពិន្ទុមធ្យមភាគ។</li>
+                                    <li><i data-lucide="info" class="w-4 h-4 inline text-blue-500 mb-0.5 mr-1"></i> <b class="text-slate-800 dark:text-slate-200">IF(P13&lt;5,"F")</b> មានន័យថា បើមធ្យមភាគតូចជាង ៥ នោះសិស្សនឹងទទួលបាននិទ្ទេស F ដោយស្វ័យប្រវត្តិ។ លក្ខខណ្ឌផ្សេងទៀតក៏គណនាដូចគ្នាតាមលំដាប់លំដោយរហូតដល់ A។</li>
+                                </ul>
+
+                                <div class="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                                    <div class="flex flex-col p-3 bg-white dark:bg-slate-700 rounded border border-slate-100 dark:border-slate-600 text-center">
+                                        <span class="font-bold text-lg text-blue-600 dark:text-blue-400 mb-1">និទ្ទេស A</span>
+                                        <span class="text-slate-500 dark:text-slate-300 text-xs">៩.០០ ដល់ ១០.០០</span>
+                                    </div>
+                                    <div class="flex flex-col p-3 bg-white dark:bg-slate-700 rounded border border-slate-100 dark:border-slate-600 text-center">
+                                        <span class="font-bold text-lg text-emerald-600 dark:text-emerald-400 mb-1">និទ្ទេស B</span>
+                                        <span class="text-slate-500 dark:text-slate-300 text-xs">៨.០០ ដល់ ៨.៩៩</span>
+                                    </div>
+                                    <div class="flex flex-col p-3 bg-white dark:bg-slate-700 rounded border border-slate-100 dark:border-slate-600 text-center">
+                                        <span class="font-bold text-lg text-yellow-600 dark:text-yellow-400 mb-1">និទ្ទេស C</span>
+                                        <span class="text-slate-500 dark:text-slate-300 text-xs">៧.០០ ដល់ ៧.៩៩</span>
+                                    </div>
+                                    <div class="flex flex-col p-3 bg-white dark:bg-slate-700 rounded border border-slate-100 dark:border-slate-600 text-center">
+                                        <span class="font-bold text-lg text-orange-600 dark:text-orange-400 mb-1">និទ្ទេស D</span>
+                                        <span class="text-slate-500 dark:text-slate-300 text-xs">៦.០០ ដល់ ៦.៩៩</span>
+                                    </div>
+                                    <div class="flex flex-col p-3 bg-white dark:bg-slate-700 rounded border border-slate-100 dark:border-slate-600 text-center">
+                                        <span class="font-bold text-lg text-rose-500 dark:text-rose-400 mb-1">និទ្ទេស E</span>
+                                        <span class="text-slate-500 dark:text-slate-300 text-xs">៥.០០ ដល់ ៥.៩៩</span>
+                                    </div>
+                                    <div class="flex flex-col p-3 bg-white dark:bg-slate-700 rounded border border-slate-100 dark:border-slate-600 text-center">
+                                        <span class="font-bold text-lg text-red-600 dark:text-red-500 mb-1">និទ្ទេស F</span>
+                                        <span class="text-slate-500 dark:text-slate-300 text-xs">០.០០ ដល់ ៤.៩៩</span>
+                                        <span class="text-[10px] text-red-400 mt-1">(ធ្លាក់)</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 3. Ranking -->
+                        <div>
+                            <h3 class="font-bold text-lg text-slate-800 dark:text-slate-200 mb-3 flex items-center gap-2">
+                                <span class="bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300 w-6 h-6 rounded-full inline-flex items-center justify-center text-sm">៣</span> ការកំណត់ចំណាត់ថ្នាក់ (Ranking)
+                            </h3>
+                            <div class="bg-slate-50 dark:bg-slate-800/80 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
+                                <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                                    ចំណាត់ថ្នាក់ត្រូវបានរៀបចំឡើងដោយស្វ័យប្រវត្តិដោយផ្អែកលើ <b>មធ្យមភាគ</b>។ អ្នកដែលមានមធ្យមភាគខ្ពស់ជាងគេ នឹងទទួលបានចំណាត់ថ្នាក់លេខ១។ 
+                                    <br><br>
+                                    <b>ករណីមធ្យមភាគស្មើគ្នា៖</b> ប្រព័ន្ធនឹងផ្តល់ចំណាត់ថ្នាក់ស្ទួន។ 
+                                    <br><i class="text-xs text-slate-500">(ឧទាហរណ៍៖ សិស្ស ក និង ខ បានមធ្យមភាគ ៩.៥០ ដូចគ្នា ពួកគេទាំងពីរនឹងបានលេខ១។ ចំណែកសិស្ស គ ដែលមានមធ្យមភាគ ៩.៤០ នឹងទទួលបានលេខ៣)។</i>
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- 4. Promotion Criteria -->
+                        <div>
+                            <h3 class="font-bold text-lg text-slate-800 dark:text-slate-200 mb-3 flex items-center gap-2">
+                                <span class="bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300 w-6 h-6 rounded-full inline-flex items-center justify-center text-sm">៤</span> លក្ខខណ្ឌឡើងថ្នាក់ និងត្រួតថ្នាក់
+                            </h3>
+                            <div class="bg-slate-50 dark:bg-slate-800/80 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
+                                <p class="text-sm text-slate-600 dark:text-slate-400 mb-3">ការកំណត់សិស្សឡើងថ្នាក់ ឬត្រួតថ្នាក់ គឺផ្អែកទៅលើ <b>មធ្យមភាគប្រចាំឆ្នាំ</b> របស់ពួកគេ៖</p>
+                                <ul class="space-y-4 text-sm text-slate-600 dark:text-slate-400 mt-4">
+                                    <li class="flex gap-3 items-start p-3 bg-green-50 dark:bg-green-900/20 rounded border border-green-100 dark:border-green-900/30">
+                                        <div class="bg-green-100 dark:bg-green-800 p-1 rounded mt-0.5"><i data-lucide="arrow-up-right" class="w-4 h-4 text-green-600 dark:text-green-300"></i></div>
+                                        <div>
+                                            <b class="text-green-800 dark:text-green-400 block mb-1">សិស្សឡើងថ្នាក់៖</b> 
+                                            សិស្សដែលទទួលបានមធ្យមភាគប្រចាំឆ្នាំចាប់ពី <span class="font-bold text-green-700 dark:text-green-300">៥.០០ ឡើងទៅ</span> (មានន័យថាចាប់ពីនិទ្ទេស E ឡើងទៅ)។
+                                        </div>
+                                    </li>
+                                    <li class="flex gap-3 items-start p-3 bg-red-50 dark:bg-red-900/20 rounded border border-red-100 dark:border-red-900/30">
+                                        <div class="bg-red-100 dark:bg-red-800 p-1 rounded mt-0.5"><i data-lucide="arrow-down-right" class="w-4 h-4 text-red-600 dark:text-red-300"></i></div>
+                                        <div>
+                                            <b class="text-red-800 dark:text-red-400 block mb-1">សិស្សត្រួតថ្នាក់៖</b> 
+                                            សិស្សដែលទទួលបានមធ្យមភាគប្រចាំឆ្នាំក្រោម <span class="font-bold text-red-700 dark:text-red-300">៥.០០</span> (ទទួលបាននិទ្ទេស F) នឹងត្រូវចាត់ចូលជាសិស្សត្រួតថ្នាក់។
+                                        </div>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+
+                    </div>
+                </section>
+
+                <!-- Section: Export and Print -->
+                <section id="export" class="mb-16 reveal-up">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-8 h-8 rounded bg-teal-100 dark:bg-teal-900/50 flex items-center justify-center text-teal-600 dark:text-teal-400">
+                            <i data-lucide="printer" class="w-5 h-5"></i>
+                        </div>
+                        <h2 class="text-xl font-moul text-slate-800 dark:text-slate-100">៦. ការបោះពុម្ព និងទាញយកទិន្នន័យ</h2>
+                    </div>
+
+                    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                        <div class="p-6 md:p-8">
+                            <div class="flex flex-col md:flex-row gap-8">
+                                <div class="flex-1 space-y-6">
+                                    <div class="flex gap-4">
+                                        <div class="w-10 h-10 rounded-full bg-teal-50 dark:bg-teal-900/30 flex items-center justify-center shrink-0">
+                                            <i data-lucide="file-spreadsheet" class="w-5 h-5 text-teal-600 dark:text-teal-400"></i>
+                                        </div>
+                                        <div>
+                                            <h4 class="font-bold text-slate-800 dark:text-slate-200 mb-2">ទាញយកជាឯកសារ Excel (Export)</h4>
+                                            <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                                                របាយការណ៍ទាំងអស់មានប៊ូតុងសម្រាប់ "ទាញយកជា Excel"។ នៅពេលអ្នកទាញយក ឯកសារនឹងរក្សាទម្រង់ស្អាត (ពណ៌ តារាង អក្សរ) រួចជាស្រេច លោកគ្រូអ្នកគ្រូអាចយកទៅប្រើប្រាស់បន្តបានដោយងាយស្រួល។
+                                            </p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="flex gap-4">
+                                        <div class="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
+                                            <i data-lucide="printer" class="w-5 h-5 text-blue-600 dark:text-blue-400"></i>
+                                        </div>
+                                        <div>
+                                            <h4 class="font-bold text-slate-800 dark:text-slate-200 mb-2">ការបោះពុម្ពជាក្រដាស ឬ PDF</h4>
+                                            <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                                                ទំព័ររបាយការណ៍ត្រូវបានរៀបចំជាពិសេសសម្រាប់ម៉ាស៊ីនព្រីន។ របាយការណ៍ខ្លះសាកសមសម្រាប់ទំហំ <b>A4</b> និងខ្លះទៀតសាកសមសម្រាប់ <b>A3 ផ្ដេក (Landscape)</b>។
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="w-full md:w-1/3 bg-slate-50 dark:bg-slate-800/50 rounded-xl p-5 border border-slate-200 dark:border-slate-700">
+                                    <h4 class="font-bold text-slate-800 dark:text-slate-200 mb-3 text-sm">គន្លឹះសំខាន់ៗពេលបោះពុម្ព:</h4>
+                                    <ul class="space-y-3 text-sm text-slate-600 dark:text-slate-400">
+                                        <li class="flex items-start gap-2">
+                                            <i data-lucide="mouse-pointer-click" class="w-4 h-4 text-primary-500 mt-0.5 shrink-0"></i>
+                                            <span>សូមរង់ចាំអោយទិន្នន័យលោតចេញមកអស់សិន មុនពេលចុចបោះពុម្ព (Print)។</span>
+                                        </li>
+                                        <li class="flex items-start gap-2">
+                                            <i data-lucide="settings" class="w-4 h-4 text-primary-500 mt-0.5 shrink-0"></i>
+                                            <span>នៅក្នុងផ្ទាំង Print សូមធីកយកពាក្យ <b>Background graphics</b> ដើម្បីឲ្យឃើញពណ៌តារាងស្អាត។</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="mt-16 pt-8 border-t border-slate-200 dark:border-slate-700/50 text-center text-sm text-slate-500 dark:text-slate-400 pb-12 reveal-up">
+                    <p>រៀបចំដោយប្រព័ន្ធគ្រប់គ្រងសាលារៀន PTEC | ជំនាន់ ២០២៦</p>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Initialization Scripts -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize Lucide Icons
+            lucide.createIcons();
+
+            // Listen for theme changes from iframe context or localStorage
+            try {
+                if (window.self !== window.top && window.parent && window.parent.document) {
+                    const parentHtml = window.parent.document.documentElement;
+                    const observer = new MutationObserver((mutations) => {
+                        mutations.forEach((mutation) => {
+                            if (mutation.attributeName === 'class') {
+                                if (parentHtml.classList.contains('dark')) {
+                                    document.documentElement.classList.add('dark');
+                                } else {
+                                    document.documentElement.classList.remove('dark');
+                                }
+                            }
+                        });
+                    });
+                    observer.observe(parentHtml, { attributes: true });
+                }
+            } catch (e) {}
+
+            window.addEventListener('storage', (event) => {
+                if (event.key === 'color-theme') {
+                    if (event.newValue === 'dark') { 
+                        document.documentElement.classList.add('dark'); 
+                    } else { 
+                        document.documentElement.classList.remove('dark'); 
+                    }
+                }
+            });
+
+            // Intersection Observer for Animations
+            const observerOptions = { 
+                root: null, 
+                rootMargin: '0px', 
+                threshold: 0.1 
+            };
+            
+            const observer = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('reveal-visible');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, observerOptions);
+
+            // Observe single elements
+            document.querySelectorAll('.reveal-up, .reveal-left, .reveal-scale').forEach(el => {
+                observer.observe(el);
+            });
+
+            // Observe staggered lists
+            document.querySelectorAll('.stagger-container').forEach(container => {
+                container.querySelectorAll('div.border, div.glass-card').forEach((item, index) => {
+                    item.classList.add('reveal-up');
+                    item.style.transitionDelay = `${(index % 5) * 150}ms`;
+                    observer.observe(item);
+                });
+            });
+            
+            // Active Nav State logic based on scroll
+            const sections = document.querySelectorAll('section');
+            const navLinks = document.querySelectorAll('aside nav a');
+            
+            const scrollObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if(entry.isIntersecting) {
+                        navLinks.forEach(link => {
+                            link.classList.remove('bg-primary-50', 'dark:bg-primary-900/30', 'text-primary-600', 'dark:text-primary-400');
+                            link.classList.add('text-slate-600', 'dark:text-slate-400');
+                            if(link.getAttribute('href') === `#${entry.target.id}`) {
+                                link.classList.add('bg-primary-50', 'dark:bg-primary-900/30', 'text-primary-600', 'dark:text-primary-400');
+                                link.classList.remove('text-slate-600', 'dark:text-slate-400');
+                            }
+                        });
+                    }
+                });
+            }, { rootMargin: "-30% 0px -70% 0px" });
+
+            sections.forEach(section => scrollObserver.observe(section));
+        });
+    </script>
+</body>
+</html>

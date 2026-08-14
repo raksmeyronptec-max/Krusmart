@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PTEC - សៀវភៅណែនាំបញ្ចូលពិន្ទុប្រចាំខែ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Moul&family=Battambang:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- Script to prevent FOUC (Flash of Unstyled Content) and ensure Iframe transparency -->
+    <script>
+        let isDark = false;
+        if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            isDark = true;
+        }
+        
+        try {
+            if (window.self !== window.top) {
+                document.documentElement.classList.add('is-iframe');
+                if (window.parent && window.parent.document) {
+                    isDark = window.parent.document.documentElement.classList.contains('dark');
+                }
+            }
+        } catch (e) {
+            document.documentElement.classList.add('is-iframe');
+        }
+
+        if (isDark) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+
+    <!-- Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Battambang"', 'sans-serif'],
+                        display: ['Moul', 'cursive'],
+                    },
+                    colors: {
+                        primary: '#0054a6',
+                        secondary: '#4facfe',
+                    },
+                    animation: {
+                        float: "float 4s ease-in-out infinite",
+                    },
+                    keyframes: {
+                        float: {
+                            "0%, 100%": { transform: "translate3d(0, 0, 0)" }, /* GPU Acceleration */
+                            "50%": { transform: "translate3d(0, -12px, 0)" },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        .dark body { background: #0f172a; }
+        body:not(.dark) { background: #f0f4f8; }
+        
+        html.is-iframe body { background: transparent !important; }
+        html.is-iframe #standalone-bg-animate { display: none !important; }
+
+        body { 
+            line-height: 1.8; 
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* OPTIMIZED: Static Background */
+        .bg-animate { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -2; 
+            background: radial-gradient(circle at 10% 20%, #e0e7ff 0%, transparent 40%), 
+                        radial-gradient(circle at 90% 80%, #dcfce7 0%, transparent 40%), 
+                        radial-gradient(circle at 50% 50%, #fef3c7 0%, transparent 50%); 
+        }
+        
+        .dark .bg-animate { 
+            background: radial-gradient(circle at 10% 20%, #1e1b4b 0%, transparent 40%), 
+                        radial-gradient(circle at 90% 80%, #064e3b 0%, transparent 40%), 
+                        radial-gradient(circle at 50% 50%, #451a03 0%, transparent 50%); 
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+        .dark ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        
+        /* OPTIMIZED: Removed Blur Filter */
+        .section-box { 
+            background: #ffffff;
+            padding: 24px; 
+            border-radius: 24px; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            margin-bottom: 32px; 
+            border: 1px solid #e2e8f0; 
+            position: relative; 
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
+            will-change: transform;
+        }
+        .dark .section-box {
+            background: #1e293b;
+            border-color: #334155;
+        }
+        .section-box:hover {
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            transform: translate3d(0, -4px, 0);
+        }
+        .dark .section-box:hover {
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        @media (min-width: 768px) {
+            .section-box { padding: 40px; border-radius: 32px; margin-bottom: 48px; }
+        }
+
+        /* OPTIMIZED: Simplified Hero Icon */
+        .hero-icon-wrapper {
+            position: relative;
+            padding: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            background: linear-gradient(135deg, #4facfe, #0054a6);
+            box-shadow: 0 10px 25px -5px rgba(0, 84, 166, 0.3);
+            transition: box-shadow 0.3s ease;
+        }
+        .dark .hero-icon-wrapper { 
+            background: linear-gradient(135deg, #4facfe, #0ea5e9);
+            box-shadow: 0 10px 25px -5px rgba(79, 172, 254, 0.2); 
+        }
+        .group:hover .hero-icon-wrapper { box-shadow: 0 15px 35px -5px rgba(0, 84, 166, 0.5); }
+        
+        .hero-icon-inner {
+            background: white;
+            border-radius: 50%;
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .dark .hero-icon-inner { background: #1e293b; }
+
+        .image-wrapper { 
+            position: relative; 
+            width: 100%; 
+            height: auto; 
+            display: block; 
+            border-radius: 20px; 
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s ease;
+            will-change: transform;
+        }
+        .image-wrapper:hover {
+            transform: translate3d(0, -8px, 0) scale(1.02); 
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.15);
+        }
+        .dark .image-wrapper:hover { box-shadow: 0 25px 50px -12px rgba(0,0,0,0.4); }
+        .image-wrapper img { 
+            width: 100%; 
+            height: auto; 
+            display: block; 
+            object-fit: contain; 
+            border-radius: 16px; 
+        }
+
+        /* Pointer Styles - OPTIMIZED: Removed shadow drop filter */
+        .pointer-container { position: absolute; z-index: 10; pointer-events: none; }
+        
+        .pointer-down { display: flex; flex-direction: column; align-items: center; animation: bounce-down 2.5s infinite; transform-origin: bottom center; will-change: transform; }
+        .pointer-up { display: flex; flex-direction: column; align-items: center; animation: bounce-up 2.5s infinite; transform-origin: top center; will-change: transform; }
+        
+        .pointer-box { 
+            padding: 8px 14px; border-radius: 12px; font-weight: 700; font-size: 13px; color: white; text-align: center; white-space: nowrap; line-height: 1.4; 
+            border: 1px solid rgba(255,255,255,0.4); box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+        .pointer-down-arrow { width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 12px solid; }
+        .pointer-up-arrow { width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-bottom: 12px solid; }
+
+        @keyframes bounce-down { 0%, 100% { transform: translate3d(-50%, -10%, 0); } 50% { transform: translate3d(-50%, 5%, 0); } }
+        @keyframes bounce-up { 0%, 100% { transform: translate3d(-50%, 10%, 0); } 50% { transform: translate3d(-50%, -5%, 0); } }
+
+        @media (max-width: 1024px) {
+            .pointer-box { font-size: 11px; padding: 6px 12px; max-width: 120px; white-space: normal; }
+        }
+        @media (max-width: 767px) {
+            .pointer-box { font-size: 9px; padding: 4px 8px; max-width: 90px; border-radius: 8px; }
+            .pointer-down-arrow { border-left-width: 6px; border-right-width: 6px; border-top-width: 8px; }
+            .pointer-up-arrow { border-left-width: 6px; border-right-width: 6px; border-bottom-width: 8px; }
+        }
+
+        /* OPTIMIZED: Static Gradient Text */
+        .animate-gradient-text {
+            background: linear-gradient(to right, #0054a6, #4facfe);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .dark .animate-gradient-text {
+            background: linear-gradient(to right, #4facfe, #0ea5e9);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Intersection Observer Animations - OPTIMIZED: Used translate3d */
+        .reveal-up { opacity: 0; transform: translate3d(0, 40px, 0); transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
+        .reveal-left { opacity: 0; transform: translate3d(-30px, 0, 0); transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
+        .reveal-scale { opacity: 0; transform: scale(0.95) translateZ(0); transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
+        .reveal-visible { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+    </style>
+</head>
+<body class="text-slate-800 dark:text-gray-100 transition-colors duration-300 p-4 sm:p-6 md:p-8 lg:p-12 min-h-screen relative font-sans">
+
+    <!-- Background -->
+    <div class="bg-animate" aria-hidden="true" id="standalone-bg-animate"></div>
+
+    <div class="max-w-6xl mx-auto relative z-10">
+        
+        <!-- Header Section -->
+        <header class="text-center mb-12 md:mb-16 relative pt-8">
+            <a href="/score/enter" target="_parent" class="group inline-block mb-6 relative cursor-pointer animate-float focus:outline-none focus:ring-4 focus:ring-blue-300 rounded-full reveal-scale">
+                <div class="hero-icon-wrapper transform transition-transform duration-300">
+                    <div class="hero-icon-inner w-20 h-20 md:w-28 md:h-28">
+                        <i data-lucide="layout-dashboard" class="w-10 h-10 md:w-14 md:h-14 text-primary dark:text-secondary group-hover:scale-110 transition-transform duration-300 drop-shadow-sm"></i>
+                    </div>
+                </div>
+                <div class="absolute -bottom-4 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity duration-300 whitespace-nowrap z-20">
+                     <span class="text-xs font-bold text-blue-700 dark:text-blue-200 bg-blue-50 dark:bg-blue-900 px-3 py-1.5 rounded-full border border-blue-200 dark:border-blue-700 shadow-md">ចូលទៅកាន់ប្រព័ន្ធ</span>
+                </div>
+            </a>
+            
+            <h1 class="font-display text-3xl md:text-5xl lg:text-6xl animate-gradient-text mb-4 leading-normal drop-shadow-sm reveal-up" style="transition-delay: 100ms;">Monthly Score Guide</h1>
+            
+            <p class="text-lg md:text-xl text-slate-600 dark:text-gray-300 font-medium max-w-3xl mx-auto mb-6 reveal-up" style="transition-delay: 200ms;">
+                សៀវភៅណែនាំពីរបៀបបញ្ចូលពិន្ទុប្រចាំខែ និងប្រចាំឆមាស ការកំណត់មុខវិជ្ជា និងការរក្សាទុកទិន្នន័យ។
+            </p>
+
+            <!-- Video Link Button On Top -->
+            <div class="flex justify-center mb-8 reveal-up" style="transition-delay: 250ms;">
+                <a href="#video-tutorial" class="inline-flex items-center gap-2.5 bg-[#e11d48] hover:bg-[#be123c] text-white px-8 py-3.5 rounded-[30px] font-display text-lg md:text-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-rose-300 dark:focus:ring-rose-800 tracking-wide" style="will-change: transform;">
+                    <svg class="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                    </svg>
+                    ទស្សនាវីដេអូណែនាំ
+                </a>
+            </div>
+        </header>
+
+        <!-- Section 1: Detailed View of Monthly Entry Form -->
+        <section class="section-box border-t-4 border-t-indigo-500 dark:border-t-indigo-400 reveal-up">
+            <div class="flex items-center gap-4 mb-6 md:mb-8">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0 border border-indigo-100 dark:border-indigo-800/50 shadow-sm reveal-scale">
+                    <i data-lucide="scan-search" class="w-7 h-7 md:w-8 md:h-8"></i>
+                </div>
+                <div class="reveal-left">
+                    <span class="text-[10px] md:text-xs font-display tracking-wider text-indigo-600 dark:text-indigo-400 uppercase bg-indigo-100 dark:bg-indigo-900/40 px-3 py-1 rounded-full border border-indigo-200 dark:border-indigo-800/50">Part 1</span>
+                    <h2 class="font-display leading-normal text-xl md:text-3xl text-slate-800 dark:text-white mt-1 md:mt-2">ទិដ្ឋភាពទូទៅនៃទម្រង់បញ្ចូលពិន្ទុ</h2>
+                </div>
+            </div>
+            
+            <p class="text-sm md:text-lg text-slate-600 dark:text-gray-300 mb-6 reveal-up">រូបភាពខាងក្រោមនេះបង្ហាញពីការកំណត់មុខងារសំខាន់ៗទាំង ៦ នៅលើទម្រង់បញ្ចូលពិន្ទុ ដែលលោកគ្រូអ្នកគ្រូត្រូវស្វែងយល់៖</p>
+            
+            <div class="image-wrapper mb-10 border-4 border-slate-100 dark:border-slate-700 shadow-lg bg-slate-50 dark:bg-gray-900 reveal-scale">
+                <img src="picture-1.png" alt="Monthly Score Entry Form Overview" onerror="this.onerror=null; this.src='https://placehold.co/1200x600/1e293b/94a3b8?text=picture-1.png'">
+                
+                <!-- Pointers mapping to the red doodles in the image -->
+                <!-- 1. Score Type Toggle -->
+                <div class="pointer-container top-[25%] left-[12%]">
+                    <div class="pointer-down">
+                        <div class="pointer-box bg-indigo-600 dark:bg-indigo-500">១. ប្រភេទពិន្ទុ</div>
+                        <div class="pointer-down-arrow border-t-indigo-600 dark:border-t-indigo-500"></div>
+                    </div>
+                </div>
+
+                <!-- 2. Academic Year -->
+                <div class="pointer-container top-[40%] left-[15%]">
+                    <div class="pointer-down">
+                        <div class="pointer-box bg-blue-500 dark:bg-blue-600">២. ឆ្នាំសិក្សា</div>
+                        <div class="pointer-down-arrow border-t-blue-500 dark:border-t-blue-600"></div>
+                    </div>
+                </div>
+
+                <!-- 3. Month -->
+                <div class="pointer-container top-[40%] left-[38%]">
+                    <div class="pointer-down">
+                        <div class="pointer-box bg-emerald-600 dark:bg-emerald-500">៣. ជ្រើសរើសខែ</div>
+                        <div class="pointer-down-arrow border-t-emerald-600 dark:border-t-emerald-500"></div>
+                    </div>
+                </div>
+
+                <!-- 4. Subject selection -->
+                <div class="pointer-container top-[40%] left-[62%]">
+                    <div class="pointer-down">
+                        <div class="pointer-box bg-amber-500 dark:bg-amber-600 text-black">៤. មុខវិជ្ជា</div>
+                        <div class="pointer-down-arrow border-t-amber-500 dark:border-t-amber-600"></div>
+                    </div>
+                </div>
+
+                <!-- 5. Add Custom Subject -->
+                <div class="pointer-container top-[38%] left-[86%]">
+                    <div class="pointer-down">
+                        <div class="pointer-box bg-rose-500 dark:bg-rose-600">៥. បន្ថែមមុខវិជ្ជាថ្មី</div>
+                        <div class="pointer-down-arrow border-t-rose-500 dark:border-t-rose-600"></div>
+                    </div>
+                </div>
+
+                <!-- 6. Score Cell -->
+                <div class="pointer-container top-[82%] left-[25%]">
+                    <div class="pointer-up">
+                        <div class="pointer-up-arrow border-b-purple-500 dark:border-b-purple-600"></div>
+                        <div class="pointer-box bg-purple-500 dark:bg-purple-600">៦. ប្រអប់បញ្ចូលពិន្ទុ</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Explanation Grid (6 Items) -->
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-5 mb-6">
+                <!-- Box 1 -->
+                <div tabindex="0" class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden group hover:shadow-md hover:-translate-y-1 transition-all duration-300 reveal-up" style="transition-delay: 100ms; will-change: transform;">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold">1</div>
+                        <h3 class="font-bold text-slate-800 dark:text-white text-base">ជ្រើសរើសប្រភេទពិន្ទុ</h3>
+                    </div>
+                    <p class="text-sm text-slate-600 dark:text-gray-300">អនុញ្ញាតឱ្យលោកអ្នកប្តូររវាងការបញ្ចូល <strong>ពិន្ទុប្រចាំខែ</strong> ឬ <strong>ពិន្ទុប្រចាំឆមាស</strong>។ ទម្រង់ទិន្នន័យនឹងផ្លាស់ប្តូរដោយស្វ័យប្រវត្តិទៅតាមជម្រើសរបស់អ្នក។</p>
+                </div>
+
+                <!-- Box 2 -->
+                <div tabindex="0" class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden group hover:shadow-md hover:-translate-y-1 transition-all duration-300 reveal-up" style="transition-delay: 200ms; will-change: transform;">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold">2</div>
+                        <h3 class="font-bold text-slate-800 dark:text-white text-base">ឆ្នាំសិក្សា</h3>
+                    </div>
+                    <p class="text-sm text-slate-600 dark:text-gray-300">ជ្រើសរើសឆ្នាំសិក្សាដែលត្រូវបញ្ចូលទិន្នន័យ ដើម្បីធានាថាពិន្ទុត្រូវបានរក្សាទុកក្នុងកាលបរិច្ឆេទត្រឹមត្រូវ (ឧ. ២០២៥-២០២៦)។</p>
+                </div>
+
+                <!-- Box 3 -->
+                <div tabindex="0" class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden group hover:shadow-md hover:-translate-y-1 transition-all duration-300 reveal-up" style="transition-delay: 300ms; will-change: transform;">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400 font-bold">3</div>
+                        <h3 class="font-bold text-slate-800 dark:text-white text-base">ជ្រើសរើសខែ / ឆមាស</h3>
+                    </div>
+                    <p class="text-sm text-slate-600 dark:text-gray-300">កំណត់ខែជាក់លាក់ (ឬឆមាស) ដែលអ្នកចង់វាយបញ្ចូលពិន្ទុ។ រាល់ការប្តូរខែ ប្រព័ន្ធនឹងទាញយកទិន្នន័យថ្មីមកបង្ហាញភ្លាមៗ។</p>
+                </div>
+
+                <!-- Box 4 -->
+                <div tabindex="0" class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden group hover:shadow-md hover:-translate-y-1 transition-all duration-300 reveal-up" style="transition-delay: 400ms; will-change: transform;">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center text-amber-600 dark:text-amber-400 font-bold">4</div>
+                        <h3 class="font-bold text-slate-800 dark:text-white text-base">ជ្រើសរើសមុខវិជ្ជា</h3>
+                    </div>
+                    <p class="text-sm text-slate-600 dark:text-gray-300">ប្រអប់បញ្ជីមុខវិជ្ជាស្តង់ដារដែលមានស្រាប់ក្នុងកម្មវិធីសិក្សា ព្រមទាំងមានបែងចែកជាប្រភេទដូចជា ភាសាខ្មែរ គណិតវិទ្យា វិទ្យាសាស្ត្រ និងការវាយតម្លៃអាកប្បកិរិយា។</p>
+                </div>
+
+                <!-- Box 5 -->
+                <div tabindex="0" class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden group hover:shadow-md hover:-translate-y-1 transition-all duration-300 reveal-up" style="transition-delay: 500ms; will-change: transform;">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-8 h-8 rounded-full bg-rose-100 dark:bg-rose-900/50 flex items-center justify-center text-rose-600 dark:text-rose-400 font-bold">5</div>
+                        <h3 class="font-bold text-slate-800 dark:text-white text-base">បន្ថែមមុខវិជ្ជាថ្មី</h3>
+                    </div>
+                    <p class="text-sm text-slate-600 dark:text-gray-300">ប៊ូតុងពិសេសសម្រាប់ឱ្យលោកគ្រូអ្នកគ្រូបន្ថែមមុខវិជ្ជាដោយខ្លួនឯង ករណីមុខវិជ្ជានោះមិនមាននៅក្នុងបញ្ជីស្តង់ដារ (ឧ. កុំព្យូទ័រ, ភាសាចិន)។</p>
+                </div>
+
+                <!-- Box 6 -->
+                <div tabindex="0" class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden group hover:shadow-md hover:-translate-y-1 transition-all duration-300 reveal-up" style="transition-delay: 600ms; will-change: transform;">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center text-purple-600 dark:text-purple-400 font-bold">6</div>
+                        <h3 class="font-bold text-slate-800 dark:text-white text-base">ប្រអប់បញ្ចូលពិន្ទុ</h3>
+                    </div>
+                    <p class="text-sm text-slate-600 dark:text-gray-300">កន្លែងវាយបញ្ចូលពិន្ទុផ្ទាល់សម្រាប់សិស្សម្នាក់ៗ។ អ្នកអាចវាយលេខ ឬរើសនិទ្ទេសសម្រាប់មុខវិជ្ជាអាកប្បកិរិយា ហើយទិន្នន័យនឹងត្រូវរក្សាទុកបណ្តោះអាសន្ន។</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 2: Subject Selection Dropdown -->
+        <section class="section-box border-t-4 border-t-teal-500 dark:border-t-teal-400 reveal-up">
+            <div class="flex items-center gap-4 mb-6 md:mb-8">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-teal-50 dark:bg-teal-900/30 flex items-center justify-center text-teal-600 dark:text-teal-400 shrink-0 border border-teal-100 dark:border-teal-800/50 shadow-sm reveal-scale">
+                    <i data-lucide="list-tree" class="w-7 h-7 md:w-8 md:h-8"></i>
+                </div>
+                <div class="reveal-left">
+                    <span class="text-[10px] md:text-xs font-display tracking-wider text-teal-600 dark:text-teal-400 uppercase bg-teal-100 dark:bg-teal-900/40 px-3 py-1 rounded-full border border-teal-200 dark:border-teal-800/50">Part 2</span>
+                    <h2 class="font-display leading-normal text-xl md:text-3xl text-slate-800 dark:text-white mt-1 md:mt-2">ការជ្រើសរើសមុខវិជ្ជាលម្អិត</h2>
+                </div>
+            </div>
+            
+            <p class="text-sm md:text-lg text-slate-600 dark:text-gray-300 mb-6 reveal-up">នៅពេលលោកអ្នកចុចលើប្រអប់ <strong>មុខវិជ្ជា</strong> បញ្ជីមុខវិជ្ជាយ៉ាងច្រើននឹងលោតទម្លាក់ចុះមក ដែលបែងចែកជាក្រុមច្បាស់លាស់ងាយស្រួលស្វែងរក៖</p>
+
+            <div class="image-wrapper mb-8 border-4 border-slate-100 dark:border-slate-700 shadow-lg bg-slate-50 dark:bg-gray-900 reveal-scale">
+                <img src="picture-2.png" alt="Subject Selection Dropdown" onerror="this.onerror=null; this.src='https://placehold.co/1200x500/1e293b/94a3b8?text=picture-2.png'">
+            </div>
+
+            <div class="bg-teal-50 dark:bg-slate-800 p-5 md:p-6 rounded-2xl border border-teal-100 dark:border-slate-700 flex flex-col sm:flex-row items-start gap-4 md:gap-6 reveal-up">
+                <div class="bg-white dark:bg-slate-700 p-3 rounded-xl shadow-sm shrink-0 hidden sm:block border border-teal-100 dark:border-slate-600 transform hover:scale-110 transition-transform cursor-default">
+                    <i data-lucide="check-square" class="w-8 h-8 text-teal-500 dark:text-teal-400"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-teal-900 dark:text-teal-400 mb-3 text-base md:text-xl">ចំណុចដែលគួរកត់សម្គាល់</h3>
+                    <ul class="list-disc pl-5 space-y-2 text-sm md:text-base text-slate-700 dark:text-gray-300">
+                        <li><strong>ការបែងចែកក្រុម៖</strong> មុខវិជ្ជាត្រូវបានបែងចែកជាក្រុមធំៗដូចជា ភាសាខ្មែរ គណិតវិទ្យា ការវាយតម្លៃអាកប្បកិរិយា និងមុខវិជ្ជាបន្ថែមរបស់អ្នក។</li>
+                        <li><strong>រចនាសម្ព័ន្ធតារាងបត់បែន៖</strong> រាល់ពេលដែលអ្នកប្តូរមុខវិជ្ជា ជួរឈរ (Columns) នៃតារាងពិន្ទុខាងក្រោមនឹងប្រែប្រួលដោយស្វ័យប្រវត្តិទៅតាមមុខវិជ្ជានោះ (ឧទាហរណ៍ ភាសាខ្មែរមានច្រើនជួរឈររង)។</li>
+                        <li><strong>សញ្ញាគូសធីក (✓)៖</strong> បង្ហាញពីមុខវិជ្ជាដែលកំពុងត្រូវបានជ្រើសរើស និងបង្ហាញនៅលើតារាងបច្ចុប្បន្ន។</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3: Save and View Master Table -->
+        <section class="section-box border-t-4 border-t-green-500 dark:border-t-green-400 reveal-up">
+            <div class="flex items-center gap-4 mb-6 md:mb-8">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-green-50 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400 shrink-0 border border-green-100 dark:border-green-800/50 shadow-sm reveal-scale">
+                    <i data-lucide="cloud-upload" class="w-7 h-7 md:w-8 md:h-8"></i>
+                </div>
+                <div class="reveal-left">
+                    <span class="text-[10px] md:text-xs font-display tracking-wider text-green-600 dark:text-green-400 uppercase bg-green-100 dark:bg-green-900/40 px-3 py-1 rounded-full border border-green-200 dark:border-green-800/50">Part 3</span>
+                    <h2 class="font-display leading-normal text-xl md:text-3xl text-slate-800 dark:text-white mt-1 md:mt-2">ការរក្សាទុក និងមើលតារាងសរុប</h2>
+                </div>
+            </div>
+            
+            <p class="text-sm md:text-lg text-slate-600 dark:text-gray-300 mb-6 reveal-up">បន្ទាប់ពីបញ្ចូលពិន្ទុរួចរាល់ សូមរំកិលអេក្រង់មកផ្នែកខាងក្រោមបំផុត អ្នកនឹងឃើញប៊ូតុងសំខាន់ៗចំនួន២៖</p>
+
+            <div class="image-wrapper mb-8 border-4 border-slate-100 dark:border-slate-700 shadow-lg bg-slate-50 dark:bg-gray-900 reveal-scale">
+                <img src="picture-3.png" alt="Save and View Buttons" onerror="this.onerror=null; this.src='https://placehold.co/1200x600/1e293b/94a3b8?text=picture-3.png'">
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-5">
+                <div tabindex="0" class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex gap-4 group hover:shadow-md transition-all duration-300 reveal-up" style="transition-delay: 100ms; will-change: transform;">
+                    <div class="w-12 h-12 bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-xl flex items-center justify-center shrink-0 border border-green-200 dark:border-green-800 group-hover:bg-green-600 group-hover:text-white transition-colors">
+                        <i data-lucide="save" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-slate-800 dark:text-white mb-1 text-base">រក្សាទុកពិន្ទុ (Cloud)</h3>
+                        <p class="text-sm text-slate-600 dark:text-gray-300">ប៊ូតុងពណ៌បៃតងនេះមានតួនាទីបញ្ជូនទិន្នន័យពិន្ទុដែលអ្នកបានវាយបញ្ចូល ទៅរក្សាទុកយ៉ាងសុវត្ថិភាពក្នុង Firebase Cloud ទោះបិទកុំព្យូទ័រក៏មិនបាត់បង់ដែរ។</p>
+                    </div>
+                </div>
+
+                <div tabindex="0" class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex gap-4 group hover:shadow-md transition-all duration-300 reveal-up" style="transition-delay: 200ms; will-change: transform;">
+                    <div class="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center shrink-0 border border-blue-200 dark:border-blue-800 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                        <i data-lucide="table-2" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-slate-800 dark:text-white mb-1 text-base">មើលតារាងពិន្ទុសរុប</h3>
+                        <p class="text-sm text-slate-600 dark:text-gray-300">ចុចប៊ូតុងនេះដើម្បីប្តូរទៅកាន់ទំព័រ "តារាងពិន្ទុសរុប (Master Sheet)" ដែលនឹងបង្ហាញពិន្ទុគ្រប់មុខវិជ្ជា និងចំណាត់ថ្នាក់សិស្សរួចជាស្រេចដើម្បីបោះពុម្ព។</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 4: Video Tutorial -->
+        <section class="section-box border-t-4 border-t-rose-500 dark:border-t-rose-400 reveal-up">
+            <div class="flex items-center gap-4 mb-6 md:mb-8">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-rose-50 dark:bg-rose-900/30 flex items-center justify-center text-rose-600 dark:text-rose-400 shrink-0 border border-rose-100 dark:border-rose-800/50 shadow-sm reveal-scale">
+                    <i data-lucide="play-circle" class="w-7 h-7 md:w-8 md:h-8"></i>
+                </div>
+                <div class="reveal-left">
+                    <span class="text-[10px] md:text-xs font-display tracking-wider text-rose-600 dark:text-rose-400 uppercase bg-rose-100 dark:bg-rose-900/40 px-3 py-1 rounded-full border border-rose-200 dark:border-rose-800/50">Part 4</span>
+                    <h2 class="font-display leading-normal text-xl md:text-3xl text-slate-800 dark:text-white mt-1 md:mt-2">វីដេអូណែនាំការប្រើប្រាស់</h2>
+                </div>
+            </div>
+            
+            <p class="text-sm md:text-lg text-slate-600 dark:text-gray-300 mb-6 reveal-up">ដើម្បីស្វែងយល់កាន់តែច្បាស់ពីដំណើរការបញ្ចូលពិន្ទុប្រចាំខែ និងការប្តូរទៅពិន្ទុឆមាស សូមទស្សនាវីដេអូណែនាំខាងក្រោម៖</p>
+
+            <div class="relative w-full aspect-video rounded-2xl overflow-hidden border-4 border-slate-100 dark:border-slate-700 shadow-lg reveal-scale bg-slate-100 dark:bg-slate-800">
+                <iframe 
+                    class="absolute top-0 left-0 w-full h-full" 
+                    src="https://www.youtube.com/embed/1yXYExXoK_c?si=LZd7EQ64GUNHlYJI" 
+                    title="YouTube video player" 
+                    frameborder="0" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                    allowfullscreen>
+                </iframe>
+            </div>
+
+            <div class="mt-8 flex justify-center reveal-up">
+                <a href="https://youtu.be/1yXYExXoK_c?si=LZd7EQ64GUNHlYJI" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 bg-rose-500 hover:bg-rose-600 text-white px-6 py-3 rounded-full font-bold shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-rose-300 dark:focus:ring-rose-800" style="will-change: transform;">
+                    <i data-lucide="external-link" class="w-5 h-5"></i>
+                    ចូលមើលផ្ទាល់នៅលើ YouTube
+                </a>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="mt-20 pb-16 text-center relative z-10">
+            <div class="w-20 h-1.5 bg-blue-500 mx-auto rounded-full mb-8 shadow-sm reveal-scale"></div>
+            
+            <h3 class="font-display text-3xl md:text-4xl text-slate-800 dark:text-white mb-4 flex justify-center items-center gap-3 reveal-up">
+                <i data-lucide="party-popper" class="w-8 h-8 text-blue-500 animate-bounce"></i> រួចរាល់ហើយ!
+            </h3>
+            <p class="text-slate-500 dark:text-gray-400 mb-12 max-w-2xl mx-auto text-sm md:text-base reveal-up" style="transition-delay: 100ms;">
+                ឥឡូវនេះ លោកអ្នកអាចចាប់ផ្តើមប្រើប្រាស់មុខងារបញ្ជូលពិន្ទុប្រចាំខែ និងប្រចាំឆមាសបានយ៉ាងងាយស្រួល!
+            </p>
+            
+            <!-- Card Footer -->
+            <a href="https://portfolio-ron-raksmey.netlify.app/" target="_blank" rel="noopener noreferrer" class="inline-block bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-lg border border-slate-200 dark:border-slate-700 max-w-sm w-full relative overflow-hidden group hover:shadow-2xl hover:-translate-y-2 focus:outline-none focus:ring-4 focus:ring-indigo-300 dark:focus:ring-indigo-600 transition-all duration-300 cursor-pointer reveal-scale" style="transition-delay: 200ms; will-change: transform;">
+                <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-400 group-hover:h-2 transition-all"></div>
+                
+                <div class="flex flex-col items-center">
+                    <div class="w-28 h-28 rounded-full border-4 border-slate-100 dark:border-slate-700 shadow-md overflow-hidden mb-5 relative group-hover:scale-110 group-hover:rounded-xl group-focus:scale-110 group-focus:rounded-xl transition-all duration-500 bg-slate-100 dark:bg-slate-900">
+                        <img src="../../enrollment/RON-RAKSMEY.png" alt="Profile" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://placehold.co/150x150/1e293b/94a3b8?text=Profile'">
+                    </div>
+                    
+                    <p class="text-[11px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-bold mb-2 flex items-center gap-1 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors">
+                        <i data-lucide="code-2" class="w-3 h-3"></i> Developed By
+                    </p>
+                    <h4 class="font-display text-xl text-slate-800 dark:text-white mb-1 group-hover:text-indigo-700 dark:group-hover:text-indigo-400 transition-colors">គរុនិស្សិត រុន រស្មី</h4>
+                    <span class="text-xs text-slate-500 dark:text-gray-400 mt-2 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-4 py-1.5 rounded-full font-medium shadow-sm group-hover:bg-indigo-50 dark:group-hover:bg-indigo-900/50 group-hover:border-indigo-200 dark:group-hover:border-indigo-700 transition-colors">
+                        <i data-lucide="graduation-cap" class="w-3.5 h-3.5 inline-block mb-0.5 text-slate-400 dark:text-gray-500 mr-1 group-hover:text-indigo-500 dark:group-hover:text-indigo-400"></i> ជំនាន់ទី៤
+                    </span>
+                </div>
+            </a>
+            
+            <div class="mt-12 text-sm text-slate-400 dark:text-slate-500 font-medium reveal-up" style="transition-delay: 300ms;">
+                &copy; 2026 Krusmart. រក្សាសិទ្ធិគ្រប់យ៉ាង។
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- Initialization Scripts -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+
+            const isIframe = document.documentElement.classList.contains('is-iframe');
+            
+            if (isIframe) {
+                try {
+                    if (window.parent && window.parent.document) {
+                        const observer = new MutationObserver((mutations) => {
+                            mutations.forEach((mutation) => {
+                                if (mutation.attributeName === 'class') {
+                                    if (window.parent.document.documentElement.classList.contains('dark')) {
+                                        document.documentElement.classList.add('dark');
+                                    } else {
+                                        document.documentElement.classList.remove('dark');
+                                    }
+                                }
+                            });
+                        });
+                        observer.observe(window.parent.document.documentElement, { attributes: true });
+                    }
+                } catch (e) {}
+            }
+
+            window.addEventListener('storage', (event) => {
+                if (event.key === 'color-theme') {
+                    if (event.newValue === 'dark') {
+                        document.documentElement.classList.add('dark');
+                    } else {
+                        document.documentElement.classList.remove('dark');
+                    }
+                }
+            });
+
+            // Intersection Observer for Animations
+            const observerOptions = {
+                root: null,
+                rootMargin: '0px',
+                threshold: 0.15 
+            };
+
+            const observer = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('reveal-visible');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, observerOptions);
+
+            const revealElements = document.querySelectorAll('.reveal-up, .reveal-left, .reveal-scale');
+            revealElements.forEach(el => observer.observe(el));
+        });
+    </script>
+</body>
+</html>

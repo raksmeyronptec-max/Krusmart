@@ -1,0 +1,34 @@
+'use server'
+
+import { createClient } from '@/lib/supabase/server'
+
+export async function getStudentDataForYear(academicYear: string) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { scores: [], attendance: [] }
+
+    // Fetch scores where period ends with academicYear (e.g. nov-2025-2026, dec-2025-2026)
+    const { data: scores, error: scoreErr } = await supabase
+        .from('scores')
+        .select('*')
+        .eq('teacher_id', user.id)
+        .like('period', `%-${academicYear}`)
+        .eq('score_type', 'monthly')
+        
+    if (scoreErr) console.error("Error fetching scores:", scoreErr)
+
+    // Fetch attendance for the academic year
+    // Attendance dates typically follow YYYY-MM-DD. We can fetch all and filter in client
+    // or we can fetch attendance and filter by user_id
+    const { data: attendance, error: attErr } = await supabase
+        .from('attendance')
+        .select('*')
+        .eq('teacher_id', user.id)
+
+    if (attErr) console.error("Error fetching attendance:", attErr)
+
+    return { 
+        scores: scores || [], 
+        attendance: attendance || [] 
+    }
+}
