@@ -5,40 +5,26 @@ import { ArrowLeft, Image as ImageIcon, PenTool, ZoomIn, ZoomOut, Printer, Inbox
 import Link from 'next/link'
 import Select from '@/components/ui/forms/Select'
 import type { Settings, Student } from '@/lib/types'
+import { toKhmerNumber } from '@/lib/utils/khmer-num'
+import { formatKhmerDate } from '@/lib/utils/date'
 
-const khNumbers = ['០','១','២','៣','៤','៥','៦','៧','៨','៩']
-function toKhmerNum(str: string | number | null | undefined): string {
-    if (str === null || str === undefined) return ''
-    return str.toString().split('').map(char => {
-        if (char >= '0' && char <= '9') return khNumbers[parseInt(char)]
-        return char
-    }).join('')
-}
+/**
+ * The student's place of birth, with the administrative-unit prefix stripped
+ * from each part ("ភូមិ", "ឃុំ/សង្កាត់", …) so the card stays inside its line.
+ *
+ * This previously took `any` and read `village_name` / `village` / `commune_name`
+ * and friends — Firebase-era column names that no longer exist on a `students`
+ * row, so it returned `'-'` for every card. It reads the real `birth_*` columns
+ * now.
+ */
+function formatLocationShort(s: Student): string {
+    const clean = (str: string | null | undefined, regex: RegExp) => str ? str.replace(regex, '').trim() : ''
+    const v = clean(s.birth_village, /^(ភូមិទី|ភូមិ)\s*/)
+    const c = clean(s.birth_commune, /^(ឃុំ\/សង្កាត់|សង្កាត់|ឃុំ)\s*/)
+    const d = clean(s.birth_district, /^(ស្រុក\/ខណ្ឌ|ក្រុង\/ស្រុក\/ខណ្ឌ|ខណ្ឌ|ស្រុក|ក្រុង)\s*/)
+    const p = clean(s.birth_province, /^(ខេត្ត\/ក្រុង|រាជធានី\/ខេត្ត|រាជធានី|ខេត្ត)\s*/)
 
-function formatKhmerDate(dateStr: string | null): string {
-    if (!dateStr || dateStr === '-') return '-'
-    const parts = dateStr.split('-')
-    if (parts.length !== 3) return toKhmerNum(dateStr)
-    const year = parts[0]
-    const month = parseInt(parts[1], 10)
-    const day = parseInt(parts[2], 10)
-    const khMonths = ["មករា", "កុម្ភៈ", "មីនា", "មេសា", "ឧសភា", "មិថុនា", "កក្កដា", "សីហា", "កញ្ញា", "តុលា", "វិច្ឆិកា", "ធ្នូ"]
-    return `${toKhmerNum(day)} ${khMonths[month-1]} ${toKhmerNum(year)}`
-}
-
-function formatLocationShort(s: any): string {
-    const clean = (str: string, regex: RegExp) => str ? str.replace(regex, '').trim() : ''
-    let v = clean(s.village_name || s.village || '', /^(ភូមិទី|ភូមិ)\s*/)
-    let c = clean(s.commune_name || s.commune || '', /^(ឃុំ\/សង្កាត់|សង្កាត់|ឃុំ)\s*/)
-    let d = clean(s.district_name || s.district || '', /^(ស្រុក\/ខណ្ឌ|ក្រុង\/ស្រុក\/ខណ្ឌ|ខណ្ឌ|ស្រុក|ក្រុង)\s*/)
-    let p = clean(s.province_name || s.province || '', /^(ខេត្ត\/ក្រុង|រាជធានី\/ខេត្ត|រាជធានី|ខេត្ត)\s*/)
-    
-    let parts = []
-    if(v) parts.push(`${v}`)
-    if(c) parts.push(`${c}`)
-    if(d) parts.push(`${d}`)
-    if(p) parts.push(`${p}`)
-    return parts.join(' ') || '-'
+    return [v, c, d, p].filter(Boolean).join(' ') || '-'
 }
 
 const getDriveImageUrl = (url: string) => {
@@ -56,13 +42,13 @@ const getDriveImageUrl = (url: string) => {
                 return `https://lh3.googleusercontent.com/d/${fileId}`;
             }
         }
-    } catch (e) {
+    } catch {
         return url;
     }
     return url;
 }
 
-export default function IdStudentClient({ initialStudents, settings }: { initialStudents: Student[], settings: any }) {
+export default function IdStudentClient({ initialStudents, settings }: { initialStudents: Student[], settings: Settings | null }) {
     const [currentBgImage, setCurrentBgImage] = useState('/id-templates/2_id-student.jpg')
     const [signatureImageSrc, setSignatureImageSrc] = useState('')
     const [signatureScale, setSignatureScale] = useState(1)
@@ -74,8 +60,8 @@ export default function IdStudentClient({ initialStudents, settings }: { initial
         }
     }
 
-    const uploadSignature = (e: any) => {
-        const file = e.target.files[0]
+    const uploadSignature = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
         if (file) {
             const reader = new FileReader()
             reader.onload = function(evt) {
@@ -96,7 +82,7 @@ export default function IdStudentClient({ initialStudents, settings }: { initial
 
     const managementUnit1 = settings?.management_unit_1 || ''
     const schoolName = settings?.school_name || ''
-    const academicYear = toKhmerNum(settings?.academic_year || '២០២៤-២០២៥')
+    const academicYear = toKhmerNumber(settings?.academic_year || '២០២៤-២០២៥')
     const className = settings?.class_name || '១ «ក»'
     const director = settings?.director_name || 'នាយកសាលា'
     const provinceDate = settings?.province_date || 'ភ្នំពេញ'

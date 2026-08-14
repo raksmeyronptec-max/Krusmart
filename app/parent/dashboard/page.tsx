@@ -42,6 +42,7 @@ export default function ParentDashboardPage() {
         <div className="relative z-10 flex justify-between items-start mb-6">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-2xl bg-white p-1 shadow-lg relative cursor-pointer hover:scale-105 transition">
+              {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture */}
               <img src="https://ui-avatars.com/api/?name=Student&background=0d8065&color=fff&size=100" alt="Student Profile" className="w-full h-full rounded-[0.85rem] object-cover" />
               <div className="absolute -bottom-1 -right-1 bg-green-500 border-2 border-white w-4 h-4 rounded-full"></div>
             </div>

@@ -1,22 +1,16 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { ArrowLeft, UserSearch, FileSpreadsheet, Files, Printer, Loader2, Contact } from 'lucide-react'
+import { useState, useCallback, useEffect } from 'react'
+import { ArrowLeft, UserSearch, FileSpreadsheet, Printer, Loader2, Contact } from 'lucide-react'
 import Link from 'next/link'
 import { getStudentDataForYear } from './actions'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import * as XLSX from 'xlsx-js-style'
 import Select from '@/components/ui/forms/Select'
 import SearchableSelect from '@/components/ui/forms/SearchableSelect'
-import type { Settings, Student } from '@/lib/types'
-
-const monthsOrder = ['nov', 'dec', 'jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct']
-const monthsLabel: Record<string, string> = {
-    'nov': 'វិច្ឆិកា', 'dec': 'ធ្នូ', 'jan': 'មករា', 'feb': 'កុម្ភៈ',
-    'mar': 'មីនា', 'apr': 'មេសា', 'may': 'ឧសភា', 'jun': 'មិថុនា',
-    'jul': 'កក្កដា', 'aug': 'សីហា', 'sep': 'កញ្ញា', 'oct': 'តុលា'
-}
-const monthMap: Record<string, string> = { 'nov':'11', 'dec':'12', 'jan':'01', 'feb':'02', 'mar':'03', 'apr':'04', 'may':'05', 'jun':'06', 'jul':'07', 'aug':'08', 'sep':'09', 'oct':'10' }
+import type { AttendanceRecord, Score, Settings, Student } from '@/lib/types'
+import { ACADEMIC_MONTH_IDS, MONTHS_BY_CALENDAR, MONTH_LABEL_BY_ID, MONTH_NUM_BY_ID, isMonthId } from '@/lib/constants/months'
+import { calculateAge } from '@/lib/utils/date'
 
 const subjectsConfig = [
     { key: 'kh_listen', label: 'ភាសាខ្មែរ (ស្តាប់)' }, { key: 'kh_speak', label: 'ភាសាខ្មែរ (និយាយ)' },
@@ -35,63 +29,72 @@ const subjectsConfig = [
     { key: 'ex_book', label: 'ការបំពេញបន្ថែម (សៀវភៅ)' }, { key: 'ex_hw', label: 'ការបំពេញបន្ថែម (កិច្ចការផ្ទះ)' }
 ]
 
+/** One subject row on the printed report. */
+interface DisplayScore {
+    index: number
+    label: string
+    score: string
+}
+
+/** One point on the monthly trend chart. */
+interface MonthlyPoint {
+    name: string
+    average: number | null
+}
+
+/** Everything the report renders for the selected student. */
+interface ReportData {
+    student: Student
+    displayScores: DisplayScore[]
+    total: string
+    average: string
+    rank: number | string
+    grade: string
+    remark: string
+    attendance: { p: number; l: number; a: number; rate: string | number }
+}
+
 export default function ParentReportClient({ initialStudents, settings }: { initialStudents: Student[], settings: Settings | null }) {
     const [academicYear, setAcademicYear] = useState('2025-2026')
     const [month, setMonth] = useState('nov')
     const [studentId, setStudentId] = useState('')
     const [loading, setLoading] = useState(false)
 
-    const [allScores, setAllScores] = useState<any[]>([])
-    const [allAttendance, setAllAttendance] = useState<any[]>([])
+    const [allScores, setAllScores] = useState<Score[]>([])
+    const [allAttendance, setAllAttendance] = useState<AttendanceRecord[]>([])
     
     // Derived Data
-    const [reportData, setReportData] = useState<any>(null)
-    const [chartData, setChartData] = useState<any[]>([])
+    const [reportData, setReportData] = useState<ReportData | null>(null)
+    const [chartData, setChartData] = useState<MonthlyPoint[]>([])
 
-    const currentMonthIndex = new Date().getMonth()
-    const jsMap: Record<number, string> = { 0:'jan', 1:'feb', 2:'mar', 3:'apr', 4:'may', 5:'jun', 6:'jul', 7:'aug', 8:'sep', 9:'oct', 10:'nov', 11:'dec' }
-    
     useEffect(() => {
-        const mCode = jsMap[currentMonthIndex]
-        if (monthsOrder.includes(mCode)) setMonth(mCode)
+        // Default to the current calendar month. Reading the clock is impure, so
+        // it happens here rather than during render.
+        const mCode = MONTHS_BY_CALENDAR[new Date().getMonth()].id
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- see above: the default depends on the clock
+        if (isMonthId(mCode)) setMonth(mCode)
     }, [])
 
-    useEffect(() => {
-        loadServerData()
-    }, [academicYear])
-
-    useEffect(() => {
-        if (studentId) {
-            generateReport(studentId)
-        } else {
-            setReportData(null)
-        }
-    }, [studentId, month, allScores, allAttendance])
-
-    const loadServerData = async () => {
+    const loadServerData = useCallback(async () => {
         setLoading(true)
         const { scores, attendance } = await getStudentDataForYear(academicYear)
         setAllScores(scores)
         setAllAttendance(attendance)
         setLoading(false)
-    }
+    }, [academicYear])
 
-    const calculateAge = (dob: string) => {
-        if(!dob || dob === '-') return '-'
-        const d = new Date(dob)
-        if(isNaN(d.getTime())) return '-'
-        const ageDifMs = Date.now() - d.getTime()
-        const ageDate = new Date(ageDifMs)
-        return Math.abs(ageDate.getUTCFullYear() - 1970)
-    }
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch: state is set after await, not synchronously during the effect
+        loadServerData()
+    }, [academicYear, loadServerData])
 
-    const generateReport = (sid: string) => {
+    const generateReport = useCallback((sid: string) => {
         const student = initialStudents.find(s => s.id === sid)
         if (!student) return
 
         // Calculate rankings for the current month to find the rank
         const currentPeriod = `${month}-${academicYear}`
-        const periodScores = allScores.filter(s => s.period === currentPeriod)
+        const periodScores = allScores.filter(s => s.score_period === currentPeriod)
         
         // Group by student for ranking
         const scoresByStudent: Record<string, { total: number, count: number, avg: number }> = {}
@@ -101,7 +104,7 @@ export default function ParentReportClient({ initialStudents, settings }: { init
 
         periodScores.forEach(ps => {
             if (scoresByStudent[ps.student_id]) {
-                const val = parseFloat(ps.score_value)
+                const val = parseFloat(String(ps.score_value))
                 if (!isNaN(val)) {
                     scoresByStudent[ps.student_id].total += val
                     scoresByStudent[ps.student_id].count += 1
@@ -115,7 +118,7 @@ export default function ParentReportClient({ initialStudents, settings }: { init
             return { id, avg: data.avg }
         }).sort((a, b) => b.avg - a.avg)
 
-        let rankMap: Record<string, number> = {}
+        const rankMap: Record<string, number> = {}
         let currRank = 1
         for (let i = 0; i < rankedList.length; i++) {
             if (i > 0 && rankedList[i].avg < rankedList[i-1].avg) currRank = i + 1
@@ -124,14 +127,14 @@ export default function ParentReportClient({ initialStudents, settings }: { init
 
         // Student's scores for this month
         const studentMonthScores = periodScores.filter(s => s.student_id === sid)
-        const displayScores: any[] = []
+        const displayScores: DisplayScore[] = []
         let stTotal = 0
         let stCount = 0
 
         subjectsConfig.forEach((subj, idx) => {
             const found = studentMonthScores.find(s => s.subject === subj.key)
-            if (found && found.score_value !== null && found.score_value !== '') {
-                const v = parseFloat(found.score_value)
+            if (found && found.score_value !== null) {
+                const v = parseFloat(String(found.score_value))
                 if (!isNaN(v)) {
                     stTotal += v
                     stCount++
@@ -164,7 +167,7 @@ export default function ParentReportClient({ initialStudents, settings }: { init
         const [yStart, yEnd] = academicYear.split('-')
         const isNextYear = !['nov', 'dec'].includes(month)
         const actualYear = isNextYear ? yEnd : yStart
-        const targetDatePrefix = `${actualYear}-${monthMap[month]}`
+        const targetDatePrefix = `${actualYear}-${MONTH_NUM_BY_ID[month]}`
 
         let p=0, l=0, a=0
         allAttendance.forEach(att => {
@@ -190,14 +193,14 @@ export default function ParentReportClient({ initialStudents, settings }: { init
         })
 
         // Chart Data
-        const cData: any[] = []
-        monthsOrder.forEach(m => {
+        const cData: MonthlyPoint[] = []
+        ACADEMIC_MONTH_IDS.forEach(m => {
             const mPeriod = `${m}-${academicYear}`
-            const mScores = allScores.filter(s => s.period === mPeriod && s.student_id === sid)
+            const mScores = allScores.filter(s => s.score_period === mPeriod && s.student_id === sid)
             
             let mSum = 0, mCount = 0
             mScores.forEach(ms => {
-                const val = parseFloat(ms.score_value)
+                const val = parseFloat(String(ms.score_value))
                 if (!isNaN(val)) {
                     mSum += val
                     mCount++
@@ -205,12 +208,24 @@ export default function ParentReportClient({ initialStudents, settings }: { init
             })
             
             cData.push({
-                name: monthsLabel[m],
+                name: MONTH_LABEL_BY_ID[m],
                 average: mCount > 0 ? parseFloat((mSum / mCount).toFixed(2)) : null
             })
         })
         setChartData(cData)
-    }
+    }, [academicYear, month, allScores, allAttendance, initialStudents])
+
+    useEffect(() => {
+        if (studentId) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- rebuilding the report for the new selection is this effect's purpose
+            generateReport(studentId)
+        } else {
+            setReportData(null)
+        }
+    }, [studentId, generateReport])
+
+
+
 
     const printSingle = () => {
         if (!studentId) {
@@ -227,7 +242,7 @@ export default function ParentReportClient({ initialStudents, settings }: { init
         const wb = XLSX.utils.book_new()
         const wsData = [
             ["ល.រ", "មុខវិជ្ជាសិក្សា (Subjects)", "ពិន្ទុទទួលបាន"],
-            ...reportData.displayScores.map((s: any) => [s.index, s.label, s.score]),
+            ...reportData.displayScores.map(s => [s.index, s.label, s.score]),
             ["", "ពិន្ទុសរុប៖", reportData.total],
             ["", "មធ្យមភាគ៖", reportData.average],
             ["", "ចំណាត់ថ្នាក់លេខ៖", reportData.rank],
@@ -301,7 +316,7 @@ export default function ParentReportClient({ initialStudents, settings }: { init
                             ariaLabel="ខែ"
                             value={month}
                             onChange={setMonth}
-                            options={monthsOrder.map(m => ({ value: m, label: `ខែ ${monthsLabel[m]}` }))}
+                            options={ACADEMIC_MONTH_IDS.map(m => ({ value: m, label: `ខែ ${MONTH_LABEL_BY_ID[m]}` }))}
                             wrapperClassName="w-full sm:w-auto"
                         />
 
@@ -358,7 +373,7 @@ export default function ParentReportClient({ initialStudents, settings }: { init
 
                     <div className="text-center mb-6 print:mb-2">
                         <h1 className="font-moul text-[16px] text-[#0054a6] uppercase underline underline-offset-8 decoration-2 mb-2 print:mb-1">សៀវភៅតាមដានការសិក្សា និងអវត្តមាន</h1>
-                        <p className="font-bold text-[13px] text-gray-700">ប្រចាំខែ <span className="text-[#0054a6]">{monthsLabel[month]}</span> ឆ្នាំសិក្សា <span>{academicYear}</span></p>
+                        <p className="font-bold text-[13px] text-gray-700">ប្រចាំខែ <span className="text-[#0054a6]">{MONTH_LABEL_BY_ID[month]}</span> ឆ្នាំសិក្សា <span>{academicYear}</span></p>
                     </div>
 
                     <div className="flex items-center gap-6 print:gap-3 mb-6 print:mb-2 bg-blue-50/50 p-4 print:p-2 rounded-xl border border-blue-100 print-break-inside-avoid">
@@ -371,7 +386,7 @@ export default function ParentReportClient({ initialStudents, settings }: { init
                             <div className="flex border-b border-gray-200 pb-1"><span className="w-28 text-gray-600">នាមត្រកូល និងនាម៖</span> <span className="font-moul text-[#0054a6]">{reportData.student.name_kh || reportData.student.full_name}</span></div>
                             <div className="flex border-b border-gray-200 pb-1"><span className="w-16 text-gray-600">ភេទ៖</span> <span className="font-bold">{reportData.student.gender}</span></div>
                             <div className="flex border-b border-gray-200 pb-1"><span className="w-28 text-gray-600">ថ្ងៃខែឆ្នាំកំណើត៖</span> <span className="font-bold">{reportData.student.dob}</span></div>
-                            <div className="flex border-b border-gray-200 pb-1"><span className="w-16 text-gray-600">អាយុ៖</span> <span className="font-bold">{calculateAge(reportData.student.dob)} ឆ្នាំ</span></div>
+                            <div className="flex border-b border-gray-200 pb-1"><span className="w-16 text-gray-600">អាយុ៖</span> <span className="font-bold">{calculateAge(reportData.student.dob) ?? '-'} ឆ្នាំ</span></div>
                             <div className="flex border-b border-gray-200 pb-1 col-span-2"><span className="w-28 text-gray-600">ឈ្មោះមាតាបិតា៖</span> <span className="font-bold">ឪពុក: {reportData.student.father_name || '-'} ម្តាយ: {reportData.student.mother_name || '-'}</span></div>
                         </div>
                     </div>
@@ -395,7 +410,7 @@ export default function ParentReportClient({ initialStudents, settings }: { init
                                 <tbody>
                                     {reportData.displayScores.length === 0 ? (
                                         <tr><td colSpan={3} className="text-center text-gray-400 py-4 border border-slate-300">មិនមានទិន្នន័យពិន្ទុសម្រាប់ខែនេះទេ</td></tr>
-                                    ) : reportData.displayScores.map((s: any, idx: number) => (
+                                    ) : reportData.displayScores.map((s, idx) => (
                                         <tr key={idx}>
                                             <td className="text-center font-bold text-gray-500 border border-slate-300 p-1">{idx + 1}</td>
                                             <td className="font-medium text-gray-800 border border-slate-300 p-1 px-2">{s.label}</td>
@@ -443,7 +458,7 @@ export default function ParentReportClient({ initialStudents, settings }: { init
                                     </div>
                                     <div className="flex justify-between items-center p-3 print:p-2 bg-green-50/50">
                                         <span className="text-gray-600 font-bold text-[12px] flex items-center gap-2"><div className="w-3 h-3 print:w-2 print:h-2 bg-green-500 rounded-full"></div> វត្តមានសរុប (អត្រា)</span>
-                                        <span className={`font-bold text-[14px] print:text-[13px] ${parseFloat(reportData.attendance.rate) < 80 ? 'text-red-600' : 'text-green-700'}`}>{reportData.attendance.rate}%</span>
+                                        <span className={`font-bold text-[14px] print:text-[13px] ${parseFloat(String(reportData.attendance.rate)) < 80 ? 'text-red-600' : 'text-green-700'}`}>{reportData.attendance.rate}%</span>
                                     </div>
                                 </div>
                             </div>

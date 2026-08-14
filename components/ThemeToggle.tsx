@@ -10,6 +10,7 @@ export function ThemeToggle() {
 
   // Ensure hydration matches server
   React.useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the documented next-themes hydration guard: render the fallback until mounted
     setMounted(true)
   }, [])
 

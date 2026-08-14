@@ -64,6 +64,52 @@ export interface Student {
   student_code?: string | null
 }
 
+/**
+ * One spreadsheet row accepted by `importStudents`.
+ *
+ * This is the parsed-Excel shape, not a `students` row: every field is optional
+ * because the sheet may omit columns, and the Latin name arrives as
+ * `name_latin` rather than the column's `name_en`.
+ */
+export interface StudentImportRow {
+  student_id?: string
+  grade?: string
+  name_kh?: string
+  name_latin?: string
+  gender?: string
+  dob?: string | null
+  phone?: string
+
+  birth_province?: string
+  birth_district?: string
+  birth_commune?: string
+  birth_village?: string
+  curr_province?: string
+  curr_district?: string
+  curr_commune?: string
+  curr_village?: string
+
+  photo_url?: string
+  is_new_student?: boolean
+  is_repeater?: boolean
+  orphan_status?: string
+  is_disabled?: boolean
+  poor_status?: string
+  is_equity?: boolean
+  is_scholarship?: boolean
+
+  ethnicity?: string
+  special_features?: string
+  other_remarks?: string
+
+  father_name?: string
+  father_job?: string
+  mother_name?: string
+  mother_job?: string
+  guardian_name?: string
+  guardian_job?: string
+}
+
 /** Attendance mark: present / late / absent-with-leave / absent. */
 export type AttendanceStatus = 'P' | 'L' | 'A' | 'AP'
 
@@ -74,6 +120,12 @@ export interface AttendanceRecord {
   student_id: string
   date: string
   status: AttendanceStatus | string
+  /**
+   * Free-text note for an absence. Written by `saveAttendance` and read by the
+   * seating-layout view; absent from the SQL snapshot like several other live
+   * columns.
+   */
+  reason?: string | null
   created_at: string
 }
 

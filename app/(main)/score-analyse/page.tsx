@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import ScoreAnalyseClient from './ScoreAnalyseClient'
 import { logger } from '@/lib/utils/logger'
+import { FALLBACK_ACADEMIC_YEAR } from '@/lib/constants/academic'
 
 export default async function ScoreAnalysePage() {
   const supabase = await createClient()
@@ -12,16 +13,16 @@ export default async function ScoreAnalysePage() {
   }
 
   // Fetch settings to get default academic year
-  let { data: settings } = await supabase
+  const { data: settings } = await supabase
     .from('settings')
     .select('*')
     .eq('teacher_id', user.id)
     .single()
     
-  const academicYear = settings?.academic_year || '2023-2024'
+  const academicYear = settings?.academic_year || FALLBACK_ACADEMIC_YEAR
 
   // Fetch students
-  let { data: students, error } = await supabase
+  const { data, error } = await supabase
     .from('students')
     .select('*')
     .eq('teacher_id', user.id)
@@ -30,17 +31,18 @@ export default async function ScoreAnalysePage() {
 
   if (error) {
     logger.error(error)
-    students = []
   }
 
+  const students = data ?? []
+
   // Fetch attendance
-  let { data: attendanceData } = await supabase
+  const { data: attendanceData } = await supabase
     .from('attendance')
     .select('*')
     .eq('teacher_id', user.id)
 
   // Fetch scores for the year
-  let { data: scoresData } = await supabase
+  const { data: scoresData } = await supabase
     .from('scores')
     .select('*')
     .eq('teacher_id', user.id)

@@ -8,6 +8,9 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { logger } from '@/lib/utils/logger'
+import { toKhmerNumber } from '@/lib/utils/khmer-num'
+import { STORAGE_KEYS } from '@/lib/constants/storage'
+import type { Student } from '@/lib/types'
 
 export default function YearlyReportClient() {
   const [stats, setStats] = useState({
@@ -20,11 +23,11 @@ export default function YearlyReportClient() {
     // For now, simulate loading from localStorage if any, or mock data
     const fetchStats = async () => {
       try {
-        const stored = localStorage.getItem('krusmart_students_cache');
+        const stored = localStorage.getItem(STORAGE_KEYS.studentsCache);
         if (stored) {
-          const parsed = JSON.parse(stored);
+          const parsed: Student[] = JSON.parse(stored);
           const total = parsed.length || 0;
-          const female = parsed.filter((s: any) => s.gender === 'ស្រី' || s.gender === 'F').length;
+          const female = parsed.filter(s => s.gender === 'ស្រី' || s.gender === 'F').length;
           setStats({ totalStudents: total, femaleStudents: female });
         } else {
           setStats({ totalStudents: 45, femaleStudents: 22 });
@@ -35,11 +38,6 @@ export default function YearlyReportClient() {
     };
     fetchStats();
   }, []);
-
-  const toKhNum = (num: number) => {
-    const khDigits = ['០','១','២','៣','៤','៥','៦','៧','៨','៩'];
-    return num.toString().split('').map(d => khDigits[parseInt(d)] || d).join('');
-  };
 
   return (
     <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8">
@@ -74,7 +72,7 @@ export default function YearlyReportClient() {
           <div>
             <p className="text-sm text-gray-500 font-bold">សិស្សសរុប</p>
             <p className="text-2xl font-bold text-gray-800">
-              {toKhNum(stats.totalStudents)} <span className="text-sm font-normal text-gray-500">នាក់</span>
+              {toKhmerNumber(stats.totalStudents)} <span className="text-sm font-normal text-gray-500">នាក់</span>
             </p>
           </div>
         </div>
@@ -85,7 +83,7 @@ export default function YearlyReportClient() {
           <div>
             <p className="text-sm text-gray-500 font-bold">សិស្សស្រី</p>
             <p className="text-2xl font-bold text-gray-800">
-              {toKhNum(stats.femaleStudents)} <span className="text-sm font-normal text-gray-500">នាក់</span>
+              {toKhmerNumber(stats.femaleStudents)} <span className="text-sm font-normal text-gray-500">នាក់</span>
             </p>
           </div>
         </div>

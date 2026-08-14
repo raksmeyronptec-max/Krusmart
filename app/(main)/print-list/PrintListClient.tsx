@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
 import { ArrowLeft, FileSpreadsheet, Printer } from 'lucide-react'
 import Link from 'next/link'
 import * as XLSX from 'xlsx-js-style'
 import type { Settings, Student } from '@/lib/types'
+import { ALIGN_CENTER, ALIGN_LEFT, emptyCell, khmerFont, moulFont, THIN_BORDER, type SheetMerge, type SheetRow } from '@/lib/utils/xlsx'
 
 export default function PrintListClient({ initialStudents, settings }: { initialStudents: Student[], settings: Settings | null }) {
 
@@ -13,7 +13,7 @@ export default function PrintListClient({ initialStudents, settings }: { initial
 
     const checkMark = '✓'
 
-    const renderTick = (val: any, matchStr = 'បាទ/ចាស') => {
+    const renderTick = (val: string | boolean | null | undefined, matchStr = 'បាទ/ចាស') => {
         return (val === matchStr || val === '✓' || val === true || val === 'ក្រ១' || val === 'ក្រ២') ? checkMark : ''
     }
 
@@ -43,56 +43,48 @@ export default function PrintListClient({ initialStudents, settings }: { initial
             return
         }
 
-        const ws_data: any[] = []
-        const merges: any[] = []
+        const ws_data: SheetRow[] = []
+        const merges: SheetMerge[] = []
         const className = settings?.class_name || 'Class'
         const year = settings?.academic_year || 'Year'
 
-        const BORDER = {
-            top: { style: 'thin', color: { rgb: 'FF000000' } },
-            bottom: { style: 'thin', color: { rgb: 'FF000000' } },
-            left: { style: 'thin', color: { rgb: 'FF000000' } },
-            right: { style: 'thin', color: { rgb: 'FF000000' } }
-        }
-        const FONT_NORMAL = { name: 'Khmer OS Battambang', sz: 9 }
-        const FONT_BOLD = { name: 'Khmer OS Battambang', sz: 9, bold: true }
-        const FONT_MOUL = { name: 'Khmer OS Moul Light', sz: 11 }
-        const ALIGN_CENTER = { vertical: 'center', horizontal: 'center' }
-        const ALIGN_LEFT = { vertical: 'center', horizontal: 'left' }
+        const BORDER = THIN_BORDER
+        const FONT_NORMAL = khmerFont(9)
+        const FONT_BOLD = khmerFont(9, true)
+        const FONT_MOUL = moulFont(11)
         
         const TH_STYLE = { font: FONT_BOLD, alignment: ALIGN_CENTER, border: BORDER, fill: { fgColor: { rgb: 'FFEFF6FF' } } }
         const TH_VERT = { ...TH_STYLE, alignment: { textRotation: 90, vertical: 'center', horizontal: 'center' } }
         const TD_STYLE = { font: FONT_NORMAL, alignment: ALIGN_CENTER, border: BORDER }
         const TD_LEFT = { font: FONT_NORMAL, alignment: ALIGN_LEFT, border: BORDER }
 
-        const emptyCell = (style?: any): any => ({ v: '', t: 's', s: style || {} })
         
         const totalCols = 31 
 
         // Headers
-        let r0 = Array(totalCols).fill(null).map(() => emptyCell())
+        const r0 = Array(totalCols).fill(null).map(() => emptyCell())
         r0[0] = { v: 'ព្រះរាជាណាចក្រកម្ពុជា', t: 's', s: { font: FONT_MOUL, alignment: ALIGN_CENTER } }
         ws_data.push(r0); merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: totalCols - 1 } })
 
-        let r1 = Array(totalCols).fill(null).map(() => emptyCell())
+        const r1 = Array(totalCols).fill(null).map(() => emptyCell())
         r1[0] = { v: 'ជាតិ សាសនា ព្រះមហាក្សត្រ', t: 's', s: { font: FONT_MOUL, alignment: ALIGN_CENTER } }
         ws_data.push(r1); merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: totalCols - 1 } })
 
         ws_data.push(Array(totalCols).fill(null).map(() => emptyCell()))
         
-        let r3 = Array(totalCols).fill(null).map(() => emptyCell())
+        const r3 = Array(totalCols).fill(null).map(() => emptyCell())
         r3[0] = { v: 'បញ្ជីហៅឈ្មោះសិស្ស និងជីវប្រវត្តិសង្ខេប', t: 's', s: { font: { name: 'Khmer OS Moul Light', sz: 14 }, alignment: ALIGN_CENTER } }
         ws_data.push(r3); merges.push({ s: { r: 3, c: 0 }, e: { r: 3, c: totalCols - 1 } })
         
-        let r4 = Array(totalCols).fill(null).map(() => emptyCell())
+        const r4 = Array(totalCols).fill(null).map(() => emptyCell())
         r4[0] = { v: `សាលា៖ ${settings?.school_name || ''} | ${className} | ឆ្នាំសិក្សា៖ ${year}`, t: 's', s: { font: FONT_BOLD, alignment: ALIGN_CENTER } }
         ws_data.push(r4); merges.push({ s: { r: 4, c: 0 }, e: { r: 4, c: totalCols - 1 } })
 
         ws_data.push(Array(totalCols).fill(null).map(() => emptyCell()))
 
-        let startRow = 6
-        let tr1 = Array(totalCols).fill(null).map(() => emptyCell(TH_STYLE))
-        let tr2 = Array(totalCols).fill(null).map(() => emptyCell(TH_STYLE))
+        const startRow = 6
+        const tr1 = Array(totalCols).fill(null).map(() => emptyCell(TH_STYLE))
+        const tr2 = Array(totalCols).fill(null).map(() => emptyCell(TH_STYLE))
 
         tr1[0] = { v: 'ល.រ', t: 's', s: TH_STYLE }; merges.push({ s: { r: startRow, c: 0 }, e: { r: startRow + 1, c: 0 } })
         tr1[1] = { v: 'អត្តលេខ', t: 's', s: TH_STYLE }; merges.push({ s: { r: startRow, c: 1 }, e: { r: startRow + 1, c: 1 } })
@@ -125,10 +117,10 @@ export default function PrintListClient({ initialStudents, settings }: { initial
 
         ws_data.push(tr1, tr2)
 
-        const renderExcelTick = (val: any) => { return (val === true || val === 'ក្រ១' || val === 'ក្រ២') ? checkMark : '' }
+        const renderExcelTick = (val: string | boolean | null | undefined) => { return (val === true || val === 'ក្រ១' || val === 'ក្រ២') ? checkMark : '' }
 
         initialStudents.forEach((s, i) => {
-            let row = Array(totalCols).fill(null).map(() => emptyCell(TD_STYLE))
+            const row = Array(totalCols).fill(null).map(() => emptyCell(TD_STYLE))
             
             row[0] = { v: i + 1, t: 'n', s: TD_STYLE }
             row[1] = { v: s.id, t: 's', s: TD_STYLE }
@@ -170,7 +162,7 @@ export default function PrintListClient({ initialStudents, settings }: { initial
         const ws = XLSX.utils.aoa_to_sheet(ws_data)
         ws['!merges'] = merges
         
-        let cols = [
+        const cols = [
             { wch: 4 }, { wch: 10 }, { wch: 20 }, { wch: 5 }, { wch: 12 }, 
             { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, 
             { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, 
@@ -180,7 +172,7 @@ export default function PrintListClient({ initialStudents, settings }: { initial
         for(let i=20; i<totalCols; i++) cols.push({ wch: 5 })
         ws['!cols'] = cols
 
-        let rows = []
+        const rows = []
         rows[7] = { hpt: 60 } 
         ws['!rows'] = rows
 

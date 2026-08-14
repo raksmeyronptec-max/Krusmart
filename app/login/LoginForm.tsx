@@ -1,10 +1,12 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckCircle, XCircle, Loader2, Eye, EyeOff, ShieldCheck } from 'lucide-react'
 import { loginWithEmail, registerWithEmail, verifySignupOtp, resendOtp } from './actions'
 import { createClient } from '@/lib/supabase/client'
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export default function LoginForm() {
   const [mode, setMode] = useState<'login' | 'register' | 'verify'>('login')
@@ -12,7 +14,6 @@ export default function LoginForm() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   
-  const [isValidEmail, setIsValidEmail] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   
@@ -28,10 +29,8 @@ export default function LoginForm() {
   
   const supabase = createClient()
 
-  useEffect(() => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    setIsValidEmail(emailRegex.test(email))
-  }, [email])
+  // Derived from `email` — no state, no effect.
+  const isValidEmail = EMAIL_PATTERN.test(email)
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(e.target.value)
@@ -87,7 +86,7 @@ export default function LoginForm() {
             }
         }
       }
-    } catch (err: unknown) {
+    } catch {
       setError("មានបញ្ហាបន្តិចបន្តួច សូមព្យាយាមម្ដងទៀត។")
     } finally {
       setIsLoading(false)
@@ -127,7 +126,7 @@ export default function LoginForm() {
       if (result?.error) {
         setError(result.error)
       }
-    } catch (err) {
+    } catch {
       setError("លេខកូដមិនត្រឹមត្រូវទេ។ សូមពិនិត្យម្ដងទៀត!")
     } finally {
       setIsLoading(false)
@@ -146,7 +145,7 @@ export default function LoginForm() {
       } else {
           setSuccessMsg(result.message!)
       }
-    } catch (err) {
+    } catch {
       setError("មិនអាចផ្ញើកូដបានទេ។ សូមព្យាយាមម្ដងទៀត។")
     } finally {
       setIsLoading(false)
@@ -168,6 +167,7 @@ export default function LoginForm() {
         
         {/* Left Side: Logo & Title */}
         <div className="w-full md:w-1/2 flex flex-col items-center justify-center text-center order-1 mt-4 md:mt-0">
+          {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture */}
           <img 
             src="/logo.png" 
             alt="KruSmart Logo" 

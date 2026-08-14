@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Users, Home, CalendarCheck, UserPlus, Printer, Trash2, Save, FolderSearch, AlertCircle, Trash } from 'lucide-react'
+import { UserPlus, Printer, Trash2, Save, FolderSearch, Trash } from 'lucide-react'
 import Link from 'next/link'
 import { deleteStudent, deleteAllStudents, saveStudentsOrder } from './actions'
 import { TopNav } from "@/components/TopNav"
 import Pagination from "@/components/ui/navigation/Pagination"
 import type { Student } from "@/lib/types"
+import { fromKhmerNumber } from '@/lib/utils/khmer-num'
+import { calculateAge } from '@/lib/utils/date'
 
 const getDriveImageUrl = (url: string | null | undefined) => {
     if (!url) return '';
@@ -23,7 +25,7 @@ const getDriveImageUrl = (url: string | null | undefined) => {
                 return `https://lh3.googleusercontent.com/d/${fileId}`;
             }
         }
-    } catch (e) {
+    } catch {
         return url;
     }
     return url;
@@ -41,19 +43,6 @@ export default function StudentTableClient({ initialStudents }: { initialStudent
     const [photoUrl, setPhotoUrl] = useState('')
 
     // Calculations
-    const calculateAge = (dobStr: string) => {
-        if (!dobStr) return '-'
-        const dob = new Date(dobStr)
-        if (isNaN(dob.getTime())) return '-'
-        const today = new Date()
-        let age = today.getFullYear() - dob.getFullYear()
-        const m = today.getMonth() - dob.getMonth()
-        if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
-            age--
-        }
-        return age
-    }
-
     const formatLocation = (v?: string | null, c?: string | null, d?: string | null, p?: string | null) => {
         const parts = []
         if (v) parts.push(v)
@@ -94,16 +83,10 @@ export default function StudentTableClient({ initialStudents }: { initialStudent
             return arr
         }
 
-        const toArabicNumber = (str: string) => {
-            if (!str) return ''
-            const khmerDigits: any = {'០':'0','១':'1','២':'2','៣':'3','៤':'4','៥':'5','៦':'6','៧':'7','៨':'8','៩':'9'}
-            return String(str).replace(/[០-៩]/g, m => khmerDigits[m])
-        }
-
         arr.sort((a, b) => {
             if (sortKey === 'id_asc' || sortKey === 'id_desc') {
-                const idA = toArabicNumber(a.student_id)
-                const idB = toArabicNumber(b.student_id)
+                const idA = fromKhmerNumber(a.student_id)
+                const idB = fromKhmerNumber(b.student_id)
                 const cmp = idA.localeCompare(idB, 'en', { numeric: true })
                 return sortKey === 'id_asc' ? cmp : -cmp
             }
@@ -271,7 +254,8 @@ export default function StudentTableClient({ initialStudents }: { initialStudent
                                                 <td className="p-2 border-r border-gray-200 dark:border-gray-700 font-bold text-[#322a83] dark:text-[#4facfe] sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] bg-inherit">
                                                     <div className="flex items-center gap-2">
                                                         {s.photo_url ? (
-                                                            <img src={getDriveImageUrl(s.photo_url)} referrerPolicy="no-referrer" className="w-6 h-6 rounded-full object-cover cursor-pointer border border-gray-300" onClick={() => { setPhotoUrl(getDriveImageUrl(s.photo_url)); setShowPhotoModal(true); }} />
+                                                            // eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture
+                                                            <img src={getDriveImageUrl(s.photo_url)} alt={s.name_kh || 'រូបថតសិស្ស'} referrerPolicy="no-referrer" className="w-6 h-6 rounded-full object-cover cursor-pointer border border-gray-300" onClick={() => { setPhotoUrl(getDriveImageUrl(s.photo_url)); setShowPhotoModal(true); }} />
                                                         ) : (
                                                             <div className="w-6 h-6 rounded-full bg-gray-200 border border-gray-300"></div>
                                                         )}
@@ -280,7 +264,7 @@ export default function StudentTableClient({ initialStudents }: { initialStudent
                                                 </td>
                                                 <td className="p-2 border-r border-gray-200 dark:border-gray-700">{s.gender}</td>
                                                 <td className="p-2 border-r border-gray-200 dark:border-gray-700">{formatDateDisplay(s.dob)}</td>
-                                                <td className="p-2 border-r border-gray-200 dark:border-gray-700 text-center">{calculateAge(s.dob)}</td>
+                                                <td className="p-2 border-r border-gray-200 dark:border-gray-700 text-center">{calculateAge(s.dob) ?? '-'}</td>
                                                 <td className="p-2 border-r border-gray-200 dark:border-gray-700 whitespace-pre-wrap">{formatLocation(s.birth_village, s.birth_commune, s.birth_district, s.birth_province)}</td>
                                                 <td className="p-2 border-r border-gray-200 dark:border-gray-700">{formatParent(s.father_name, s.father_job)}</td>
                                                 <td className="p-2 border-r border-gray-200 dark:border-gray-700">{formatParent(s.mother_name, s.mother_job)}</td>
@@ -335,6 +319,7 @@ export default function StudentTableClient({ initialStudents }: { initialStudent
             {showPhotoModal && (
                 <div className="fixed inset-0 bg-black/50 z-[100] flex justify-center items-center p-4" onClick={() => setShowPhotoModal(false)}>
                     <div className="bg-white dark:bg-gray-800 p-2 rounded-xl shadow-2xl max-w-sm w-full mx-4" onClick={e => e.stopPropagation()}>
+                        {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture */}
                         <img src={photoUrl} referrerPolicy="no-referrer" className="w-full h-auto rounded-lg" alt="Student Photo" />
                         <button onClick={() => setShowPhotoModal(false)} className="mt-4 w-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-white font-bold py-2 rounded transition-colors">បិទ</button>
                     </div>

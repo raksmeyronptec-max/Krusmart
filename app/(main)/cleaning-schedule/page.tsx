@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Search, Loader2, Save, Printer, Crown, Users, X, Shuffle, CalendarDays, ArrowLeft } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Search, Loader2, Save, Printer, Crown, Users, X, CalendarDays } from "lucide-react";
 import { createClient } from '../../../lib/supabase/client'
-import Link from "next/link";
 import { getErrorMessage } from '@/lib/utils/errors'
 import { logger } from '@/lib/utils/logger'
 import type { CleaningGroups, CleaningLeaders, Student } from '@/lib/types'
@@ -22,7 +21,6 @@ const days = [
 
 export default function CleaningSchedulePage() {
   const [students, setStudents] = useState<Student[]>([]);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [searchKeys, setSearchKeys] = useState<{ [key: string]: string }>({});
   const [leaders, setLeaders] = useState<CleaningLeaders>({ pres: null, vp1: null, vp2: null });
@@ -30,14 +28,11 @@ export default function CleaningSchedulePage() {
     monday: [], tuesday: [], wednesday: [], thursday: [], friday: [], saturday: []
   });
   
-  const supabase = createClient();
+  // Memoised so `fetchData` keeps a stable identity. `createBrowserClient`
+  // happens to cache internally, but the effect must not depend on that.
+  const supabase = useMemo(() => createClient(), []);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = useCallback(async () => {
     try {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData?.user) return;
@@ -65,9 +60,15 @@ export default function CleaningSchedulePage() {
       logger.error(e);
       alert('មានបញ្ហាក្នុងការទាញទិន្នន័យ');
     } finally {
-      setLoading(false);
     }
-  };
+  }, [supabase])
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch: state is set after await, not synchronously during the effect
+    fetchData();
+  }, [fetchData]);
+
+;
 
   const handleSave = async () => {
     setSaving(true);
@@ -152,6 +153,7 @@ export default function CleaningSchedulePage() {
                               <div className="flex items-center justify-between bg-white border border-blue-200 p-2.5 rounded-xl shadow-sm">
                                   <div className="flex items-center gap-2">
                                       {leaders[role].image ? (
+                                        // eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture
                                         <img src={leaders[role].image} className="w-8 h-8 rounded-full object-cover border border-slate-200" alt="img" />
                                       ) : (
                                         <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold">{leaders[role].name.charAt(0)}</div>
@@ -211,6 +213,7 @@ export default function CleaningSchedulePage() {
                                 <div key={member.id} className="bg-white/80 backdrop-blur-sm border border-white p-2 rounded-xl flex items-center justify-between shadow-sm">
                                     <div className="flex items-center gap-2">
                                         {member.image ? (
+                                          // eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture
                                           <img src={member.image} className="w-6 h-6 rounded-full object-cover" alt="img" />
                                         ) : (
                                           <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600">{member.name.charAt(0)}</div>

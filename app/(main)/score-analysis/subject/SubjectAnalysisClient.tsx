@@ -1,21 +1,22 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { ArrowLeft, PieChart, BarChart2, CalendarDays, Printer } from 'lucide-react'
+import { useState, useCallback, useEffect } from 'react'
+import { ArrowLeft, PieChart, BarChart2 } from 'lucide-react'
 import Link from 'next/link'
 import { getAllScoresByPeriod } from '../../score/total/actions'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, PieChart as RePieChart, Pie, Cell } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts'
 import Select from '@/components/ui/forms/Select'
-import type { Settings, Student } from '@/lib/types'
+import { MONTHS_BY_CALENDAR } from '@/lib/constants/months'
 
-const allMonthsMap = [
-    { id: 'jan', label: 'មករា' }, { id: 'feb', label: 'កុម្ភៈ' }, { id: 'mar', label: 'មីនា' },
-    { id: 'apr', label: 'មេសា' }, { id: 'may', label: 'ឧសភា' }, { id: 'jun', label: 'មិថុនា' },
-    { id: 'jul', label: 'កក្កដា' }, { id: 'aug', label: 'សីហា' }, { id: 'sep', label: 'កញ្ញា' },
-    { id: 'oct', label: 'តុលា' }, { id: 'nov', label: 'វិច្ឆិកា' }, { id: 'dec', label: 'ធ្នូ' }
-]
-
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#ff7300'];
+/** Pass/fail tally for one subject, as charted on this page. */
+interface SubjectStat {
+    subject: string
+    passed: number
+    failed: number
+    passedPct: string
+    failedPct: string
+    total: number
+}
 
 const config = {
     monthly: {
@@ -36,18 +37,20 @@ const config = {
     }
 }
 
-export default function SubjectAnalysisClient({ initialStudents, settings, userId }: { initialStudents: Student[], settings: Settings | null, userId: string }) {
+export default function SubjectAnalysisClient() {
     const [academicYear, setAcademicYear] = useState('2025-2026')
     const [currentPeriod, setCurrentPeriod] = useState('jan')
     const [loading, setLoading] = useState(false)
-    const [stats, setStats] = useState<any[]>([])
+    const [stats, setStats] = useState<SubjectStat[]>([])
 
-    const loadData = async () => {
+
+
+    const loadData = useCallback(async () => {
         setLoading(true)
         const fetchPeriod = `${currentPeriod}-${academicYear}`
         const records = await getAllScoresByPeriod('monthly', fetchPeriod)
 
-        let processedStats: any[] = []
+        const processedStats: SubjectStat[] = []
         
         config.monthly.columns.forEach(col => {
             let passed = 0
@@ -77,11 +80,12 @@ export default function SubjectAnalysisClient({ initialStudents, settings, userI
         
         setStats(processedStats)
         setLoading(false)
-    }
+    }, [academicYear, currentPeriod])
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch: state is set after await, not synchronously during the effect
         loadData()
-    }, [academicYear, currentPeriod])
+    }, [academicYear, currentPeriod, loadData])
 
     return (
         <div className="min-h-screen bg-slate-50 font-battambang print:bg-white pb-10">
@@ -111,7 +115,7 @@ export default function SubjectAnalysisClient({ initialStudents, settings, userI
                             ariaLabel="ខែ"
                             value={currentPeriod}
                             onChange={setCurrentPeriod}
-                            options={allMonthsMap.map(m => ({ value: m.id, label: m.label }))}
+                            options={MONTHS_BY_CALENDAR.map(m => ({ value: m.id, label: m.label }))}
                         />
                     </div>
                 </div>

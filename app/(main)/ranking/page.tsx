@@ -12,14 +12,14 @@ export default async function RankingPage() {
   }
 
   // Fetch settings for school info
-  let { data: settings } = await supabase
+  const { data: settings } = await supabase
     .from('settings')
     .select('*')
     .eq('teacher_id', user.id)
     .single()
 
   // Fetch students
-  let { data: students, error } = await supabase
+  const { data, error } = await supabase
     .from('students')
     .select('*')
     .eq('teacher_id', user.id)
@@ -28,10 +28,11 @@ export default async function RankingPage() {
 
   if (error) {
     logger.error(error)
-    students = []
   }
 
+  const students = data ?? []
+
   return (
-    <RankingClient initialStudents={students || []} settings={settings || {}} userId={user.id} />
+    <RankingClient initialStudents={students || []} settings={settings || {}} />
   )
 }

@@ -1,7 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import SubjectAnalysisClient from './SubjectAnalysisClient'
-import { logger } from '@/lib/utils/logger'
 
 export default async function SubjectAnalysisPage() {
   const supabase = await createClient()
@@ -11,27 +10,7 @@ export default async function SubjectAnalysisPage() {
     redirect('/login')
   }
 
-  // Fetch settings for school info
-  let { data: settings } = await supabase
-    .from('settings')
-    .select('*')
-    .eq('teacher_id', user.id)
-    .single()
-
-  // Fetch students
-  let { data: students, error } = await supabase
-    .from('students')
-    .select('*')
-    .eq('teacher_id', user.id)
-    .order('order_index', { ascending: true, nullsFirst: false })
-    .order('created_at', { ascending: true })
-
-  if (error) {
-    logger.error(error)
-    students = []
-  }
-
-  return (
-    <SubjectAnalysisClient initialStudents={students || []} settings={settings || {}} userId={user.id} />
-  )
+  // No props: the client pulls everything it renders through the
+  // `getAllScoresByPeriod` server action, which re-checks the session itself.
+  return <SubjectAnalysisClient />
 }

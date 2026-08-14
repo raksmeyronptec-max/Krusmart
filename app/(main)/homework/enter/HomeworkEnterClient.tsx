@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { 
-    ArrowLeft, BookMarked, Calendar, Clock, CalendarDays, Printer, Save, Info,
+    ArrowLeft, BookMarked, Calendar, Clock, CalendarDays, Save, Info,
     CalendarCheck, TableProperties, Loader2, Users, Check, Zap
 } from 'lucide-react'
 import { getScores, saveScores } from '../../score/enter/actions'
@@ -11,21 +11,7 @@ import { TopNav } from "@/components/TopNav"
 import Select from '@/components/ui/forms/Select'
 import type { ScoreInput, Student } from '@/lib/types'
 import { logger } from '@/lib/utils/logger'
-
-const allMonthsMap = [
-    { id: 'nov', label: 'វិច្ឆិកា', isNextYear: false },
-    { id: 'dec', label: 'ធ្នូ', isNextYear: false },
-    { id: 'jan', label: 'មករា', isNextYear: true },
-    { id: 'feb', label: 'កុម្ភៈ', isNextYear: true },
-    { id: 'mar', label: 'មីនា', isNextYear: true },
-    { id: 'apr', label: 'មេសា', isNextYear: true },
-    { id: 'may', label: 'ឧសភា', isNextYear: true },
-    { id: 'jun', label: 'មិថុនា', isNextYear: true },
-    { id: 'jul', label: 'កក្កដា', isNextYear: true },
-    { id: 'aug', label: 'សីហា', isNextYear: true },
-    { id: 'sep', label: 'កញ្ញា', isNextYear: true },
-    { id: 'oct', label: 'តុលា', isNextYear: true }
-]
+import { MONTHS_BY_ACADEMIC_YEAR } from '@/lib/constants/months'
 
 const monthIndexMapping: Record<string, number> = {
     'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'may': 4, 'jun': 5,
@@ -35,7 +21,7 @@ const monthIndexMapping: Record<string, number> = {
 /** The grid only needs the id, the Khmer name and the gender. */
 type StudentRow = Pick<Student, 'id' | 'name_kh' | 'gender'>
 
-export default function HomeworkEnterClient({ initialStudents, userId }: { initialStudents: StudentRow[], userId: string }) {
+export default function HomeworkEnterClient({ initialStudents}: { initialStudents: StudentRow[] }) {
     const [students] = useState<StudentRow[]>(initialStudents)
     const [currentTab, setCurrentTab] = useState<'daily' | 'monthly'>('daily')
     const [isLoading, setIsLoading] = useState(true)
@@ -73,6 +59,7 @@ export default function HomeworkEnterClient({ initialStudents, userId }: { initi
         const monthIds = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
         const targetMonthId = monthIds[dMonth]
 
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- default derives from the current date, which is impure and cannot run during render
         setYearSelect(academicYearStr)
         setMonthSelect(targetMonthId)
         setDaySelect(dDay)
@@ -394,7 +381,7 @@ export default function HomeworkEnterClient({ initialStudents, userId }: { initi
                                 ariaLabel="ខែ"
                                 value={monthSelect}
                                 onChange={setMonthSelect}
-                                options={allMonthsMap.map(m => ({
+                                options={MONTHS_BY_ACADEMIC_YEAR.map(m => ({
                                     value: m.id,
                                     label: `ខែ${m.label} ឆ្នាំ ${m.isNextYear ? yearSelect.split('-')[1] : yearSelect.split('-')[0]}`,
                                 }))}

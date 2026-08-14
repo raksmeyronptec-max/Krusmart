@@ -8,12 +8,14 @@ export async function getStudentDataForYear(academicYear: string) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { scores: [], attendance: [] }
 
-    // Fetch scores where period ends with academicYear (e.g. nov-2025-2026, dec-2025-2026)
+    // Fetch scores where the period ends with academicYear (e.g. nov-2025-2026, dec-2025-2026).
+    // The column is `score_period`; filtering on `period` matched nothing and made
+    // the whole report come back empty.
     const { data: scores, error: scoreErr } = await supabase
         .from('scores')
         .select('*')
         .eq('teacher_id', user.id)
-        .like('period', `%-${academicYear}`)
+        .like('score_period', `%-${academicYear}`)
         .eq('score_type', 'monthly')
         
     if (scoreErr) logger.error("Error fetching scores:", scoreErr)

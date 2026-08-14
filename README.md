@@ -105,14 +105,17 @@ Every table is keyed on `teacher_id → auth.users(id)` with four RLS policies o
 
 ## Data model
 
-Tables in `supabase/`: `students`, `attendance`, `scores`, `settings`, `notifications`, `cleaning_schedules`, `seating_layout`, `homework_assignments`, `homework_scores`.
+Tables: `students`, `attendance`, `scores`, `settings`, `notifications`, `cleaning_schedules`, `seating_layout`, `homework_assignments`, `homework_scores`.
+
+[lib/types.ts](lib/types.ts) carries a row type for each one, and follows the **live** schema rather than the SQL.
 
 ### ⚠️ The SQL in `supabase/` is a stale snapshot, not the source of truth
 
-`master_schema.sql` and `migrations/00001_init.sql` are identical; the numbered and `batch*` files are earlier fragments of the same tables. The live database has drifted:
+[supabase/migrations/00001_init.sql](supabase/migrations/00001_init.sql) is the canonical baseline; earlier partial snapshots sit in `supabase/legacy/` for reference and must not be applied. The live database has drifted from both — see [supabase/README.md](supabase/README.md) for the full list, including:
 
 - **`scores`** — code writes `score_period` and `score_value`; the SQL declares `month` and `score`. Upserts use `onConflict: 'student_id, subject, score_type, score_period'`.
-- **`settings`** — code reads `photo_url`, absent from the SQL.
+- **`attendance`** — live table has a `reason` column the SQL omits.
+- **`settings`** — code reads `photo_url`, `school_logo`, `director_name` and more, none of them in the SQL.
 - **`profiles`, `schools`, `teacher_attendance`** — used by [TopNav](components/TopNav.tsx) GPS check-in and `app/admin/teacher-attendance`, but have **no SQL file at all**.
 - **`homework_scores`** is defined in SQL but unused by the app.
 
@@ -138,6 +141,31 @@ Discriminated by `score_type` + `score_period`, all through the shared actions i
 Changing a subject list or seating layout means touching localStorage keys, not the database.
 
 ---
+
+## Shared constants and utilities
+
+`lib/` holds everything that more than one feature needs. These modules exist because the same code used to be copy-pasted across a dozen clients — **import them, don't redeclare them.**
+
+```
+lib/
+├── constants/
+│   ├── months.ts      Khmer month names, calendar + academic-year orderings, Select options
+│   ├── academic.ts    getCurrentAcademicYear(), resolveCalendarYear(), FALLBACK_ACADEMIC_YEAR
+│   └── storage.ts     STORAGE_KEYS — every localStorage key the app uses
+├── storage/
+│   └── custom-subjects.ts   typed reader/writer for the `custom_subjects` store
+├── utils/
+│   ├── khmer-num.ts   toKhmerNumber() / fromKhmerNumber()
+│   ├── date.ts        calculateAge(), formatKhmerDate()
+│   ├── distance.ts    haversine distance for GPS check-in
+│   ├── logger.ts      dev-only console wrapper
+│   └── errors.ts      getErrorMessage() for `unknown` catch bindings
+├── supabase/          the three client factories
+├── data/              decoration catalog
+└── types.ts           row types for every table
+```
+
+The Cambodian school year runs **November → October**, so month pickers use `MONTHS_BY_ACADEMIC_YEAR` while anything keyed on a real date uses `MONTHS_BY_CALENDAR`. Each `KhmerMonth` carries `id`, `label`, `num`, `index` and `isNextYear`.
 
 ## Shared UI components
 
@@ -182,5 +210,5 @@ The only surviving native `<select>`s are the score-grid cells in `score/enter` 
 
 - The parent portal is a stub with a hardcoded dashboard — no real parent auth.
 - Several admin nav targets are unimplemented (`/admin/users` and three `#` links).
-- The root-level `check_table.js`, `extract.js`, `fix_escapes.js`, `fix_queries.js`, `test_cal.js` are one-off scripts with hardcoded Windows paths from an earlier migration. **Dead weight — don't run them.**
-- `next.config.ts` sets `turbopack.root: '..'`, pointing the Turbopack root at the parent directory.
+- `app/(main)/attendance/layout/actions.ts` queries and upserts `attendance` **without** a `teacher_id` filter, on the basis of a code comment claiming the live table lacks that column. That contradicts the RLS policy and the convention everywhere else — worth verifying against the live database.
+- `npm run lint` and `tsc --noEmit` are both clean, and there is no `any` left in the codebase. Roughly 50 lines carry a targeted `eslint-disable-next-line` with a written reason — almost all of them `@next/next/no-img-element` (remote/user-uploaded images on print and PDF surfaces, where `next/image` breaks capture) and `react-hooks/set-state-in-effect` (async fetch-on-change, and reads of `localStorage` / the clock that cannot run during SSR). Moving those to server-side data loading is the real fix and is still open.

@@ -9,10 +9,10 @@ import {
 } from 'lucide-react'
 import { TopNav } from "@/components/TopNav"
 import { getAssignments, addAssignment, deleteAssignment } from './actions'
-import Image from 'next/image'
 import SearchableSelect from '@/components/ui/forms/SearchableSelect'
 import { getErrorMessageOr } from '@/lib/utils/errors'
 import { logger } from '@/lib/utils/logger'
+import type { HomeworkAssignment } from '@/lib/types'
 
 const standardSubjects = [
     { group: 'ភាសាខ្មែរ', items: ['ភាសាខ្មែរ (គ្រប់បំណិន)', 'សមត្ថភាពស្តាប់', 'សមត្ថភាពសរសេរ', 'សមត្ថភាពអាន', 'សមត្ថភាពនិយាយ', 'អក្សរផ្ចង់', 'មេសូត្រ', 'តែងសេចក្តី'] },
@@ -24,7 +24,7 @@ const standardSubjects = [
 ]
 
 export default function HomeworkSendClient({ userId }: { userId: string }) {
-    const [assignments, setAssignments] = useState<any[]>([])
+    const [assignments, setAssignments] = useState<HomeworkAssignment[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [toast, setToast] = useState<{message: string, type: 'success'|'error'} | null>(null)
@@ -35,7 +35,9 @@ export default function HomeworkSendClient({ userId }: { userId: string }) {
     const [desc, setDesc] = useState('')
     const [dueDate, setDueDate] = useState('')
     const [imageBase64, setImageBase64] = useState<string | null>(null)
-    const [fileInputKey, setFileInputKey] = useState(Date.now()) // to force reset file input
+    // Bumping this remounts the file input, which is the only way to clear it.
+    // A counter keeps render pure; `Date.now()` did not.
+    const [fileInputKey, setFileInputKey] = useState(0)
 
     // Modal state
     const [photoModalSrc, setPhotoModalSrc] = useState<string | null>(null)
@@ -45,12 +47,13 @@ export default function HomeworkSendClient({ userId }: { userId: string }) {
     useEffect(() => {
         const tomorrow = new Date()
         tomorrow.setDate(tomorrow.getDate() + 1)
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- default derives from the current date, which is impure and cannot run during render
         setDueDate(tomorrow.toISOString().split('T')[0])
         
         loadData()
     }, [])
 
-    const loadData = async () => {
+    async function loadData() {
         setIsLoading(true)
         const data = await getAssignments()
         setAssignments(data)
@@ -67,7 +70,7 @@ export default function HomeworkSendClient({ userId }: { userId: string }) {
         if (file) {
              if (file.size > 10 * 1024 * 1024) {
                 alert('សូមអភ័យទោស ទំហំរូបថតធំពេក (លើសពី 10MB)។ សូមជ្រើសរើសរូបថតដែលមានទំហំតូចជាងនេះ។')
-                setFileInputKey(Date.now())
+                setFileInputKey(k => k + 1)
                 return
             }
             const reader = new FileReader()
@@ -80,7 +83,7 @@ export default function HomeworkSendClient({ userId }: { userId: string }) {
 
     const clearImage = () => {
         setImageBase64(null)
-        setFileInputKey(Date.now())
+        setFileInputKey(k => k + 1)
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -189,6 +192,7 @@ export default function HomeworkSendClient({ userId }: { userId: string }) {
             {photoModalSrc && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[1000] flex items-center justify-center p-4" onClick={() => setPhotoModalSrc(null)}>
                     <div className="bg-white p-2 rounded-2xl shadow-2xl max-w-2xl w-full" onClick={e => e.stopPropagation()}>
+                        {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture */}
                         <img src={photoModalSrc} className="w-full h-auto rounded-xl max-h-[80vh] object-contain bg-gray-50" alt="Homework Photo" />
                         <button onClick={() => setPhotoModalSrc(null)} className="mt-4 w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-3 rounded-xl transition-colors">បិទរូបភាព</button>
                     </div>
@@ -269,6 +273,7 @@ export default function HomeworkSendClient({ userId }: { userId: string }) {
                                 
                                 {imageBase64 && (
                                     <div className="relative mt-3 inline-block">
+                                        {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture */}
                                         <img src={imageBase64} className="max-h-[200px] object-contain rounded-lg border border-gray-200 bg-gray-50" alt="Preview" />
                                         <button type="button" onClick={clearImage} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-md hover:scale-110 transition">
                                             <X className="w-4 h-4" />
@@ -336,6 +341,7 @@ export default function HomeworkSendClient({ userId }: { userId: string }) {
                                                     
                                                     {a.image_url && (
                                                         <div className="mt-3 relative inline-block group/img cursor-pointer" onClick={() => setPhotoModalSrc(a.image_url)}>
+                                                            {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture */}
                                                             <img src={a.image_url} className="h-20 w-auto rounded-lg border border-gray-200 object-cover shadow-sm group-hover/img:opacity-90 transition" alt="Homework" />
                                                             <div className="absolute inset-0 bg-black/30 rounded-lg flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition">
                                                                 <ZoomIn className="text-white w-6 h-6" />

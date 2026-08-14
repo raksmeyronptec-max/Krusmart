@@ -1,11 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { ArrowLeft, Printer, Award, CalendarDays, Calendar, Bookmark } from 'lucide-react'
+import { useState } from 'react'
+import { ArrowLeft, Printer, Award, Calendar, Bookmark } from 'lucide-react'
 import Link from 'next/link'
 import { getAllScoresByPeriod } from '../score/total/actions'
 import Select from '@/components/ui/forms/Select'
-import type { Score, Settings, Student } from '@/lib/types'
+import type { Settings, Student } from '@/lib/types'
+import { MONTHS_BY_CALENDAR } from '@/lib/constants/months'
+import { toKhmerNumber } from '@/lib/utils/khmer-num'
 
 /** A student decorated with the per-period scores and the derived ranking fields. */
 type RankedStudent = Student & {
@@ -16,29 +18,13 @@ type RankedStudent = Student & {
     rank: number
 }
 
-const allMonthsMap = [
-    { id: 'jan', label: 'មករា' }, { id: 'feb', label: 'កុម្ភៈ' }, { id: 'mar', label: 'មីនា' },
-    { id: 'apr', label: 'មេសា' }, { id: 'may', label: 'ឧសភា' }, { id: 'jun', label: 'មិថុនា' },
-    { id: 'jul', label: 'កក្កដា' }, { id: 'aug', label: 'សីហា' }, { id: 'sep', label: 'កញ្ញា' },
-    { id: 'oct', label: 'តុលា' }, { id: 'nov', label: 'វិច្ឆិកា' }, { id: 'dec', label: 'ធ្នូ' }
-]
-
-const khNumbers = ['០','១','២','៣','៤','៥','៦','៧','៨','៩']
-function toKhmerNum(str: string | number | null | undefined): string {
-    if (str === null || str === undefined) return ''
-    return str.toString().split('').map(char => {
-        if (char >= '0' && char <= '9') return khNumbers[parseInt(char)]
-        return char
-    }).join('')
-}
-
-export default function HonorRollClient({ initialStudents, settings, userId }: { initialStudents: Student[], settings: any, userId: string }) {
+export default function HonorRollClient({ initialStudents, settings}: { initialStudents: Student[], settings: Settings | null }) {
     const [academicYear, setAcademicYear] = useState('2025-2026')
     const [currentMode, setCurrentMode] = useState<'monthly'|'semester'|'yearly'>('monthly')
     const [currentPeriod, setCurrentPeriod] = useState('jan')
     const [loading, setLoading] = useState(false)
     const [showPreview, setShowPreview] = useState(false)
-    const [topStudents, setTopStudents] = useState<any[]>([])
+    const [topStudents, setTopStudents] = useState<RankedStudent[]>([])
 
     const config = {
         monthly: {
@@ -65,7 +51,7 @@ export default function HonorRollClient({ initialStudents, settings, userId }: {
         setCurrentMode(mode)
         setCurrentPeriod(period)
 
-        let scoreMode = mode === 'yearly' ? 'annual' : mode
+        const scoreMode = mode === 'yearly' ? 'annual' : mode
         let fetchPeriod = ''
         if (mode === 'monthly') fetchPeriod = `${period}-${academicYear}`
         else if (mode === 'semester') fetchPeriod = `${period}-${academicYear}`
@@ -101,7 +87,7 @@ export default function HonorRollClient({ initialStudents, settings, userId }: {
             } else if (mode === 'yearly') {
                 const s1 = parseFloat(String(stu.scores['sem1_avg'] ?? '0'))
                 const s2 = parseFloat(String(stu.scores['sem2_avg'] ?? '0'))
-                let div = (s1 > 0 ? 1 : 0) + (s2 > 0 ? 1 : 0)
+                const div = (s1 > 0 ? 1 : 0) + (s2 > 0 ? 1 : 0)
                 stu.total = s1 + s2
                 stu.average = div > 0 ? (stu.total / div).toFixed(2) : "0.00"
                 stu.finalAverageForRank = parseFloat(stu.average)
@@ -304,7 +290,7 @@ export default function HonorRollClient({ initialStudents, settings, userId }: {
                                             value={currentPeriod}
                                             onChange={setCurrentPeriod}
                                             options={currentMode === 'monthly'
-                                                ? allMonthsMap.map(m => ({ value: m.id, label: m.label }))
+                                                ? MONTHS_BY_CALENDAR.map(m => ({ value: m.id, label: m.label }))
                                                 : [
                                                     { value: 'sem1', label: 'ឆមាសទី១' },
                                                     { value: 'sem2', label: 'ឆមាសទី២' },
@@ -373,7 +359,7 @@ export default function HonorRollClient({ initialStudents, settings, userId }: {
                                     <div className="text-center w-full mt-0 mb-1 z-10">
                                         <h2 className="font-moul text-[15pt] mb-1 text-[#bf953f] tracking-wide" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.1)' }}>តារាងកិត្តិយស</h2>
                                         <h3 className="font-moul text-[10pt] text-[#0a2351]">
-                                            {currentMode === 'monthly' ? `ប្រចាំខែ ${allMonthsMap.find(m => m.id === currentPeriod)?.label}` : currentMode === 'semester' ? `ប្រចាំឆមាសទី${currentPeriod === 'sem1' ? '១' : '២'}` : 'ប្រចាំឆ្នាំ'}
+                                            {currentMode === 'monthly' ? `ប្រចាំខែ ${MONTHS_BY_CALENDAR.find(m => m.id === currentPeriod)?.label}` : currentMode === 'semester' ? `ប្រចាំឆមាសទី${currentPeriod === 'sem1' ? '១' : '២'}` : 'ប្រចាំឆ្នាំ'}
                                         </h3>
                                     </div>
 
@@ -389,7 +375,7 @@ export default function HonorRollClient({ initialStudents, settings, userId }: {
                                                         <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
                                                     </div>
                                                     <h4 className="student-name">{stu.name_kh || stu.full_name}</h4>
-                                                    <div className="text-[10px] text-slate-500 mb-2">អត្តលេខ៖ {toKhmerNum(stu.id)}</div>
+                                                    <div className="text-[10px] text-slate-500 mb-2">អត្តលេខ៖ {toKhmerNumber(stu.id)}</div>
                                                     <div className="flex items-center gap-4 border-t border-slate-100 pt-2 w-full justify-center">
                                                         <div className="flex flex-col items-center">
                                                             <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">និទ្ទេស</span>
@@ -397,7 +383,7 @@ export default function HonorRollClient({ initialStudents, settings, userId }: {
                                                         </div>
                                                         <div className="flex flex-col items-center">
                                                             <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">មធ្យមភាគ</span>
-                                                            <span className="font-bold text-[14px] text-slate-700">{toKhmerNum(stu.average)}</span>
+                                                            <span className="font-bold text-[14px] text-slate-700">{toKhmerNumber(stu.average)}</span>
                                                         </div>
                                                     </div>
                                                 </div>

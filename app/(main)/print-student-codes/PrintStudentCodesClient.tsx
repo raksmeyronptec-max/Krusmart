@@ -79,7 +79,7 @@ export default function PrintStudentCodesClient({ initialStudents, teacherUid }:
             <div className="no-print max-w-5xl mx-auto w-full p-4 sm:p-6 flex-1 flex flex-col">
                 <div className="p-4 bg-yellow-50 text-sm text-yellow-800 border border-yellow-200 rounded-xl mb-6 flex gap-3 items-start shadow-sm">
                     <Info className="w-5 h-5 flex-shrink-0 mt-0.5 text-yellow-600" />
-                    <p>សូមចែករំលែក <b>"លេខកូដថ្នាក់"</b> និង <b>"អត្តលេខសិស្ស"</b> ឫឱ្យមាតាបិតាស្កេន <b>"QR Code"</b> ដើម្បីឱ្យពួកគាត់អាចចូលប្រើប្រាស់ Parent Portal បាន។ អ្នកអាចចុចបោះពុម្ពខាងលើ ដើម្បីកាត់កាតចែកសិស្សយកទៅជូនឪពុកម្តាយ។</p>
+                    <p>សូមចែករំលែក <b>&quot;លេខកូដថ្នាក់&quot;</b> និង <b>&quot;អត្តលេខសិស្ស&quot;</b> ឫឱ្យមាតាបិតាស្កេន <b>&quot;QR Code&quot;</b> ដើម្បីឱ្យពួកគាត់អាចចូលប្រើប្រាស់ Parent Portal បាន។ អ្នកអាចចុចបោះពុម្ពខាងលើ ដើម្បីកាត់កាតចែកសិស្សយកទៅជូនឪពុកម្តាយ។</p>
                 </div>
 
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 flex-1 p-4 sm:p-6">
@@ -105,6 +105,7 @@ export default function PrintStudentCodesClient({ initialStudents, teacherUid }:
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-3">
+                                            {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture */}
                                             <img src={qrCodeUrl} alt="QR" className="w-12 h-12 border border-gray-200 rounded-lg shadow-sm" title="QR Code សម្រាប់ស្កេនចូល" />
                                             <button onClick={() => copyToClipboard(s.id)} className="text-blue-600 bg-white hover:bg-blue-100 p-2.5 rounded-xl transition border border-gray-200 shadow-sm shrink-0" title="ចម្លងអត្តលេខសិស្ស">
                                                 <Copy className="w-5 h-5" />
@@ -142,6 +143,7 @@ export default function PrintStudentCodesClient({ initialStudents, teacherUid }:
                                             </p>
                                         </td>
                                         <td style={{ width: '80px', textAlign: 'center', verticalAlign: 'middle', borderLeft: '1px dashed #cbd5e1', paddingLeft: '10px', paddingTop: '8px', paddingBottom: '8px' }}>
+                                            {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture */}
                                             <img src={qrCodeUrl} alt="QR Code" style={{ width: '65px', height: '65px', borderRadius: '4px', border: '1px solid #e2e8f0', display: 'inline-block' }} />
                                             <p style={{ fontSize: '9px', color: '#64748b', marginTop: '4px', fontWeight: 'bold', marginBottom: 0 }}>ស្កេនដើម្បីចូល</p>
                                         </td>

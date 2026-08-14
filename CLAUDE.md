@@ -21,7 +21,7 @@ Requires `.env.local` with `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_
 
 KruSmart — a Khmer-language classroom management app for Cambodian primary/secondary teachers (student roster, attendance, scores, homework, printable reports and certificates). UI text is Khmer; keep new user-facing strings in Khmer.
 
-Next.js 16 App Router + React 19, Tailwind v4, Supabase (auth + Postgres). Not a git repository.
+Next.js 16 App Router + React 19, Tailwind v4, Supabase (auth + Postgres).
 
 ## Architecture
 
@@ -37,9 +37,9 @@ Next.js 16 App Router + React 19, Tailwind v4, Supabase (auth + Postgres). Not a
 
 ### Auth and session
 
-- [middleware.ts](middleware.ts) delegates to [lib/supabase/middleware.ts](lib/supabase/middleware.ts). It intentionally calls `getSession()` rather than `getUser()` — the comment explains this avoids Supabase free-tier rate limiting and random logouts on every route change. Don't "fix" this to `getUser()` without understanding that tradeoff.
+- [proxy.ts](proxy.ts) — Next.js 16 renamed `middleware.ts` to `proxy.ts`, and the exported function is `proxy()`. It delegates to [lib/supabase/middleware.ts](lib/supabase/middleware.ts), which intentionally calls `getSession()` rather than `getUser()` — the comment explains this avoids Supabase free-tier rate limiting and random logouts on every route change. Don't "fix" this to `getUser()` without understanding that tradeoff.
 - Public routes are exactly `/` and `/login`; everything else redirects to `/login`.
-- Three Supabase client factories, all named `createClient` — pick by context: [lib/supabase/client.ts](lib/supabase/client.ts) (browser), [lib/supabase/server.ts](lib/supabase/server.ts) (server components / actions, `await cookies()`), [lib/supabase/middleware.ts](lib/supabase/middleware.ts) (middleware only).
+- Three Supabase client factories, all named `createClient` — pick by context: [lib/supabase/client.ts](lib/supabase/client.ts) (browser), [lib/supabase/server.ts](lib/supabase/server.ts) (server components / actions, `await cookies()`), [lib/supabase/middleware.ts](lib/supabase/middleware.ts) (proxy only).
 - `app/login/actions.ts` covers password login, signup, and email-OTP verification; `app/auth/callback/route.ts` handles the PKCE code exchange.
 
 ### Page pattern
@@ -62,7 +62,7 @@ Every table is keyed on `teacher_id → auth.users(id)` with four RLS policies o
 
 ## Data model caveats
 
-The SQL in `supabase/` is a **stale snapshot, not the source of truth.** `master_schema.sql` and `migrations/00001_init.sql` are identical; the numbered and `batch*` files are earlier fragments of the same tables. The live database has drifted:
+The SQL in `supabase/` is a **stale snapshot, not the source of truth.** [migrations/00001_init.sql](supabase/migrations/00001_init.sql) is the canonical baseline; the earlier partial snapshots live in `supabase/legacy/` and must not be applied. See [supabase/README.md](supabase/README.md). The live database has drifted:
 
 - `scores` — code writes `score_period` and `score_value`; the SQL declares `month` and `score`. Upserts use `onConflict: 'student_id, subject, score_type, score_period'`.
 - `settings` — code reads `photo_url`, which is absent from the SQL.
@@ -83,7 +83,25 @@ The `homework_scores` table defined in SQL is unused by the app.
 
 ### Client-side state that never reaches Supabase
 
-`localStorage` is the real store for several features: `inventoryItems`, `custom_subjects` (user-defined subjects shared by score entry and totals), `seatingConfig` / `seatingLayout`, `ptec_last_tutorial_page`, `krusmart_students_cache`. Changing a subject list or seating layout means touching localStorage keys, not the database.
+`localStorage` is the real store for several features. **Never type the key as a literal** — every one is in [lib/constants/storage.ts](lib/constants/storage.ts) as `STORAGE_KEYS`: `inventoryItems`, `customSubjects` (user-defined subjects shared by score entry and totals), `seatingConfig` / `seatingLayout`, `lastTutorialPage`, `studentsCache`. Changing a subject list or seating layout means touching localStorage, not the database.
+
+`custom_subjects` additionally has a typed reader/writer in [lib/storage/custom-subjects.ts](lib/storage/custom-subjects.ts) — use `readCustomSubjects()` / `writeCustomSubjects()` / `appliesTo()` rather than parsing the JSON again.
+
+## Shared constants and utilities
+
+These exist because the same code was previously copy-pasted across a dozen clients. **Import them; do not redeclare.**
+
+| Module | Provides |
+| --- | --- |
+| [lib/constants/months.ts](lib/constants/months.ts) | Khmer month names in both orderings. `MONTHS_BY_CALENDAR` (Jan → Dec) and `MONTHS_BY_ACADEMIC_YEAR` (Nov → Oct, the Cambodian school year), plus `KHMER_MONTH_LABELS`, the `MONTH_*_BY_*` lookup maps, ready-made `*_OPTIONS_*` arrays for `Select`, and the `isMonthId` guard. Each `KhmerMonth` carries `id` / `label` / `num` / `index` / `isNextYear`. |
+| [lib/constants/academic.ts](lib/constants/academic.ts) | `getCurrentAcademicYear()`, `resolveCalendarYear()`, and `FALLBACK_ACADEMIC_YEAR` (a stale `'2023-2024'` kept for behaviour parity — prefer `getCurrentAcademicYear()` in new code). |
+| [lib/constants/storage.ts](lib/constants/storage.ts) | `STORAGE_KEYS`, above. |
+| [lib/utils/khmer-num.ts](lib/utils/khmer-num.ts) | `toKhmerNumber()` / `fromKhmerNumber()` and `KHMER_DIGITS`. |
+| [lib/utils/date.ts](lib/utils/date.ts) | `calculateAge()` (returns `number \| null`) and `formatKhmerDate()`. |
+| [lib/utils/logger.ts](lib/utils/logger.ts) | Dev-only console wrapper — diagnostics go here, user-facing failures go to `react-hot-toast`. |
+| [lib/utils/errors.ts](lib/utils/errors.ts) | `getErrorMessage()` / `getErrorMessageOr()` so `catch` blocks can take `unknown`. |
+| [lib/utils/distance.ts](lib/utils/distance.ts) | Haversine distance for the GPS check-in. |
+| [lib/types.ts](lib/types.ts) | Row types for every table. Follows the **live** schema, not the SQL snapshot. |
 
 ## Shared UI components
 
@@ -110,4 +128,3 @@ The only surviving native `<select>`s are the score-grid cells in `score/enter` 
 - **Printing is a first-class feature.** ~12 clients call `window.print()` with an inline `<style jsx>`-style `@media print` block (`@page { size: A4 ... }`, `.no-print`, `.print-container`). Follow the existing block when adding a printable view. Excel export uses `xlsx-js-style`, PDF uses `html2pdf.js`.
 - **Notable dependencies:** `khmer-chhankitek-calendar` (Khmer lunar dates on the monthly attendance sheet), `three` (3D classroom seating view in `attendance/layout/ThreeClassroom.tsx`), `recharts` (score analysis), `react-hot-toast` (all user feedback — `Toaster` mounted in the root layout).
 - **`public/introduction/`** holds standalone HTML tutorial pages loaded into the `/tutorial` page; **`public/previews/`** and [lib/data/decorations.ts](lib/data/decorations.ts) back the classroom-decoration catalog (Google Drive links, no DB).
-- The root-level `check_table.js`, `extract.js`, `fix_escapes.js`, `fix_queries.js`, `test_cal.js` are one-off scripts with hardcoded Windows paths from an earlier migration — dead weight, don't run them.

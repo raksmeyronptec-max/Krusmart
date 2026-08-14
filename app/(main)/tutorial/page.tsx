@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { 
     ArrowLeft, Menu, X, Search, 
@@ -11,6 +10,7 @@ import {
     Sparkles, Package, Contact2, Bell, UserCog, Key, BookOpenCheck
 } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { STORAGE_KEYS } from '@/lib/constants/storage'
 
 const menuItems = [
     { id: 'enrollment', name: 'បញ្ចូលព័ត៌មានសិស្ស', icon: UserPlus, url: 'enrollment/Intro_enrollment.html', color: 'from-blue-500 to-blue-600' },
@@ -41,7 +41,6 @@ const menuItems = [
 ]
 
 export default function TutorialPage() {
-    const router = useRouter()
     const [isMenuOpen, setIsMenuOpen] = useState(false)
     const [searchTerm, setSearchTerm] = useState('')
     const [activeItem, setActiveItem] = useState(menuItems[0])
@@ -53,9 +52,10 @@ export default function TutorialPage() {
     )
 
     useEffect(() => {
-        const lastPageId = localStorage.getItem('ptec_last_tutorial_page')
+        const lastPageId = localStorage.getItem(STORAGE_KEYS.lastTutorialPage)
         if (lastPageId) {
             const found = menuItems.find(i => i.id === lastPageId)
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage is unavailable during SSR, so the last page is restored after mount
             if (found) setActiveItem(found)
         }
     }, [])
@@ -74,7 +74,7 @@ export default function TutorialPage() {
         setActiveItem(item)
         setIsMenuOpen(false)
         setIsLoading(true)
-        localStorage.setItem('ptec_last_tutorial_page', item.id)
+        localStorage.setItem(STORAGE_KEYS.lastTutorialPage, item.id)
     }
 
     return (

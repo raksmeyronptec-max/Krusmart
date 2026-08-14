@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import StudentTrackingClient from './StudentTrackingClient'
 import { logger } from '@/lib/utils/logger'
+import { FALLBACK_ACADEMIC_YEAR } from '@/lib/constants/academic'
 
 export default async function StudentTrackingPage() {
   const supabase = await createClient()
@@ -12,16 +13,16 @@ export default async function StudentTrackingPage() {
   }
 
   // Fetch settings to get default academic year
-  let { data: settings } = await supabase
+  const { data: settings } = await supabase
     .from('settings')
     .select('*')
     .eq('teacher_id', user.id)
     .single()
     
-  const academicYear = settings?.academic_year || '2023-2024'
+  const academicYear = settings?.academic_year || FALLBACK_ACADEMIC_YEAR
 
   // Fetch students
-  let { data: students, error } = await supabase
+  const { data, error } = await supabase
     .from('students')
     .select('*')
     .eq('teacher_id', user.id)
@@ -30,17 +31,12 @@ export default async function StudentTrackingPage() {
 
   if (error) {
     logger.error(error)
-    students = []
   }
 
-  // Fetch attendance
-  let { data: attendanceData } = await supabase
-    .from('attendance')
-    .select('*')
-    .eq('teacher_id', user.id)
+  const students = data ?? []
 
   // Fetch scores for the year
-  let { data: scoresData } = await supabase
+  const { data: scoresData } = await supabase
     .from('scores')
     .select('*')
     .eq('teacher_id', user.id)
@@ -48,8 +44,7 @@ export default async function StudentTrackingPage() {
 
   return (
     <StudentTrackingClient 
-      initialStudents={students || []} 
-      attendanceData={attendanceData || []}
+      initialStudents={students || []}
       scoresData={scoresData || []}
       settings={settings || {}}
       academicYear={academicYear}

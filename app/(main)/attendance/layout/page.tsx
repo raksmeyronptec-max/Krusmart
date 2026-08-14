@@ -12,7 +12,7 @@ export default async function AttendanceLayoutPage() {
   }
 
   // Fetch students - handle both schemas (if teacher_id exists or not)
-  let { data: students, error } = await supabase
+  const { data, error } = await supabase
     .from('students')
     .select('*')
     .eq('teacher_id', user.id)
@@ -21,10 +21,11 @@ export default async function AttendanceLayoutPage() {
 
   if (error) {
     logger.error(error)
-    students = []
   }
 
+  const students = data ?? []
+
   return (
-    <AttendanceLayoutClient initialStudents={students || []} userId={user.id} />
+    <AttendanceLayoutClient initialStudents={students || []} />
   )
 }

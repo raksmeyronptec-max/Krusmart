@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { TopNav } from "@/components/TopNav"
-import { ExternalLink, Maximize2, Minimize2 } from "lucide-react"
+import { Maximize2, Minimize2 } from "lucide-react"
 
 const teamMembers = [
     {
@@ -35,6 +35,7 @@ export default function TeamPage() {
                 {/* Brand Logo & Header */}
                 <section className="flex flex-col items-center justify-center mb-16 animate-in fade-in slide-in-from-bottom-4 duration-700">
                     <div className="w-24 h-24 md:w-28 md:h-28 rounded-3xl flex items-center justify-center shadow-lg mb-6 rotate-3 hover:rotate-0 transition-transform duration-500 overflow-hidden bg-white p-1">
+                        {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture */}
                         <img src="/logo.png" alt="KruSmart Logo" className="w-full h-full object-cover rounded-2xl" />
                     </div>
                     <h2 className="text-3xl md:text-5xl font-bold text-[#0054a6] dark:text-blue-400">
@@ -53,6 +54,7 @@ export default function TeamPage() {
                             {/* Image with Pulsing Gradient Background */}
                             <div className="relative shrink-0 mx-auto md:mx-0">
                                 <div className="absolute inset-0 bg-gradient-to-tr from-[#0054a6] to-cyan-400 rounded-full -m-1 animate-pulse opacity-20 dark:opacity-40"></div>
+                                {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture */}
                                 <img 
                                     alt={member.name} 
                                     src={member.image}

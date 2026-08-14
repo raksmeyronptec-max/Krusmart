@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import PrintStudentAgeClient from './PrintStudentAgeClient'
 import { logger } from '@/lib/utils/logger'
+import { FALLBACK_ACADEMIC_YEAR } from '@/lib/constants/academic'
 
 export default async function PrintStudentAgePage() {
   const supabase = await createClient()
@@ -12,16 +13,16 @@ export default async function PrintStudentAgePage() {
   }
 
   // Fetch settings
-  let { data: settings } = await supabase
+  const { data: settings } = await supabase
     .from('settings')
     .select('*')
     .eq('teacher_id', user.id)
     .single()
     
-  const academicYear = settings?.academic_year || '2023-2024'
+  const academicYear = settings?.academic_year || FALLBACK_ACADEMIC_YEAR
 
   // Fetch students
-  let { data: students, error } = await supabase
+  const { data, error } = await supabase
     .from('students')
     .select('*')
     .eq('teacher_id', user.id)
@@ -30,8 +31,9 @@ export default async function PrintStudentAgePage() {
 
   if (error) {
     logger.error(error)
-    students = []
   }
+
+  const students = data ?? []
 
   return (
     <PrintStudentAgeClient 

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { getMonthlyAttendance, getTeacherSettings } from './actions'
 import Link from 'next/link'
 import * as XLSX from 'xlsx-js-style'
@@ -9,34 +9,25 @@ import { toKhmerLunarDate } from 'khmer-chhankitek-calendar'
 import Select from '@/components/ui/forms/Select'
 import type { AttendanceRecord, Settings, Student } from '@/lib/types'
 import { logger } from '@/lib/utils/logger'
+import { toKhmerNumber } from '@/lib/utils/khmer-num'
+import { KHMER_MONTH_LABELS } from '@/lib/constants/months'
+import { ALIGN_CENTER, ALIGN_LEFT, ALIGN_RIGHT, emptyCell, khmerFont, moulFont, THIN_BORDER, type SheetMerge, type SheetRow, type SheetRowMeta } from '@/lib/utils/xlsx'
 
-const months = ["មករា", "កុម្ភៈ", "មីនា", "មេសា", "ឧសភា", "មិថុនា", "កក្កដា", "សីហា", "កញ្ញា", "តុលា", "វិច្ឆិកា", "ធ្នូ"]
 const days = ["អាទិត្យ", "ច័ន្ទ", "អង្គារ", "ពុធ", "ព្រហស្បតិ៍", "សុក្រ", "សៅរ៍"]
-const khDigits = ['០', '១', '២', '៣', '៤', '៥', '៦', '៧', '៨', '៩']
-
-function toKhmerNum(num: number | string) {
-    if (num === null || num === undefined) return ''
-    return String(num).split('').map(d => khDigits[parseInt(d)] || d).join('')
-}
-
-export default function MonthlyAttendanceClient({ initialStudents, userId }: { initialStudents: Student[], userId: string }) {
+export default function MonthlyAttendanceClient({ initialStudents}: { initialStudents: Student[] }) {
     const today = new Date()
     const [month, setMonth] = useState(today.getMonth())
     const [year, setYear] = useState(today.getFullYear())
     const [studentCount, setStudentCount] = useState(initialStudents.length)
-    const [attendance, setAttendance] = useState<Record<string, Record<string, any>>>({})
-    const [settings, setSettings] = useState<any>(null)
+    const [attendance, setAttendance] = useState<Record<string, Record<string, AttendanceRecord>>>({})
+    const [settings, setSettings] = useState<Settings | null>(null)
     const [isDownloading, setIsDownloading] = useState(false)
 
-    useEffect(() => {
-        loadData()
-    }, [month, year])
-
-    const loadData = async () => {
+    const loadData = useCallback(async () => {
         const records = await getMonthlyAttendance(year, month)
-        const newAttendance: Record<string, Record<string, any>> = {}
+        const newAttendance: Record<string, Record<string, AttendanceRecord>> = {}
         
-        records.forEach((r: any) => {
+        records.forEach((r: AttendanceRecord) => {
             if (!newAttendance[r.date]) newAttendance[r.date] = {}
             newAttendance[r.date][r.student_id] = r
         })
@@ -46,58 +37,53 @@ export default function MonthlyAttendanceClient({ initialStudents, userId }: { i
         if (teacherSettings) {
             setSettings(teacherSettings)
         }
-    }
+    }, [month, year])
+
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch: state is set after await, not synchronously during the effect
+        loadData()
+    }, [loadData])
+
 
     const exportExcel = () => {
         const daysCount = new Date(year, month + 1, 0).getDate()
         const totalCols = daysCount + 6
-        const ws_data: any[] = []
-        const merges: any[] = []
+        const ws_data: SheetRow[] = []
+        const merges: SheetMerge[] = []
 
-        const BORDER = { 
-            top: {style: 'thin', color: {rgb: "FF000000"}}, 
-            bottom: {style: 'thin', color: {rgb: "FF000000"}}, 
-            left: {style: 'thin', color: {rgb: "FF000000"}}, 
-            right: {style: 'thin', color: {rgb: "FF000000"}} 
-        }
-        const FONT_NORMAL = { name: 'Khmer OS Battambang', sz: 10 }
-        const FONT_BOLD = { name: 'Khmer OS Battambang', sz: 10, bold: true }
-        const FONT_MOUL = { name: 'Khmer OS Moul Light', sz: 11 }
-        
-        const ALIGN_CENTER = { vertical: 'center', horizontal: 'center' }
-        const ALIGN_LEFT = { vertical: 'center', horizontal: 'left' }
-        const ALIGN_RIGHT = { vertical: 'center', horizontal: 'right' }
-        
-        const emptyCell = (style: any = {}): any => ({ v: '', t: 's', s: style })
+        const BORDER = THIN_BORDER
+        const FONT_NORMAL = khmerFont(10)
+        const FONT_BOLD = khmerFont(10, true)
+        const FONT_MOUL = moulFont(11)
 
         // Header Structure
-        let r0 = Array(totalCols).fill(null).map(() => emptyCell())
+        const r0 = Array(totalCols).fill(null).map(() => emptyCell())
         r0[0] = { v: 'ព្រះរាជាណាចក្រកម្ពុជា', t: 's', s: { font: FONT_MOUL, alignment: ALIGN_CENTER } }
         ws_data.push(r0); merges.push({s:{r:0, c:0}, e:{r:0, c:totalCols-1}})
 
-        let r1 = Array(totalCols).fill(null).map(() => emptyCell())
+        const r1 = Array(totalCols).fill(null).map(() => emptyCell())
         r1[0] = { v: 'ជាតិ សាសនា ព្រះមហាក្សត្រ', t: 's', s: { font: FONT_MOUL, alignment: ALIGN_CENTER } }
         ws_data.push(r1); merges.push({s:{r:1, c:0}, e:{r:1, c:totalCols-1}})
 
-        let r2 = Array(totalCols).fill(null).map(() => emptyCell())
+        const r2 = Array(totalCols).fill(null).map(() => emptyCell())
         r2[0] = { v: 'មន្ទីរអប់រំ យុវជន និងកីឡា..................', t: 's', s: { font: FONT_BOLD, alignment: ALIGN_LEFT } }
         ws_data.push(r2); merges.push({s:{r:2, c:0}, e:{r:2, c:8}})
 
-        let r3 = Array(totalCols).fill(null).map(() => emptyCell())
+        const r3 = Array(totalCols).fill(null).map(() => emptyCell())
         r3[0] = { v: 'ការិយាល័យអប់រំ យុវជន និងកីឡា..................', t: 's', s: { font: FONT_BOLD, alignment: ALIGN_LEFT } }
         ws_data.push(r3); merges.push({s:{r:3, c:0}, e:{r:3, c:8}})
 
-        let r4 = Array(totalCols).fill(null).map(() => emptyCell())
+        const r4 = Array(totalCols).fill(null).map(() => emptyCell())
         r4[0] = { v: 'សាលារៀន..................', t: 's', s: { font: FONT_BOLD, alignment: ALIGN_LEFT } }
         ws_data.push(r4); merges.push({s:{r:4, c:0}, e:{r:4, c:8}})
 
         ws_data.push(Array(totalCols).fill(null).map(() => emptyCell()))
 
-        let r6 = Array(totalCols).fill(null).map(() => emptyCell())
-        r6[0] = { v: `របាយការណ៍វត្តមានសិស្សប្រចាំខែ ${months[month]}`, t: 's', s: { font: { ...FONT_MOUL, sz: 12 }, alignment: ALIGN_CENTER } }
+        const r6 = Array(totalCols).fill(null).map(() => emptyCell())
+        r6[0] = { v: `របាយការណ៍វត្តមានសិស្សប្រចាំខែ ${KHMER_MONTH_LABELS[month]}`, t: 's', s: { font: { ...FONT_MOUL, sz: 12 }, alignment: ALIGN_CENTER } }
         ws_data.push(r6); merges.push({s:{r:6, c:0}, e:{r:6, c:totalCols-1}})
 
-        let r7 = Array(totalCols).fill(null).map(() => emptyCell())
+        const r7 = Array(totalCols).fill(null).map(() => emptyCell())
         r7[0] = { v: 'ថ្នាក់ទី..................', t: 's', s: { font: FONT_BOLD, alignment: ALIGN_LEFT } }
         r7[totalCols - 3] = { v: `ឆ្នាំសិក្សា ២០២៤-២០២៥`, t: 's', s: { font: FONT_BOLD, alignment: ALIGN_RIGHT } }
         ws_data.push(r7)
@@ -107,27 +93,27 @@ export default function MonthlyAttendanceClient({ initialStudents, userId }: { i
         ws_data.push(Array(totalCols).fill(null).map(() => emptyCell()))
 
         // Table Headers
-        let startRow = 9
+        const startRow = 9
         const TH_STYLE = { font: FONT_BOLD, alignment: ALIGN_CENTER, border: BORDER, fill: { fgColor: { rgb: "FFFCFCFC" } } }
         const TH_VERT = { ...TH_STYLE, alignment: { textRotation: 90, vertical: 'center', horizontal: 'center' } }
 
-        let th1 = Array(totalCols).fill(null).map(() => emptyCell(TH_STYLE))
-        let th2 = Array(totalCols).fill(null).map(() => emptyCell(TH_STYLE))
-        let th3 = Array(totalCols).fill(null).map(() => emptyCell(TH_STYLE))
+        const th1 = Array(totalCols).fill(null).map(() => emptyCell(TH_STYLE))
+        const th2 = Array(totalCols).fill(null).map(() => emptyCell(TH_STYLE))
+        const th3 = Array(totalCols).fill(null).map(() => emptyCell(TH_STYLE))
 
         th1[0] = { v: 'ល.រ', t: 's', s: TH_STYLE }; merges.push({s:{r:startRow, c:0}, e:{r:startRow+2, c:0}})
         th1[1] = { v: 'គោត្តនាម និងនាម', t: 's', s: TH_STYLE }; merges.push({s:{r:startRow, c:1}, e:{r:startRow+2, c:1}})
         th1[2] = { v: 'កាលបរិច្ឆេទ', t: 's', s: TH_STYLE }; merges.push({s:{r:startRow, c:2}, e:{r:startRow, c:1+daysCount}})
         
-        let absCol = 2 + daysCount
+        const absCol = 2 + daysCount
         th1[absCol] = { v: 'អវត្តមាន', t: 's', s: TH_STYLE }; merges.push({s:{r:startRow, c:absCol}, e:{r:startRow+1, c:absCol+2}})
         th1[absCol+3] = { v: 'ផ្សេងៗ', t: 's', s: TH_STYLE }; merges.push({s:{r:startRow, c:absCol+3}, e:{r:startRow+2, c:absCol+3}})
 
         for(let i=1; i<=daysCount; i++) {
-            let d = new Date(year, month, i)
-            let isSun = d.getDay() === 0
-            let st1 = isSun ? { ...TH_STYLE, font: { ...FONT_BOLD, color: { rgb: "FFDC2626" } }, fill: { fgColor: { rgb: "FFFFF1F1" } } } : TH_STYLE
-            let st2 = isSun ? { ...TH_VERT, font: { ...FONT_BOLD, color: { rgb: "FFDC2626" } }, fill: { fgColor: { rgb: "FFFFF1F1" } } } : TH_VERT
+            const d = new Date(year, month, i)
+            const isSun = d.getDay() === 0
+            const st1 = isSun ? { ...TH_STYLE, font: { ...FONT_BOLD, color: { rgb: "FFDC2626" } }, fill: { fgColor: { rgb: "FFFFF1F1" } } } : TH_STYLE
+            const st2 = isSun ? { ...TH_VERT, font: { ...FONT_BOLD, color: { rgb: "FFDC2626" } }, fill: { fgColor: { rgb: "FFFFF1F1" } } } : TH_VERT
             
             th2[1+i] = { v: i, t: 'n', s: st1 }
             th3[1+i] = { v: days[d.getDay()], t: 's', s: st2 }
@@ -144,8 +130,8 @@ export default function MonthlyAttendanceClient({ initialStudents, userId }: { i
         const TD_NAME = { font: FONT_BOLD, alignment: ALIGN_LEFT, border: BORDER }
         
         for (let i = 0; i < Math.min(studentCount, initialStudents.length); i++) {
-            let student = initialStudents[i]
-            let row = Array(totalCols).fill(null).map(() => emptyCell(TD_STYLE))
+            const student = initialStudents[i]
+            const row = Array(totalCols).fill(null).map(() => emptyCell(TD_STYLE))
             row[0] = { v: i + 1, t: 'n', s: TD_STYLE }
             row[1] = { v: student ? (student.name_kh || student.full_name) : '', t: 's', s: TD_NAME }
 
@@ -164,9 +150,9 @@ export default function MonthlyAttendanceClient({ initialStudents, userId }: { i
                     else if (status === 'A') { statusChar = "អ"; aCount++ }
                 }
 
-                let dateObj = new Date(year, month, d)
-                let isSun = dateObj.getDay() === 0
-                let cellStyle = isSun ? { ...TD_STYLE, font: { ...FONT_BOLD, color: { rgb: "FF1E3A8A" } }, fill: { fgColor: { rgb: "FFFFF1F1" } } } : { ...TD_STYLE, font: { ...FONT_BOLD, color: { rgb: "FF1E3A8A" } } }
+                const dateObj = new Date(year, month, d)
+                const isSun = dateObj.getDay() === 0
+                const cellStyle = isSun ? { ...TD_STYLE, font: { ...FONT_BOLD, color: { rgb: "FF1E3A8A" } }, fill: { fgColor: { rgb: "FFFFF1F1" } } } : { ...TD_STYLE, font: { ...FONT_BOLD, color: { rgb: "FF1E3A8A" } } }
 
                 row[1 + d] = { v: statusChar, t: 's', s: cellStyle }
             }
@@ -183,18 +169,18 @@ export default function MonthlyAttendanceClient({ initialStudents, userId }: { i
         ws_data.push(Array(totalCols).fill(null).map(() => emptyCell()))
         ws_data.push(Array(totalCols).fill(null).map(() => emptyCell()))
 
-        let fRow = ws_data.length
+        const fRow = ws_data.length
         
-        let sigRow1 = Array(totalCols).fill(null).map(() => emptyCell())
-        let sigRow2 = Array(totalCols).fill(null).map(() => emptyCell())
-        let sigRow3 = Array(totalCols).fill(null).map(() => emptyCell())
+        const sigRow1 = Array(totalCols).fill(null).map(() => emptyCell())
+        const sigRow2 = Array(totalCols).fill(null).map(() => emptyCell())
+        const sigRow3 = Array(totalCols).fill(null).map(() => emptyCell())
 
         sigRow1[1] = { v: 'បានឃើញ និងឯកភាព', t: 's', s: { font: FONT_NORMAL, alignment: ALIGN_CENTER } }
         sigRow2[1] = { v: 'នាយកសាលា', t: 's', s: { font: FONT_MOUL, alignment: ALIGN_CENTER } }
         
-        let rightMid = totalCols - 7
+        const rightMid = totalCols - 7
         sigRow1[rightMid] = { v: toKhmerLunarDate(today).lunarDateText, t: 's', s: { font: FONT_NORMAL, alignment: ALIGN_CENTER } }
-        sigRow2[rightMid] = { v: `ត្រូវនឹងថ្ងៃទី ${toKhmerNum(String(today.getDate()).padStart(2, '0'))} ខែ ${months[today.getMonth()]} ឆ្នាំ ${toKhmerNum(today.getFullYear())}`, t: 's', s: { font: FONT_NORMAL, alignment: ALIGN_CENTER } }
+        sigRow2[rightMid] = { v: `ត្រូវនឹងថ្ងៃទី ${toKhmerNumber(String(today.getDate()).padStart(2, '0'))} ខែ ${KHMER_MONTH_LABELS[today.getMonth()]} ឆ្នាំ ${toKhmerNumber(today.getFullYear())}`, t: 's', s: { font: FONT_NORMAL, alignment: ALIGN_CENTER } }
         sigRow3[rightMid] = { v: 'គ្រូបន្ទុកថ្នាក់', t: 's', s: { font: FONT_MOUL, alignment: ALIGN_CENTER } }
 
         merges.push({s:{r:fRow, c:1}, e:{r:fRow, c:6}})
@@ -209,7 +195,7 @@ export default function MonthlyAttendanceClient({ initialStudents, userId }: { i
         ws_data.push(Array(totalCols).fill(null).map(() => emptyCell()))
         ws_data.push(Array(totalCols).fill(null).map(() => emptyCell()))
 
-        let sigNameRow = Array(totalCols).fill(null).map(() => emptyCell())
+        const sigNameRow = Array(totalCols).fill(null).map(() => emptyCell())
         sigNameRow[rightMid] = { v: '....................................', t: 's', s: { font: FONT_MOUL, alignment: ALIGN_CENTER } }
         merges.push({s:{r:ws_data.length, c:rightMid}, e:{r:ws_data.length, c:totalCols-1}})
         ws_data.push(sigNameRow)
@@ -218,20 +204,20 @@ export default function MonthlyAttendanceClient({ initialStudents, userId }: { i
         const ws = XLSX.utils.aoa_to_sheet(ws_data)
         ws['!merges'] = merges
         
-        let cols = [{ wch: 4 }, { wch: 25 }]
+        const cols = [{ wch: 4 }, { wch: 25 }]
         for(let i=0; i<daysCount; i++) cols.push({ wch: 3.5 })
         cols.push({ wch: 4.5 }, { wch: 5.5 }, { wch: 4.5 })
         cols.push({ wch: 6 })
         ws['!cols'] = cols
 
-        let rows: any[] = []
+        const rows: SheetRowMeta[] = []
         rows[startRow] = { hpt: 20 }
         rows[startRow+1] = { hpt: 20 }
         rows[startRow+2] = { hpt: 80 } 
         ws['!rows'] = rows
 
         XLSX.utils.book_append_sheet(wb, ws, "Attendance")
-        XLSX.writeFile(wb, `បញ្ជីវត្តមានសិស្ស_ខែ${months[month]}_${year}.xlsx`)
+        XLSX.writeFile(wb, `បញ្ជីវត្តមានសិស្ស_ខែ${KHMER_MONTH_LABELS[month]}_${year}.xlsx`)
     }
 
     const downloadPDF = async () => {
@@ -239,12 +225,12 @@ export default function MonthlyAttendanceClient({ initialStudents, userId }: { i
         const printArea = document.getElementById('printArea')
         if (!printArea) return
 
-        const opt: any = {
+        const opt = {
             margin:       0,
-            filename:     `វត្តមានសិស្ស_ខែ${months[month]}.pdf`,
-            image:        { type: 'jpeg', quality: 0.98 },
+            filename:     `វត្តមានសិស្ស_ខែ${KHMER_MONTH_LABELS[month]}.pdf`,
+            image:        { type: 'jpeg' as const, quality: 0.98 },
             html2canvas:  { scale: 2, useCORS: true, logging: false },
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' as const },
             pagebreak:    { mode: ['css', 'legacy'] } 
         }
 
@@ -277,15 +263,15 @@ export default function MonthlyAttendanceClient({ initialStudents, userId }: { i
         const teacherName = settings?.homeroom_teacher || "........"
         const managerRole = settings?.manager_role || "នាយកសាលា"
 
-        let sy = month >= 8 ? year : year - 1
-        let academicYearText = `ឆ្នាំសិក្សា ${toKhmerNum(sy)}-${toKhmerNum(sy + 1)}`
-        let classDisplay = `ថ្នាក់៖ ${className}`
+        const sy = month >= 8 ? year : year - 1
+        const academicYearText = `ឆ្នាំសិក្សា ${toKhmerNumber(sy)}-${toKhmerNumber(sy + 1)}`
+        const classDisplay = `ថ្នាក់៖ ${className}`
 
         while (current <= total) {
-            let isFirst = pageNum === 1
-            let remaining = total - current + 1
-            let limitNoSig = isFirst ? maxFirst : maxOther
-            let limitWithSig = isFirst ? maxFirstSig : maxOtherSig
+            const isFirst = pageNum === 1
+            const remaining = total - current + 1
+            const limitNoSig = isFirst ? maxFirst : maxOther
+            const limitWithSig = isFirst ? maxFirstSig : maxOtherSig
             let end
             let isLast = false
 
@@ -308,6 +294,7 @@ export default function MonthlyAttendanceClient({ initialStudents, userId }: { i
                         <>
                             <div className="flex justify-between items-start mb-[15px] p-0 w-full">
                                 <div className="w-1/3 text-center flex flex-col items-center">
+                                    {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture */}
                                     <img src="/logo.png" className="h-[75px] w-auto mb-[5px] object-contain" alt="Logo" onError={(e) => (e.currentTarget.src = '/logo.png')} />
                                     <p className="font-moul text-[11pt] m-0 leading-[1.4]">{schoolName}</p>
                                 </div>
@@ -315,12 +302,13 @@ export default function MonthlyAttendanceClient({ initialStudents, userId }: { i
                                 <div className="w-1/3 text-center flex flex-col items-center">
                                     <h3 className="font-moul text-[13.5pt] m-0 mb-[5px]">ព្រះរាជាណាចក្រកម្ពុជា</h3>
                                     <h3 className="font-moul text-[12.5pt] m-0 mb-[5px]">ជាតិ សាសនា ព្រះមហាក្សត្រ</h3>
+                                    {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture */}
                                     <img src="https://lh3.googleusercontent.com/d/1BnGzoisjHxGRiMbsrP-rZ1F9zvSfdtAh" className="h-[18px] mt-[4px]" alt="Line" />
                                 </div>
                             </div>
                             
                             <div className="w-full text-center mb-[10px] mt-[5px]">
-                                <h2 className="font-moul text-[12.5pt] m-0 mb-[10px]">សម្រង់អវត្តមានប្រចាំខែ {months[month]}</h2>
+                                <h2 className="font-moul text-[12.5pt] m-0 mb-[10px]">សម្រង់អវត្តមានប្រចាំខែ {KHMER_MONTH_LABELS[month]}</h2>
                                 <div className="flex justify-between w-full text-[11pt] font-bold mb-[5px]">
                                     <span className="text-[11.5pt]">{classDisplay}</span>
                                     <span className="text-[11.5pt]">{academicYearText}</span>
@@ -338,7 +326,7 @@ export default function MonthlyAttendanceClient({ initialStudents, userId }: { i
                                 {Array.from({ length: daysCount }).map((_, i) => {
                                     const d = new Date(year, month, i + 1)
                                     const isSun = d.getDay() === 0
-                                    return <th key={i} colSpan={2} className={`border border-[#444] bg-[#f8fafc] font-bold text-center align-middle p-[1px] text-[9.5pt] h-[24px] ${isSun ? 'bg-[#fff1f1] text-[#d93025]' : ''}`}>{toKhmerNum(i + 1)}</th>
+                                    return <th key={i} colSpan={2} className={`border border-[#444] bg-[#f8fafc] font-bold text-center align-middle p-[1px] text-[9.5pt] h-[24px] ${isSun ? 'bg-[#fff1f1] text-[#d93025]' : ''}`}>{toKhmerNumber(i + 1)}</th>
                                 })}
                                 <th colSpan={2} className="w-[45px] border border-[#444] bg-[#f8fafc] font-bold text-center align-middle p-[1px] text-[9.5pt] h-[24px]">សរុប</th>
                             </tr>
@@ -366,7 +354,7 @@ export default function MonthlyAttendanceClient({ initialStudents, userId }: { i
 
                                 return (
                                     <tr key={realIdx}>
-                                        <td className="border border-[#444] text-center align-middle p-[1px] text-[9.5pt] h-[24px]">{toKhmerNum(realIdx + 1)}</td>
+                                        <td className="border border-[#444] text-center align-middle p-[1px] text-[9.5pt] h-[24px]">{toKhmerNumber(realIdx + 1)}</td>
                                         <td className="border border-[#444] font-bold text-left align-middle pl-[5px] text-[9.5pt] h-[24px] whitespace-nowrap overflow-hidden text-ellipsis">{student?.name_kh || student?.full_name}</td>
                                         <td className="border border-[#444] text-center align-middle p-[1px] text-[9pt] h-[24px]">{(student?.gender === 'ស្រី' || student?.gender === 'F') ? 'ស' : 'ប'}</td>
                                         
@@ -389,14 +377,14 @@ export default function MonthlyAttendanceClient({ initialStudents, userId }: { i
 
                                             return (
                                                 <React.Fragment key={dIdx}>
-                                                    <td className={`border border-[#444] text-center align-middle p-0 text-[8pt] h-[24px] ${isSun ? 'bg-[#fff1f1]' : ''}`} style={{ color: aColor, fontWeight: aNum > 0 ? 'bold' : 'normal' }}>{aNum > 0 ? toKhmerNum(aNum) : ''}</td>
-                                                    <td className={`border border-[#444] text-center align-middle p-0 text-[8pt] h-[24px] ${isSun ? 'bg-[#fff1f1]' : ''}`} style={{ color: lColor, fontWeight: lNum > 0 ? 'bold' : 'normal' }}>{lNum > 0 ? toKhmerNum(lNum) : ''}</td>
+                                                    <td className={`border border-[#444] text-center align-middle p-0 text-[8pt] h-[24px] ${isSun ? 'bg-[#fff1f1]' : ''}`} style={{ color: aColor, fontWeight: aNum > 0 ? 'bold' : 'normal' }}>{aNum > 0 ? toKhmerNumber(aNum) : ''}</td>
+                                                    <td className={`border border-[#444] text-center align-middle p-0 text-[8pt] h-[24px] ${isSun ? 'bg-[#fff1f1]' : ''}`} style={{ color: lColor, fontWeight: lNum > 0 ? 'bold' : 'normal' }}>{lNum > 0 ? toKhmerNumber(lNum) : ''}</td>
                                                 </React.Fragment>
                                             )
                                         })}
                                         
-                                        <td className="border border-[#444] text-center align-middle p-[1px] text-[10pt] h-[24px] text-[#d93025] font-bold">{aCount > 0 ? toKhmerNum(aCount) : '០'}</td>
-                                        <td className="border border-[#444] text-center align-middle p-[1px] text-[10pt] h-[24px] text-[#1a73e8] font-bold">{lCount > 0 ? toKhmerNum(lCount) : '០'}</td>
+                                        <td className="border border-[#444] text-center align-middle p-[1px] text-[10pt] h-[24px] text-[#d93025] font-bold">{aCount > 0 ? toKhmerNumber(aCount) : '០'}</td>
+                                        <td className="border border-[#444] text-center align-middle p-[1px] text-[10pt] h-[24px] text-[#1a73e8] font-bold">{lCount > 0 ? toKhmerNumber(lCount) : '០'}</td>
                                     </tr>
                                 )
                             })}
@@ -406,8 +394,8 @@ export default function MonthlyAttendanceClient({ initialStudents, userId }: { i
                     {isLast && (
                         <div className="flex justify-between items-start mt-[5px] px-[10px]">
                             <div className="w-[55%] text-left">
-                                <p className="m-[2px_0] text-[11pt]">បញ្ឈប់បញ្ជីត្រឹមលេខរៀងទី {toKhmerNum(end)} ត្រង់ឈ្មោះ {initialStudents[end - 1]?.name_kh || initialStudents[end - 1]?.full_name || "........................................"}។</p>
-                                <p className="m-[2px_0] text-[11pt]">សរុប ៖ {toKhmerNum(end)} នាក់ ស្រី {toKhmerNum(initialStudents.slice(0, end).filter(s => s?.gender === 'ស្រី' || s?.gender === 'ស' || s?.gender === 'F').length)} នាក់។</p>
+                                <p className="m-[2px_0] text-[11pt]">បញ្ឈប់បញ្ជីត្រឹមលេខរៀងទី {toKhmerNumber(end)} ត្រង់ឈ្មោះ {initialStudents[end - 1]?.name_kh || initialStudents[end - 1]?.full_name || "........................................"}។</p>
+                                <p className="m-[2px_0] text-[11pt]">សរុប ៖ {toKhmerNumber(end)} នាក់ ស្រី {toKhmerNumber(initialStudents.slice(0, end).filter(s => s?.gender === 'ស្រី' || s?.gender === 'ស' || s?.gender === 'F').length)} នាក់។</p>
                                 
                                 <div className="text-center mt-[35px] w-[75%]">
                                     <p className="text-[11.5pt] mb-[5px] font-bold">បានឃើញ និងឯកភាព</p>
@@ -417,7 +405,7 @@ export default function MonthlyAttendanceClient({ initialStudents, userId }: { i
 
                             <div className="w-[40%] text-center">
                                 <p className="m-0 text-[10.5pt]">{toKhmerLunarDate(today).lunarDateText}</p>
-                                <p className="m-0 text-[10.5pt]">ត្រូវនឹងថ្ងៃទី {toKhmerNum(String(today.getDate()).padStart(2, '0'))} ខែ {months[today.getMonth()]} ឆ្នាំ {toKhmerNum(today.getFullYear())}</p>
+                                <p className="m-0 text-[10.5pt]">ត្រូវនឹងថ្ងៃទី {toKhmerNumber(String(today.getDate()).padStart(2, '0'))} ខែ {KHMER_MONTH_LABELS[today.getMonth()]} ឆ្នាំ {toKhmerNumber(today.getFullYear())}</p>
                                 <p className="font-moul text-[11.5pt] mt-[2px] mb-[40px]">គ្រូបន្ទុកថ្នាក់</p>
                                 <p className="font-moul m-[45px] text-[11.5pt] relative left-[50px]">{teacherName}</p>
                             </div>
@@ -476,7 +464,7 @@ export default function MonthlyAttendanceClient({ initialStudents, userId }: { i
                         id="monthly-attendance-month"
                         value={String(month)}
                         onChange={v => setMonth(parseInt(v))}
-                        options={months.map((m, i) => ({ value: String(i), label: m }))}
+                        options={KHMER_MONTH_LABELS.map((m, i) => ({ value: String(i), label: m }))}
                     />
                 </div>
                 

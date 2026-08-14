@@ -12,7 +12,7 @@ export default async function PrintStudentCodesPage() {
   }
 
   // Fetch students
-  let { data: students, error } = await supabase
+  const { data, error } = await supabase
     .from('students')
     .select('*')
     .eq('teacher_id', user.id)
@@ -21,8 +21,9 @@ export default async function PrintStudentCodesPage() {
 
   if (error) {
     logger.error(error)
-    students = []
   }
+
+  const students = data ?? []
 
   return (
     <PrintStudentCodesClient 

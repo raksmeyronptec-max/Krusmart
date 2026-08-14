@@ -1,13 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowLeft, Book, Printer, PenTool, Search, Users } from 'lucide-react'
+import { ArrowLeft, Printer, Search, Users } from 'lucide-react'
 import Link from 'next/link'
 import Select from '@/components/ui/forms/Select'
-import type { AttendanceRecord, Score, Settings, Student } from '@/lib/types'
+import type { Score, Settings, Student } from '@/lib/types'
+import { MONTH_OPTIONS_BY_NUM } from '@/lib/constants/months'
 
-export default function StudentTrackingClient({ initialStudents, attendanceData, scoresData, settings, academicYear }: { 
-    initialStudents: Student[], attendanceData: AttendanceRecord[], scoresData: Score[], settings: Settings | null, academicYear: string 
+export default function StudentTrackingClient({ initialStudents, scoresData, settings, academicYear }: { 
+    initialStudents: Student[], scoresData: Score[], settings: Settings | null, academicYear: string 
 }) {
     const [selectedYear, setSelectedYear] = useState(academicYear)
     const [searchTerm, setSearchTerm] = useState('')
@@ -29,27 +30,34 @@ export default function StudentTrackingClient({ initialStudents, attendanceData,
         s.id.includes(searchTerm)
     )
 
+    /**
+     * Print one student's page.
+     *
+     * The `@media print` block below already hides everything outside
+     * `.print-container`, so isolating a single student only means hiding the
+     * other pages for the duration of the print. `window.print()` blocks, so
+     * the class is safe to remove immediately afterwards.
+     *
+     * This used to swap `document.body.innerHTML` and then force a full
+     * `window.location.reload()`, which threw away all component state.
+     */
     const printStudent = (studentId: string) => {
-        // Find element and isolate it for printing
-        const contents = document.getElementById(`print-content-${studentId}`)
-        if (!contents) return
+        const container = document.getElementById('all-prints-container')
+        if (!container) return
 
-        const originalBody = document.body.innerHTML
-        document.body.innerHTML = contents.outerHTML
+        const pages = Array.from(container.querySelectorAll('[id^="print-content-"]'))
+        const keep = `print-content-${studentId}`
+        pages.forEach(page => {
+            if (page.id !== keep) page.classList.add('print-skip')
+        })
+
         window.print()
-        document.body.innerHTML = originalBody
-        window.location.reload()
+
+        pages.forEach(page => page.classList.remove('print-skip'))
     }
 
     const printAll = () => {
-        const contents = document.getElementById('all-prints-container')
-        if (!contents) return
-        
-        const originalBody = document.body.innerHTML
-        document.body.innerHTML = contents.outerHTML
         window.print()
-        document.body.innerHTML = originalBody
-        window.location.reload()
     }
 
     const getStudentScoreData = (uid: string) => {
@@ -63,7 +71,8 @@ export default function StudentTrackingClient({ initialStudents, attendanceData,
 
         if (studentScores.length === 0) return null
 
-        let scoreObj: any = {}
+        // Subject keys hold raw scores; `average` holds a formatted 2-dp string.
+        const scoreObj: Record<string, number | string | null> = {}
         let stSum = 0
         let stCount = 0
 
@@ -93,6 +102,8 @@ export default function StudentTrackingClient({ initialStudents, attendanceData,
                     }
                     body { background: white !important; margin: 0; padding: 0; -webkit-print-color-adjust: exact; }
                     .no-print { display: none !important; }
+                    /* Set on the other students' pages when printing just one. */
+                    .print-skip { display: none !important; }
                     .print-container { 
                         display: block !important; 
                         width: 100%;
@@ -156,20 +167,7 @@ export default function StudentTrackingClient({ initialStudents, attendanceData,
                                 label="ជ្រើសរើសខែ"
                                 value={selectedMonth}
                                 onChange={setSelectedMonth}
-                                options={[
-                                    { value: '01', label: 'មករា' },
-                                    { value: '02', label: 'កុម្ភៈ' },
-                                    { value: '03', label: 'មីនា' },
-                                    { value: '04', label: 'មេសា' },
-                                    { value: '05', label: 'ឧសភា' },
-                                    { value: '06', label: 'មិថុនា' },
-                                    { value: '07', label: 'កក្កដា' },
-                                    { value: '08', label: 'សីហា' },
-                                    { value: '09', label: 'កញ្ញា' },
-                                    { value: '10', label: 'តុលា' },
-                                    { value: '11', label: 'វិច្ឆិកា' },
-                                    { value: '12', label: 'ធ្នូ' },
-                                ]}
+                                options={MONTH_OPTIONS_BY_NUM}
                             />
                         </div>
                     </div>
@@ -202,7 +200,7 @@ export default function StudentTrackingClient({ initialStudents, attendanceData,
                                     </div>
                                     <div className="mt-3 flex justify-between items-center bg-slate-50 p-2 rounded-lg">
                                         <div className="text-xs font-bold text-slate-600">ពិន្ទុ: <span className="text-blue-600">{getStudentScoreData(student.id)?.average || '-'}</span></div>
-                                        <div className="text-xs font-bold text-slate-600">និទ្ទេស: <span className="text-red-500">{getGrade(parseFloat(getStudentScoreData(student.id)?.average))}</span></div>
+                                        <div className="text-xs font-bold text-slate-600">និទ្ទេស: <span className="text-red-500">{getGrade(parseFloat(String(getStudentScoreData(student.id)?.average ?? '')))}</span></div>
                                     </div>
                                     <button className="mt-3 w-full bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold py-1.5 rounded-lg text-xs transition flex justify-center items-center gap-1">
                                         <Printer className="w-3 h-3" /> បោះពុម្ព
@@ -221,7 +219,7 @@ export default function StudentTrackingClient({ initialStudents, attendanceData,
 
             {/* Hidden Print Container */}
             <div id="all-prints-container" className="hidden print:block w-full">
-                {filteredStudents.map((student, index) => {
+                {filteredStudents.map(student => {
                     const studentScore = getStudentScoreData(student.id)
 
                     return (
@@ -294,7 +292,7 @@ export default function StudentTrackingClient({ initialStudents, attendanceData,
                                             {idx === 0 ? (studentScore?.average || '0.00') : ''}
                                         </td>
                                         <td rowSpan={idx === 0 ? 6 : 1} className={idx === 0 ? "align-middle font-bold text-lg bg-blue-50/30 text-red-600" : "hidden"}>
-                                            {idx === 0 ? getGrade(parseFloat(studentScore?.average)) : ''}
+                                            {idx === 0 ? getGrade(parseFloat(String(studentScore?.average ?? ''))) : ''}
                                         </td>
                                     </tr>
                                 ))}

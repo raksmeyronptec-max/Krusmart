@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useMemo, useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Menu, X, Bell, User, LogOut, Home, Users, CheckSquare, BarChart2, Package, MapPin, Download, Crown, ChevronDown, Clock, Copy, ExternalLink, UserCircle, Loader2 } from "lucide-react"
+import { Menu, X, User, LogOut, Home, Users, CheckSquare, BarChart2, Package, MapPin, Crown, ChevronDown, Copy, ExternalLink, UserCircle, Loader2 } from "lucide-react"
 import { ThemeToggle } from "./ThemeToggle"
 import { createClient } from "@/lib/supabase/client"
 import { calculateDistanceInMeters } from "@/lib/utils/distance"
@@ -25,7 +25,8 @@ export function TopNav() {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
   const pathname = usePathname()
-  const supabase = createClient()
+  // Memoised so effects can list it as a dependency without re-running.
+  const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
     const fetchProfileData = async () => {
@@ -44,7 +45,7 @@ export function TopNav() {
       }
     }
     fetchProfileData()
-  }, [])
+  }, [supabase])
 
   const handleCheckIn = async () => {
     setIsCheckingIn(true)
@@ -127,7 +128,7 @@ export function TopNav() {
         } finally {
           setIsCheckingIn(false)
         }
-      }, (error) => {
+      }, () => {
         toast.error("មិនអាចកំណត់ទីតាំងរបស់អ្នកបានទេ។ សូមបើក Location GPS។", { id: toastId })
         setIsCheckingIn(false)
       })
@@ -149,6 +150,7 @@ export function TopNav() {
         <div className="flex items-center gap-6">
           <Link href="/dashboard" className="focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0054a6] rounded-md flex items-center gap-2">
             <div className="w-9 h-9 md:w-11 md:h-11 rounded-lg flex items-center justify-center overflow-hidden shadow-sm">
+              {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture */}
               <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" />
             </div>
             <span className="kh-moul text-xl animate-gradient-text hidden sm:block">KruSmart</span>
@@ -172,6 +174,7 @@ export function TopNav() {
             <div className="relative group">
                 <button className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-gray-800 text-blue-800 dark:text-blue-300 rounded-full border border-blue-100 dark:border-gray-700 transition-colors focus:outline-none hover:bg-blue-100 dark:hover:bg-gray-700" aria-haspopup="true" aria-expanded="false">
                     {photoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture
                         <img src={photoUrl} alt="Profile" className="w-5 h-5 rounded-full object-cover border border-blue-200" />
                     ) : (
                         <UserCircle className="w-4 h-4" aria-hidden="true" />

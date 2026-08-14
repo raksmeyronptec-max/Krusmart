@@ -12,7 +12,7 @@ export default async function NotificationsPage() {
   }
 
   // Fetch students for dropdown
-  let { data: students, error } = await supabase
+  const { data, error } = await supabase
     .from('students')
     .select('id, name_kh')
     .eq('teacher_id', user.id)
@@ -20,10 +20,11 @@ export default async function NotificationsPage() {
 
   if (error) {
     logger.error(error)
-    students = []
   }
 
+  const students = data ?? []
+
   return (
-    <NotificationsClient initialStudents={students || []} userId={user.id} />
+    <NotificationsClient initialStudents={students || []} />
   )
 }

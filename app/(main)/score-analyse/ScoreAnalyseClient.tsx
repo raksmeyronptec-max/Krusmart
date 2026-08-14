@@ -4,36 +4,48 @@ import { useState, useMemo } from 'react'
 import type { AttendanceRecord, Score, Student } from '@/lib/types'
 import { 
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-    BarChart, Bar, PieChart, Pie, Cell, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis
+    PieChart, Pie, Cell
 } from 'recharts'
 import { ArrowLeft, Users, Award, CheckSquare, AlertTriangle, TrendingUp, Filter, RefreshCw, HeartPulse, BookOpen, HelpingHand } from 'lucide-react'
 import Link from 'next/link'
 import Select from '@/components/ui/forms/Select'
+import { MONTHS_BY_ACADEMIC_YEAR } from '@/lib/constants/months'
+
+/** Per-student roll-up built by the analytics pass below. */
+interface StudentAnalytics {
+    student: Student
+    /** Present / late / absent day counts. */
+    p: number
+    l: number
+    a: number
+    attRate: number
+    overallAvg: number | null
+    sScores: Record<string, number>
+    isRisk: boolean
+    holistic: {
+        scorePoints: number
+        attendancePoints: number
+        homeworkPoints: number
+        healthPoints: number
+        disciplinePoints: number
+    }
+}
 
 export default function ScoreAnalyseClient({ initialStudents, attendanceData, scoresData, academicYear }: { 
     initialStudents: Student[], attendanceData: AttendanceRecord[], scoresData: Score[], academicYear: string 
 }) {
     const [selectedYear, setSelectedYear] = useState(academicYear)
-    const [selectedMonth, setSelectedMonth] = useState('01') // Default Jan
 
-    const months = [
-        { val: '11', label: 'វិច្ឆិកា' }, { val: '12', label: 'ធ្នូ' },
-        { val: '01', label: 'មករា' }, { val: '02', label: 'កុម្ភៈ' },
-        { val: '03', label: 'មីនា' }, { val: '04', label: 'មេសា' },
-        { val: '05', label: 'ឧសភា' }, { val: '06', label: 'មិថុនា' },
-        { val: '07', label: 'កក្កដា' }, { val: '08', label: 'សីហា' },
-        { val: '09', label: 'កញ្ញា' }, { val: '10', label: 'តុលា' }
-    ]
 
     // Calculate Global Data
     const analytics = useMemo(() => {
         let globalTotalP = 0, globalTotalL = 0, globalTotalA = 0
-        let gradesCount = { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 }
-        let studentData: Record<string, any> = {}
+        const gradesCount = { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 }
+        const studentData: Record<string, StudentAnalytics> = {}
         let sumAllAvg = 0, validStudents = 0
         
-        let monthlyAvgs: Record<string, {sum: number, count: number}> = {}
-        months.forEach(m => monthlyAvgs[m.val] = {sum: 0, count: 0})
+        const monthlyAvgs: Record<string, {sum: number, count: number}> = {}
+        MONTHS_BY_ACADEMIC_YEAR.forEach(m => monthlyAvgs[m.num] = {sum: 0, count: 0})
 
         let riskCount = 0
         let healthyCount = 0
@@ -58,10 +70,10 @@ export default function ScoreAnalyseClient({ initialStudents, attendanceData, sc
 
             // Scores
             let monthAvgSum = 0, monthCount = 0
-            let sScores: Record<string, number> = {}
+            const sScores: Record<string, number> = {}
 
-            months.forEach(m => {
-                const targetPeriod = `${m.val}-${selectedYear}`
+            MONTHS_BY_ACADEMIC_YEAR.forEach(m => {
+                const targetPeriod = `${m.num}-${selectedYear}`
                 const monthlyScores = scoresData.filter(d => 
                     d.student_id === uid && 
                     d.score_type === 'monthly' && 
@@ -77,9 +89,9 @@ export default function ScoreAnalyseClient({ initialStudents, attendanceData, sc
                     })
                     const mAvg = stSum / stCount
                     monthAvgSum += mAvg; monthCount++
-                    monthlyAvgs[m.val].sum += mAvg
-                    monthlyAvgs[m.val].count++
-                    sScores[m.val] = mAvg
+                    monthlyAvgs[m.num].sum += mAvg
+                    monthlyAvgs[m.num].count++
+                    sScores[m.num] = mAvg
                 }
             })
 
@@ -95,7 +107,7 @@ export default function ScoreAnalyseClient({ initialStudents, attendanceData, sc
             }
 
             // Simple risk metrics
-            let isRisk = (overallAvg !== null && overallAvg < 5.0) || a >= 3 || (totalDays > 0 && attRate < 80)
+            const isRisk = (overallAvg !== null && overallAvg < 5.0) || a >= 3 || (totalDays > 0 && attRate < 80)
             if (isRisk) riskCount++
 
             // Assign slow/diff randomly for visual demo based on score
@@ -105,9 +117,9 @@ export default function ScoreAnalyseClient({ initialStudents, attendanceData, sc
                 else diffCount++
             }
 
-            let hwPoints = 85
-            let healthPoints = 90
-            let disciplinePoints = Math.max(40, 100 - (a * 5) - (l * 2))
+            const hwPoints = 85
+            const healthPoints = 90
+            const disciplinePoints = Math.max(40, 100 - (a * 5) - (l * 2))
 
             studentData[uid] = {
                 student,
@@ -129,10 +141,10 @@ export default function ScoreAnalyseClient({ initialStudents, attendanceData, sc
         const totalAtt = globalTotalP + globalTotalL + globalTotalA
         const avgAttRate = totalAtt > 0 ? ((globalTotalP / totalAtt) * 100).toFixed(1) : 0
 
-        let monthlyTrendData = months.map(m => {
+        const monthlyTrendData = MONTHS_BY_ACADEMIC_YEAR.map(m => {
             return {
                 name: m.label.substring(0, 3),
-                avg: monthlyAvgs[m.val].count > 0 ? parseFloat((monthlyAvgs[m.val].sum / monthlyAvgs[m.val].count).toFixed(2)) : 0
+                avg: monthlyAvgs[m.num].count > 0 ? parseFloat((monthlyAvgs[m.num].sum / monthlyAvgs[m.num].count).toFixed(2)) : 0
             }
         })
 

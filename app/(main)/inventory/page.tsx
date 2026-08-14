@@ -11,7 +11,7 @@ export default async function InventoryPage() {
   }
 
   // Fetch settings
-  let { data: settings } = await supabase
+  const { data: settings } = await supabase
     .from('settings')
     .select('*')
     .eq('teacher_id', user.id)

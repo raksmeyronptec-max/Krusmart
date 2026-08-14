@@ -1,12 +1,15 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { ArrowLeft, Printer, FileSpreadsheet, CalendarDays, CalendarRange, Layers, Settings2, Moon, MapPin, Award } from 'lucide-react'
+import { useState } from 'react'
+import { ArrowLeft, Printer, FileSpreadsheet, CalendarDays, CalendarRange, Layers, Award } from 'lucide-react'
 import Link from 'next/link'
 import * as XLSX from 'xlsx-js-style'
 import { getAllScoresByPeriod } from '../score/total/actions'
 import Select from '@/components/ui/forms/Select'
-import type { Score, Settings, Student } from '@/lib/types'
+import type { Settings, Student } from '@/lib/types'
+import { MONTHS_BY_CALENDAR } from '@/lib/constants/months'
+import { toKhmerNumber } from '@/lib/utils/khmer-num'
+import type { SheetRow } from '@/lib/utils/xlsx'
 
 /** A student decorated with the per-period scores and the derived ranking fields. */
 type RankedStudent = Student & {
@@ -18,29 +21,13 @@ type RankedStudent = Student & {
     rank: number
 }
 
-const allMonthsMap = [
-    { id: 'jan', label: 'មករា' }, { id: 'feb', label: 'កុម្ភៈ' }, { id: 'mar', label: 'មីនា' },
-    { id: 'apr', label: 'មេសា' }, { id: 'may', label: 'ឧសភា' }, { id: 'jun', label: 'មិថុនា' },
-    { id: 'jul', label: 'កក្កដា' }, { id: 'aug', label: 'សីហា' }, { id: 'sep', label: 'កញ្ញា' },
-    { id: 'oct', label: 'តុលា' }, { id: 'nov', label: 'វិច្ឆិកា' }, { id: 'dec', label: 'ធ្នូ' }
-]
-
-const khNumbers = ['០','១','២','៣','៤','៥','៦','៧','៨','៩']
-function toKhmerNum(str: string | number | null | undefined): string {
-    if (str === null || str === undefined) return ''
-    return str.toString().split('').map(char => {
-        if (char >= '0' && char <= '9') return khNumbers[parseInt(char)]
-        return char
-    }).join('')
-}
-
-export default function RankingClient({ initialStudents, settings, userId }: { initialStudents: Student[], settings: any, userId: string }) {
+export default function RankingClient({ initialStudents, settings}: { initialStudents: Student[], settings: Settings | null }) {
     const [academicYear, setAcademicYear] = useState('2025-2026')
     const [currentMode, setCurrentMode] = useState<'monthly'|'semester'|'yearly'>('monthly')
     const [currentPeriod, setCurrentPeriod] = useState('jan')
     const [loading, setLoading] = useState(false)
     const [showPreview, setShowPreview] = useState(false)
-    const [studentsData, setStudentsData] = useState<any[]>([])
+    const [studentsData, setStudentsData] = useState<RankedStudent[]>([])
 
     const config = {
         monthly: {
@@ -68,7 +55,7 @@ export default function RankingClient({ initialStudents, settings, userId }: { i
         setCurrentPeriod(period)
 
         // For yearly, it might fetch sem1 and sem2, but let's map it based on actions
-        let scoreMode = mode === 'yearly' ? 'annual' : mode
+        const scoreMode = mode === 'yearly' ? 'annual' : mode
         let fetchPeriod = ''
         if (mode === 'monthly') fetchPeriod = `${period}-${academicYear}`
         else if (mode === 'semester') fetchPeriod = `${period}-${academicYear}`
@@ -104,7 +91,7 @@ export default function RankingClient({ initialStudents, settings, userId }: { i
             } else if (mode === 'yearly') {
                 const s1 = parseFloat(String(stu.scores['sem1_avg'] ?? '0'))
                 const s2 = parseFloat(String(stu.scores['sem2_avg'] ?? '0'))
-                let div = (s1 > 0 ? 1 : 0) + (s2 > 0 ? 1 : 0)
+                const div = (s1 > 0 ? 1 : 0) + (s2 > 0 ? 1 : 0)
                 stu.total = s1 + s2
                 stu.average = div > 0 ? (stu.total / div).toFixed(2) : "0.00"
                 stu.finalAverageForRank = parseFloat(stu.average)
@@ -137,8 +124,8 @@ export default function RankingClient({ initialStudents, settings, userId }: { i
     }
 
     const exportExcel = () => {
-        const ws_data: any[] = []
-        const title = currentMode === 'monthly' ? `តារាងចំណាត់ថ្នាក់ប្រចាំខែ ${allMonthsMap.find(m => m.id === currentPeriod)?.label}` 
+        const ws_data: SheetRow[] = []
+        const title = currentMode === 'monthly' ? `តារាងចំណាត់ថ្នាក់ប្រចាំខែ ${MONTHS_BY_CALENDAR.find(m => m.id === currentPeriod)?.label}` 
             : currentMode === 'semester' ? `តារាងចំណាត់ថ្នាក់ប្រចាំ${currentPeriod === 'sem1' ? 'ឆមាសទី១' : 'ឆមាសទី២'}` 
             : `តារាងចំណាត់ថ្នាក់ប្រចាំឆ្នាំ ${academicYear}`
 
@@ -246,7 +233,7 @@ export default function RankingClient({ initialStudents, settings, userId }: { i
                                 <h3 className="text-base font-bold text-slate-700 font-moul">ការវាយតម្លៃប្រចាំខែ</h3>
                             </div>
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                                {allMonthsMap.map(m => (
+                                {MONTHS_BY_CALENDAR.map(m => (
                                     <button key={m.id} onClick={() => loadData('monthly', m.id)} className="select-btn group">
                                         <span className="font-moul text-[15px] group-hover:text-blue-600">{m.label}</span>
                                     </button>
@@ -311,13 +298,13 @@ export default function RankingClient({ initialStudents, settings, userId }: { i
                             <p>{settings?.management_unit_2 || "ការិយាល័យអប់រំ..."}</p>
                             <p className="mt-1">{settings?.school_name || "សាលា..."}</p>
                             <p>{settings?.class_name || "ថ្នាក់..."}</p>
-                            <p>ឆ្នាំសិក្សា៖ {toKhmerNum(academicYear)}</p>
+                            <p>ឆ្នាំសិក្សា៖ {toKhmerNumber(academicYear)}</p>
                         </div>
                         
                         <div className="mt-2 pb-2 w-full text-center">
                             <h1 className="text-[18px] font-moul mb-1.5 text-blue-900">តារាងចំណាត់ថ្នាក់សិស្ស</h1>
                             <p className="font-moul text-[15px] text-blue-800">
-                                {currentMode === 'monthly' ? `ប្រចាំខែ ${allMonthsMap.find(m => m.id === currentPeriod)?.label}` : currentMode === 'semester' ? `ប្រចាំឆមាសទី${currentPeriod === 'sem1' ? '១' : '២'}` : 'ប្រចាំឆ្នាំ'}
+                                {currentMode === 'monthly' ? `ប្រចាំខែ ${MONTHS_BY_CALENDAR.find(m => m.id === currentPeriod)?.label}` : currentMode === 'semester' ? `ប្រចាំឆមាសទី${currentPeriod === 'sem1' ? '១' : '២'}` : 'ប្រចាំឆ្នាំ'}
                             </p>
                         </div>
                     </div>
@@ -349,7 +336,10 @@ export default function RankingClient({ initialStudents, settings, userId }: { i
                                     <td className="border border-blue-900 p-1 font-bold text-red-600 text-sm">{stu.rank || '-'}</td>
                                     <td className="border border-blue-900 p-1 font-bold">{stu.grade || '-'}</td>
                                     <td className="border border-blue-900 p-1 text-[10px]">{stu.desc || '-'}</td>
-                                    <td className="border border-blue-900 p-1 text-[10px]">{stu.remarks || ''}</td>
+                                    {/* Always blank: nothing ever populates a `remarks` field on a ranked
+                                        student. Kept as an empty column so the printed table keeps its
+                                        shape — wire it to `other_remarks` if it is meant to carry data. */}
+                                    <td className="border border-blue-900 p-1 text-[10px]"></td>
                                 </tr>
                             ))}
                         </tbody>

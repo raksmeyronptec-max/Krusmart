@@ -1,22 +1,25 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
-import { CalendarCheck, Award, CalendarDays, Bookmark, Clock, BookOpen, Settings, FolderPlus, X, Mic, UserCheck, Book, Home, Save, Table2, Loader2 } from 'lucide-react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
+import { CalendarCheck, Award, CalendarDays, Bookmark, Clock, BookOpen, FolderPlus, X, Mic, UserCheck, Book, Home, Save, Table2, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { getScores, saveScores } from './actions'
 import Select from '@/components/ui/forms/Select'
 import SearchableSelect from '@/components/ui/forms/SearchableSelect'
-import type { Student } from '@/lib/types'
-
-/** One column of the score grid. */
-type SubjectColumn = { key: string, label: string, group?: string, type?: string }
-
-/** A user-defined subject group persisted in the `custom_subjects` localStorage key. */
-type CustomSubject = { id: string, name: string, columns: { id: string, name: string, mode?: string }[] }
+import type { Score, ScoreInput, Student } from '@/lib/types'
 
 const behaviorOptions = ['ល្អ', 'ល្អបង្គួរ', 'មធ្យម', 'ខ្សោយ']
 
-const subjectConfigs: Record<string, any[]> = {
+/** One editable column of the score grid. */
+interface SubjectColumn {
+    id: string
+    label: string
+    width?: string
+    type?: string
+    options?: string[]
+}
+
+const subjectConfigs: Record<string, SubjectColumn[]> = {
     'khmer_all': [
         { id: 'kh_listen', label: 'ស្តាប់', width: '80px' },
         { id: 'kh_speak', label: 'និយាយ', width: '80px' },
@@ -112,36 +115,27 @@ const subjectConfigs: Record<string, any[]> = {
     'sem_eval_participate': [{ id: 'sem_eval_participate', label: 'សាមគ្គីភាព-ការចូលរួម', width: '150px', type: 'select', options: behaviorOptions }]
 }
 
-const allMonthsMap = [
-    { id: 'nov', label: 'វិច្ឆិកា', isNextYear: false },
-    { id: 'dec', label: 'ធ្នូ', isNextYear: false },
-    { id: 'jan', label: 'មករា', isNextYear: true },
-    { id: 'feb', label: 'កុម្ភៈ', isNextYear: true },
-    { id: 'mar', label: 'មីនា', isNextYear: true },
-    { id: 'apr', label: 'មេសា', isNextYear: true },
-    { id: 'may', label: 'ឧសភា', isNextYear: true },
-    { id: 'jun', label: 'មិថុនា', isNextYear: true },
-    { id: 'jul', label: 'កក្កដា', isNextYear: true },
-    { id: 'aug', label: 'សីហា', isNextYear: true },
-    { id: 'sep', label: 'កញ្ញា', isNextYear: true },
-    { id: 'oct', label: 'តុលា', isNextYear: true }
-]
-
-export default function ScoreEnterClient({ initialStudents, userId }: { initialStudents: Student[], userId: string }) {
+export default function ScoreEnterClient({ initialStudents}: { initialStudents: Student[] }) {
     const [scoreType, setScoreType] = useState('monthly')
     const [academicYear, setAcademicYear] = useState('2025-2026')
     const [semester, setSemester] = useState('sem1')
     const [month, setMonth] = useState('nov')
-    const [subject, setSubject] = useState('math_general')
+    const [selectedSubject, setSubject] = useState('math_general')
 
     const [scoresData, setScoresData] = useState<Record<string, Record<string, string | number | null>>>({})
     const [loading, setLoading] = useState(false)
     const [saving, setSaving] = useState(false)
 
-    const [customSubjects, setCustomSubjects] = useState<any[]>([])
+    const [customSubjects, setCustomSubjects] = useState<CustomSubject[]>([])
 
     // Computed
     const scorePeriod = scoreType === 'monthly' ? `${month}-${academicYear}` : `${semester}-${academicYear}`
+    // Semester subjects are prefixed `sem_`. If the teacher switches score type
+    // while a subject from the other set is picked, fall back to that set's
+    // default. Derived during render — this used to be an effect that re-set state.
+    const subject = scoreType === 'monthly' && selectedSubject.startsWith('sem_') ? 'math_general'
+        : scoreType === 'semester' && !selectedSubject.startsWith('sem_') ? 'sem_math'
+        : selectedSubject
     const cols = subjectConfigs[subject] || []
 
     // Subject list for the picker — built per score type, with the teacher's
@@ -175,46 +169,38 @@ export default function ScoreEnterClient({ initialStudents, userId }: { initialS
     }, [scoreType, customSubjects])
 
     useEffect(() => {
-        const local = localStorage.getItem('custom_subjects')
-        if (local) {
-            const parsed = JSON.parse(local)
-            setCustomSubjects(parsed)
-            parsed.forEach((s: any) => {
-                subjectConfigs[s.id] = s.columns
-            })
-        }
+        const stored = readCustomSubjects()
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage is unavailable during SSR, so custom subjects load after mount
+        setCustomSubjects(stored)
+        stored.forEach(s => {
+            subjectConfigs[s.id] = s.columns
+        })
     }, [])
 
-    useEffect(() => {
-        loadData()
-    }, [scoreType, scorePeriod])
-
-    useEffect(() => {
-        // adjust default subject when changing type
-        if (scoreType === 'monthly' && subject.startsWith('sem_')) {
-            setSubject('math_general')
-        } else if (scoreType === 'semester' && !subject.startsWith('sem_')) {
-            setSubject('sem_math')
-        }
-    }, [scoreType])
-
-    const loadData = async () => {
+    const loadData = useCallback(async () => {
         setLoading(true)
         const records = await getScores(scoreType, scorePeriod)
         
-        const newScoresData: Record<string, Record<string, any>> = {}
+        const newScoresData: Record<string, Record<string, string | number | null>> = {}
         initialStudents.forEach(stu => {
             newScoresData[stu.id] = {}
         })
 
-        records.forEach((r: any) => {
+        records.forEach((r: Score) => {
             if (!newScoresData[r.student_id]) newScoresData[r.student_id] = {}
             newScoresData[r.student_id][r.subject] = r.score_value
         })
         
         setScoresData(newScoresData)
         setLoading(false)
-    }
+    }, [scoreType, scorePeriod, initialStudents])
+
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch: state is set after await, not synchronously during the effect
+        loadData()
+    }, [scoreType, scorePeriod, loadData])
+
+
 
     const handleScoreChange = (studentId: string, subId: string, value: string) => {
         setScoresData(prev => ({
@@ -228,7 +214,7 @@ export default function ScoreEnterClient({ initialStudents, userId }: { initialS
 
     const handleSave = async () => {
         setSaving(true)
-        const payload: any[] = []
+        const payload: ScoreInput[] = []
         
         Object.keys(scoresData).forEach(studentId => {
             Object.keys(scoresData[studentId]).forEach(subId => {
@@ -251,7 +237,7 @@ export default function ScoreEnterClient({ initialStudents, userId }: { initialS
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
     const [newSubName, setNewSubName] = useState('')
-    const [newSubType, setNewSubType] = useState('both')
+    const [newSubType, setNewSubType] = useState<CustomSubjectScope>('both')
     const [newSubCols, setNewSubCols] = useState('')
 
     const submitNewSubject = () => {
@@ -273,7 +259,7 @@ export default function ScoreEnterClient({ initialStudents, userId }: { initialS
         const updated = [...customSubjects, newSub]
         setCustomSubjects(updated)
         subjectConfigs[id] = cols
-        localStorage.setItem('custom_subjects', JSON.stringify(updated))
+        writeCustomSubjects(updated)
         
         setIsAddModalOpen(false)
         setSubject(id)
@@ -372,7 +358,7 @@ export default function ScoreEnterClient({ initialStudents, userId }: { initialS
                                     label="ខែ"
                                     value={month}
                                     onChange={setMonth}
-                                    options={allMonthsMap.map(m => ({ value: m.id, label: m.label }))}
+                                    options={MONTHS_BY_ACADEMIC_YEAR.map(m => ({ value: m.id, label: m.label }))}
                                     leadingIcon={<Clock />}
                                 />
                             )}
@@ -459,7 +445,7 @@ export default function ScoreEnterClient({ initialStudents, userId }: { initialS
                                                             onChange={e => handleScoreChange(stu.id, col.id, e.target.value)}
                                                         >
                                                             <option value="" disabled></option>
-                                                            {col.options.map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
+                                                            {col.options?.map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
                                                         </select>
                                                     ) : (
                                                         <input 
@@ -514,7 +500,7 @@ export default function ScoreEnterClient({ initialStudents, userId }: { initialS
                             <Select
                                 label="ប្រើសម្រាប់"
                                 value={newSubType}
-                                onChange={setNewSubType}
+                                onChange={v => setNewSubType(v as CustomSubjectScope)}
                                 options={[
                                     { value: 'monthly', label: 'ប្រចាំខែ ប៉ុណ្ណោះ' },
                                     { value: 'semester', label: 'ប្រចាំឆមាស ប៉ុណ្ណោះ' },
@@ -545,3 +531,5 @@ export default function ScoreEnterClient({ initialStudents, userId }: { initialS
 }
 // Add ArrowLeft icon to lucide-react import
 import { ArrowLeft } from 'lucide-react'
+import { MONTHS_BY_ACADEMIC_YEAR } from '@/lib/constants/months'
+import { readCustomSubjects, writeCustomSubjects, type CustomSubject, type CustomSubjectScope } from '@/lib/storage/custom-subjects'

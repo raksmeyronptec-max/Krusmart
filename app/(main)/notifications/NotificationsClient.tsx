@@ -14,7 +14,7 @@ import { logger } from '@/lib/utils/logger'
 /** The dropdown only needs the id and the Khmer name. */
 type StudentOption = Pick<Student, 'id' | 'name_kh'>
 
-export default function NotificationsClient({ initialStudents, userId }: { initialStudents: StudentOption[], userId: string }) {
+export default function NotificationsClient({ initialStudents}: { initialStudents: StudentOption[] }) {
     const [notifications, setNotifications] = useState<Notification[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [isSubmitting, setIsSubmitting] = useState(false)
@@ -29,7 +29,7 @@ export default function NotificationsClient({ initialStudents, userId }: { initi
         loadData()
     }, [])
 
-    const loadData = async () => {
+    async function loadData() {
         setIsLoading(true)
         const data = await getNotifications()
         setNotifications(data)

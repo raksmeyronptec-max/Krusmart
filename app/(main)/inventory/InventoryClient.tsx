@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { ArrowLeft, Package, PlusCircle, Save, X, List, Printer, Edit, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import type { Settings } from '@/lib/types'
+import { STORAGE_KEYS } from '@/lib/constants/storage'
 
 interface InventoryItem {
     id: number
@@ -20,17 +21,18 @@ export default function InventoryClient({ settings }: { settings: Settings | nul
     const [note, setNote] = useState('')
 
     useEffect(() => {
-        const stored = localStorage.getItem('inventoryItems')
+        const stored = localStorage.getItem(STORAGE_KEYS.inventoryItems)
         if (stored) {
             try {
+                // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage is unavailable during SSR; a lazy initialiser would desync hydration
                 setItems(JSON.parse(stored))
-            } catch (e) {}
+            } catch {}
         }
     }, [])
 
     const saveItems = (newItems: InventoryItem[]) => {
         setItems(newItems)
-        localStorage.setItem('inventoryItems', JSON.stringify(newItems))
+        localStorage.setItem(STORAGE_KEYS.inventoryItems, JSON.stringify(newItems))
     }
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -40,7 +42,10 @@ export default function InventoryClient({ settings }: { settings: Settings | nul
         if (editId) {
             saveItems(items.map(item => item.id === editId ? { id: editId, name, qty: parseInt(qty), note } : item))
         } else {
-            saveItems([...items, { id: Date.now(), name, qty: parseInt(qty), note }])
+            // Derive the next id from the list rather than the clock: it stays pure,
+            // and two items added in the same millisecond can't collide.
+            const nextId = items.reduce((max, item) => Math.max(max, item.id), 0) + 1
+            saveItems([...items, { id: nextId, name, qty: parseInt(qty), note }])
         }
 
         resetForm()

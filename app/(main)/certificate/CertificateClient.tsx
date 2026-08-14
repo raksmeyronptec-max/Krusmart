@@ -1,20 +1,21 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { ArrowLeft, Award, RefreshCw, Image as ImageIcon, Camera, Printer, ListOrdered } from 'lucide-react'
 import Link from 'next/link'
 import { getAllScoresByPeriod } from '../score/total/actions'
 import Select from '@/components/ui/forms/Select'
 import type { Score, Settings, Student } from '@/lib/types'
+import { MONTHS_BY_ACADEMIC_YEAR } from '@/lib/constants/months'
 
-const allMonthsMap = [
-    { id: 'nov', label: 'វិច្ឆិកា', isNextYear: false }, { id: 'dec', label: 'ធ្នូ', isNextYear: false },
-    { id: 'jan', label: 'មករា', isNextYear: true }, { id: 'feb', label: 'កុម្ភៈ', isNextYear: true },
-    { id: 'mar', label: 'មីនា', isNextYear: true }, { id: 'apr', label: 'មេសា', isNextYear: true },
-    { id: 'may', label: 'ឧសភា', isNextYear: true }, { id: 'jun', label: 'មិថុនា', isNextYear: true },
-    { id: 'jul', label: 'កក្កដា', isNextYear: true }, { id: 'aug', label: 'សីហា', isNextYear: true },
-    { id: 'sep', label: 'កញ្ញា', isNextYear: true }, { id: 'oct', label: 'តុលា', isNextYear: true }
-]
+/** A student decorated with the scores and ranking fields the certificate prints. */
+type ProcessedStudent = Student & {
+    scores: Record<string, number | null>
+    total?: number
+    average?: string
+    finalAverageForRank?: number
+    rank?: number
+}
 
 const config = {
     monthly: {
@@ -31,8 +32,7 @@ export default function CertificateClient({ initialStudents, settings }: { initi
     const [month, setMonth] = useState('nov')
     const [semester, setSemester] = useState('sem1')
 
-    const [studentsData, setStudentsData] = useState<any[]>([])
-    const [loading, setLoading] = useState(false)
+    const [studentsData, setStudentsData] = useState<ProcessedStudent[]>([])
 
     // Selection
     const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([])
@@ -46,36 +46,24 @@ export default function CertificateClient({ initialStudents, settings }: { initi
     const [showPhoto, setShowPhoto] = useState(true)
 
     // Dates
-    const [solarDay, setSolarDay] = useState('១១')
-    const [solarMonth, setSolarMonth] = useState('មីនា')
-    const [solarYear, setSolarYear] = useState('២០២៦')
+    // Fixed on the printed certificate; nothing ever changes these.
+    const solarDay = '១១'
+    const solarMonth = 'មីនា'
+    const solarYear = '២០២៦'
 
-    useEffect(() => {
-        loadData()
-    }, [scoreType, academicYear, month, semester])
-
-    const getScorePeriod = () => {
+    const getScorePeriod = useCallback(() => {
         if (scoreType === 'monthly') return `${month}-${academicYear}`
         if (scoreType === 'semester') return `${semester}-${academicYear}`
         return `annual-${academicYear}`
-    }
+    }, [scoreType, academicYear, month, semester])
 
-    const loadData = async () => {
-        setLoading(true)
+    const loadData = useCallback(async () => {
         const period = getScorePeriod()
         const records = await getAllScoresByPeriod(scoreType, period)
         
-        type ProcessedStudent = Student & {
-            scores: Record<string, any>;
-            total?: number;
-            average?: string;
-            finalAverageForRank?: number;
-            rank?: number;
-        }
-
-        let processedStudents: ProcessedStudent[] = initialStudents.map(stu => {
-            const studentScores: Record<string, any> = {}
-            records.filter((r: any) => r.student_id === stu.id).forEach((r: any) => {
+        const processedStudents: ProcessedStudent[] = initialStudents.map(stu => {
+            const studentScores: Record<string, number | null> = {}
+            records.filter((r: Score) => r.student_id === stu.id).forEach((r: Score) => {
                 studentScores[r.subject] = r.score_value
             })
             return { ...stu, scores: studentScores }
@@ -89,8 +77,8 @@ export default function CertificateClient({ initialStudents, settings }: { initi
             
             cols.forEach((key: string) => {
                 const rawVal = stu.scores[key]
-                if (rawVal !== null && rawVal !== undefined && rawVal !== "") {
-                    const val = parseFloat(rawVal)
+                if (rawVal !== null && rawVal !== undefined) {
+                    const val = parseFloat(String(rawVal))
                     if (!isNaN(val)) {
                         sum += val
                         scoredSubjectsCount++
@@ -103,8 +91,8 @@ export default function CertificateClient({ initialStudents, settings }: { initi
                 stu.average = scoredSubjectsCount > 0 ? (sum / scoredSubjectsCount).toFixed(2) : "0.00"
                 stu.finalAverageForRank = parseFloat(stu.average)
             } else if (scoreType === 'yearly') {
-                const s1 = parseFloat(stu.scores['sem1_avg'] || '0')
-                const s2 = parseFloat(stu.scores['sem2_avg'] || '0')
+                const s1 = parseFloat(String(stu.scores['sem1_avg'] ?? '0'))
+                const s2 = parseFloat(String(stu.scores['sem2_avg'] ?? '0'))
                 stu.total = s1 + s2
                 stu.average = (stu.total / 2).toFixed(2)
                 stu.finalAverageForRank = parseFloat(stu.average)
@@ -133,8 +121,14 @@ export default function CertificateClient({ initialStudents, settings }: { initi
         }
 
         setStudentsData(processedStudents)
-        setLoading(false)
-    }
+    }, [scoreType, initialStudents, getScorePeriod])
+
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch: state is set after await, not synchronously during the effect
+        loadData()
+    }, [loadData])
+
+
 
     const toggleSelection = (id: string) => {
         if (selectedStudentIds.includes(id)) {
@@ -145,7 +139,7 @@ export default function CertificateClient({ initialStudents, settings }: { initi
     }
 
     const selectTop = (n: number) => {
-        const topIds = studentsData.filter(s => s.rank <= n).map(s => s.id)
+        const topIds = studentsData.filter(s => s.rank !== undefined && s.rank <= n).map(s => s.id)
         setSelectedStudentIds(topIds)
     }
 
@@ -277,7 +271,7 @@ export default function CertificateClient({ initialStudents, settings }: { initi
                                                 ariaLabel="ខែ"
                                                 value={month}
                                                 onChange={setMonth}
-                                                options={allMonthsMap.map(m => ({ value: m.id, label: m.label }))}
+                                                options={MONTHS_BY_ACADEMIC_YEAR.map(m => ({ value: m.id, label: m.label }))}
                                             />
                                         </div>
                                     )}

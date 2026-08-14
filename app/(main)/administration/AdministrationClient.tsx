@@ -12,6 +12,7 @@ import {
 } from 'recharts';
 import SearchableSelect from '@/components/ui/forms/SearchableSelect'
 import Select from '@/components/ui/forms/Select'
+import { toKhmerNumber } from '@/lib/utils/khmer-num'
 
 // --- Mock Data ---
 const MOCK_SCHOOL_STATS = {
@@ -82,12 +83,7 @@ export default function AdministrationClient() {
   const [selectedTeacher, setSelectedTeacher] = useState('');
 
   const stats = MOCK_SCHOOL_STATS;
-  const teacherDetail = selectedTeacher ? (MOCK_TEACHER_DETAIL as any)[selectedTeacher] : null;
-
-  const toKhNum = (num: number | string) => {
-    const khDigits = ['០','១','២','៣','៤','៥','៦','៧','៨','៩'];
-    return num.toString().split('').map(d => /[0-9]/.test(d) ? khDigits[parseInt(d)] : d).join('');
-  };
+  const teacherDetail = selectedTeacher ? MOCK_TEACHER_DETAIL[selectedTeacher as keyof typeof MOCK_TEACHER_DETAIL] : null;
 
   return (
     <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-6">
@@ -130,7 +126,7 @@ export default function AdministrationClient() {
           </div>
           <div>
             <p className="text-sm text-gray-500 font-bold mb-0.5">សិស្សសរុប</p>
-            <h3 className="text-2xl font-bold text-gray-800">{toKhNum(stats.totalStudents)}</h3>
+            <h3 className="text-2xl font-bold text-gray-800">{toKhmerNumber(stats.totalStudents)}</h3>
           </div>
         </div>
 
@@ -140,8 +136,8 @@ export default function AdministrationClient() {
           </div>
           <div>
             <p className="text-sm text-gray-500 font-bold mb-0.5">អត្រាវត្តមានប្រចាំខែ</p>
-            <h3 className="text-2xl font-bold text-gray-800">{toKhNum(stats.attendanceRate)}%</h3>
-            <p className="text-xs text-gray-500 mt-1 font-bold">អវត្តមានសរុប <span className="text-red-500">{toKhNum(stats.absentCount)}</span> ដង</p>
+            <h3 className="text-2xl font-bold text-gray-800">{toKhmerNumber(stats.attendanceRate)}%</h3>
+            <p className="text-xs text-gray-500 mt-1 font-bold">អវត្តមានសរុប <span className="text-red-500">{toKhmerNumber(stats.absentCount)}</span> ដង</p>
           </div>
         </div>
 
@@ -151,7 +147,7 @@ export default function AdministrationClient() {
           </div>
           <div>
             <p className="text-sm text-gray-500 font-bold mb-0.5">អត្រាសិស្សជាប់</p>
-            <h3 className="text-2xl font-bold text-gray-800">{toKhNum(stats.passRate)}%</h3>
+            <h3 className="text-2xl font-bold text-gray-800">{toKhmerNumber(stats.passRate)}%</h3>
           </div>
         </div>
 
@@ -161,7 +157,7 @@ export default function AdministrationClient() {
           </div>
           <div>
             <p className="text-sm text-gray-500 font-bold mb-0.5">សិស្សទន់ខ្សោយ/ព្រមាន</p>
-            <h3 className="text-2xl font-bold text-gray-800">{toKhNum(stats.dropoutRisk)} នាក់</h3>
+            <h3 className="text-2xl font-bold text-gray-800">{toKhmerNumber(stats.dropoutRisk)} នាក់</h3>
           </div>
         </div>
       </div>
@@ -226,11 +222,11 @@ export default function AdministrationClient() {
                         </div>
                         {cls.teacher}
                       </td>
-                      <td className="py-3 text-center font-bold text-gray-700">{toKhNum(cls.total)}</td>
+                      <td className="py-3 text-center font-bold text-gray-700">{toKhmerNumber(cls.total)}</td>
                       <td className={`py-3 text-center font-bold ${cls.attendance < 90 ? 'text-red-500' : 'text-green-600'}`}>
-                        {toKhNum(cls.attendance)}%
+                        {toKhmerNumber(cls.attendance)}%
                       </td>
-                      <td className="py-3 text-center text-gray-700 font-bold">{toKhNum(cls.avgScore)}</td>
+                      <td className="py-3 text-center text-gray-700 font-bold">{toKhmerNumber(cls.avgScore)}</td>
                       <td className="py-3 text-center">
                         <span className={`px-3 py-1 rounded-full text-xs font-bold border ${statusColor}`}>
                           {cls.status}
@@ -279,19 +275,19 @@ export default function AdministrationClient() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 text-center shadow-sm">
                 <span className="text-[10px] text-gray-500 font-bold uppercase mb-1 block">ចំនួនសិស្សក្នុងថ្នាក់</span>
-                <span className="text-2xl font-black text-blue-700">{toKhNum(teacherDetail.totalStudents)}</span>
+                <span className="text-2xl font-black text-blue-700">{toKhmerNumber(teacherDetail.totalStudents)}</span>
               </div>
               <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 text-center shadow-sm">
                 <span className="text-[10px] text-gray-500 font-bold uppercase mb-1 block">មធ្យមភាគពិន្ទុថ្នាក់</span>
-                <span className="text-2xl font-black text-indigo-700">{toKhNum(teacherDetail.avgScore)}</span>
+                <span className="text-2xl font-black text-indigo-700">{toKhmerNumber(teacherDetail.avgScore)}</span>
               </div>
               <div className="bg-green-50/50 p-4 rounded-xl border border-green-100 text-center shadow-sm">
                 <span className="text-[10px] text-gray-500 font-bold uppercase mb-1 block">អត្រាវត្តមានសិស្ស</span>
-                <span className="text-2xl font-black text-green-700">{toKhNum(teacherDetail.attendanceRate)}%</span>
+                <span className="text-2xl font-black text-green-700">{toKhmerNumber(teacherDetail.attendanceRate)}%</span>
               </div>
               <div className="bg-purple-50/50 p-4 rounded-xl border border-purple-100 text-center shadow-sm">
                 <span className="text-[10px] text-gray-500 font-bold uppercase mb-1 block">អត្រាសិស្សប្រឡងជាប់</span>
-                <span className="text-2xl font-black text-purple-700">{toKhNum(teacherDetail.passRate)}%</span>
+                <span className="text-2xl font-black text-purple-700">{toKhmerNumber(teacherDetail.passRate)}%</span>
               </div>
             </div>
 
@@ -326,7 +322,7 @@ export default function AdministrationClient() {
                       <YAxis tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
                       <Tooltip cursor={{ fill: '#f1f5f9' }} />
                       <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                        {teacherDetail.gradeData.map((entry: any, index: number) => (
+                        {teacherDetail.gradeData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.fill} />
                         ))}
                       </Bar>

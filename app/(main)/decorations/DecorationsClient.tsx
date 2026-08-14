@@ -2,8 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Search, Filter, Download, FileText, Monitor, Layout, File, X, Image as ImageIcon } from 'lucide-react';
-import { materialsData, DecorationMaterial, MaterialSize } from '@/lib/data/decorations';
-import Image from 'next/image';
+import { materialsData, DecorationMaterial } from '@/lib/data/decorations';
 import SearchableSelect from '@/components/ui/forms/SearchableSelect'
 
 const CATEGORIES = [
@@ -84,6 +83,7 @@ export default function DecorationsClient() {
           >
             <div className="relative h-48 w-full bg-blue-50/50 flex items-center justify-center p-4 border-b border-gray-100 overflow-hidden">
               {material.preview.startsWith('http') || material.preview.startsWith('preview') || material.preview.startsWith('/') ? (
+                // eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture
                 <img
                   src={material.preview.startsWith('preview') ? `/${material.preview}` : material.preview}
                   alt={material.title}
@@ -139,6 +139,7 @@ export default function DecorationsClient() {
             </button>
 
             <div className="md:w-1/2 bg-gray-50 flex items-center justify-center p-6 border-b md:border-b-0 md:border-r border-gray-200">
+              {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture */}
               <img
                 src={selectedMaterial.preview.startsWith('preview') ? `/${selectedMaterial.preview}` : selectedMaterial.preview}
                 alt={selectedMaterial.title}

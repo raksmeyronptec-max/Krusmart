@@ -4,9 +4,11 @@ import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { logger } from '@/lib/utils/logger'
+import { toKhmerNumber } from '@/lib/utils/khmer-num'
+import type { Student } from '@/lib/types'
 
-let cachedModels: Record<string, THREE.Group> = {};
-let isLoadingModel: Record<string, boolean> = {};
+const cachedModels: Record<string, THREE.Group> = {};
+const isLoadingModel: Record<string, boolean> = {};
 const modelLoadCallbacks: Record<string, ((model: THREE.Group) => void)[]> = { male: [], female: [] };
 
 function loadStudentModel(gender: string, callback: (model: THREE.Group) => void) {
@@ -36,14 +38,89 @@ function loadStudentModel(gender: string, callback: (model: THREE.Group) => void
     });
 }
 
+/** A 2-D point in either screen or NDC space. */
+interface Point2 {
+    x: number;
+    y: number;
+}
+
+/** Seat-grid dimensions, mirroring the `config` state in `AttendanceLayoutClient`. */
+interface ClassroomConfig {
+    totalTables: number;
+    gridCols: number;
+    seatsPerTable: number;
+    layout: string;
+}
+
+/** date → student id → mark. */
+type AttendanceHistory = Record<string, Record<string, { status: string; note: string }>>;
+
 interface ThreeClassroomProps {
-    config: any;
+    config: ClassroomConfig;
     seatingLayout: Record<string, string>;
-    students: any[];
-    attendanceHistory: any;
+    students: Student[];
+    attendanceHistory: AttendanceHistory;
     date: string;
     onSeatClick: (seatId: string) => void;
     onClose: () => void;
+}
+
+/** A billboarded name tag floating above a seat. */
+interface SeatLabel {
+    sprite: THREE.Sprite;
+    draw: (hex: string) => void;
+}
+
+/** Everything needed to recolour and hit-test one seat. */
+interface SeatObject {
+    uid: string;
+    cushionMat: THREE.MeshStandardMaterial;
+    label: SeatLabel;
+    hitbox: THREE.Mesh;
+}
+
+/** Orbit camera position in spherical coordinates. */
+interface OrbitPosition {
+    r: number;
+    theta: number;
+    phi: number;
+}
+
+/**
+ * Mutable scene state parked on a ref so the render loop can read it without
+ * re-running the setup effect.
+ */
+interface ThreeState {
+    renderer: THREE.WebGLRenderer;
+    scene: THREE.Scene;
+    camera: THREE.PerspectiveCamera;
+    worldGroup: THREE.Group;
+    clock: THREE.Clock;
+    raycaster: THREE.Raycaster;
+    camTarget: THREE.Vector3;
+    /** Eased current position; `tgt` is where it is heading. */
+    cur: OrbitPosition;
+    tgt: OrbitPosition;
+    /** Baseline orbit radius, used to clamp zoom. */
+    R0: number;
+    ROOM_W: number;
+    ROOM_D: number;
+    clickable: THREE.Object3D[];
+    seatObjects: Record<string, SeatObject>;
+    deskGroups: THREE.Group[];
+    propsRef: {
+        config: ClassroomConfig;
+        seatingLayout: Record<string, string>;
+        students: Student[];
+        attendanceHistory: AttendanceHistory;
+        date: string;
+    };
+    animReq: number | null;
+    autoSpin: boolean;
+    destroyed: boolean;
+    firstBuild: boolean;
+    labelsVisible: boolean;
+    revealStart: number;
 }
 
 const STATUS3 = {
@@ -51,12 +128,25 @@ const STATUS3 = {
     L: { color: 0xeab308, hex: '#eab308' },
     A: { color: 0xef4444, hex: '#ef4444' }
 };
-const toKh3 = (n: number) => String(n).replace(/[0-9]/g, (d) => '០១២៣៤៥៦៧៨៩'[parseInt(d)]);
 const easeOutBack3 = (x: number) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
 
 const DESK_D3 = 0.72, DESK_H3 = 0.74, TOP_T3 = 0.06, CHAIR_S3 = 0.46, SEAT_H3 = 0.46, SEAT_SP3 = 0.86;
 
-function MAT3(color: number, opts: any = {}) { return new THREE.MeshStandardMaterial({ color, roughness: 0.7, ...opts }); }
+function MAT3(color: number, opts: THREE.MeshStandardMaterialParameters = {}) { return new THREE.MeshStandardMaterial({ color, roughness: 0.7, ...opts }); }
+/** Release the GPU resources held by `root` and everything under it. */
+function disposeObject3D(root: THREE.Object3D) {
+    root.traverse(node => {
+        if (!(node instanceof THREE.Mesh)) return;
+        node.geometry?.dispose();
+        const materials: THREE.Material[] = Array.isArray(node.material) ? node.material : [node.material];
+        materials.forEach(material => {
+            const textured = material as THREE.MeshStandardMaterial;
+            textured.map?.dispose();
+            material.dispose();
+        });
+    });
+}
+
 function box3(w: number, h: number, dp: number, mat: THREE.Material) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, dp), mat);
     m.castShadow = true; m.receiveShadow = true; return m;
@@ -71,7 +161,8 @@ export default function ThreeClassroom({ config, seatingLayout, students, attend
     const [loading, setLoading] = useState(true)
 
     // ThreeJS state
-    const threeState = useRef<any>({})
+    // Populated by the setup effect below before anything reads it.
+    const threeState = useRef<ThreeState>({} as ThreeState)
 
     useEffect(() => {
         if (!canvasRef.current) return
@@ -114,7 +205,7 @@ export default function ThreeClassroom({ config, seatingLayout, students, attend
             tgt: { r: 18, phi: 0.62, theta: 0.62 },
             R0: 18, ROOM_W: 14, ROOM_D: 14,
             seatObjects: {}, clickable: [], deskGroups: [],
-            labelsVisible: true, autoSpin: false, currentView: 'teacher',
+            labelsVisible: true, autoSpin: false,
             firstBuild: true, revealStart: 0,
             animReq: null,
             destroyed: false,
@@ -124,10 +215,11 @@ export default function ThreeClassroom({ config, seatingLayout, students, attend
         const ts = threeState.current
 
         // Controls
-        let pointers = new Map(), mode: string | null = null, last: any = null, down: any = null, moved = false, pinch = 0, mid: any = null, hovered: any = null;
-        const dist = (a: any, b: any) => Math.hypot(a.x - b.x, a.y - b.y);
-        const midp = (a: any, b: any) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
-        const ndc = (e: any) => ({ x: (e.clientX / window.innerWidth) * 2 - 1, y: -(e.clientY / window.innerHeight) * 2 + 1 });
+        const pointers = new Map();
+        let mode: string | null = null, last: Point2 | null = null, down: Point2 | null = null, moved = false, pinch = 0, mid: Point2 | null = null, hovered: string | null = null;
+        const dist = (a: Point2, b: Point2) => Math.hypot(a.x - b.x, a.y - b.y);
+        const midp = (a: Point2, b: Point2): Point2 => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+        const ndc = (e: PointerEvent) => new THREE.Vector2((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
         const clampPhi = () => { ts.tgt.phi = Math.max(0.16, Math.min(1.45, ts.tgt.phi)); }
         const clampR = () => { ts.tgt.r = Math.max(ts.R0 * 0.45, Math.min(ts.R0 * 1.9, ts.tgt.r)); }
         const panBy = (dx: number, dy: number) => {
@@ -139,13 +231,13 @@ export default function ThreeClassroom({ config, seatingLayout, students, attend
             ts.camTarget.z = Math.max(-ts.ROOM_D / 2, Math.min(ts.ROOM_D / 2, ts.camTarget.z));
         }
         
-        canvas.addEventListener('pointerdown', (e: any) => {
+        canvas.addEventListener('pointerdown', (e: PointerEvent) => {
             canvas.setPointerCapture(e.pointerId); pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
             if (pointers.size === 1) { down = { x: e.clientX, y: e.clientY }; moved = false; last = { x: e.clientX, y: e.clientY }; mode = (e.button === 2 || e.shiftKey) ? 'pan' : 'rotate'; }
             else if (pointers.size === 2) { const p = Array.from(pointers.values()); pinch = dist(p[0], p[1]); mid = midp(p[0], p[1]); mode = 'pinch'; }
             setAutoSpin(false)
         });
-        canvas.addEventListener('pointermove', (e: any) => {
+        canvas.addEventListener('pointermove', (e: PointerEvent) => {
             if (!pointers.has(e.pointerId)) {
                 ts.raycaster.setFromCamera(ndc(e), ts.camera);
                 const hit = ts.raycaster.intersectObjects(ts.clickable, false)[0];
@@ -159,6 +251,7 @@ export default function ThreeClassroom({ config, seatingLayout, students, attend
             }
             pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
             if (pointers.size === 1 && mode !== 'pinch') {
+                if (!last || !down) return;
                 const p = { x: e.clientX, y: e.clientY }, dx = p.x - last.x, dy = p.y - last.y;
                 if (Math.abs(p.x - down.x) + Math.abs(p.y - down.y) > 7) moved = true;
                 if (mode === 'rotate') { ts.tgt.theta -= dx * 0.005; ts.tgt.phi -= dy * 0.005; clampPhi(); } else panBy(-dx, dy);
@@ -169,7 +262,7 @@ export default function ThreeClassroom({ config, seatingLayout, students, attend
                 pinch = dd; mid = mm; moved = true;
             }
         });
-        const end = (e: any) => {
+        const end = (e: PointerEvent) => {
             const wasOne = pointers.size === 1; pointers.delete(e.pointerId);
             if (pointers.size < 2) { pinch = 0; mid = null; }
             if (pointers.size === 1) { const p = Array.from(pointers.values())[0]; last = { x: p.x, y: p.y }; mode = 'rotate'; }
@@ -184,8 +277,8 @@ export default function ThreeClassroom({ config, seatingLayout, students, attend
         }
         canvas.addEventListener('pointerup', end);
         canvas.addEventListener('pointercancel', end);
-        canvas.addEventListener('contextmenu', (e: any) => { e.preventDefault(); });
-        canvas.addEventListener('wheel', (e: any) => { e.preventDefault(); ts.tgt.r *= (1 + Math.sign(e.deltaY) * 0.08); clampR(); setAutoSpin(false); }, { passive: false });
+        canvas.addEventListener('contextmenu', (e: Event) => { e.preventDefault(); });
+        canvas.addEventListener('wheel', (e: WheelEvent) => { e.preventDefault(); ts.tgt.r *= (1 + Math.sign(e.deltaY) * 0.08); clampR(); setAutoSpin(false); }, { passive: false });
 
         const handleResize = () => {
             ts.camera.aspect = window.innerWidth / window.innerHeight; 
@@ -200,7 +293,7 @@ export default function ThreeClassroom({ config, seatingLayout, students, attend
             const t = ts.clock.getElapsedTime();
             if (ts.firstBuild) {
                 let done = true;
-                ts.deskGroups.forEach((g: any) => {
+                ts.deskGroups.forEach(g => {
                     const local = Math.max(0, Math.min(1, (t - ts.revealStart - g.userData.delay) / 0.55));
                     if (local < 1) done = false;
                     g.scale.setScalar(local >= 1 ? 1 : Math.max(0.001, easeOutBack3(local)));
@@ -221,18 +314,13 @@ export default function ThreeClassroom({ config, seatingLayout, students, attend
 
         return () => {
             ts.destroyed = true
-            cancelAnimationFrame(ts.animReq)
+            if (ts.animReq !== null) cancelAnimationFrame(ts.animReq)
             window.removeEventListener('resize', handleResize)
             // Cleanup threejs objects
-            ts.worldGroup.traverse((child: any) => {
-                if (child.isMesh) {
-                    child.geometry.dispose();
-                    if (child.material.map) child.material.map.dispose();
-                    child.material.dispose();
-                }
-            })
+            disposeObject3D(ts.worldGroup)
             ts.renderer.dispose()
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- one-time imperative scene setup; live props are read through `ts.propsRef`
     }, [])
 
     // Update props ref and trigger updates
@@ -249,6 +337,7 @@ export default function ThreeClassroom({ config, seatingLayout, students, attend
             // Just update colors
             update3DColors(ts)
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- rebuild3D/update3DColors are stable module-scope helpers; the listed props are the real triggers
     }, [config, seatingLayout, students, attendanceHistory, date])
 
     useEffect(() => {
@@ -274,12 +363,12 @@ export default function ThreeClassroom({ config, seatingLayout, students, attend
 
 
     // Helpers
-    const getStatus3 = (ts: any, uid: string) => {
+    const getStatus3 = (ts: ThreeState, uid: string) => {
         const { attendanceHistory, date } = ts.propsRef
         return (attendanceHistory[date] && attendanceHistory[date][uid] && attendanceHistory[date][uid].status) || 'P';
     }
 
-    const update3DColors = (ts: any) => {
+    function update3DColors(ts: ThreeState) {
         let p = 0, l = 0, a = 0;
         for (const id in ts.seatObjects) {
             const so = ts.seatObjects[id], st = getStatus3(ts, so.uid) as keyof typeof STATUS3;
@@ -290,16 +379,14 @@ export default function ThreeClassroom({ config, seatingLayout, students, attend
         setStats({ p, l, a })
     }
 
-    const rebuild3D = (ts: any) => {
+    function rebuild3D(ts: ThreeState) {
         const { config, seatingLayout, students } = ts.propsRef
         
         // Clean old
         while (ts.worldGroup.children.length) {
             const o = ts.worldGroup.children.pop();
-            if (o.traverse) o.traverse((n: any) => {
-                if (n.geometry) n.geometry.dispose();
-                if (n.material) { const m = n.material; if (m.map) m.map.dispose && m.map.dispose(); m.dispose && m.dispose(); }
-            });
+            if (!o) break;
+            disposeObject3D(o);
             ts.worldGroup.remove(o);
         }
         ts.seatObjects = {}; ts.clickable = []; ts.deskGroups = [];
@@ -400,8 +487,8 @@ export default function ThreeClassroom({ config, seatingLayout, students, attend
                 clone.rotation.y = Math.PI / 2;
 
                 // Disable shadows for high-poly characters to significantly improve performance (fix lag)
-                clone.traverse((child: any) => {
-                    if (child.isMesh) {
+                clone.traverse(child => {
+                    if (child instanceof THREE.Mesh) {
                         child.castShadow = false;
                         child.receiveShadow = false;
                     }
@@ -455,7 +542,7 @@ export default function ThreeClassroom({ config, seatingLayout, students, attend
             ts.worldGroup.add(makePlant3(roomW / 2 - 0.7, -roomD / 2 + 0.7));
         }
 
-        const addSeat3 = (parent: any, seatId: string, lx: number, lz: number, faceY?: number) => {
+        const addSeat3 = (parent: THREE.Object3D, seatId: string, lx: number, lz: number, faceY?: number) => {
             const uid = seatingLayout[seatId];
             const cushionMat = uid ? MAT3(0xffffff, { roughness: 0.8 }) : MAT3(0xb6c0cc, { roughness: 0.85 });
             const chair = buildChair3(cushionMat);
@@ -463,7 +550,7 @@ export default function ThreeClassroom({ config, seatingLayout, students, attend
             if (faceY !== undefined) chair.rotation.y = faceY;
             parent.add(chair);
             if (!uid) return;
-            const student = students.find((s: any) => (s.id || s.uid) === uid);
+            const student = students.find(s => (s.id || s.uid) === uid);
             const name = (student && (student.name_kh || student.full_name)) || '—';
             const gender = student ? student.gender : 'ប្រុស';
             const status = getStatus3(ts, uid) as keyof typeof STATUS3;
@@ -501,7 +588,7 @@ export default function ThreeClassroom({ config, seatingLayout, students, attend
             ts.ROOM_W = gridW + sideMargin * 2;
             ts.ROOM_D = frontZone + studentDepth + backMargin;
             const frontWallZ = -ts.ROOM_D / 2;
-            let zs = []; for (let r = 0; r < rows; r++) zs.push(frontWallZ + frontZone + r * rowPitch);
+            const zs = []; for (let r = 0; r < rows; r++) zs.push(frontWallZ + frontZone + r * rowPitch);
 
             buildRoom3(ts.ROOM_W, ts.ROOM_D);
             ts.camTarget.set(0, 0.7, (zs[0] + zs[rows - 1]) / 2);
@@ -538,7 +625,7 @@ export default function ThreeClassroom({ config, seatingLayout, students, attend
             const frontWallZ = -ts.ROOM_D / 2;
 
             let xs = []; for (let c = 0; c < cols; c++) xs.push(c * cell); const xMid = (xs[0] + xs[cols - 1]) / 2; xs = xs.map(v => v - xMid);
-            let zs = []; for (let r = 0; r < rows; r++) zs.push(frontWallZ + frontZone + ringR + r * cell);
+            const zs = []; for (let r = 0; r < rows; r++) zs.push(frontWallZ + frontZone + ringR + r * cell);
 
             buildRoom3(ts.ROOM_W, ts.ROOM_D);
             ts.camTarget.set(0, 0.7, (zs[0] + zs[rows - 1]) / 2);
@@ -564,8 +651,8 @@ export default function ThreeClassroom({ config, seatingLayout, students, attend
         else layoutGrid3();
 
         ts.R0 = Math.hypot(ts.ROOM_W, ts.ROOM_D) * 0.78;
-        if (ts.firstBuild) { ts.revealStart = ts.clock.getElapsedTime(); ts.deskGroups.forEach((g: any) => { g.scale.setScalar(0.001); }); }
-        else { ts.deskGroups.forEach((g: any) => { g.scale.setScalar(1); }); }
+        if (ts.firstBuild) { ts.revealStart = ts.clock.getElapsedTime(); ts.deskGroups.forEach(g => { g.scale.setScalar(0.001); }); }
+        else { ts.deskGroups.forEach(g => { g.scale.setScalar(1); }); }
         update3DColors(ts);
     }
 
@@ -592,21 +679,21 @@ export default function ThreeClassroom({ config, seatingLayout, students, attend
                     <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white/60">
                         <span className="w-2.5 h-2.5 rounded bg-green-500"></span>
                         <div className="flex flex-col leading-none">
-                            <span className="font-bold text-[#0f1f33]">{toKh3(stats.p)}</span>
+                            <span className="font-bold text-[#0f1f33]">{toKhmerNumber(stats.p)}</span>
                             <span className="text-[9px] text-[#5b6b7e] mt-0.5">មក</span>
                         </div>
                     </div>
                     <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white/60">
                         <span className="w-2.5 h-2.5 rounded bg-yellow-500"></span>
                         <div className="flex flex-col leading-none">
-                            <span className="font-bold text-[#0f1f33]">{toKh3(stats.l)}</span>
+                            <span className="font-bold text-[#0f1f33]">{toKhmerNumber(stats.l)}</span>
                             <span className="text-[9px] text-[#5b6b7e] mt-0.5">ច្បាប់</span>
                         </div>
                     </div>
                     <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white/60">
                         <span className="w-2.5 h-2.5 rounded bg-red-500"></span>
                         <div className="flex flex-col leading-none">
-                            <span className="font-bold text-[#0f1f33]">{toKh3(stats.a)}</span>
+                            <span className="font-bold text-[#0f1f33]">{toKhmerNumber(stats.a)}</span>
                             <span className="text-[9px] text-[#5b6b7e] mt-0.5">អវត្ត</span>
                         </div>
                     </div>

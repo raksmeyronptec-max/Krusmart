@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowLeft, User, Building2, MapPin, ShieldCheck, Save, Camera, Eye } from 'lucide-react'
+import { ArrowLeft, User, Building2, ShieldCheck, Save, Camera, Eye } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import type { Settings } from '@/lib/types'
@@ -115,6 +115,7 @@ export default function ProfileClient({ initialSettings }: { initialSettings: Se
                             <div className="relative group mx-auto md:mx-0">
                                 <div className="w-[140px] h-[140px] rounded-full border-[5px] border-white shadow-lg bg-white flex items-center justify-center overflow-hidden">
                                     {settings?.photo_url ? (
+                                        // eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture
                                         <img src={settings?.photo_url} alt="Profile" className="w-full h-full object-cover" />
                                     ) : (
                                         <User className="w-16 h-16 text-slate-300" />
@@ -189,6 +190,7 @@ export default function ProfileClient({ initialSettings }: { initialSettings: Se
                                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
                                     <div className="w-[80px] h-[80px] rounded-lg border-2 border-dashed border-blue-300 bg-white flex items-center justify-center overflow-hidden shrink-0">
                                         {settings?.school_logo ? (
+                                            // eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture
                                             <img src={settings?.school_logo} alt="School Logo" className="w-full h-full object-contain p-1" />
                                         ) : (
                                             <Building2 className="w-8 h-8 text-blue-200" />

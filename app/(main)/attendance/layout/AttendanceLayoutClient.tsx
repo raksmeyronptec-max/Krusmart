@@ -1,15 +1,16 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
-import { ArrowLeft, Calendar, Layout, LayoutTemplate, ChevronDown, RefreshCw, Save, User, X, Users, Search, Loader2, Check, Home } from 'lucide-react'
+import { useState, useCallback, useEffect } from 'react'
+import { ArrowLeft, Calendar, Layout, LayoutTemplate, Save, User, X, Users, Search, Loader2, Check, Home } from 'lucide-react'
 import Link from 'next/link'
 import { saveAttendance, getAttendanceForDate } from './actions'
 import ThreeClassroom from './ThreeClassroom'
 import Select from '@/components/ui/forms/Select'
-import type { AttendanceRecord, SeatingConfig, Student } from '@/lib/types'
+import type { AttendanceRecord, Student } from '@/lib/types'
+import { STORAGE_KEYS } from '@/lib/constants/storage'
 
-export default function AttendanceLayoutClient({ initialStudents, userId }: { initialStudents: Student[], userId: string }) {
-    const [students, setStudents] = useState<Student[]>(initialStudents)
+export default function AttendanceLayoutClient({ initialStudents}: { initialStudents: Student[] }) {
+    const students = initialStudents
     const [date, setDate] = useState(() => new Date().toISOString().split('T')[0])
     
     // Layout State
@@ -25,29 +26,33 @@ export default function AttendanceLayoutClient({ initialStudents, userId }: { in
     const [selectedSeatId, setSelectedSeatId] = useState<string | null>(null)
     const [searchQuery, setSearchQuery] = useState('')
 
-    // Load local storage layout on mount
-    useEffect(() => {
-        const localConfig = localStorage.getItem('seatingConfig')
-        if (localConfig) setConfig(JSON.parse(localConfig))
-
-        const localLayout = localStorage.getItem('seatingLayout')
-        if (localLayout) setSeatingLayout(JSON.parse(localLayout))
-        
-        loadAttendanceFromDB(date)
-    }, [])
-
-    const loadAttendanceFromDB = async (selectedDate: string) => {
+    const loadAttendanceFromDB = useCallback(async (selectedDate: string) => {
         const records = await getAttendanceForDate(selectedDate)
         const dailyAttendance: Record<string, { status: string, note: string }> = {}
-        records.forEach((r: any) => {
+        records.forEach((r: AttendanceRecord) => {
             dailyAttendance[r.student_id] = { status: r.status, note: r.reason || '' }
         })
-        
+
         setAttendanceHistory(prev => ({
             ...prev,
             [selectedDate]: dailyAttendance
         }))
-    }
+    }, [])
+
+    // Restore the saved layout and load the initial date, once on mount.
+    useEffect(() => {
+        const localConfig = localStorage.getItem(STORAGE_KEYS.seatingConfig)
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage is unavailable during SSR, so the saved layout can only be read after mount
+        if (localConfig) setConfig(JSON.parse(localConfig))
+
+        const localLayout = localStorage.getItem(STORAGE_KEYS.seatingLayout)
+        if (localLayout) setSeatingLayout(JSON.parse(localLayout))
+
+        loadAttendanceFromDB(date)
+        // `date` is intentionally omitted: this is the initial load, and
+        // handleDateChange re-fetches whenever the teacher picks another day.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [loadAttendanceFromDB])
 
     const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newDate = e.target.value
@@ -65,17 +70,16 @@ export default function AttendanceLayoutClient({ initialStudents, userId }: { in
         setIsEditMode(!isEditMode)
     }
 
-    const handleConfigChange = (key: string, value: any) => {
+    /** `layout` is the only string-valued key; the rest are counts. */
+    const handleConfigChange = (key: string, value: string | number) => {
         setConfig(prev => {
             const newConfig = { ...prev, [key]: value }
-            
+
             // Auto adjust seats per table for groups
-            if (key === 'layout') {
-                if (value.startsWith('group-')) {
-                    newConfig.seatsPerTable = parseInt(value.split('-')[1])
-                } else {
-                    newConfig.seatsPerTable = 2
-                }
+            if (key === 'layout' && typeof value === 'string') {
+                newConfig.seatsPerTable = value.startsWith('group-')
+                    ? parseInt(value.split('-')[1])
+                    : 2
             }
             return newConfig
         })
@@ -130,8 +134,8 @@ export default function AttendanceLayoutClient({ initialStudents, userId }: { in
 
     const handleSave = async () => {
         setIsSaving(true)
-        localStorage.setItem('seatingConfig', JSON.stringify(config))
-        localStorage.setItem('seatingLayout', JSON.stringify(seatingLayout))
+        localStorage.setItem(STORAGE_KEYS.seatingConfig, JSON.stringify(config))
+        localStorage.setItem(STORAGE_KEYS.seatingLayout, JSON.stringify(seatingLayout))
         
         setTimeout(() => setIsSaving(false), 1000)
     }

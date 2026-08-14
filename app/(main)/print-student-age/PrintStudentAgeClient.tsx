@@ -5,23 +5,13 @@ import { ArrowLeft, Printer, Users } from 'lucide-react'
 import Link from 'next/link'
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts'
 import type { Settings, Student } from '@/lib/types'
+import { calculateAge } from '@/lib/utils/date'
 
 export default function PrintStudentAgeClient({ initialStudents, settings, academicYear }: { 
     initialStudents: Student[], settings: Settings | null, academicYear: string 
 }) {
     const MIN_AGE = 5
     const MAX_AGE = 20
-
-    const calculateAge = (dob: string | null) => {
-        if (!dob || dob === '-') return null
-        const birthDate = new Date(dob)
-        if (isNaN(birthDate.getTime())) return null
-        const today = new Date()
-        let age = today.getFullYear() - birthDate.getFullYear()
-        const m = today.getMonth() - birthDate.getMonth()
-        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--
-        return age
-    }
 
     const { ageStats, totalF, totalM, allTotal, ageDataForCharts } = useMemo(() => {
         const stats = { female: {} as Record<number, number>, male: {} as Record<number, number> }

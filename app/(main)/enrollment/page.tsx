@@ -3,10 +3,9 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { 
-    ArrowLeft, UserPlus, MapPin, Home, Award, Users, 
+    MapPin, Home, Award, Users, 
     FileText, Save, Download, FileSpreadsheet, Image as ImageIcon, Smile
 } from 'lucide-react'
-import Link from 'next/link'
 import * as XLSX from 'xlsx-js-style'
 import { TopNav } from "@/components/TopNav"
 import { createStudent } from './actions'
@@ -14,6 +13,8 @@ import Select from '@/components/ui/forms/Select'
 import SearchableSelect from '@/components/ui/forms/SearchableSelect'
 import { getErrorMessage } from '@/lib/utils/errors'
 import { logger } from '@/lib/utils/logger'
+import { calculateAge } from '@/lib/utils/date'
+import type { SheetImportRow } from '@/lib/utils/xlsx'
 
 /** province → district → commune → villages[] */
 type LocationTree = Record<string, Record<string, Record<string, string[]>>>
@@ -68,14 +69,8 @@ export default function EnrollmentPage() {
         const val = e.target.value
         setDob(val)
         if (val) {
-            const dobDate = new Date(val)
-            const today = new Date()
-            let calcAge = today.getFullYear() - dobDate.getFullYear()
-            const m = today.getMonth() - dobDate.getMonth()
-            if (m < 0 || (m === 0 && today.getDate() < dobDate.getDate())) {
-                calcAge--
-            }
-            setAge(calcAge >= 0 ? calcAge.toString() : '')
+            const calcAge = calculateAge(val)
+            setAge(calcAge !== null && calcAge >= 0 ? calcAge.toString() : '')
         } else {
             setAge('')
         }
@@ -102,7 +97,7 @@ export default function EnrollmentPage() {
         if (finalUrl.includes('drive.google.com')) {
             const matchFileD = finalUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/)
             const matchId = finalUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/)
-            let fileId = matchFileD ? matchFileD[1] : (matchId ? matchId[1] : null)
+            const fileId = matchFileD ? matchFileD[1] : (matchId ? matchId[1] : null)
             if (fileId) {
                 finalUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`
             }
@@ -154,7 +149,7 @@ export default function EnrollmentPage() {
         setError(null)
         
         try {
-            let jsonData: any[] = [];
+            let jsonData: SheetImportRow[] = [];
             
             if (file.name.endsWith('.csv')) {
                 // Parse CSV manually (supports semicolon separator)
@@ -170,7 +165,7 @@ export default function EnrollmentPage() {
                 const data = await file.arrayBuffer()
                 const workbook = XLSX.read(data)
                 const worksheet = workbook.Sheets[workbook.SheetNames[0]]
-                jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 })
+                jsonData = XLSX.utils.sheet_to_json<SheetImportRow>(worksheet, { header: 1 })
             }
             
             if (jsonData.length <= 1) {
@@ -179,18 +174,23 @@ export default function EnrollmentPage() {
                 return
             }
 
-            const rows = jsonData.slice(1) as any[]
+            const rows = jsonData.slice(1)
             const students = rows.filter(row => row.length > 0 && row[0]).map(row => {
-                // Parse Date (could be DD-MM-YYYY, or Excel date)
-                let dobStr = row[5] || ""
-                if (typeof dobStr === 'number') {
-                    const date = new Date(Math.round((dobStr - 25569) * 86400 * 1000))
+                // Parse Date (could be DD-MM-YYYY, or an Excel serial number).
+                // Anything else — including a stray boolean cell — becomes ''.
+                const rawDob = row[5]
+                let dobStr = ''
+                if (typeof rawDob === 'number') {
+                    const date = new Date(Math.round((rawDob - 25569) * 86400 * 1000))
                     dobStr = date.toISOString().split('T')[0]
-                } else if (typeof dobStr === 'string' && dobStr.includes('-')) {
-                    // Convert DD-MM-YYYY to YYYY-MM-DD if necessary
-                    const parts = dobStr.split('-')
-                    if (parts.length === 3 && parts[0].length === 2) {
-                        dobStr = `${parts[2]}-${parts[1]}-${parts[0]}`
+                } else if (typeof rawDob === 'string') {
+                    dobStr = rawDob.trim()
+                    if (dobStr.includes('-')) {
+                        // Convert DD-MM-YYYY to YYYY-MM-DD if necessary
+                        const parts = dobStr.split('-')
+                        if (parts.length === 3 && parts[0].length === 2) {
+                            dobStr = `${parts[2]}-${parts[1]}-${parts[0]}`
+                        }
                     }
                 }
 
@@ -301,6 +301,7 @@ export default function EnrollmentPage() {
                                     onClick={() => setShowAvatarModal(true)}
                                 >
                                     {photoUrl ? (
+                                        // eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture
                                         <img src={photoUrl} alt="Preview" className="w-full h-full object-cover" onError={() => setPhotoUrl('')} />
                                     ) : (
                                         <ImageIcon className="w-10 h-10 text-gray-300" />
@@ -549,6 +550,7 @@ export default function EnrollmentPage() {
                             {/* Example seeds */}
                             {[1,3,6,9,10,13,15,17,18,19,20,23,29,52,54,58,59,64,65,68,74,75,84].map(seed => (
                                 <div key={`notionists-${seed}`} onClick={() => selectAvatar(seed, 'notionists')} className="cursor-pointer border-2 border-transparent hover:border-indigo-500 rounded p-1 bg-white dark:bg-gray-800 transition">
+                                    {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture */}
                                     <img src={`https://api.dicebear.com/7.x/notionists/svg?seed=${seed}`} alt="avatar" />
                                 </div>
                             ))}

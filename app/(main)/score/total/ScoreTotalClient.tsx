@@ -1,18 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Calendar, Award, GraduationCap, CalendarDays, Clock, Bookmark, Settings2, Lock, Unlock, Printer, CloudUpload, Home, Table2, Menu, X, Loader2, Check } from 'lucide-react'
 import Link from 'next/link'
 import { getAllScoresByPeriod } from './actions'
 import { saveScores } from '../enter/actions'
 import Select from '@/components/ui/forms/Select'
-import type { Score, Student } from '@/lib/types'
-
-/** One column of the totals grid. */
-type TotalColumn = { key: string, label: string, max?: number, type?: string }
-
-/** A user-defined subject group persisted in the `custom_subjects` localStorage key. */
-type CustomSubject = { id: string, name: string, columns: { id: string, name: string, mode?: string }[] }
+import type { Score, ScoreInput, Student } from '@/lib/types'
+import { MONTHS_BY_ACADEMIC_YEAR } from '@/lib/constants/months'
+import { appliesTo, readCustomSubjects } from '@/lib/storage/custom-subjects'
 
 /**
  * A student decorated with the per-period scores and every derived total the
@@ -30,6 +26,16 @@ type TotalledStudent = Student & {
     examAverage: string
     monthlyAverage: string
     semesterAverage: string
+}
+
+/** A column of the totals grid, covering every shape the `config` literal uses. */
+interface GridColumn {
+    key: string
+    label: string
+    color: string
+    isText?: boolean
+    options?: string[]
+    readOnly?: boolean
 }
 
 const behaviorOptions = ['ល្អ', 'ល្អបង្គួរ', 'មធ្យម', 'ខ្សោយ']
@@ -97,16 +103,7 @@ const config = {
     }
 }
 
-const allMonthsMap = [
-    { id: 'nov', label: 'វិច្ឆិកា', isNextYear: false }, { id: 'dec', label: 'ធ្នូ', isNextYear: false },
-    { id: 'jan', label: 'មករា', isNextYear: true }, { id: 'feb', label: 'កុម្ភៈ', isNextYear: true },
-    { id: 'mar', label: 'មីនា', isNextYear: true }, { id: 'apr', label: 'មេសា', isNextYear: true },
-    { id: 'may', label: 'ឧសភា', isNextYear: true }, { id: 'jun', label: 'មិថុនា', isNextYear: true },
-    { id: 'jul', label: 'កក្កដា', isNextYear: true }, { id: 'aug', label: 'សីហា', isNextYear: true },
-    { id: 'sep', label: 'កញ្ញា', isNextYear: true }, { id: 'oct', label: 'តុលា', isNextYear: true }
-]
-
-export default function ScoreTotalClient({ initialStudents, userId }: { initialStudents: Student[], userId: string }) {
+export default function ScoreTotalClient({ initialStudents}: { initialStudents: Student[] }) {
     const [currentMode, setCurrentMode] = useState<'monthly' | 'semester' | 'annual'>('monthly')
     const [academicYear, setAcademicYear] = useState('2025-2026')
     const [month, setMonth] = useState('nov')
@@ -117,8 +114,7 @@ export default function ScoreTotalClient({ initialStudents, userId }: { initialS
     const [loading, setLoading] = useState(false)
 
     // Data state
-    const [studentsData, setStudentsData] = useState<any[]>([])
-    const [currentConfig, setCurrentConfig] = useState(config.monthly)
+    const [studentsData, setStudentsData] = useState<TotalledStudent[]>([])
 
     // Semester specific
     const [selectedSemesterMonths, setSelectedSemesterMonths] = useState(['nov', 'dec', 'jan', 'feb', 'mar'])
@@ -127,62 +123,57 @@ export default function ScoreTotalClient({ initialStudents, userId }: { initialS
     // We fetch all needed data to calculate semester and annual averages. 
     // To keep it simple in this mock, we just fetch for the current mode/period.
     // In a real scenario, semester needs monthly averages too.
-    const [allMonthsScoresCache, setAllMonthsScoresCache] = useState<Record<string, Record<string, any>>>({})
 
     useEffect(() => {
         // Load custom subjects if any
-        const local = localStorage.getItem('custom_subjects')
-        if (local) {
-            const parsed = JSON.parse(local)
-            // Inject them
-            let monthlyCustomCols: any[] = []
-            let semesterCustomCols: any[] = []
+        const stored = readCustomSubjects()
+        if (stored.length > 0) {
+            const monthlyCustomCols: { key: string; label: string; color: string }[] = []
+            const semesterCustomCols: { key: string; label: string; color: string }[] = []
 
-            parsed.forEach((sub: any) => {
-                sub.columns.forEach((col: any) => {
+            stored.forEach(sub => {
+                sub.columns.forEach(col => {
                     const newCol = { key: col.id, label: col.label, color: 'bg-purple-600/90' }
-                    if (!sub.type || sub.type === 'both' || sub.type === 'monthly') {
-                        if (!config.monthly.columns.find((c: any) => c.key === col.id)) monthlyCustomCols.push(newCol)
+                    if (appliesTo(sub, 'monthly')) {
+                        if (!config.monthly.columns.find(c => c.key === col.id)) monthlyCustomCols.push(newCol)
                     }
-                    if (!sub.type || sub.type === 'both' || sub.type === 'semester') {
-                        if (!config.semester.columns.find((c: any) => c.key === col.id)) semesterCustomCols.push(newCol)
+                    if (appliesTo(sub, 'semester')) {
+                        if (!config.semester.columns.find(c => c.key === col.id)) semesterCustomCols.push(newCol)
                     }
                 })
             })
 
             if (monthlyCustomCols.length > 0) {
                 config.monthly.columns.push(...monthlyCustomCols)
-                let customGroup = config.monthly.groups.find(g => g.name === 'មុខវិជ្ជាបន្ថែម')
+                const customGroup = config.monthly.groups.find(g => g.name === 'មុខវិជ្ជាបន្ថែម')
                 if (customGroup) customGroup.cols += monthlyCustomCols.length
                 else config.monthly.groups.push({ name: 'មុខវិជ្ជាបន្ថែម', cols: monthlyCustomCols.length, color: 'bg-purple-800' })
             }
 
             if (semesterCustomCols.length > 0) {
                 config.semester.columns.push(...semesterCustomCols)
-                let customGroup = config.semester.groups.find(g => g.name === 'មុខវិជ្ជាបន្ថែម')
+                const customGroup = config.semester.groups.find(g => g.name === 'មុខវិជ្ជាបន្ថែម')
                 if (customGroup) customGroup.cols += semesterCustomCols.length
                 else config.semester.groups.push({ name: 'មុខវិជ្ជាបន្ថែម', cols: semesterCustomCols.length, color: 'bg-purple-800' })
             }
         }
     }, [])
 
-    useEffect(() => {
-        loadData()
-        setCurrentConfig(config[currentMode])
-    }, [currentMode, academicYear, month, semester])
+    // Derived from `currentMode`; it was mirrored into state and re-synced by an effect.
+    const currentConfig = config[currentMode]
 
-    const getScorePeriod = () => {
+    const getScorePeriod = useCallback(() => {
         if (currentMode === 'monthly') return `${month}-${academicYear}`
         if (currentMode === 'semester') return `${semester}-${academicYear}`
         return `annual-${academicYear}`
-    }
+    }, [currentMode, academicYear, month, semester])
 
-    const loadData = async () => {
+    const loadData = useCallback(async () => {
         setLoading(true)
         const period = getScorePeriod()
         const records = await getAllScoresByPeriod(currentMode, period)
         
-        let monthlyAverages: Record<string, any> = {}
+        const monthlyAverages: Record<string, { totalAvg: number; count: number }> = {}
         if (currentMode === 'semester') {
             for (const m of selectedSemesterMonths) {
                 const mPeriod = `${m}-${academicYear}`
@@ -191,8 +182,8 @@ export default function ScoreTotalClient({ initialStudents, userId }: { initialS
                 const mSum: Record<string, number> = {}
                 const mCount: Record<string, number> = {}
                 
-                mRecords.forEach((r: any) => {
-                    const val = parseFloat(r.score_value)
+                mRecords.forEach((r: Score) => {
+                    const val = parseFloat(String(r.score_value))
                     if (!isNaN(val)) {
                         mSum[r.student_id] = (mSum[r.student_id] || 0) + val
                         mCount[r.student_id] = (mCount[r.student_id] || 0) + 1
@@ -236,7 +227,7 @@ export default function ScoreTotalClient({ initialStudents, userId }: { initialS
             let sum = 0
             let scoredSubjectsCount = 0
 
-            config[currentMode].columns.forEach((col: any) => {
+            config[currentMode].columns.forEach((col: GridColumn) => {
                 if(col.isText) return
                 const rawVal = stu.scores[col.key]
                 if (rawVal !== null && rawVal !== undefined && rawVal !== "") {
@@ -317,7 +308,14 @@ export default function ScoreTotalClient({ initialStudents, userId }: { initialS
 
         setStudentsData(processedStudents)
         setLoading(false)
-    }
+    }, [currentMode, academicYear, selectedSemesterMonths, initialStudents, getScorePeriod])
+
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch: state is set after await, not synchronously during the effect
+        loadData()
+    }, [loadData])
+
+
 
     const handleScoreChange = (stuId: string, colKey: string, val: string) => {
         if (isEditLocked) return
@@ -333,11 +331,11 @@ export default function ScoreTotalClient({ initialStudents, userId }: { initialS
 
     const handleSave = async () => {
         setLoading(true)
-        const payload: any[] = []
+        const payload: ScoreInput[] = []
         const period = getScorePeriod()
         
         studentsData.forEach(stu => {
-            currentConfig.columns.forEach((col: any) => {
+            currentConfig.columns.forEach((col: GridColumn) => {
                 if(col.readOnly) return
                 payload.push({
                     student_id: stu.id,
@@ -445,7 +443,7 @@ export default function ScoreTotalClient({ initialStudents, userId }: { initialS
                                         ariaLabel="ខែ"
                                         value={month}
                                         onChange={setMonth}
-                                        options={allMonthsMap.map(m => ({ value: m.id, label: m.label }))}
+                                        options={MONTHS_BY_ACADEMIC_YEAR.map(m => ({ value: m.id, label: m.label }))}
                                         leadingIcon={<Clock />}
                                         wrapperClassName="w-full sm:w-auto"
                                     />
@@ -510,7 +508,7 @@ export default function ScoreTotalClient({ initialStudents, userId }: { initialS
                                     <th colSpan={currentMode === 'semester' ? 6 : (currentMode === 'annual' ? 3 : 4)} className="p-1 lg:p-2 border border-blue-400 bg-yellow-600 text-white text-center text-xs lg:text-sm shadow-md z-40">លទ្ធផលសរុប</th>
                                 </tr>
                                 <tr>
-                                    {currentConfig.columns.map((c: any) => (
+                                    {currentConfig.columns.map((c: GridColumn) => (
                                         <th key={c.key} className={`p-1 lg:p-2 min-w-[70px] lg:min-w-[80px] border border-blue-400 ${c.color} text-white text-[10px] lg:text-xs font-normal`}>{c.label}</th>
                                     ))}
                                     {currentMode === 'semester' && (
@@ -546,7 +544,7 @@ export default function ScoreTotalClient({ initialStudents, userId }: { initialS
                                         <td className="p-2 lg:p-3 border border-slate-200 sticky-col-1 text-center font-bold text-slate-500">{index + 1}</td>
                                         <td className="p-2 lg:p-3 border border-slate-200 sticky-col-2 font-bold text-slate-800 whitespace-nowrap">{stu.name_kh || stu.full_name}</td>
                                         
-                                        {currentConfig.columns.map((col: any) => {
+                                        {currentConfig.columns.map((col: GridColumn) => {
                                             const val = stu.scores[col.key] || ''
                                             if (col.isText) {
                                                 return (
@@ -559,7 +557,7 @@ export default function ScoreTotalClient({ initialStudents, userId }: { initialS
                                                             style={{ textAlignLast: 'center' }}
                                                         >
                                                             <option value="">-</option>
-                                                            {col.options.map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
+                                                            {col.options?.map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
                                                         </select>
                                                     </td>
                                                 )
@@ -632,7 +630,7 @@ export default function ScoreTotalClient({ initialStudents, userId }: { initialS
                         <div className="p-4 space-y-2">
                             <p className="text-sm text-slate-500 mb-4">សូមជ្រើសរើសខែដែលត្រូវយកមកគណនាមធ្យមភាគប្រចាំខែ (ដើម្បីបូកជាមួយពិន្ទុប្រឡងឆមាស)</p>
                             <div className="grid grid-cols-2 gap-3">
-                                {allMonthsMap.map(m => {
+                                {MONTHS_BY_ACADEMIC_YEAR.map(m => {
                                     const isSelected = selectedSemesterMonths.includes(m.id)
                                     return (
                                         <label key={m.id} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${isSelected ? 'border-blue-500 bg-blue-50' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
