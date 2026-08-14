@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { ArrowLeft, Book, Printer, PenTool, Search, Users } from 'lucide-react'
 import Link from 'next/link'
+import Select from '@/components/ui/forms/Select'
 
 export default function StudentTrackingClient({ initialStudents, attendanceData, scoresData, settings, academicYear }: { 
     initialStudents: any[], attendanceData: any[], scoresData: any[], settings: any, academicYear: string 
@@ -125,29 +126,34 @@ export default function StudentTrackingClient({ initialStudents, attendanceData,
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left mb-8 max-w-2xl mx-auto">
                         <div>
-                            <label className="block font-bold text-gray-700 mb-2 text-sm ml-1">ឆ្នាំសិក្សា</label>
-                            <select value={selectedYear} onChange={e => setSelectedYear(e.target.value)} className="w-full padding-3 rounded-xl border border-gray-200 outline-none bg-gray-50 p-2 font-bold">
-                                <option value="2024-2025">2024-2025</option>
-                                <option value="2025-2026">2025-2026</option>
-                            </select>
+                            <Select
+                                label="ឆ្នាំសិក្សា"
+                                value={selectedYear}
+                                onChange={setSelectedYear}
+                                options={['2024-2025', '2025-2026']}
+                            />
                         </div>
 
                         <div>
-                            <label className="block font-bold text-gray-700 mb-2 text-sm ml-1">ជ្រើសរើសខែ</label>
-                            <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} className="w-full padding-3 rounded-xl border border-gray-200 outline-none bg-gray-50 p-2 font-bold">
-                                <option value="01">មករា</option>
-                                <option value="02">កុម្ភៈ</option>
-                                <option value="03">មីនា</option>
-                                <option value="04">មេសា</option>
-                                <option value="05">ឧសភា</option>
-                                <option value="06">មិថុនា</option>
-                                <option value="07">កក្កដា</option>
-                                <option value="08">សីហា</option>
-                                <option value="09">កញ្ញា</option>
-                                <option value="10">តុលា</option>
-                                <option value="11">វិច្ឆិកា</option>
-                                <option value="12">ធ្នូ</option>
-                            </select>
+                            <Select
+                                label="ជ្រើសរើសខែ"
+                                value={selectedMonth}
+                                onChange={setSelectedMonth}
+                                options={[
+                                    { value: '01', label: 'មករា' },
+                                    { value: '02', label: 'កុម្ភៈ' },
+                                    { value: '03', label: 'មីនា' },
+                                    { value: '04', label: 'មេសា' },
+                                    { value: '05', label: 'ឧសភា' },
+                                    { value: '06', label: 'មិថុនា' },
+                                    { value: '07', label: 'កក្កដា' },
+                                    { value: '08', label: 'សីហា' },
+                                    { value: '09', label: 'កញ្ញា' },
+                                    { value: '10', label: 'តុលា' },
+                                    { value: '11', label: 'វិច្ឆិកា' },
+                                    { value: '12', label: 'ធ្នូ' },
+                                ]}
+                            />
                         </div>
                     </div>
 

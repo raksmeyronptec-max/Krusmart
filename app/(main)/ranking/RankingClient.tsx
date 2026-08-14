@@ -5,6 +5,7 @@ import { ArrowLeft, Printer, FileSpreadsheet, CalendarDays, CalendarRange, Layer
 import Link from 'next/link'
 import * as XLSX from 'xlsx-js-style'
 import { getAllScoresByPeriod } from '../score/total/actions'
+import Select from '@/components/ui/forms/Select'
 
 type Student = any
 
@@ -212,11 +213,18 @@ export default function RankingClient({ initialStudents, settings, userId }: { i
                             </div>
                             <div>
                                 <label className="text-[11px] font-bold text-blue-500 uppercase tracking-wider block">ឆ្នាំសិក្សា</label>
-                                <select value={academicYear} onChange={e => setAcademicYear(e.target.value)} className="bg-transparent border-none text-slate-800 font-bold focus:ring-0 cursor-pointer outline-none p-0 text-base">
-                                    <option value="2024-2025">2024 - 2025</option>
-                                    <option value="2025-2026">2025 - 2026</option>
-                                    <option value="2026-2027">2026 - 2027</option>
-                                </select>
+                                <Select
+                                    variant="ghost"
+                                    ariaLabel="ឆ្នាំសិក្សា"
+                                    value={academicYear}
+                                    onChange={setAcademicYear}
+                                    options={[
+                                        { value: '2024-2025', label: '2024 - 2025' },
+                                        { value: '2025-2026', label: '2025 - 2026' },
+                                        { value: '2026-2027', label: '2026 - 2027' },
+                                    ]}
+                                    className="text-base text-slate-800"
+                                />
                             </div>
                         </div>
                     </div>

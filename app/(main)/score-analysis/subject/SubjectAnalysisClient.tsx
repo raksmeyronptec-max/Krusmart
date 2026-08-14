@@ -5,6 +5,7 @@ import { ArrowLeft, PieChart, BarChart2, CalendarDays, Printer } from 'lucide-re
 import Link from 'next/link'
 import { getAllScoresByPeriod } from '../../score/total/actions'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, PieChart as RePieChart, Pie, Cell } from 'recharts'
+import Select from '@/components/ui/forms/Select'
 
 const allMonthsMap = [
     { id: 'jan', label: 'មករា' }, { id: 'feb', label: 'កុម្ភៈ' }, { id: 'mar', label: 'មីនា' },
@@ -99,12 +100,18 @@ export default function SubjectAnalysisClient({ initialStudents, settings, userI
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
-                        <select value={academicYear} onChange={e => setAcademicYear(e.target.value)} className="p-2 border rounded-xl font-bold">
-                            <option value="2025-2026">២០២៥-២០២៦</option>
-                        </select>
-                        <select value={currentPeriod} onChange={e => setCurrentPeriod(e.target.value)} className="p-2 border rounded-xl font-bold">
-                            {allMonthsMap.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
-                        </select>
+                        <Select
+                            ariaLabel="ឆ្នាំសិក្សា"
+                            value={academicYear}
+                            onChange={setAcademicYear}
+                            options={[{ value: '2025-2026', label: '២០២៥-២០២៦' }]}
+                        />
+                        <Select
+                            ariaLabel="ខែ"
+                            value={currentPeriod}
+                            onChange={setCurrentPeriod}
+                            options={allMonthsMap.map(m => ({ value: m.id, label: m.label }))}
+                        />
                     </div>
                 </div>
 

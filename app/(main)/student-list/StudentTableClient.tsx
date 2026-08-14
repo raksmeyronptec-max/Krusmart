@@ -5,6 +5,7 @@ import { Users, Home, CalendarCheck, UserPlus, Printer, Trash2, Save, FolderSear
 import Link from 'next/link'
 import { deleteStudent, deleteAllStudents, saveStudentsOrder } from './actions'
 import { TopNav } from "@/components/TopNav"
+import Pagination from "@/components/ui/navigation/Pagination"
 
 type Student = any // For simplicity, define proper type later
 
@@ -33,7 +34,7 @@ export default function StudentTableClient({ initialStudents }: { initialStudent
     const [students, setStudents] = useState<Student[]>(initialStudents)
     const [sortKey, setSortKey] = useState('default')
     const [currentPage, setCurrentPage] = useState(1)
-    const ITEMS_PER_PAGE = 20
+    const [pageSize, setPageSize] = useState(20)
     const [isSavingOrder, setIsSavingOrder] = useState(false)
 
     // Modals
@@ -118,10 +119,12 @@ export default function StudentTableClient({ initialStudents }: { initialStudent
         return arr
     }, [students, sortKey])
 
-    // Pagination
-    const totalPages = Math.ceil(sortedStudents.length / ITEMS_PER_PAGE)
-    const startIdx = (currentPage - 1) * ITEMS_PER_PAGE
-    const paginatedStudents = sortedStudents.slice(startIdx, startIdx + ITEMS_PER_PAGE)
+    // Pagination — clamp the page so deleting rows or growing the page size
+    // can never strand the table on an empty page.
+    const totalPages = Math.max(1, Math.ceil(sortedStudents.length / pageSize))
+    const page = Math.min(currentPage, totalPages)
+    const startIdx = (page - 1) * pageSize
+    const paginatedStudents = sortedStudents.slice(startIdx, startIdx + pageSize)
 
     const handleSort = (key: string) => {
         setSortKey(key)
@@ -313,23 +316,17 @@ export default function StudentTableClient({ initialStudents }: { initialStudent
                             </div>
                         )}
 
-                        {/* Pagination */}
-                        {totalPages > 1 && (
-                            <div className="flex items-center justify-between flex-wrap gap-2 mt-4 p-3 bg-[#f8f9ff] dark:bg-gray-900 border border-[#e0e3f0] dark:border-gray-700 rounded-lg print:hidden">
-                                <div className="text-[12px] text-gray-600 dark:text-gray-400">
-                                    បង្ហាញ {startIdx + 1}–{Math.min(startIdx + ITEMS_PER_PAGE, sortedStudents.length)} ក្នុងចំណោម {sortedStudents.length} នាក់
-                                </div>
-                                <div className="flex items-center gap-1">
-                                    <button disabled={currentPage === 1} onClick={() => setCurrentPage(currentPage - 1)} className="min-w-[32px] h-8 px-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 disabled:opacity-50 flex items-center justify-center">‹</button>
-                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-                                        <button key={p} onClick={() => setCurrentPage(p)} className={`min-w-[32px] h-8 px-2 border rounded ${p === currentPage ? 'border-[#322a83] bg-[#322a83] text-white' : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800'}`}>
-                                            {p}
-                                        </button>
-                                    ))}
-                                    <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(currentPage + 1)} className="min-w-[32px] h-8 px-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 disabled:opacity-50 flex items-center justify-center">›</button>
-                                </div>
-                            </div>
-                        )}
+                        <div className="print:hidden">
+                            <Pagination
+                                currentPage={page}
+                                totalPages={totalPages}
+                                totalItems={sortedStudents.length}
+                                pageSize={pageSize}
+                                pageSizeOptions={[10, 20, 50, 100]}
+                                onPageChange={setCurrentPage}
+                                onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1) }}
+                            />
+                        </div>
 
                     </div>
                 </div>

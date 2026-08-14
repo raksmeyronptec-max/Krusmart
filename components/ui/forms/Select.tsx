@@ -2,9 +2,15 @@
 
 import { forwardRef, useId } from "react"
 import { ChevronDown } from "lucide-react"
-import { controlClass, fieldLabel } from "./fieldStyles"
+import { type ControlVariant, controlClass, fieldLabel } from "./fieldStyles"
 
-export type SelectOption = { value: string; label: string; disabled?: boolean }
+export type SelectOption = {
+  value: string
+  label: string
+  disabled?: boolean
+  /** Optional heading this option is filed under, rendered as `<optgroup>`. */
+  group?: string
+}
 
 export interface SelectProps {
   name?: string
@@ -27,10 +33,28 @@ export interface SelectProps {
   className?: string
   /** Extra classes for the wrapper (e.g. width or grid placement). */
   wrapperClassName?: string
+  /** Small icon rendered inside the control, before the value. */
+  leadingIcon?: React.ReactNode
+  /** "ghost" drops the box for controls inside an already-framed surface. */
+  variant?: ControlVariant
 }
 
 function normalize(options: string[] | SelectOption[]): SelectOption[] {
   return options.map((o) => (typeof o === "string" ? { value: o, label: o } : o))
+}
+
+/**
+ * Split options into consecutive runs sharing a `group`, preserving author
+ * order. Grouping by key instead would silently reorder options whenever the
+ * same heading appears in two places.
+ */
+function toRuns(options: SelectOption[]): { group?: string; items: SelectOption[] }[] {
+  return options.reduce<{ group?: string; items: SelectOption[] }[]>((runs, o) => {
+    const last = runs[runs.length - 1]
+    if (last && last.group === o.group) last.items.push(o)
+    else runs.push({ group: o.group, items: [o] })
+    return runs
+  }, [])
 }
 
 /**
@@ -58,6 +82,8 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select(
     id,
     className = "",
     wrapperClassName = "",
+    leadingIcon,
+    variant = "outlined",
   },
   ref
 ) {
@@ -74,6 +100,16 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select(
         </label>
       )}
       <div className="relative w-full">
+        {leadingIcon && (
+          <span
+            className={`pointer-events-none absolute top-1/2 flex -translate-y-1/2 items-center [&>svg]:h-4 [&>svg]:w-4 ${
+              variant === "ghost" ? "left-0 text-current opacity-70" : "left-3 text-text-muted"
+            }`}
+            aria-hidden="true"
+          >
+            {leadingIcon}
+          </span>
+        )}
         <select
           ref={ref}
           id={selectId}
@@ -84,17 +120,37 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select(
           disabled={disabled}
           required={required}
           aria-label={label ? undefined : ariaLabel}
-          className={controlClass(disabled, `appearance-none pr-10 ${className}`)}
+          className={controlClass(
+            disabled,
+            `appearance-none ${variant === "ghost" ? "pr-6" : "pr-10"} ${
+              leadingIcon ? (variant === "ghost" ? "pl-6" : "pl-9") : ""
+            } ${className}`,
+            variant
+          )}
         >
           {placeholder && <option value="">{placeholder}</option>}
-          {normalized.map((o) => (
-            <option key={o.value} value={o.value} disabled={o.disabled}>
-              {o.label}
-            </option>
-          ))}
+          {toRuns(normalized).map((run, i) =>
+            run.group ? (
+              <optgroup key={`group-${run.group}-${i}`} label={run.group}>
+                {run.items.map((o) => (
+                  <option key={o.value} value={o.value} disabled={o.disabled}>
+                    {o.label}
+                  </option>
+                ))}
+              </optgroup>
+            ) : (
+              run.items.map((o) => (
+                <option key={o.value} value={o.value} disabled={o.disabled}>
+                  {o.label}
+                </option>
+              ))
+            )
+          )}
         </select>
         <ChevronDown
-          className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted"
+          className={`pointer-events-none absolute top-1/2 h-4 w-4 -translate-y-1/2 ${
+            variant === "ghost" ? "right-0 text-current opacity-70" : "right-3 text-text-muted"
+          }`}
           aria-hidden="true"
         />
       </div>

@@ -17,9 +17,28 @@ export const controlEnabled =
 /** Appearance for a disabled control. */
 export const controlDisabled = "cursor-not-allowed bg-paper opacity-60"
 
+/**
+ * Borderless variant for controls that sit inside an already-framed surface —
+ * a coloured page header or a toolbar chip. Keeps the design system's
+ * typography, chevron and focus treatment; drops only the box.
+ */
+export const controlGhost =
+  "h-auto w-auto gap-1.5 rounded-md border-transparent bg-transparent px-0 font-bold text-inherit hover:text-inherit focus-visible:ring-2 focus-visible:ring-focus-ring/40"
+
+export type ControlVariant = "outlined" | "ghost"
+
 /** Complete trigger class for a control in a given state. */
-export function controlClass(disabled = false, extra = "") {
-  return [controlBase, disabled ? controlDisabled : controlEnabled, extra]
+export function controlClass(
+  disabled = false,
+  extra = "",
+  variant: ControlVariant = "outlined"
+) {
+  return [
+    controlBase,
+    disabled ? controlDisabled : controlEnabled,
+    variant === "ghost" ? controlGhost : "",
+    extra,
+  ]
     .filter(Boolean)
     .join(" ")
 }

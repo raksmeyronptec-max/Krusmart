@@ -4,6 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { Search, Filter, Download, FileText, Monitor, Layout, File, X, Image as ImageIcon } from 'lucide-react';
 import { materialsData, DecorationMaterial, MaterialSize } from '@/lib/data/decorations';
 import Image from 'next/image';
+import SearchableSelect from '@/components/ui/forms/SearchableSelect'
 
 const CATEGORIES = [
   "all",
@@ -59,18 +60,16 @@ export default function DecorationsClient() {
             />
           </div>
           <div className="w-full md:w-1/3 relative">
-            <select
+            <SearchableSelect
+              ariaLabel="មុខវិជ្ជា"
               value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full pl-4 pr-10 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 focus:ring-2 focus:ring-blue-600 outline-none shadow-sm appearance-none font-bold"
-            >
-              {CATEGORIES.map(cat => (
-                <option key={cat} value={cat}>
-                  {cat === 'all' ? 'មុខវិជ្ជាទាំងអស់' : cat}
-                </option>
-              ))}
-            </select>
-            <Filter className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
+              onChange={setSelectedCategory}
+              options={CATEGORIES.map(cat => ({
+                value: cat,
+                label: cat === 'all' ? 'មុខវិជ្ជាទាំងអស់' : cat,
+              }))}
+              leadingIcon={<Filter />}
+            />
           </div>
         </div>
       </div>

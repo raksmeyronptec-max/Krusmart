@@ -5,6 +5,7 @@ import { Calendar, Award, GraduationCap, CalendarDays, Clock, Bookmark, Settings
 import Link from 'next/link'
 import { getAllScoresByPeriod } from './actions'
 import { saveScores } from '../enter/actions'
+import Select from '@/components/ui/forms/Select'
 
 type Student = any
 
@@ -396,33 +397,39 @@ export default function ScoreTotalClient({ initialStudents, userId }: { initialS
 
                             {/* Filters */}
                             <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
-                                <div className="relative w-full sm:w-auto">
-                                    <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                    <select value={academicYear} onChange={e => setAcademicYear(e.target.value)} className="w-full sm:w-auto pl-9 p-[0.5rem_0.75rem] rounded-xl border border-slate-200 outline-none bg-white font-battambang font-bold text-slate-800 text-sm focus:border-[#0054a6]">
-                                        <option value="2024-2025">2024-2025</option>
-                                        <option value="2025-2026">2025-2026</option>
-                                        <option value="2026-2027">2026-2027</option>
-                                    </select>
-                                </div>
+                                <Select
+                                    ariaLabel="ឆ្នាំសិក្សា"
+                                    value={academicYear}
+                                    onChange={setAcademicYear}
+                                    options={['2024-2025', '2025-2026', '2026-2027']}
+                                    leadingIcon={<CalendarDays />}
+                                    wrapperClassName="w-full sm:w-auto"
+                                />
 
                                 {currentMode === 'monthly' && (
-                                    <div className="relative w-full sm:w-auto">
-                                        <Clock className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                        <select value={month} onChange={e => setMonth(e.target.value)} className="w-full sm:w-auto pl-9 p-[0.5rem_0.75rem] rounded-xl border border-slate-200 outline-none bg-white font-battambang font-bold text-slate-800 text-sm focus:border-[#0054a6]">
-                                            {allMonthsMap.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
-                                        </select>
-                                    </div>
+                                    <Select
+                                        ariaLabel="ខែ"
+                                        value={month}
+                                        onChange={setMonth}
+                                        options={allMonthsMap.map(m => ({ value: m.id, label: m.label }))}
+                                        leadingIcon={<Clock />}
+                                        wrapperClassName="w-full sm:w-auto"
+                                    />
                                 )}
 
                                 {currentMode === 'semester' && (
                                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full xl:w-auto">
-                                        <div className="relative w-full sm:w-auto">
-                                            <Bookmark className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                            <select value={semester} onChange={e => setSemester(e.target.value)} className="w-full sm:w-auto pl-9 p-[0.5rem_0.75rem] rounded-xl border border-slate-200 outline-none bg-white font-battambang font-bold text-slate-800 text-sm focus:border-[#0054a6]">
-                                                <option value="sem1">ឆមាសទី១</option>
-                                                <option value="sem2">ឆមាសទី២</option>
-                                            </select>
-                                        </div>
+                                        <Select
+                                            ariaLabel="ឆមាស"
+                                            value={semester}
+                                            onChange={setSemester}
+                                            options={[
+                                                { value: 'sem1', label: 'ឆមាសទី១' },
+                                                { value: 'sem2', label: 'ឆមាសទី២' },
+                                            ]}
+                                            leadingIcon={<Bookmark />}
+                                            wrapperClassName="w-full sm:w-auto"
+                                        />
                                         <button onClick={() => setIsMonthModalOpen(true)} className="flex items-center justify-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition w-full sm:w-auto">
                                             <Settings2 className="w-4 h-4 text-blue-500" />
                                             <span>ជ្រើសរើសខែបូកបញ្ចូល</span>

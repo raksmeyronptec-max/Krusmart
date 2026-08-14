@@ -5,6 +5,7 @@ import { ArrowLeft, Calendar, Layout, LayoutTemplate, ChevronDown, RefreshCw, Sa
 import Link from 'next/link'
 import { saveAttendance, getAttendanceForDate } from './actions'
 import ThreeClassroom from './ThreeClassroom'
+import Select from '@/components/ui/forms/Select'
 
 type Student = any
 
@@ -318,19 +319,22 @@ export default function AttendanceLayoutClient({ initialStudents, userId }: { in
                                     <ArrowLeft className="w-4 h-4" /> ត្រឡប់
                                 </button>
                                 
-                                <div className="relative flex items-center">
-                                    <LayoutTemplate className="w-3.5 h-3.5 text-gray-400 absolute left-2" />
-                                    <select value={config.layout} onChange={(e) => handleConfigChange('layout', e.target.value)} className="appearance-none bg-white pl-8 pr-8 py-1.5 rounded-lg border border-gray-200 text-xs font-bold outline-none cursor-pointer w-[160px]">
-                                        <option value="grid">ប្លង់ធម្មតា</option>
-                                        <option value="u-shape">រាង U</option>
-                                        <option value="group-4">ក្រុម ៤នាក់ (រង្វង់)</option>
-                                        <option value="group-5">ក្រុម ៥នាក់ (រង្វង់)</option>
-                                        <option value="group-6">ក្រុម ៦នាក់ (រង្វង់)</option>
-                                        <option value="group-7">ក្រុម ៧នាក់ (រង្វង់)</option>
-                                        <option value="group-8">ក្រុម ៨នាក់ (រង្វង់)</option>
-                                    </select>
-                                    <ChevronDown className="absolute right-2 w-3 h-3 text-gray-500 pointer-events-none" />
-                                </div>
+                                <Select
+                                    ariaLabel="ប្លង់តុ"
+                                    value={config.layout}
+                                    onChange={(v) => handleConfigChange('layout', v)}
+                                    options={[
+                                        { value: 'grid', label: 'ប្លង់ធម្មតា' },
+                                        { value: 'u-shape', label: 'រាង U' },
+                                        { value: 'group-4', label: 'ក្រុម ៤នាក់ (រង្វង់)' },
+                                        { value: 'group-5', label: 'ក្រុម ៥នាក់ (រង្វង់)' },
+                                        { value: 'group-6', label: 'ក្រុម ៦នាក់ (រង្វង់)' },
+                                        { value: 'group-7', label: 'ក្រុម ៧នាក់ (រង្វង់)' },
+                                        { value: 'group-8', label: 'ក្រុម ៨នាក់ (រង្វង់)' },
+                                    ]}
+                                    leadingIcon={<LayoutTemplate />}
+                                    wrapperClassName="w-[180px]"
+                                />
 
                                 <div className="flex items-center gap-1 bg-white px-2 py-1.5 rounded-lg border border-gray-200">
                                     <span className="text-xs text-gray-500 whitespace-nowrap">តុ:</span>
@@ -342,13 +346,16 @@ export default function AttendanceLayoutClient({ initialStudents, userId }: { in
                                     <input type="number" value={config.gridCols} onChange={e => handleConfigChange('gridCols', parseInt(e.target.value) || 1)} className="w-10 text-center font-bold outline-none text-sm bg-transparent" />
                                 </div>
 
-                                <div className="relative flex items-center">
-                                    <select value={config.seatsPerTable} onChange={e => handleConfigChange('seatsPerTable', parseInt(e.target.value) || 2)} disabled={config.layout.startsWith('group-')} className="appearance-none bg-white px-3 py-1.5 pr-8 rounded-lg border border-gray-200 text-xs font-bold outline-none cursor-pointer disabled:opacity-50">
-                                        <option value="2">២ នាក់/តុ</option>
-                                        <option value="1">១ នាក់/តុ</option>
-                                    </select>
-                                    <ChevronDown className="absolute right-2 w-3 h-3 text-gray-500 pointer-events-none" />
-                                </div>
+                                <Select
+                                    ariaLabel="ចំនួនកៅអី per តុ"
+                                    value={String(config.seatsPerTable)}
+                                    onChange={v => handleConfigChange('seatsPerTable', parseInt(v) || 2)}
+                                    disabled={config.layout.startsWith('group-')}
+                                    options={[
+                                        { value: '2', label: '២ នាក់/តុ' },
+                                        { value: '1', label: '១ នាក់/តុ' },
+                                    ]}
+                                />
                             </div>
                         )}
 

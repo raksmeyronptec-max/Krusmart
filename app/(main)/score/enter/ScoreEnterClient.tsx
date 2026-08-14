@@ -1,9 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { CalendarCheck, Award, CalendarDays, Bookmark, Clock, BookOpen, Settings, FolderPlus, X, Mic, UserCheck, Book, Home, Save, Table2, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { getScores, saveScores } from './actions'
+import Select from '@/components/ui/forms/Select'
+import SearchableSelect from '@/components/ui/forms/SearchableSelect'
 
 type Student = any
 
@@ -136,6 +138,36 @@ export default function ScoreEnterClient({ initialStudents, userId }: { initialS
     // Computed
     const scorePeriod = scoreType === 'monthly' ? `${month}-${academicYear}` : `${semester}-${academicYear}`
     const cols = subjectConfigs[subject] || []
+
+    // Subject list for the picker — built per score type, with the teacher's
+    // own localStorage subjects appended under their own heading.
+    const subjectOptions = useMemo(() => {
+        const base = scoreType === 'monthly'
+            ? [
+                { value: 'khmer_all', label: 'ភាសាខ្មែរ (គ្រប់បំណិន)', group: 'ភាសាខ្មែរ' },
+                { value: 'kh_listen', label: 'សមត្ថភាពស្តាប់', group: 'ភាសាខ្មែរ' },
+                { value: 'kh_write', label: 'សមត្ថភាពសរសេរ', group: 'ភាសាខ្មែរ' },
+                { value: 'kh_read', label: 'សមត្ថភាពអាន', group: 'ភាសាខ្មែរ' },
+                { value: 'kh_speak', label: 'សមត្ថភាពនិយាយ', group: 'ភាសាខ្មែរ' },
+                { value: 'math_general', label: 'គណិតវិទ្យា (គ្រប់ផ្នែក)', group: 'គណិតវិទ្យា' },
+                { value: 'ex_oral', label: 'សំណួរផ្ទាល់មាត់', group: 'ការបំពេញបន្ថែម' },
+                { value: 'ex_att', label: 'វត្តមាន', group: 'ការបំពេញបន្ថែម' },
+                { value: 'ex_book', label: 'សៀវភៅ', group: 'ការបំពេញបន្ថែម' },
+                { value: 'ex_hw', label: 'កិច្ចការផ្ទះ', group: 'ការបំពេញបន្ថែម' },
+            ]
+            : [
+                { value: 'sem_math', label: 'គណិតវិទ្យា', group: 'មុខវិជ្ជាសិក្សា' },
+                { value: 'sem_kh_reading', label: 'អំណាន', group: 'មុខវិជ្ជាសិក្សា' },
+                { value: 'sem_behavior_all', label: 'វាយតម្លៃរួមទាំង៤', group: 'ការវាយតម្លៃអាកប្បកិរិយា' },
+                { value: 'sem_eval_knowledge', label: 'ចំណេះដឹង', group: 'ការវាយតម្លៃអាកប្បកិរិយា' },
+            ]
+
+        const custom = customSubjects
+            .filter(s => s.type === scoreType || s.type === 'both')
+            .map(s => ({ value: s.id, label: s.name, group: 'មុខវិជ្ជាបន្ថែម' }))
+
+        return [...base, ...custom]
+    }, [scoreType, customSubjects])
 
     useEffect(() => {
         const local = localStorage.getItem('custom_subjects')
@@ -309,41 +341,35 @@ export default function ScoreEnterClient({ initialStudents, userId }: { initialS
                                 </div>
                             </div>
 
-                            <div className="relative">
-                                <label className="block text-xs font-bold text-gray-500 mb-1.5 ml-1">ឆ្នាំសិក្សា</label>
-                                <div className="relative">
-                                    <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                    <select value={academicYear} onChange={e => setAcademicYear(e.target.value)} className="w-full p-[0.6rem_1rem_0.6rem_2.2rem] rounded-lg border border-gray-200 outline-none bg-white font-battambang font-bold text-gray-800 text-[13px] focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/10 appearance-none">
-                                        <option value="2024-2025">2024-2025</option>
-                                        <option value="2025-2026">2025-2026</option>
-                                        <option value="2026-2027">2026-2027</option>
-                                    </select>
-                                </div>
-                            </div>
+                            <Select
+                                label="ឆ្នាំសិក្សា"
+                                value={academicYear}
+                                onChange={setAcademicYear}
+                                options={['2024-2025', '2025-2026', '2026-2027']}
+                                leadingIcon={<CalendarDays />}
+                            />
 
                             {scoreType === 'semester' && (
-                                <div className="relative">
-                                    <label className="block text-xs font-bold text-gray-500 mb-1.5 ml-1">ឆមាស</label>
-                                    <div className="relative">
-                                        <Bookmark className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                        <select value={semester} onChange={e => setSemester(e.target.value)} className="w-full p-[0.6rem_1rem_0.6rem_2.2rem] rounded-lg border border-gray-200 outline-none bg-white font-battambang font-bold text-gray-800 text-[13px] focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/10 appearance-none">
-                                            <option value="sem1">ឆមាសទី១</option>
-                                            <option value="sem2">ឆមាសទី២</option>
-                                        </select>
-                                    </div>
-                                </div>
+                                <Select
+                                    label="ឆមាស"
+                                    value={semester}
+                                    onChange={setSemester}
+                                    options={[
+                                        { value: 'sem1', label: 'ឆមាសទី១' },
+                                        { value: 'sem2', label: 'ឆមាសទី២' },
+                                    ]}
+                                    leadingIcon={<Bookmark />}
+                                />
                             )}
 
                             {scoreType === 'monthly' && (
-                                <div className="relative">
-                                    <label className="block text-xs font-bold text-gray-500 mb-1.5 ml-1">ខែ</label>
-                                    <div className="relative">
-                                        <Clock className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                        <select value={month} onChange={e => setMonth(e.target.value)} className="w-full p-[0.6rem_1rem_0.6rem_2.2rem] rounded-lg border border-gray-200 outline-none bg-white font-battambang font-bold text-gray-800 text-[13px] focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/10 appearance-none">
-                                            {allMonthsMap.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
-                                        </select>
-                                    </div>
-                                </div>
+                                <Select
+                                    label="ខែ"
+                                    value={month}
+                                    onChange={setMonth}
+                                    options={allMonthsMap.map(m => ({ value: m.id, label: m.label }))}
+                                    leadingIcon={<Clock />}
+                                />
                             )}
 
                             <div className="relative lg:col-span-2">
@@ -355,52 +381,14 @@ export default function ScoreEnterClient({ initialStudents, userId }: { initialS
                                         </button>
                                     </div>
                                 </div>
-                                <div className="relative">
-                                    <BookOpen className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                    <select value={subject} onChange={e => setSubject(e.target.value)} className="w-full p-[0.6rem_1rem_0.6rem_2.2rem] rounded-lg border border-gray-200 outline-none bg-white font-battambang font-bold text-gray-800 text-[13px] focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/10 appearance-none">
-                                        {scoreType === 'monthly' ? (
-                                            <>
-                                                <option value="" disabled>ជ្រើសរើសមុខវិជ្ជា...</option>
-                                                <optgroup label="ភាសាខ្មែរ">
-                                                    <option value="khmer_all">ភាសាខ្មែរ (គ្រប់បំណិន)</option>
-                                                    <option value="kh_listen">សមត្ថភាពស្តាប់</option>
-                                                    <option value="kh_write">សមត្ថភាពសរសេរ</option>
-                                                    <option value="kh_read">សមត្ថភាពអាន</option>
-                                                    <option value="kh_speak">សមត្ថភាពនិយាយ</option>
-                                                </optgroup>
-                                                <optgroup label="គណិតវិទ្យា">
-                                                    <option value="math_general">គណិតវិទ្យា (គ្រប់ផ្នែក)</option>
-                                                </optgroup>
-                                                {/* other monthly subjects */}
-                                                <optgroup label="ការបំពេញបន្ថែម">
-                                                    <option value="ex_oral">សំណួរផ្ទាល់មាត់</option>
-                                                    <option value="ex_att">វត្តមាន</option>
-                                                    <option value="ex_book">សៀវភៅ</option>
-                                                    <option value="ex_hw">កិច្ចការផ្ទះ</option>
-                                                </optgroup>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <option value="" disabled>ជ្រើសរើសមុខវិជ្ជា...</option>
-                                                <optgroup label="មុខវិជ្ជាសិក្សា">
-                                                    <option value="sem_math">គណិតវិទ្យា</option>
-                                                    <option value="sem_kh_reading">អំណាន</option>
-                                                </optgroup>
-                                                <optgroup label="ការវាយតម្លៃអាកប្បកិរិយា">
-                                                    <option value="sem_behavior_all">វាយតម្លៃរួមទាំង៤</option>
-                                                    <option value="sem_eval_knowledge">ចំណេះដឹង</option>
-                                                </optgroup>
-                                            </>
-                                        )}
-                                        {customSubjects.length > 0 && (
-                                            <optgroup label="មុខវិជ្ជាបន្ថែម">
-                                                {customSubjects.filter(s => s.type === scoreType || s.type === 'both').map(s => (
-                                                    <option key={s.id} value={s.id}>{s.name}</option>
-                                                ))}
-                                            </optgroup>
-                                        )}
-                                    </select>
-                                </div>
+                                <SearchableSelect
+                                    ariaLabel="មុខវិជ្ជា"
+                                    placeholder="ជ្រើសរើសមុខវិជ្ជា..."
+                                    value={subject}
+                                    onChange={setSubject}
+                                    options={subjectOptions}
+                                    leadingIcon={<BookOpen />}
+                                />
                             </div>
                         </div>
 
@@ -518,14 +506,16 @@ export default function ScoreEnterClient({ initialStudents, userId }: { initialS
                                 <input value={newSubName} onChange={e => setNewSubName(e.target.value)} type="text" className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm" placeholder="ឧ. កុំព្យូទ័រ, ភាសាចិន..." />
                             </div>
                             
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">ប្រើសម្រាប់</label>
-                                <select value={newSubType} onChange={e => setNewSubType(e.target.value)} className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm">
-                                    <option value="monthly">ប្រចាំខែ ប៉ុណ្ណោះ</option>
-                                    <option value="semester">ប្រចាំឆមាស ប៉ុណ្ណោះ</option>
-                                    <option value="both">ប្រចាំខែ និងប្រចាំឆមាស</option>
-                                </select>
-                            </div>
+                            <Select
+                                label="ប្រើសម្រាប់"
+                                value={newSubType}
+                                onChange={setNewSubType}
+                                options={[
+                                    { value: 'monthly', label: 'ប្រចាំខែ ប៉ុណ្ណោះ' },
+                                    { value: 'semester', label: 'ប្រចាំឆមាស ប៉ុណ្ណោះ' },
+                                    { value: 'both', label: 'ប្រចាំខែ និងប្រចាំឆមាស' },
+                                ]}
+                            />
                             
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 mb-1">ជួរឈរពិន្ទុ (ជម្រើស)</label>

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { ArrowLeft, Award, RefreshCw, Image as ImageIcon, Camera, Printer, ListOrdered } from 'lucide-react'
 import Link from 'next/link'
 import { getAllScoresByPeriod } from '../score/total/actions'
+import Select from '@/components/ui/forms/Select'
 
 const allMonthsMap = [
     { id: 'nov', label: 'វិច្ឆិកា', isNextYear: false }, { id: 'dec', label: 'ធ្នូ', isNextYear: false },
@@ -253,26 +254,36 @@ export default function CertificateClient({ initialStudents, settings }: { initi
                                 <div className="grid grid-cols-2 gap-3">
                                     <div>
                                         <label className="block text-sm font-bold text-slate-600 mb-2">ឆ្នាំសិក្សា</label>
-                                        <select value={academicYear} onChange={e => setAcademicYear(e.target.value)} className="input-field py-2 text-sm">
-                                            <option value="2025-2026">2025-2026</option>
-                                            <option value="2026-2027">2026-2027</option>
-                                        </select>
+                                        <Select
+                                            ariaLabel="ឆ្នាំសិក្សា"
+                                            value={academicYear}
+                                            onChange={setAcademicYear}
+                                            options={['2025-2026', '2026-2027']}
+                                        />
                                     </div>
                                     {scoreType === 'monthly' && (
                                         <div>
                                             <label className="block text-sm font-bold text-slate-600 mb-2">ខែ</label>
-                                            <select value={month} onChange={e => setMonth(e.target.value)} className="input-field py-2 text-sm">
-                                                {allMonthsMap.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
-                                            </select>
+                                            <Select
+                                                ariaLabel="ខែ"
+                                                value={month}
+                                                onChange={setMonth}
+                                                options={allMonthsMap.map(m => ({ value: m.id, label: m.label }))}
+                                            />
                                         </div>
                                     )}
                                     {scoreType === 'semester' && (
                                         <div>
                                             <label className="block text-sm font-bold text-slate-600 mb-2">ឆមាស</label>
-                                            <select value={semester} onChange={e => setSemester(e.target.value)} className="input-field py-2 text-sm">
-                                                <option value="sem1">ឆមាសទី១</option>
-                                                <option value="sem2">ឆមាសទី២</option>
-                                            </select>
+                                            <Select
+                                                ariaLabel="ឆមាស"
+                                                value={semester}
+                                                onChange={setSemester}
+                                                options={[
+                                                    { value: 'sem1', label: 'ឆមាសទី១' },
+                                                    { value: 'sem2', label: 'ឆមាសទី២' },
+                                                ]}
+                                            />
                                         </div>
                                     )}
                                 </div>
@@ -291,11 +302,17 @@ export default function CertificateClient({ initialStudents, settings }: { initi
                             <div className="space-y-4">
                                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
                                     <label className="block text-sm font-bold text-slate-600 mb-2">ជ្រើសរើសស៊ុមពី Folder របស់អ្នក</label>
-                                    <select value={templateUrl} onChange={e => setTemplateUrl(e.target.value)} className="input-field py-2 text-sm text-[#0054a6] font-bold mb-3 border-blue-200 shadow-sm">
-                                        <option value="">-- ជ្រើសរើសរូបភាពស៊ុម --</option>
-                                        <option value="https://lh3.googleusercontent.com/d/1n96GdSeWpbSk9NoXHwEmAaTYWe2IzAGc">Certificate-1.jpg</option>
-                                        <option value="https://lh3.googleusercontent.com/d/1gIWplNhrzkopylvqAHo-c2vmY0HWgemX">Certificate-2.jpg</option>
-                                    </select>
+                                    <Select
+                                        ariaLabel="រូបភាពស៊ុម"
+                                        placeholder="-- ជ្រើសរើសរូបភាពស៊ុម --"
+                                        value={templateUrl}
+                                        onChange={setTemplateUrl}
+                                        options={[
+                                            { value: 'https://lh3.googleusercontent.com/d/1n96GdSeWpbSk9NoXHwEmAaTYWe2IzAGc', label: 'Certificate-1.jpg' },
+                                            { value: 'https://lh3.googleusercontent.com/d/1gIWplNhrzkopylvqAHo-c2vmY0HWgemX', label: 'Certificate-2.jpg' },
+                                        ]}
+                                        wrapperClassName="mb-3"
+                                    />
 
                                     <div className="relative w-full h-32 bg-white rounded-lg border border-slate-200 flex flex-col items-center justify-center overflow-hidden shadow-inner">
                                         {templateUrl ? (

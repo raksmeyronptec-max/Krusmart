@@ -10,6 +10,7 @@ import {
 import { TopNav } from "@/components/TopNav"
 import { getAssignments, addAssignment, deleteAssignment } from './actions'
 import Image from 'next/image'
+import SearchableSelect from '@/components/ui/forms/SearchableSelect'
 
 const standardSubjects = [
     { group: 'ភាសាខ្មែរ', items: ['ភាសាខ្មែរ (គ្រប់បំណិន)', 'សមត្ថភាពស្តាប់', 'សមត្ថភាពសរសេរ', 'សមត្ថភាពអាន', 'សមត្ថភាពនិយាយ', 'អក្សរផ្ចង់', 'មេសូត្រ', 'តែងសេចក្តី'] },
@@ -238,14 +239,16 @@ export default function HomeworkSendClient({ userId }: { userId: string }) {
                         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 mb-1">មុខវិជ្ជា <span className="text-red-500">*</span></label>
-                                <select required className="w-full p-2.5 rounded-lg border border-gray-300 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200 bg-gray-50" value={subject} onChange={e => setSubject(e.target.value)}>
-                                    <option value="" disabled>-- ជ្រើសរើសមុខវិជ្ជា --</option>
-                                    {standardSubjects.map(g => (
-                                        <optgroup key={g.group} label={g.group}>
-                                            {g.items.map(item => <option key={item} value={item}>{item}</option>)}
-                                        </optgroup>
-                                    ))}
-                                </select>
+                                <SearchableSelect
+                                    ariaLabel="មុខវិជ្ជា"
+                                    required
+                                    placeholder="-- ជ្រើសរើសមុខវិជ្ជា --"
+                                    value={subject}
+                                    onChange={setSubject}
+                                    options={standardSubjects.flatMap(g =>
+                                        g.items.map(item => ({ value: item, label: item, group: g.group }))
+                                    )}
+                                />
                             </div>
 
                             <div>

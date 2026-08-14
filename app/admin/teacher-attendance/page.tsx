@@ -11,6 +11,7 @@ import {
   CheckCircle2, 
   XCircle 
 } from "lucide-react"
+import Select from '@/components/ui/forms/Select'
 
 export default function TeacherAttendancePage() {
   const [filterType, setFilterType] = useState("daily")
@@ -54,15 +55,16 @@ export default function TeacherAttendancePage() {
               <UserCheck className="w-5 h-5 mr-2 text-green-600" /> របាយការណ៍វត្តមាន
             </h3>
             
-            <select 
-              value={filterType} 
-              onChange={(e) => setFilterType(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white cursor-pointer"
-            >
-              <option value="daily">ប្រចាំថ្ងៃ</option>
-              <option value="monthly">ប្រចាំខែ</option>
-              <option value="yearly">ប្រចាំឆ្នាំ</option>
-            </select>
+            <Select
+              ariaLabel="ប្រភេទតម្រង"
+              value={filterType}
+              onChange={setFilterType}
+              options={[
+                { value: 'daily', label: 'ប្រចាំថ្ងៃ' },
+                { value: 'monthly', label: 'ប្រចាំខែ' },
+                { value: 'yearly', label: 'ប្រចាំឆ្នាំ' },
+              ]}
+            />
 
             <input 
               type={filterType === 'daily' ? 'date' : filterType === 'monthly' ? 'month' : 'text'}

@@ -10,6 +10,8 @@ import {
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   BarChart, Bar, XAxis, YAxis, CartesianGrid
 } from 'recharts';
+import SearchableSelect from '@/components/ui/forms/SearchableSelect'
+import Select from '@/components/ui/forms/Select'
 
 // --- Mock Data ---
 const MOCK_SCHOOL_STATS = {
@@ -96,29 +98,27 @@ export default function AdministrationClient() {
           <p className="text-gray-500 text-sm mt-1">នេះជាទិដ្ឋភាពរួមនៃសាលារបស់យើងសម្រាប់ការវិភាគប្រចាំខែ។</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
-            <CalendarDays className="w-4 h-4 text-blue-600 mr-2" />
-            <select 
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(e.target.value)}
-              className="bg-transparent text-sm font-bold text-gray-700 outline-none cursor-pointer"
-            >
-              <option value="2025-2026">ឆ្នាំ ២០២៥-២០២៦</option>
-              <option value="2026-2027">ឆ្នាំ ២០២៦-២០២៧</option>
-            </select>
-          </div>
-          <div className="flex items-center bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
-            <Calendar className="w-4 h-4 text-blue-600 mr-2" />
-            <select 
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="bg-transparent text-sm font-bold text-gray-700 outline-none cursor-pointer"
-            >
-              <option value="nov">ខែ វិច្ឆិកា</option>
-              <option value="dec">ខែ ធ្នូ</option>
-              <option value="jan">ខែ មករា</option>
-            </select>
-          </div>
+          <Select
+            ariaLabel="ឆ្នាំសិក្សា"
+            value={selectedYear}
+            onChange={setSelectedYear}
+            options={[
+              { value: '2025-2026', label: 'ឆ្នាំ ២០២៥-២០២៦' },
+              { value: '2026-2027', label: 'ឆ្នាំ ២០២៦-២០២៧' },
+            ]}
+            leadingIcon={<CalendarDays className="text-blue-600" />}
+          />
+          <Select
+            ariaLabel="ខែ"
+            value={selectedMonth}
+            onChange={setSelectedMonth}
+            options={[
+              { value: 'nov', label: 'ខែ វិច្ឆិកា' },
+              { value: 'dec', label: 'ខែ ធ្នូ' },
+              { value: 'jan', label: 'ខែ មករា' },
+            ]}
+            leadingIcon={<Calendar className="text-blue-600" />}
+          />
         </div>
       </header>
 
@@ -256,17 +256,16 @@ export default function AdministrationClient() {
             <p className="text-sm text-gray-500 mt-1 font-medium">ជ្រើសរើសឈ្មោះគ្រូ ដើម្បីមើលទិន្នន័យលម្អិតប្រចាំថ្នាក់របស់គាត់។</p>
           </div>
           <div className="w-full md:w-auto flex items-center gap-3">
-            <label className="text-sm font-bold text-gray-600 hidden md:block">ជ្រើសរើសគ្រូ៖</label>
-            <select 
+            <label className="text-sm font-bold text-gray-600 hidden md:block" htmlFor="administration-teacher">ជ្រើសរើសគ្រូ៖</label>
+            <SearchableSelect
+              id="administration-teacher"
+              ariaLabel="ជ្រើសរើសគ្រូបង្រៀន"
+              placeholder="-- សូមជ្រើសរើសគ្រូបង្រៀន --"
               value={selectedTeacher}
-              onChange={(e) => setSelectedTeacher(e.target.value)}
-              className="w-full md:w-72 p-2.5 border border-indigo-200 rounded-xl outline-none focus:border-indigo-500 font-bold text-sm bg-indigo-50 text-indigo-800 cursor-pointer shadow-sm"
-            >
-              <option value="">-- សូមជ្រើសរើសគ្រូបង្រៀន --</option>
-              {MOCK_TEACHERS.map(t => (
-                <option key={t.id} value={t.id}>{t.name} ({t.class})</option>
-              ))}
-            </select>
+              onChange={setSelectedTeacher}
+              options={MOCK_TEACHERS.map(t => ({ value: t.id, label: `${t.name} (${t.class})` }))}
+              wrapperClassName="w-full md:w-72"
+            />
           </div>
         </div>
 

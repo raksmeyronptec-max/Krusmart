@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { ArrowLeft, Printer, Award, CalendarDays, Calendar, Bookmark } from 'lucide-react'
 import Link from 'next/link'
 import { getAllScoresByPeriod } from '../score/total/actions'
+import Select from '@/components/ui/forms/Select'
 
 type Student = any
 
@@ -278,26 +279,28 @@ export default function HonorRollClient({ initialStudents, settings, userId }: {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left mb-8 max-w-2xl mx-auto">
                                 <div>
                                     <label className="block font-bold text-gray-700 mb-2">ឆ្នាំសិក្សា</label>
-                                    <select value={academicYear} onChange={e => setAcademicYear(e.target.value)} className="w-full p-[0.6rem_1rem] rounded-xl border border-slate-200 outline-none bg-slate-50 font-bold focus:border-[#bf953f] focus:bg-white">
-                                        <option value="2024-2025">2024-2025</option>
-                                        <option value="2025-2026">2025-2026</option>
-                                        <option value="2026-2027">2026-2027</option>
-                                    </select>
+                                    <Select
+                                        ariaLabel="ឆ្នាំសិក្សា"
+                                        value={academicYear}
+                                        onChange={setAcademicYear}
+                                        options={['2024-2025', '2025-2026', '2026-2027']}
+                                    />
                                 </div>
 
                                 {currentMode !== 'yearly' && (
                                     <div>
                                         <label className="block font-bold text-gray-700 mb-2">{currentMode === 'monthly' ? 'ជ្រើសរើសខែ' : 'ជ្រើសរើសឆមាស'}</label>
-                                        <select value={currentPeriod} onChange={e => setCurrentPeriod(e.target.value)} className="w-full p-[0.6rem_1rem] rounded-xl border border-slate-200 outline-none bg-slate-50 font-bold focus:border-[#bf953f] focus:bg-white">
-                                            {currentMode === 'monthly' ? allMonthsMap.map(m => (
-                                                <option key={m.id} value={m.id}>{m.label}</option>
-                                            )) : (
-                                                <>
-                                                    <option value="sem1">ឆមាសទី១</option>
-                                                    <option value="sem2">ឆមាសទី២</option>
-                                                </>
-                                            )}
-                                        </select>
+                                        <Select
+                                            ariaLabel={currentMode === 'monthly' ? 'ជ្រើសរើសខែ' : 'ជ្រើសរើសឆមាស'}
+                                            value={currentPeriod}
+                                            onChange={setCurrentPeriod}
+                                            options={currentMode === 'monthly'
+                                                ? allMonthsMap.map(m => ({ value: m.id, label: m.label }))
+                                                : [
+                                                    { value: 'sem1', label: 'ឆមាសទី១' },
+                                                    { value: 'sem2', label: 'ឆមាសទី២' },
+                                                ]}
+                                        />
                                     </div>
                                 )}
                             </div>

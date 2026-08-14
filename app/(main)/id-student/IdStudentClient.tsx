@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { ArrowLeft, Image as ImageIcon, PenTool, ZoomIn, ZoomOut, Printer, Inbox } from 'lucide-react'
 import Link from 'next/link'
+import Select from '@/components/ui/forms/Select'
 
 type Student = any
 
@@ -67,8 +68,7 @@ export default function IdStudentClient({ initialStudents, settings }: { initial
     const [signatureImageSrc, setSignatureImageSrc] = useState('')
     const [signatureScale, setSignatureScale] = useState(1)
 
-    const handleBgChange = (e: any) => {
-        const val = e.target.value
+    const handleBgChange = (val: string) => {
         setCurrentBgImage(`/id-templates/${val}`)
         if (val === '3_id_student.png' && !settings.school_logo) {
             alert('⚠️ មិនទាន់មាន Logo សាលាទេ!\n\nសូមចូលទៅទំព័រ "ព័ត៌មានគណនី" (Profile) ដើម្បី Upload រូបសញ្ញាសាលា (Logo) ជាមុនសិន។')
@@ -181,11 +181,18 @@ export default function IdStudentClient({ initialStudents, settings }: { initial
                         <div className="bg-white/10 flex items-center rounded overflow-hidden shadow-inner px-3 py-2 gap-2">
                             <ImageIcon className="w-4 h-4" />
                             <span className="hidden sm:inline">ផ្ទៃខាងក្រោយ:</span>
-                            <select defaultValue="2_id-student.jpg" onChange={handleBgChange} className="bg-transparent text-white border-none outline-none cursor-pointer p-0 font-bold focus:ring-0 [&>option]:text-gray-900">
-                                <option value="1_id-student.jpg">ទម្រង់ទី ១</option>
-                                <option value="2_id-student.jpg">ទម្រង់ទី ២</option>
-                                <option value="3_id_student.png">ទម្រង់ទី ៣ (Logo)</option>
-                            </select>
+                            <Select
+                                variant="ghost"
+                                ariaLabel="ផ្ទៃខាងក្រោយ"
+                                defaultValue="2_id-student.jpg"
+                                onChange={handleBgChange}
+                                options={[
+                                    { value: '1_id-student.jpg', label: 'ទម្រង់ទី ១' },
+                                    { value: '2_id-student.jpg', label: 'ទម្រង់ទី ២' },
+                                    { value: '3_id_student.png', label: 'ទម្រង់ទី ៣ (Logo)' },
+                                ]}
+                                className="text-white [&>option]:text-gray-900"
+                            />
                         </div>
 
                         <div className="bg-white/10 flex items-center rounded overflow-hidden shadow-inner">

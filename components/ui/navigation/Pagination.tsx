@@ -134,6 +134,47 @@ const cellBase = "inline-flex h-10 w-10 items-center justify-center rounded-[10p
 const numberCellBase =
   "inline-flex h-10 min-w-10 items-center justify-center rounded-[10px] px-3 text-[13.5px] tabular-nums"
 
+/**
+ * One page target, rendered as a link when the parent is URL-driven and as a
+ * button when it is controlled. Declared at module scope so it is not recreated
+ * on every render of `Pagination`.
+ */
+function PageControl({
+  target,
+  href,
+  onSelect,
+  className,
+  ariaLabel,
+  rel,
+  children,
+}: {
+  target: number
+  href?: string
+  onSelect?: (page: number) => void
+  className: string
+  ariaLabel: string
+  rel?: string
+  children: React.ReactNode
+}) {
+  if (href !== undefined) {
+    return (
+      <Link href={href} rel={rel} aria-label={ariaLabel} className={className}>
+        {children}
+      </Link>
+    )
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect?.(target)}
+      aria-label={ariaLabel}
+      className={className}
+    >
+      {children}
+    </button>
+  )
+}
+
 export default function Pagination(props: PaginationProps) {
   const {
     currentPage,
@@ -162,44 +203,22 @@ export default function Pagination(props: PaginationProps) {
   const hasNext = page < totalPages
   const pages = pageRange(page, totalPages)
 
-  /** Renders a page target as a Link (URL mode) or a button (controlled mode). */
-  function PageControl({
-    target,
-    className: cls,
-    ariaLabel,
-    rel,
-    children,
-  }: {
-    target: number
-    className: string
-    ariaLabel: string
-    rel?: string
-    children: React.ReactNode
-  }) {
-    if (isUrlMode) {
-      const { searchParams, basePath } = props as UrlModeProps
-      return (
-        <Link
-          href={pageHref(searchParams, target, basePath)}
-          rel={rel}
-          aria-label={ariaLabel}
-          className={cls}
-        >
-          {children}
-        </Link>
-      )
-    }
-    return (
-      <button
-        type="button"
-        onClick={() => (props as ControlledModeProps).onPageChange(target)}
-        aria-label={ariaLabel}
-        className={cls}
-      >
-        {children}
-      </button>
-    )
-  }
+  /**
+   * Per-mode wiring for a page target. URL mode yields an href (a real link, so
+   * middle-click and "open in new tab" work); controlled mode yields a handler.
+   */
+  const linkFor = (target: number) =>
+    isUrlMode
+      ? pageHref(
+          (props as UrlModeProps).searchParams,
+          target,
+          (props as UrlModeProps).basePath
+        )
+      : undefined
+
+  const selectPage = isUrlMode
+    ? undefined
+    : (props as ControlledModeProps).onPageChange
 
   return (
     <nav
@@ -237,6 +256,8 @@ export default function Pagination(props: PaginationProps) {
           {hasPrev ? (
             <PageControl
               target={page - 1}
+              href={linkFor(page - 1)}
+              onSelect={selectPage}
               rel="prev"
               ariaLabel="ទំព័រមុន"
               className={`${cellBase} ${interactive}`}
@@ -278,6 +299,8 @@ export default function Pagination(props: PaginationProps) {
                 <PageControl
                   key={p}
                   target={p}
+                  href={linkFor(p)}
+                  onSelect={selectPage}
                   ariaLabel={`ទៅទំព័រ ${p}`}
                   className={`${numberCellBase} font-medium ${interactive}`}
                 >
@@ -291,6 +314,8 @@ export default function Pagination(props: PaginationProps) {
           {hasNext ? (
             <PageControl
               target={page + 1}
+              href={linkFor(page + 1)}
+              onSelect={selectPage}
               rel="next"
               ariaLabel="ទំព័របន្ទាប់"
               className={`${cellBase} ${interactive}`}

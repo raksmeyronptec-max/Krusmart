@@ -20,6 +20,8 @@ import {
   Tooltip, 
   Legend 
 } from "recharts"
+import SearchableSelect from '@/components/ui/forms/SearchableSelect'
+import Select from '@/components/ui/forms/Select'
 
 export default function AdminDashboardPage() {
   const [year, setYear] = useState("2025-2026")
@@ -50,29 +52,27 @@ export default function AdminDashboardPage() {
           <p className="text-gray-500 text-sm mt-1 font-bold">នេះជាទិដ្ឋភាពរួមនៃសាលារបស់យើងសម្រាប់ការវិភាគប្រចាំខែ។</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 shadow-sm">
-            <CalendarDays className="w-4 h-4 text-blue-600 mr-2" />
-            <select 
-              value={year} 
-              onChange={(e) => setYear(e.target.value)}
-              className="bg-transparent text-sm font-bold text-gray-700 outline-none cursor-pointer"
-            >
-              <option value="2025-2026">ឆ្នាំ ២០២៥-២០២៦</option>
-              <option value="2026-2027">ឆ្នាំ ២០២៦-២០២៧</option>
-            </select>
-          </div>
-          <div className="flex items-center bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 shadow-sm">
-            <Calendar className="w-4 h-4 text-blue-600 mr-2" />
-            <select 
-              value={month} 
-              onChange={(e) => setMonth(e.target.value)}
-              className="bg-transparent text-sm font-bold text-gray-700 outline-none cursor-pointer"
-            >
-              <option value="nov">ខែ វិច្ឆិកា</option>
-              <option value="dec">ខែ ធ្នូ</option>
-              <option value="jan">ខែ មករា</option>
-            </select>
-          </div>
+          <Select
+            ariaLabel="ឆ្នាំសិក្សា"
+            value={year}
+            onChange={setYear}
+            options={[
+              { value: '2025-2026', label: 'ឆ្នាំ ២០២៥-២០២៦' },
+              { value: '2026-2027', label: 'ឆ្នាំ ២០២៦-២០២៧' },
+            ]}
+            leadingIcon={<CalendarDays className="text-blue-600" />}
+          />
+          <Select
+            ariaLabel="ខែ"
+            value={month}
+            onChange={setMonth}
+            options={[
+              { value: 'nov', label: 'ខែ វិច្ឆិកា' },
+              { value: 'dec', label: 'ខែ ធ្នូ' },
+              { value: 'jan', label: 'ខែ មករា' },
+            ]}
+            leadingIcon={<Calendar className="text-blue-600" />}
+          />
         </div>
       </header>
 
@@ -197,16 +197,19 @@ export default function AdminDashboardPage() {
             <p className="text-sm text-gray-500 mt-1 font-bold">ជ្រើសរើសឈ្មោះគ្រូ ដើម្បីមើលទិន្នន័យលម្អិតប្រចាំថ្នាក់របស់គាត់។</p>
           </div>
           <div className="w-full md:w-auto flex items-center gap-3">
-            <label className="text-sm font-bold text-gray-600 hidden md:block">ជ្រើសរើសគ្រូ៖</label>
-            <select 
+            <label className="text-sm font-bold text-gray-600 hidden md:block" htmlFor="admin-teacher-picker">ជ្រើសរើសគ្រូ៖</label>
+            <SearchableSelect
+              id="admin-teacher-picker"
+              ariaLabel="ជ្រើសរើសគ្រូបង្រៀន"
+              placeholder="-- សូមជ្រើសរើសគ្រូបង្រៀន --"
               value={selectedTeacher}
-              onChange={(e) => setSelectedTeacher(e.target.value)}
-              className="w-full md:w-72 p-2.5 border border-indigo-200 rounded-xl outline-none focus:border-indigo-500 font-bold text-sm bg-indigo-50 text-indigo-800 cursor-pointer shadow-sm"
-            >
-              <option value="">-- សូមជ្រើសរើសគ្រូបង្រៀន --</option>
-              <option value="1">លោកគ្រូ សុខ</option>
-              <option value="2">អ្នកគ្រូ នារី</option>
-            </select>
+              onChange={setSelectedTeacher}
+              options={[
+                { value: '1', label: 'លោកគ្រូ សុខ' },
+                { value: '2', label: 'អ្នកគ្រូ នារី' },
+              ]}
+              wrapperClassName="w-full md:w-72"
+            />
           </div>
         </div>
         

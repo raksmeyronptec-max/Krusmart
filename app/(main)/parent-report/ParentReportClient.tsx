@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { getStudentDataForYear } from './actions'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import * as XLSX from 'xlsx-js-style'
+import Select from '@/components/ui/forms/Select'
+import SearchableSelect from '@/components/ui/forms/SearchableSelect'
 
 const monthsOrder = ['nov', 'dec', 'jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct']
 const monthsLabel: Record<string, string> = {
@@ -283,24 +285,37 @@ export default function ParentReportClient({ initialStudents, settings }: { init
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
-                        <select value={academicYear} onChange={e => setAcademicYear(e.target.value)} className="w-full py-2 px-4 rounded-xl border border-slate-200 bg-slate-50 font-bold text-slate-800 outline-none focus:border-blue-500 sm:w-auto text-sm">
-                            <option value="2025-2026">ឆ្នាំ ២០២៥-២០២៦</option>
-                            <option value="2026-2027">ឆ្នាំ ២០២៦-២០២៧</option>
-                        </select>
+                        <Select
+                            ariaLabel="ឆ្នាំសិក្សា"
+                            value={academicYear}
+                            onChange={setAcademicYear}
+                            options={[
+                                { value: '2025-2026', label: 'ឆ្នាំ ២០២៥-២០២៦' },
+                                { value: '2026-2027', label: 'ឆ្នាំ ២០២៦-២០២៧' },
+                            ]}
+                            wrapperClassName="w-full sm:w-auto"
+                        />
 
-                        <select value={month} onChange={e => setMonth(e.target.value)} className="w-full py-2 px-4 rounded-xl border border-slate-200 bg-slate-50 font-bold text-slate-800 outline-none focus:border-blue-500 sm:w-auto text-sm">
-                            {monthsOrder.map(m => <option key={m} value={m}>ខែ {monthsLabel[m]}</option>)}
-                        </select>
+                        <Select
+                            ariaLabel="ខែ"
+                            value={month}
+                            onChange={setMonth}
+                            options={monthsOrder.map(m => ({ value: m, label: `ខែ ${monthsLabel[m]}` }))}
+                            wrapperClassName="w-full sm:w-auto"
+                        />
 
-                        <div className="relative flex-1 min-w-[200px]">
-                            <UserSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                            <select value={studentId} onChange={e => setStudentId(e.target.value)} className="w-full pl-9 py-2 pr-4 rounded-xl border border-slate-200 bg-slate-50 font-bold text-slate-800 outline-none focus:border-blue-500 text-sm">
-                                <option value="">-- ជ្រើសរើសសិស្ស --</option>
-                                {initialStudents.map(s => (
-                                    <option key={s.id} value={s.id}>{s.name_kh || s.full_name} (ID: {s.id})</option>
-                                ))}
-                            </select>
-                        </div>
+                        <SearchableSelect
+                            ariaLabel="ជ្រើសរើសសិស្ស"
+                            placeholder="-- ជ្រើសរើសសិស្ស --"
+                            value={studentId}
+                            onChange={setStudentId}
+                            options={initialStudents.map(s => ({
+                                value: s.id,
+                                label: s.name_kh || s.full_name,
+                            }))}
+                            leadingIcon={<UserSearch />}
+                            wrapperClassName="flex-1 min-w-[200px]"
+                        />
 
                         <div className="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0">
                             <button onClick={exportExcel} className="flex-1 sm:flex-none bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-xl text-sm font-bold flex justify-center items-center gap-2 shadow-md transition-transform hover:scale-105">

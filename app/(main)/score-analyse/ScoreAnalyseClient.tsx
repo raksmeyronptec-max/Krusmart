@@ -7,6 +7,7 @@ import {
 } from 'recharts'
 import { ArrowLeft, Users, Award, CheckSquare, AlertTriangle, TrendingUp, Filter, RefreshCw, HeartPulse, BookOpen, HelpingHand } from 'lucide-react'
 import Link from 'next/link'
+import Select from '@/components/ui/forms/Select'
 
 export default function ScoreAnalyseClient({ initialStudents, attendanceData, scoresData, academicYear }: { 
     initialStudents: any[], attendanceData: any[], scoresData: any[], academicYear: string 
@@ -179,16 +180,19 @@ export default function ScoreAnalyseClient({ initialStudents, attendanceData, sc
                     
                     <div className="flex items-center gap-3">
                         <div className="bg-white/10 rounded-lg px-3 py-1.5 border border-white/20 flex items-center gap-2">
-                            <Filter className="w-4 h-4 text-indigo-100" />
-                            <select 
-                                value={selectedYear} 
-                                onChange={(e) => setSelectedYear(e.target.value)}
-                                className="bg-transparent text-sm font-bold outline-none text-white cursor-pointer"
-                            >
-                                <option value="2023-2024" className="text-gray-800">ឆ្នាំ ២០២៣-២០២៤</option>
-                                <option value="2024-2025" className="text-gray-800">ឆ្នាំ ២០២៤-២០២៥</option>
-                                <option value="2025-2026" className="text-gray-800">ឆ្នាំ ២០២៥-២០២៦</option>
-                            </select>
+                            <Select
+                                variant="ghost"
+                                ariaLabel="ឆ្នាំសិក្សា"
+                                value={selectedYear}
+                                onChange={setSelectedYear}
+                                options={[
+                                    { value: '2023-2024', label: 'ឆ្នាំ ២០២៣-២០២៤' },
+                                    { value: '2024-2025', label: 'ឆ្នាំ ២០២៤-២០២៥' },
+                                    { value: '2025-2026', label: 'ឆ្នាំ ២០២៥-២០២៦' },
+                                ]}
+                                leadingIcon={<Filter />}
+                                className="text-sm text-white [&>option]:text-gray-800"
+                            />
                         </div>
                         <button className="bg-yellow-500 hover:bg-yellow-600 text-white p-2 rounded-lg transition" title="Refresh Data">
                             <RefreshCw className="w-4 h-4" />

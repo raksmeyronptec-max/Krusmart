@@ -7,6 +7,7 @@ import {
     History, Clock, Trash2, Loader2, MailX
 } from 'lucide-react'
 import { getNotifications, addNotification, deleteNotification } from './actions'
+import SearchableSelect from '@/components/ui/forms/SearchableSelect'
 
 export default function NotificationsClient({ initialStudents, userId }: { initialStudents: any[], userId: string }) {
     const [notifications, setNotifications] = useState<any[]>([])
@@ -109,19 +110,20 @@ export default function NotificationsClient({ initialStudents, userId }: { initi
                                 
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 mb-1">ផ្ញើទៅកាន់៖</label>
-                                    <select 
-                                        required 
-                                        className="w-full p-3 rounded-xl border border-slate-200 outline-none focus:border-[#0054a6] focus:ring-4 focus:ring-blue-100 bg-slate-50 font-bold text-slate-800 transition-all cursor-pointer"
+                                    <SearchableSelect
+                                        ariaLabel="អ្នកទទួល"
+                                        required
                                         value={target}
-                                        onChange={e => setTarget(e.target.value)}
-                                    >
-                                        <option value="all" className="font-bold text-[#0054a6]">👨‍👩‍👧‍👦 សិស្សទាំងអស់ក្នុងថ្នាក់</option>
-                                        <optgroup label="ជ្រើសរើសសិស្សជាក់លាក់៖">
-                                            {initialStudents.map(s => (
-                                                <option key={s.id} value={s.id}>{s.khmer_name} (ID: {s.id.substring(0, 8)}...)</option>
-                                            ))}
-                                        </optgroup>
-                                    </select>
+                                        onChange={setTarget}
+                                        options={[
+                                            { value: 'all', label: '👨‍👩‍👧‍👦 សិស្សទាំងអស់ក្នុងថ្នាក់' },
+                                            ...initialStudents.map(s => ({
+                                                value: s.id,
+                                                label: s.khmer_name,
+                                                group: 'ជ្រើសរើសសិស្សជាក់លាក់៖',
+                                            })),
+                                        ]}
+                                    />
                                 </div>
 
                                 <div>

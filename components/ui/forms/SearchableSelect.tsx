@@ -1,6 +1,7 @@
 "use client"
 
 import {
+  Fragment,
   forwardRef,
   useCallback,
   useEffect,
@@ -14,7 +15,13 @@ import { createPortal } from "react-dom"
 import { ChevronDown, Search, Loader2, Check } from "lucide-react"
 import { controlClass, fieldLabel, menuListClass, menuSurface } from "./fieldStyles"
 
-export type SearchableSelectOption = { value: string; label: string; disabled?: boolean }
+export type SearchableSelectOption = {
+  value: string
+  label: string
+  disabled?: boolean
+  /** Optional heading this option is filed under, mirroring `<optgroup>`. */
+  group?: string
+}
 
 export interface SearchableSelectProps {
   name?: string
@@ -41,6 +48,8 @@ export interface SearchableSelectProps {
   id?: string
   className?: string
   wrapperClassName?: string
+  /** Small icon rendered inside the trigger, before the value. */
+  leadingIcon?: React.ReactNode
 }
 
 function normalize(
@@ -86,6 +95,7 @@ const SearchableSelect = forwardRef<HTMLButtonElement, SearchableSelectProps>(
       id,
       className = "",
       wrapperClassName = "",
+      leadingIcon,
     },
     ref
   ) {
@@ -220,7 +230,6 @@ const SearchableSelect = forwardRef<HTMLButtonElement, SearchableSelectProps>(
         document.removeEventListener("mousedown", handlePointerDown)
         document.removeEventListener("touchstart", handlePointerDown)
       }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen])
 
     function close(returnFocus = false) {
@@ -353,9 +362,22 @@ const SearchableSelect = forwardRef<HTMLButtonElement, SearchableSelectProps>(
                   filteredOptions.map((option, index) => {
                     const isSelected = selected === option.value
                     const isActive = index === activeIndex
+                    // Group heading whenever this option starts a new group.
+                    const heading =
+                      option.group && option.group !== filteredOptions[index - 1]?.group
+                        ? option.group
+                        : null
                     return (
+                      <Fragment key={option.value}>
+                      {heading && (
+                        <li
+                          role="presentation"
+                          className="px-3 pb-1 pt-2 text-[11px] font-bold uppercase tracking-wide text-text-muted"
+                        >
+                          {heading}
+                        </li>
+                      )}
                       <li
-                        key={option.value}
                         id={`${listboxId}-opt-${index}`}
                         data-index={index}
                         role="option"
@@ -378,6 +400,7 @@ const SearchableSelect = forwardRef<HTMLButtonElement, SearchableSelectProps>(
                           <Check className="h-4 w-4 shrink-0" aria-hidden="true" />
                         )}
                       </li>
+                      </Fragment>
                     )
                   })
                 ) : (
@@ -402,10 +425,16 @@ const SearchableSelect = forwardRef<HTMLButtonElement, SearchableSelectProps>(
 
         <div className="relative w-full">
           {/*
-            Value carrier for native form submission. `type="hidden"` is barred
-            from constraint validation, so when the field is required we render a
-            zero-size (but not display:none) text input instead — browsers refuse
-            to report validity on hidden/undisplayed controls.
+            Value carrier for native form submission.
+
+            When the field is required this cannot be `type="hidden"` or
+            `readOnly` — both are barred from constraint validation, so
+            `required` would silently never fire. Instead it is a real text
+            input that is zero-size and transparent but still rendered, which is
+            what browsers need in order to focus it and report validity. The
+            no-op `onChange` keeps React happy for a value the user can never
+            reach (tabIndex -1, no pointer events); focusing it opens the menu so
+            the validation bubble points at something actionable.
           */}
           {name &&
             (required ? (
@@ -414,7 +443,7 @@ const SearchableSelect = forwardRef<HTMLButtonElement, SearchableSelectProps>(
                 name={name}
                 value={selected}
                 required
-                readOnly
+                onChange={() => {}}
                 tabIndex={-1}
                 aria-hidden="true"
                 onFocus={open}
@@ -435,13 +464,22 @@ const SearchableSelect = forwardRef<HTMLButtonElement, SearchableSelectProps>(
             aria-haspopup="listbox"
             aria-expanded={isOpen}
             aria-controls={isOpen ? listboxId : undefined}
-            aria-required={required || undefined}
             className={controlClass(!isInteractive, className)}
           >
-            <span
-              className={`truncate ${selectedLabel ? "text-text-heading" : "text-text-muted"}`}
-            >
-              {loading ? "កំពុងទាញយក..." : selectedLabel || placeholder}
+            <span className="flex min-w-0 items-center gap-2">
+              {leadingIcon && (
+                <span
+                  className="flex shrink-0 items-center text-text-muted [&>svg]:h-4 [&>svg]:w-4"
+                  aria-hidden="true"
+                >
+                  {leadingIcon}
+                </span>
+              )}
+              <span
+                className={`truncate ${selectedLabel ? "text-text-heading" : "text-text-muted"}`}
+              >
+                {loading ? "កំពុងទាញយក..." : selectedLabel || placeholder}
+              </span>
             </span>
             {loading ? (
               <Loader2

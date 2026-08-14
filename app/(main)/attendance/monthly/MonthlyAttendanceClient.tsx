@@ -6,6 +6,7 @@ import Link from 'next/link'
 import * as XLSX from 'xlsx-js-style'
 import html2pdf from 'html2pdf.js'
 import { toKhmerLunarDate } from 'khmer-chhankitek-calendar'
+import Select from '@/components/ui/forms/Select'
 
 type Student = any
 
@@ -470,10 +471,13 @@ export default function MonthlyAttendanceClient({ initialStudents, userId }: { i
                 <Link href="/dashboard" className="bg-[#475569] text-white px-5 py-2.5 rounded-md font-bold hover:opacity-90 transition">ត្រឡប់ក្រោយ</Link>
                 
                 <div className="flex items-center gap-2">
-                    <label className="font-bold text-gray-700">ខែ៖</label>
-                    <select value={month} onChange={e => setMonth(parseInt(e.target.value))} className="border border-gray-300 rounded p-2 outline-none focus:border-[#1a73e8]">
-                        {months.map((m, i) => <option key={i} value={i}>{m}</option>)}
-                    </select>
+                    <label className="font-bold text-gray-700" htmlFor="monthly-attendance-month">ខែ៖</label>
+                    <Select
+                        id="monthly-attendance-month"
+                        value={String(month)}
+                        onChange={v => setMonth(parseInt(v))}
+                        options={months.map((m, i) => ({ value: String(i), label: m }))}
+                    />
                 </div>
                 
                 <div className="flex items-center gap-2">

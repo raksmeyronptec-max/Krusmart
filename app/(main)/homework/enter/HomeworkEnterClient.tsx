@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { getScores, saveScores } from '../../score/enter/actions'
 import { TopNav } from "@/components/TopNav"
+import Select from '@/components/ui/forms/Select'
 
 const allMonthsMap = [
     { id: 'nov', label: 'វិច្ឆិកា', isNextYear: false },
@@ -358,20 +359,17 @@ export default function HomeworkEnterClient({ initialStudents, userId }: { initi
                             {/* Daily Controls */}
                             {currentTab === 'daily' && (
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <div className="relative">
-                                        <select 
-                                            value={daySelect} 
-                                            onChange={(e) => setDaySelect(Number(e.target.value))}
-                                            className="form-select pl-9 min-w-[130px] py-2 rounded-xl border border-slate-200 outline-none font-bold text-sm bg-white text-slate-800"
-                                        >
-                                            {dateColumns.map(c => (
-                                                <option key={c.dayNum} value={c.dayNum}>
-                                                    ថ្ងៃទី {c.dayNum} {c.fullDate.getDate() === new Date().getDate() ? '(ថ្ងៃនេះ)' : ''}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                    </div>
+                                    <Select
+                                        ariaLabel="ថ្ងៃ"
+                                        value={String(daySelect)}
+                                        onChange={(v) => setDaySelect(Number(v))}
+                                        options={dateColumns.map(c => ({
+                                            value: String(c.dayNum),
+                                            label: `ថ្ងៃទី ${c.dayNum}${c.fullDate.getDate() === new Date().getDate() ? ' (ថ្ងៃនេះ)' : ''}`,
+                                        }))}
+                                        leadingIcon={<Calendar />}
+                                        wrapperClassName="min-w-[130px]"
+                                    />
                                     
                                     <div className="flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm h-[38px]">
                                         <input 
@@ -393,36 +391,32 @@ export default function HomeworkEnterClient({ initialStudents, userId }: { initi
                             )}
 
                             {/* Month Select */}
-                            <div className="relative">
-                                <select 
-                                    value={monthSelect} 
-                                    onChange={(e) => setMonthSelect(e.target.value)}
-                                    className="form-select pl-9 py-2 rounded-xl border border-slate-200 outline-none font-bold text-sm bg-white text-slate-800"
-                                >
-                                    {allMonthsMap.map(m => {
-                                        const y = m.isNextYear ? yearSelect.split('-')[1] : yearSelect.split('-')[0]
-                                        return <option key={m.id} value={m.id}>ខែ{m.label} ឆ្នាំ {y}</option>
-                                    })}
-                                </select>
-                                <Clock className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                            </div>
+                            <Select
+                                ariaLabel="ខែ"
+                                value={monthSelect}
+                                onChange={setMonthSelect}
+                                options={allMonthsMap.map(m => ({
+                                    value: m.id,
+                                    label: `ខែ${m.label} ឆ្នាំ ${m.isNextYear ? yearSelect.split('-')[1] : yearSelect.split('-')[0]}`,
+                                }))}
+                                leadingIcon={<Clock />}
+                            />
 
                             {/* Year Select */}
-                            <div className="relative">
-                                <select 
-                                    value={yearSelect} 
-                                    onChange={(e) => setYearSelect(e.target.value)}
-                                    className="form-select pl-9 py-2 rounded-xl border border-slate-200 outline-none font-bold text-sm bg-white text-slate-800"
-                                >
-                                    <option value="2024-2025">២០២៤-២០២៥</option>
-                                    <option value="2025-2026">២០២៥-២០២៦</option>
-                                    <option value="2026-2027">២០២៦-២០២៧</option>
-                                    <option value="2027-2028">២០២៧-២០២៨</option>
-                                    <option value="2028-2029">២០២៨-២០២៩</option>
-                                    <option value="2029-2030">២០២៩-២០៣0</option>
-                                </select>
-                                <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                            </div>
+                            <Select
+                                ariaLabel="ឆ្នាំសិក្សា"
+                                value={yearSelect}
+                                onChange={setYearSelect}
+                                options={[
+                                    { value: '2024-2025', label: '២០២៤-២០២៥' },
+                                    { value: '2025-2026', label: '២០២៥-២០២៦' },
+                                    { value: '2026-2027', label: '២០២៦-២០២៧' },
+                                    { value: '2027-2028', label: '២០២៧-២០២៨' },
+                                    { value: '2028-2029', label: '២០២៨-២០២៩' },
+                                    { value: '2029-2030', label: '២០២៩-២០៣0' },
+                                ]}
+                                leadingIcon={<CalendarDays />}
+                            />
 
                             <div className="w-px h-8 bg-slate-200 mx-1 hidden sm:block"></div>
 
