@@ -287,9 +287,15 @@ export default function ThreeClassroom({ config, seatingLayout, students, attend
         }
         window.addEventListener('resize', handleResize)
 
-        const animate = () => {
+        let lastFrameTime = 0;
+        const animate = (time: number = performance.now()) => {
             if (ts.destroyed) return;
             ts.animReq = requestAnimationFrame(animate);
+            
+            // Cap at 30 FPS to prevent excessive CPU/GPU usage and overheating
+            if (time - lastFrameTime < 33) return;
+            lastFrameTime = time;
+
             const t = ts.clock.getElapsedTime();
             if (ts.firstBuild) {
                 let done = true;

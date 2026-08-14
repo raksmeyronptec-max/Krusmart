@@ -1,12 +1,18 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Do NOT set `turbopack.root` here. A relative '..' resolves to
-  // ~/Downloads, which holds ~400k files across a dozen other projects and
-  // their node_modules — Turbopack then roots the workspace there and watches
-  // the lot, which pins the CPU and makes dev unusable. This project has its
-  // own package-lock.json and no competing lockfile above it, so Next infers
-  // the correct root (this directory) on its own.
+  // Explicitly restrict Webpack file watcher to avoid watching parent directories
+  // or node_modules, which causes massive CPU spikes.
+  webpack: (config, { dev, isServer }) => {
+    if (dev && !isServer) {
+      config.watchOptions = {
+        ignored: ['**/node_modules', '**/.git', '**/.next'],
+      };
+    }
+    return config;
+  },
+  // Silence the Turbopack warning about having a custom webpack config
+  turbopack: {}
 };
 
 export default nextConfig;
