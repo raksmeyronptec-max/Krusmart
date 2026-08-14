@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import NotificationsClient from './NotificationsClient'
+import { logger } from '@/lib/utils/logger'
 
 export default async function NotificationsPage() {
   const supabase = await createClient()
@@ -18,7 +19,7 @@ export default async function NotificationsPage() {
     .order('name_kh', { ascending: true })
 
   if (error) {
-    console.error(error)
+    logger.error(error)
     students = []
   }
 

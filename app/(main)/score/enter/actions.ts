@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { ActionResult, Score, ScoreInput } from '@/lib/types'
+import { logger } from '@/lib/utils/logger'
 
 export async function getScores(scoreType: string, scorePeriod: string): Promise<Score[]> {
     const supabase = await createClient()
@@ -18,7 +19,7 @@ export async function getScores(scoreType: string, scorePeriod: string): Promise
         .eq('score_period', scorePeriod)
 
     if (error) {
-        console.error(error)
+        logger.error(error)
         return []
     }
 
@@ -52,7 +53,7 @@ export async function saveScores(scoreType: string, scorePeriod: string, scoresD
         })
 
     if (error) {
-        console.error(error)
+        logger.error(error)
         return { error: error.message }
     }
 

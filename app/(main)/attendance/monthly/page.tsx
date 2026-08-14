@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import MonthlyAttendanceClient from './MonthlyAttendanceClient'
+import { logger } from '@/lib/utils/logger'
 
 export default async function MonthlyAttendancePage() {
   const supabase = await createClient()
@@ -19,7 +20,7 @@ export default async function MonthlyAttendancePage() {
     .order('created_at', { ascending: true })
 
   if (error) {
-    console.error(error)
+    logger.error(error)
     students = []
   }
 

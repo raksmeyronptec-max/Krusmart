@@ -9,6 +9,7 @@ import {
 import { getNotifications, addNotification, deleteNotification } from './actions'
 import SearchableSelect from '@/components/ui/forms/SearchableSelect'
 import type { Notification, Student } from '@/lib/types'
+import { logger } from '@/lib/utils/logger'
 
 /** The dropdown only needs the id and the Khmer name. */
 type StudentOption = Pick<Student, 'id' | 'name_kh'>
@@ -58,8 +59,8 @@ export default function NotificationsClient({ initialStudents, userId }: { initi
             
             alert('✅ បានផ្ញើសារជូនដំណឹងដោយជោគជ័យ!')
             loadData()
-        } catch (error: any) {
-            console.error(error)
+        } catch (error: unknown) {
+            logger.error(error)
             alert("បរាជ័យក្នុងការផ្ញើសារ។ សូមសាកល្បងម្តងទៀត។")
         } finally {
             setIsSubmitting(false)
@@ -76,7 +77,7 @@ export default function NotificationsClient({ initialStudents, userId }: { initi
             
             loadData()
         } catch (error) {
-            console.error(error)
+            logger.error(error)
             alert("មិនអាចលុបបានទេ!")
             setIsLoading(false)
         }

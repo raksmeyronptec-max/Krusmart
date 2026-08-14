@@ -8,6 +8,8 @@ import { ThemeToggle } from "./ThemeToggle"
 import { createClient } from "@/lib/supabase/client"
 import { calculateDistanceInMeters } from "@/lib/utils/distance"
 import toast from "react-hot-toast"
+import { getErrorMessageOr } from '@/lib/utils/errors'
+import { logger } from '@/lib/utils/logger'
 
 const navItems = [
   { name: "ផ្ទាំងដើម", path: "/dashboard", icon: Home },
@@ -30,8 +32,13 @@ export function TopNav() {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         setUserId(user.id)
-        const { data } = await supabase.from('settings').select('photo_url').eq('teacher_id', user.id).single()
-        if (data?.photo_url) {
+        const { data, error } = await supabase.from('settings').select('photo_url').eq('teacher_id', user.id).single()
+        // PGRST116 = no settings row yet, which is normal for a new teacher.
+        // Anything else is worth seeing in dev, but never worth a toast here —
+        // a missing avatar is not something the teacher needs to act on.
+        if (error && error.code !== 'PGRST116') {
+          logger.error('Failed to load profile photo:', error)
+        } else if (data?.photo_url) {
           setPhotoUrl(data.photo_url)
         }
       }
@@ -115,8 +122,8 @@ export function TopNav() {
           } else {
             throw new Error(`អ្នកនៅក្រៅបរិវេណសាលា (${Math.round(distance)} ម៉ែត្រ / អនុញ្ញាត ${schoolLoc.radius} ម៉ែត្រ)`)
           }
-        } catch (err: any) {
-          toast.error(err.message || "មានបញ្ហាក្នុងការចុះវត្តមាន", { id: toastId })
+        } catch (err: unknown) {
+          toast.error(getErrorMessageOr(err, "មានបញ្ហាក្នុងការចុះវត្តមាន"), { id: toastId })
         } finally {
           setIsCheckingIn(false)
         }
@@ -125,8 +132,8 @@ export function TopNav() {
         setIsCheckingIn(false)
       })
 
-    } catch (error: any) {
-      toast.error(error.message || "មានបញ្ហាក្នុងការចុះវត្តមាន", { id: toastId })
+    } catch (error: unknown) {
+      toast.error(getErrorMessageOr(error, "មានបញ្ហាក្នុងការចុះវត្តមាន"), { id: toastId })
       setIsCheckingIn(false)
     }
   }

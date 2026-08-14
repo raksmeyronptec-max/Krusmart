@@ -10,6 +10,7 @@ import { getScores, saveScores } from '../../score/enter/actions'
 import { TopNav } from "@/components/TopNav"
 import Select from '@/components/ui/forms/Select'
 import type { ScoreInput, Student } from '@/lib/types'
+import { logger } from '@/lib/utils/logger'
 
 const allMonthsMap = [
     { id: 'nov', label: 'វិច្ឆិកា', isNextYear: false },
@@ -135,7 +136,7 @@ export default function HomeworkEnterClient({ initialStudents, userId }: { initi
                 
                 setScores(loadedScores)
             } catch (error) {
-                console.error("Failed to load scores", error)
+                logger.error("Failed to load scores", error)
             } finally {
                 setIsLoading(false)
             }
@@ -207,7 +208,7 @@ export default function HomeworkEnterClient({ initialStudents, userId }: { initi
             setShowSuccess(true)
             setTimeout(() => setShowSuccess(false), 3000)
         } catch (error) {
-            console.error("Save failed", error)
+            logger.error("Save failed", error)
             alert("បរាជ័យក្នុងការរក្សាទុក!")
         } finally {
             setIsSaving(false)

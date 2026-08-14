@@ -4,6 +4,12 @@ import { useEffect, useState } from "react";
 import { Search, Loader2, Save, Printer, Crown, Users, X, Shuffle, CalendarDays, ArrowLeft } from "lucide-react";
 import { createClient } from '../../../lib/supabase/client'
 import Link from "next/link";
+import { getErrorMessage } from '@/lib/utils/errors'
+import { logger } from '@/lib/utils/logger'
+import type { CleaningGroups, CleaningLeaders, Student } from '@/lib/types'
+
+/** The three class-committee slots. */
+type LeaderRole = keyof CleaningLeaders
 
 const days = [
   { id: 'monday', name: 'ថ្ងៃច័ន្ទ', color: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-200' },
@@ -15,12 +21,12 @@ const days = [
 ];
 
 export default function CleaningSchedulePage() {
-  const [students, setStudents] = useState<any[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [searchKeys, setSearchKeys] = useState<{ [key: string]: string }>({});
-  const [leaders, setLeaders] = useState<any>({ pres: null, vp1: null, vp2: null });
-  const [groups, setGroups] = useState<any>({
+  const [leaders, setLeaders] = useState<CleaningLeaders>({ pres: null, vp1: null, vp2: null });
+  const [groups, setGroups] = useState<CleaningGroups>({
     monday: [], tuesday: [], wednesday: [], thursday: [], friday: [], saturday: []
   });
   
@@ -37,17 +43,27 @@ export default function CleaningSchedulePage() {
       if (!userData?.user) return;
 
       const [studentsRes, scheduleRes] = await Promise.all([
-        supabase.from('students').select('*').order('name', { ascending: true }),
+        supabase.from('students').select('*').eq('teacher_id', userData.user.id).order('name_kh', { ascending: true }),
         supabase.from('cleaning_schedules').select('*').eq('teacher_id', userData.user.id).single()
       ]);
 
-      if (studentsRes.data) setStudents(studentsRes.data);
-      if (scheduleRes.data) {
+      if (studentsRes.error) {
+        logger.error(studentsRes.error);
+        alert('មានបញ្ហាក្នុងការទាញបញ្ជីសិស្ស');
+      } else if (studentsRes.data) {
+        setStudents(studentsRes.data);
+      }
+
+      // PGRST116 just means this teacher has no saved schedule yet.
+      if (scheduleRes.error && scheduleRes.error.code !== 'PGRST116') {
+        logger.error(scheduleRes.error);
+      } else if (scheduleRes.data) {
         if (scheduleRes.data.leaders) setLeaders(scheduleRes.data.leaders);
         if (scheduleRes.data.groups) setGroups(scheduleRes.data.groups);
       }
     } catch (e) {
-      console.error(e);
+      logger.error(e);
+      alert('មានបញ្ហាក្នុងការទាញទិន្នន័យ');
     } finally {
       setLoading(false);
     }
@@ -68,28 +84,28 @@ export default function CleaningSchedulePage() {
       const { error } = await supabase.from('cleaning_schedules').upsert(payload, { onConflict: 'teacher_id' });
       if (error) throw error;
       alert('រក្សាទុករួចរាល់!');
-    } catch (e: any) {
-      console.error(e);
-      alert('មានបញ្ហាក្នុងការរក្សាទុក: ' + e.message);
+    } catch (e: unknown) {
+      logger.error(e);
+      alert('មានបញ្ហាក្នុងការរក្សាទុក: ' + getErrorMessage(e));
     } finally {
       setSaving(false);
     }
   };
 
-  const handleSelect = (type: string, student: any, dayId?: string) => {
+  const handleSelect = (type: LeaderRole | 'group', student: Student, dayId?: string) => {
     if (dayId) {
-       setGroups({ ...groups, [dayId]: [...groups[dayId], { id: student.id, name: student.name, image: student.image }] });
+       setGroups({ ...groups, [dayId]: [...groups[dayId], { id: student.id, name: student.name_kh, image: student.photo_url }] });
        setSearchKeys({ ...searchKeys, [dayId]: "" });
-    } else {
-       setLeaders({ ...leaders, [type]: { id: student.id, name: student.name, image: student.image } });
+    } else if (type !== 'group') {
+       setLeaders({ ...leaders, [type]: { id: student.id, name: student.name_kh, image: student.photo_url } });
        setSearchKeys({ ...searchKeys, [type]: "" });
     }
   };
 
-  const handleRemove = (type: string, dayId?: string, studentId?: string) => {
+  const handleRemove = (type: LeaderRole | 'group', dayId?: string, studentId?: string) => {
     if (dayId && studentId) {
-       setGroups({ ...groups, [dayId]: groups[dayId].filter((s: any) => s.id !== studentId) });
-    } else {
+       setGroups({ ...groups, [dayId]: groups[dayId].filter(s => s.id !== studentId) });
+    } else if (type !== 'group') {
        setLeaders({ ...leaders, [type]: null });
     }
   };
@@ -126,7 +142,7 @@ export default function CleaningSchedulePage() {
                  <Crown className="w-5 h-5 text-amber-500" /> គណៈកម្មការថ្នាក់
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5 bg-blue-50/50 p-5 rounded-2xl border border-blue-100">
-                  {['pres', 'vp1', 'vp2'].map((role) => (
+                  {(['pres', 'vp1', 'vp2'] as const).map((role) => (
                       <div key={role} className="relative group">
                           <label className="block text-sm font-bold text-blue-800 mb-1.5 ml-1">
                              {role === 'pres' ? 'ប្រធានថ្នាក់' : role === 'vp1' ? 'អនុប្រធានទី១' : 'អនុប្រធានទី២'}
@@ -158,9 +174,9 @@ export default function CleaningSchedulePage() {
                                   />
                                   {searchKeys[role] && (
                                      <div className="absolute top-full left-0 z-50 w-full mt-1 bg-white border border-blue-100 rounded-xl shadow-lg max-h-48 overflow-y-auto">
-                                        {students.filter(s => s.name.includes(searchKeys[role])).map(s => (
+                                        {students.filter(s => s.name_kh.includes(searchKeys[role])).map(s => (
                                           <div key={s.id} onClick={() => handleSelect(role, s)} className="p-2 hover:bg-blue-50 cursor-pointer flex items-center gap-2 border-b border-gray-50 last:border-0 text-sm">
-                                            {s.name}
+                                            {s.name_kh}
                                           </div>
                                         ))}
                                      </div>
@@ -191,7 +207,7 @@ export default function CleaningSchedulePage() {
                           </div>
                           
                           <div className="flex-1 space-y-2 mb-4">
-                             {groups[day.id]?.map((member: any) => (
+                             {groups[day.id]?.map(member => (
                                 <div key={member.id} className="bg-white/80 backdrop-blur-sm border border-white p-2 rounded-xl flex items-center justify-between shadow-sm">
                                     <div className="flex items-center gap-2">
                                         {member.image ? (
@@ -219,9 +235,9 @@ export default function CleaningSchedulePage() {
                               />
                               {searchKeys[day.id] && (
                                  <div className="absolute bottom-full left-0 z-50 w-full mb-1 bg-white border border-blue-100 rounded-xl shadow-lg max-h-48 overflow-y-auto">
-                                    {students.filter(s => s.name.includes(searchKeys[day.id])).map(s => (
+                                    {students.filter(s => s.name_kh.includes(searchKeys[day.id])).map(s => (
                                       <div key={s.id} onClick={() => handleSelect('group', s, day.id)} className="p-2 hover:bg-blue-50 cursor-pointer flex items-center gap-2 border-b border-gray-50 last:border-0 text-sm">
-                                        {s.name}
+                                        {s.name_kh}
                                       </div>
                                     ))}
                                  </div>

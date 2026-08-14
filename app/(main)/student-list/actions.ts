@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { logger } from '@/lib/utils/logger'
 
 export async function deleteStudent(id: string) {
   const supabase = await createClient()
@@ -18,7 +19,7 @@ export async function deleteStudent(id: string) {
     .eq('teacher_id', user.id)
 
   if (error) {
-    console.error(error)
+    logger.error(error)
     return { error: error.message }
   }
 
@@ -40,7 +41,7 @@ export async function deleteAllStudents() {
     .eq('teacher_id', user.id)
 
   if (error) {
-    console.error(error)
+    logger.error(error)
     return { error: error.message }
   }
 
@@ -64,7 +65,7 @@ export async function saveStudentsOrder(orderedIds: string[]) {
   const hasError = results.some(r => r.error)
 
   if (hasError) {
-    console.error('Error saving order:', results.find(r => r.error)?.error)
+    logger.error('Error saving order:', results.find(r => r.error)?.error)
     return { error: 'បរាជ័យក្នុងការរក្សាទុកលំដាប់ សូមប្រាកដថាអ្នកបានបង្កើត column "order_index" (int8) នៅក្នុង Table students នៃ Supabase!' }
   }
 

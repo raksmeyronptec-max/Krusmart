@@ -12,6 +12,8 @@ import { TopNav } from "@/components/TopNav"
 import { createStudent } from './actions'
 import Select from '@/components/ui/forms/Select'
 import SearchableSelect from '@/components/ui/forms/SearchableSelect'
+import { getErrorMessage } from '@/lib/utils/errors'
+import { logger } from '@/lib/utils/logger'
 
 /** province → district → commune → villages[] */
 type LocationTree = Record<string, Record<string, Record<string, string[]>>>
@@ -47,7 +49,7 @@ export default function EnrollmentPage() {
         fetch('/locations.json')
             .then(res => res.json())
             .then(data => setLocations(data))
-            .catch(err => console.error("Failed to load locations:", err))
+            .catch(err => logger.error("Failed to load locations:", err))
             .finally(() => setLocationsLoading(false))
     }, [])
 
@@ -262,8 +264,8 @@ export default function EnrollmentPage() {
                 alert(`បញ្ចូលទិន្នន័យបានសម្រេច ${students.length} នាក់!`)
                 router.push('/student-list')
             }
-        } catch (err: any) {
-            setError("មានបញ្ហាក្នុងការអានឯកសារ Excel: " + err.message)
+        } catch (err: unknown) {
+            setError("មានបញ្ហាក្នុងការអានឯកសារ Excel: " + getErrorMessage(err))
         } finally {
             setIsLoading(false)
             e.target.value = ''

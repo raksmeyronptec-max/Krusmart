@@ -87,7 +87,7 @@ export default function LoginForm() {
             }
         }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError("មានបញ្ហាបន្តិចបន្តួច សូមព្យាយាមម្ដងទៀត។")
     } finally {
       setIsLoading(false)

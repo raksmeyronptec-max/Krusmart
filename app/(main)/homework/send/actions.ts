@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { ActionResult, HomeworkAssignment, HomeworkAssignmentInput } from '@/lib/types'
+import { logger } from '@/lib/utils/logger'
 
 export async function getAssignments(): Promise<HomeworkAssignment[]> {
     const supabase = await createClient()
@@ -17,7 +18,7 @@ export async function getAssignments(): Promise<HomeworkAssignment[]> {
         .order('created_at', { ascending: false })
 
     if (error) {
-        console.error(error)
+        logger.error(error)
         return []
     }
 
@@ -38,7 +39,7 @@ export async function addAssignment(payload: HomeworkAssignmentInput): Promise<A
         })
 
     if (error) {
-        console.error(error)
+        logger.error(error)
         return { error: error.message }
     }
 
@@ -59,7 +60,7 @@ export async function deleteAssignment(id: string): Promise<ActionResult> {
         .eq('teacher_id', user.id)
 
     if (error) {
-        console.error(error)
+        logger.error(error)
         return { error: error.message }
     }
 

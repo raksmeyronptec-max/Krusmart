@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import ParentReportClient from './ParentReportClient'
+import { logger } from '@/lib/utils/logger'
 
 export default async function ParentReportPage() {
   const supabase = await createClient()
@@ -26,7 +27,7 @@ export default async function ParentReportPage() {
     .order('created_at', { ascending: true })
 
   if (error) {
-    console.error(error)
+    logger.error(error)
     students = []
   }
 

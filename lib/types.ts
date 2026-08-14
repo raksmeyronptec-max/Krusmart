@@ -177,12 +177,15 @@ export type HomeworkAssignmentInput = Omit<
   'id' | 'teacher_id' | 'created_at' | 'status'
 > & { status?: string }
 
-/** One student slot in the cleaning roster — a trimmed student reference. */
+/**
+ * One student slot in the cleaning roster. This is the app's own persisted JSON
+ * shape, not a student row — `name`/`image` are snapshots of the student's
+ * `name_kh`/`photo_url` taken when they were assigned.
+ */
 export interface CleaningMember {
   id: string
-  name_kh?: string | null
-  full_name?: string | null
-  gender?: string | null
+  name: string
+  image?: string | null
 }
 
 /** `cleaning_schedules.leaders` JSONB. */

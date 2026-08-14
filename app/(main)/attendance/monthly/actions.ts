@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import type { AttendanceRecord, Settings } from '@/lib/types'
+import { logger } from '@/lib/utils/logger'
 
 export async function getMonthlyAttendance(year: number, month: number): Promise<AttendanceRecord[]> {
     const supabase = await createClient()
@@ -20,7 +21,7 @@ export async function getMonthlyAttendance(year: number, month: number): Promise
         .lte('date', endDate)
 
     if (error) {
-        console.error(error)
+        logger.error(error)
         return []
     }
 
@@ -39,7 +40,7 @@ export async function getTeacherSettings(): Promise<Settings | null> {
         .single()
         
     if (error && error.code !== 'PGRST116') {
-        console.error(error)
+        logger.error(error)
     }
     
     return data || null

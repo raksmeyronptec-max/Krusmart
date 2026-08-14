@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import StudentTableClient from './StudentTableClient'
+import { logger } from '@/lib/utils/logger'
 
 export default async function StudentListPage() {
   const supabase = await createClient()
@@ -18,7 +19,7 @@ export default async function StudentListPage() {
     .order('created_at', { ascending: true })
 
   if (error) {
-    console.error("Fetch Error:", error.message || error)
+    logger.error("Fetch Error:", error.message || error)
   }
 
   return (

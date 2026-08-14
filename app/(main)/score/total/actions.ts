@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import type { Score } from '@/lib/types'
+import { logger } from '@/lib/utils/logger'
 
 export async function getAllScoresByPeriod(scoreType: string, scorePeriod: string): Promise<Score[]> {
     const supabase = await createClient()
@@ -17,7 +18,7 @@ export async function getAllScoresByPeriod(scoreType: string, scorePeriod: strin
         .eq('score_period', scorePeriod)
 
     if (error) {
-        console.error(error)
+        logger.error(error)
         return []
     }
 

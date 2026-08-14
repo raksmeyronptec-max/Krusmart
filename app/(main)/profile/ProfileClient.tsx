@@ -5,6 +5,8 @@ import { ArrowLeft, User, Building2, MapPin, ShieldCheck, Save, Camera, Eye } fr
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import type { Settings } from '@/lib/types'
+import { getErrorMessage } from '@/lib/utils/errors'
+import { logger } from '@/lib/utils/logger'
 
 export default function ProfileClient({ initialSettings }: { initialSettings: Settings | null }) {
     const supabase = createClient()
@@ -45,9 +47,9 @@ export default function ProfileClient({ initialSettings }: { initialSettings: Se
             }
 
             alert('រក្សាទុកការកែប្រែដោយជោគជ័យ!')
-        } catch (error: any) {
-            console.error('Error saving profile:', error)
-            alert('មានបញ្ហាក្នុងការរក្សាទុកទិន្នន័យ៖ ' + error.message)
+        } catch (error: unknown) {
+            logger.error('Error saving profile:', error)
+            alert('មានបញ្ហាក្នុងការរក្សាទុកទិន្នន័យ៖ ' + getErrorMessage(error))
         } finally {
             setLoading(false)
         }

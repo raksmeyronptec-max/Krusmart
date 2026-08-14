@@ -7,6 +7,7 @@ import {
   TrendingUp, AlertCircle, ArrowRight, Settings 
 } from 'lucide-react';
 import Link from 'next/link';
+import { logger } from '@/lib/utils/logger'
 
 export default function YearlyReportClient() {
   const [stats, setStats] = useState({
@@ -29,7 +30,7 @@ export default function YearlyReportClient() {
           setStats({ totalStudents: 45, femaleStudents: 22 });
         }
       } catch (e) {
-        console.error(e);
+        logger.error(e);
       }
     };
     fetchStats();

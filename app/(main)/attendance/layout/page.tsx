@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import AttendanceLayoutClient from './AttendanceLayoutClient'
+import { logger } from '@/lib/utils/logger'
 
 export default async function AttendanceLayoutPage() {
   const supabase = await createClient()
@@ -19,7 +20,7 @@ export default async function AttendanceLayoutPage() {
     .order('created_at', { ascending: true })
 
   if (error) {
-    console.error(error)
+    logger.error(error)
     students = []
   }
 

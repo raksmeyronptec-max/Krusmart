@@ -8,6 +8,7 @@ import html2pdf from 'html2pdf.js'
 import { toKhmerLunarDate } from 'khmer-chhankitek-calendar'
 import Select from '@/components/ui/forms/Select'
 import type { AttendanceRecord, Settings, Student } from '@/lib/types'
+import { logger } from '@/lib/utils/logger'
 
 const months = ["មករា", "កុម្ភៈ", "មីនា", "មេសា", "ឧសភា", "មិថុនា", "កក្កដា", "សីហា", "កញ្ញា", "តុលា", "វិច្ឆិកា", "ធ្នូ"]
 const days = ["អាទិត្យ", "ច័ន្ទ", "អង្គារ", "ពុធ", "ព្រហស្បតិ៍", "សុក្រ", "សៅរ៍"]
@@ -250,7 +251,7 @@ export default function MonthlyAttendanceClient({ initialStudents, userId }: { i
         try {
             await html2pdf().set(opt).from(printArea).save()
         } catch(e) {
-            console.error(e)
+            logger.error(e)
         }
         setIsDownloading(false)
     }

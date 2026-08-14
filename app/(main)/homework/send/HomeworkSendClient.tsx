@@ -11,6 +11,8 @@ import { TopNav } from "@/components/TopNav"
 import { getAssignments, addAssignment, deleteAssignment } from './actions'
 import Image from 'next/image'
 import SearchableSelect from '@/components/ui/forms/SearchableSelect'
+import { getErrorMessageOr } from '@/lib/utils/errors'
+import { logger } from '@/lib/utils/logger'
 
 const standardSubjects = [
     { group: 'ភាសាខ្មែរ', items: ['ភាសាខ្មែរ (គ្រប់បំណិន)', 'សមត្ថភាពស្តាប់', 'សមត្ថភាពសរសេរ', 'សមត្ថភាពអាន', 'សមត្ថភាពនិយាយ', 'អក្សរផ្ចង់', 'មេសូត្រ', 'តែងសេចក្តី'] },
@@ -134,9 +136,9 @@ export default function HomeworkSendClient({ userId }: { userId: string }) {
             
             showToast("បញ្ជូនកិច្ចការផ្ទះបានជោគជ័យ!")
             loadData()
-        } catch (error: any) {
-            console.error(error)
-            showToast(error.message || "មានបញ្ហាក្នុងការបញ្ជូន។ សូមសាកល្បងម្តងទៀត!", "error")
+        } catch (error: unknown) {
+            logger.error(error)
+            showToast(getErrorMessageOr(error, "មានបញ្ហាក្នុងការបញ្ជូន។ សូមសាកល្បងម្តងទៀត!"), "error")
         } finally {
             setIsSubmitting(false)
         }
@@ -153,7 +155,7 @@ export default function HomeworkSendClient({ userId }: { userId: string }) {
             showToast("លុបបានជោគជ័យ!")
             loadData()
         } catch (error) {
-            console.error(error)
+            logger.error(error)
             showToast("មិនអាចលុបបានទេ។ សូមសាកល្បងម្តងទៀត!", "error")
         } finally {
             setIsDeleting(false)

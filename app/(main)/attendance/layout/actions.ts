@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { ActionResult, AttendanceRecord } from '@/lib/types'
+import { logger } from '@/lib/utils/logger'
 
 export async function saveAttendance(studentId: string, date: string, status: string, reason: string = ''): Promise<ActionResult> {
     const supabase = await createClient()
@@ -23,7 +24,7 @@ export async function saveAttendance(studentId: string, date: string, status: st
         })
 
     if (error) {
-        console.error(error)
+        logger.error(error)
         return { error: error.message }
     }
 
@@ -50,7 +51,7 @@ export async function getAttendanceForDate(date: string): Promise<AttendanceReco
         .eq('date', date)
 
     if (error) {
-        console.error(error)
+        logger.error(error)
         return []
     }
 

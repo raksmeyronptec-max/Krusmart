@@ -3,6 +3,7 @@
 import { ArrowLeft, Key, Printer, Info, Copy, Users } from 'lucide-react'
 import Link from 'next/link'
 import type { Student } from '@/lib/types'
+import { logger } from '@/lib/utils/logger'
 
 export default function PrintStudentCodesClient({ initialStudents, teacherUid }: { initialStudents: Student[], teacherUid: string }) {
 
@@ -10,7 +11,7 @@ export default function PrintStudentCodesClient({ initialStudents, teacherUid }:
         navigator.clipboard.writeText(text).then(() => {
             alert(`✅ បានចម្លងអត្តលេខសិស្ស៖ ${text}`)
         }).catch(err => {
-            console.error('Failed to copy text: ', err)
+            logger.error('Failed to copy text: ', err)
             alert('បរាជ័យក្នុងការ Copy។ សូម Copy លេខកូដដោយផ្ទាល់។')
         })
     }

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import SubjectAnalysisClient from './SubjectAnalysisClient'
+import { logger } from '@/lib/utils/logger'
 
 export default async function SubjectAnalysisPage() {
   const supabase = await createClient()
@@ -26,7 +27,7 @@ export default async function SubjectAnalysisPage() {
     .order('created_at', { ascending: true })
 
   if (error) {
-    console.error(error)
+    logger.error(error)
     students = []
   }
 

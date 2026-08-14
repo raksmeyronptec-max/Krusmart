@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
+import { logger } from '@/lib/utils/logger'
 
 let cachedModels: Record<string, THREE.Group> = {};
 let isLoadingModel: Record<string, boolean> = {};
@@ -30,7 +31,7 @@ function loadStudentModel(gender: string, callback: (model: THREE.Group) => void
         modelLoadCallbacks[type].forEach(cb => cb(cachedModels[type]));
         modelLoadCallbacks[type] = [];
     }, undefined, (error) => {
-        console.error(`Error loading ${type} student model`, error);
+        logger.error(`Error loading ${type} student model`, error);
         isLoadingModel[type] = false;
     });
 }

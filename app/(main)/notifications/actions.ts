@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { ActionResult, Notification, NotificationInput } from '@/lib/types'
+import { logger } from '@/lib/utils/logger'
 
 export async function getNotifications(): Promise<Notification[]> {
     const supabase = await createClient()
@@ -17,7 +18,7 @@ export async function getNotifications(): Promise<Notification[]> {
         .order('created_at', { ascending: false })
 
     if (error) {
-        console.error(error)
+        logger.error(error)
         return []
     }
 
@@ -38,7 +39,7 @@ export async function addNotification(payload: NotificationInput): Promise<Actio
         })
 
     if (error) {
-        console.error(error)
+        logger.error(error)
         return { error: error.message }
     }
 
@@ -59,7 +60,7 @@ export async function deleteNotification(id: string): Promise<ActionResult> {
         .eq('teacher_id', user.id)
 
     if (error) {
-        console.error(error)
+        logger.error(error)
         return { error: error.message }
     }
 

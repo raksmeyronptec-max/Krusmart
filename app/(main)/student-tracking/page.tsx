@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import StudentTrackingClient from './StudentTrackingClient'
+import { logger } from '@/lib/utils/logger'
 
 export default async function StudentTrackingPage() {
   const supabase = await createClient()
@@ -28,7 +29,7 @@ export default async function StudentTrackingPage() {
     .order('created_at', { ascending: true })
 
   if (error) {
-    console.error(error)
+    logger.error(error)
     students = []
   }
 

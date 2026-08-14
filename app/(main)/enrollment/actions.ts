@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { logger } from '@/lib/utils/logger'
 
 export async function createStudent(formData: FormData) {
   const supabase = await createClient()
@@ -92,7 +93,7 @@ export async function createStudent(formData: FormData) {
   })
 
   if (error) {
-    console.error(error)
+    logger.error(error)
     return { error: 'មានបញ្ហាក្នុងការរក្សាទុកទិន្នន័យ៖ ' + error.message }
   }
 
@@ -151,7 +152,7 @@ export async function importStudents(students: any[]) {
   const { error } = await supabase.from('students').insert(studentsToInsert)
 
   if (error) {
-    console.error(error)
+    logger.error(error)
     return { error: 'មានបញ្ហាក្នុងការរក្សាទុកទិន្នន័យ៖ ' + error.message }
   }
 
