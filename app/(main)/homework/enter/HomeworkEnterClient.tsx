@@ -9,6 +9,7 @@ import {
 import { getScores, saveScores } from '../../score/enter/actions'
 import { TopNav } from "@/components/TopNav"
 import Select from '@/components/ui/forms/Select'
+import type { ScoreInput, Student } from '@/lib/types'
 
 const allMonthsMap = [
     { id: 'nov', label: 'វិច្ឆិកា', isNextYear: false },
@@ -30,14 +31,11 @@ const monthIndexMapping: Record<string, number> = {
     'jul': 6, 'aug': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dec': 11
 }
 
-interface Student {
-    id: string
-    khmer_name: string
-    gender: string
-}
+/** The grid only needs the id, the Khmer name and the gender. */
+type StudentRow = Pick<Student, 'id' | 'name_kh' | 'gender'>
 
-export default function HomeworkEnterClient({ initialStudents, userId }: { initialStudents: Student[], userId: string }) {
-    const [students] = useState<Student[]>(initialStudents)
+export default function HomeworkEnterClient({ initialStudents, userId }: { initialStudents: StudentRow[], userId: string }) {
+    const [students] = useState<StudentRow[]>(initialStudents)
     const [currentTab, setCurrentTab] = useState<'daily' | 'monthly'>('daily')
     const [isLoading, setIsLoading] = useState(true)
     const [isSaving, setIsSaving] = useState(false)
@@ -124,7 +122,7 @@ export default function HomeworkEnterClient({ initialStudents, userId }: { initi
                 
                 const loadedScores: Record<string, Record<number, string>> = {}
                 
-                data.forEach((s: any) => {
+                data.forEach(s => {
                     const sid = s.student_id
                     const dayNum = parseInt(s.subject.replace('hw_', ''))
                     const val = s.score_value?.toString() || ''
@@ -179,7 +177,7 @@ export default function HomeworkEnterClient({ initialStudents, userId }: { initi
         setIsSaving(true)
         
         const scorePeriod = `${yearSelect}_${monthSelect}`
-        const upsertPayload: any[] = []
+        const upsertPayload: ScoreInput[] = []
 
         students.forEach(s => {
             const studentScores = scores[s.id] || {}
@@ -244,7 +242,7 @@ export default function HomeworkEnterClient({ initialStudents, userId }: { initi
     const leftStudents = students.slice(0, half)
     const rightStudents = students.slice(half)
 
-    const renderTbody = (stuList: Student[], startIndex: number, mode: 'daily' | 'monthly') => {
+    const renderTbody = (stuList: StudentRow[], startIndex: number, mode: 'daily' | 'monthly') => {
         return stuList.map((s, index) => {
             const { total, average } = getStudentTotals(s.id)
             const genderColor = (s.gender === 'ស្រី' || s.gender === 'F') ? 'text-pink-600' : 'text-blue-600'
@@ -255,7 +253,7 @@ export default function HomeworkEnterClient({ initialStudents, userId }: { initi
                         {startIndex + index + 1}
                     </td>
                     <td className="p-2 bg-white group-hover:bg-indigo-50/50 font-bold text-indigo-900 text-[13px] whitespace-nowrap sticky left-[40px] z-20 shadow-[2px_0_5px_rgba(0,0,0,0.05)] border-r border-slate-200 min-w-[150px]">
-                        {s.khmer_name || '-'}
+                        {s.name_kh || '-'}
                     </td>
                     <td className={`p-2 text-center font-bold text-[13px] ${genderColor} border-r border-slate-200 bg-white group-hover:bg-indigo-50/50`}>
                         {s.gender || '-'}

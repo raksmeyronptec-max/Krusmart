@@ -6,8 +6,31 @@ import Link from 'next/link'
 import { getAllScoresByPeriod } from './actions'
 import { saveScores } from '../enter/actions'
 import Select from '@/components/ui/forms/Select'
+import type { Score, Student } from '@/lib/types'
 
-type Student = any
+/** One column of the totals grid. */
+type TotalColumn = { key: string, label: string, max?: number, type?: string }
+
+/** A user-defined subject group persisted in the `custom_subjects` localStorage key. */
+type CustomSubject = { id: string, name: string, columns: { id: string, name: string, mode?: string }[] }
+
+/**
+ * A student decorated with the per-period scores and every derived total the
+ * three modes (monthly / semester / annual) compute.
+ */
+type TotalledStudent = Student & {
+    scores: Record<string, number | string | null>
+    total: number
+    average: string
+    finalAverageForRank: number
+    rank: number
+    annualTotal: number
+    annualAverage: string
+    examTotal: number
+    examAverage: string
+    monthlyAverage: string
+    semesterAverage: string
+}
 
 const behaviorOptions = ['ល្អ', 'ល្អបង្គួរ', 'មធ្យម', 'ខ្សោយ']
 
@@ -185,15 +208,26 @@ export default function ScoreTotalClient({ initialStudents, userId }: { initialS
             }
         }
         
-        let processedStudents = initialStudents.map(stu => {
-            const studentScores: Record<string, any> = {}
-            records.filter((r: any) => r.student_id === stu.id).forEach((r: any) => {
+        const processedStudents: TotalledStudent[] = initialStudents.map(stu => {
+            const studentScores: Record<string, number | string | null> = {}
+            records.filter(r => r.student_id === stu.id).forEach(r => {
                 studentScores[r.subject] = r.score_value
             })
-            
+
+            // The derived fields are all overwritten by the calculation pass below.
             return {
                 ...stu,
-                scores: studentScores
+                scores: studentScores,
+                total: 0,
+                average: '0.00',
+                finalAverageForRank: 0,
+                rank: 0,
+                annualTotal: 0,
+                annualAverage: '0.00',
+                examTotal: 0,
+                examAverage: '0.00',
+                monthlyAverage: '0.00',
+                semesterAverage: '0.00',
             }
         })
 
@@ -206,7 +240,7 @@ export default function ScoreTotalClient({ initialStudents, userId }: { initialS
                 if(col.isText) return
                 const rawVal = stu.scores[col.key]
                 if (rawVal !== null && rawVal !== undefined && rawVal !== "") {
-                    const val = parseFloat(rawVal)
+                    const val = parseFloat(String(rawVal))
                     if (!isNaN(val)) {
                         sum += val
                         scoredSubjectsCount++
@@ -219,8 +253,8 @@ export default function ScoreTotalClient({ initialStudents, userId }: { initialS
                 stu.average = scoredSubjectsCount > 0 ? (sum / scoredSubjectsCount).toFixed(2) : "0.00"
                 stu.finalAverageForRank = parseFloat(stu.average)
             } else if (currentMode === 'annual') {
-                const s1 = parseFloat(stu.scores['sem1_avg'] || '0')
-                const s2 = parseFloat(stu.scores['sem2_avg'] || '0')
+                const s1 = parseFloat(String(stu.scores['sem1_avg'] ?? '0'))
+                const s2 = parseFloat(String(stu.scores['sem2_avg'] ?? '0'))
                 
                 let div = 0
                 if (!isNaN(s1) && s1 > 0) div++

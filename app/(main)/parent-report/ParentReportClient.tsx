@@ -8,6 +8,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import * as XLSX from 'xlsx-js-style'
 import Select from '@/components/ui/forms/Select'
 import SearchableSelect from '@/components/ui/forms/SearchableSelect'
+import type { Settings, Student } from '@/lib/types'
 
 const monthsOrder = ['nov', 'dec', 'jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct']
 const monthsLabel: Record<string, string> = {
@@ -34,7 +35,7 @@ const subjectsConfig = [
     { key: 'ex_book', label: 'ការបំពេញបន្ថែម (សៀវភៅ)' }, { key: 'ex_hw', label: 'ការបំពេញបន្ថែម (កិច្ចការផ្ទះ)' }
 ]
 
-export default function ParentReportClient({ initialStudents, settings }: { initialStudents: any[], settings: any }) {
+export default function ParentReportClient({ initialStudents, settings }: { initialStudents: Student[], settings: Settings | null }) {
     const [academicYear, setAcademicYear] = useState('2025-2026')
     const [month, setMonth] = useState('nov')
     const [studentId, setStudentId] = useState('')
@@ -311,7 +312,7 @@ export default function ParentReportClient({ initialStudents, settings }: { init
                             onChange={setStudentId}
                             options={initialStudents.map(s => ({
                                 value: s.id,
-                                label: s.name_kh || s.full_name,
+                                label: s.name_kh || s.full_name || '',
                             }))}
                             leadingIcon={<UserSearch />}
                             wrapperClassName="flex-1 min-w-[200px]"
@@ -344,10 +345,10 @@ export default function ParentReportClient({ initialStudents, settings }: { init
                     
                     <div className="flex justify-between items-start mb-6 print:mb-2 relative">
                         <div className="text-left leading-relaxed pt-[35pt] print:pt-[5pt]">
-                            <p className="font-moul text-[13px]">{settings.management_unit_1 || "មន្ទីរអប់រំ យុវជន និងកីឡា"}</p>
-                            <p className="font-moul text-[13px]">{settings.management_unit_2 || "ការិយាល័យអប់រំ យុវជន និងកីឡា"}</p>
-                            <p className="font-moul text-[13px]">{settings.school_name || "សាលារបស់អ្នក"}</p>
-                            <p className="font-moul text-[13px] mt-2 print:mt-1"> <span className="text-blue-700">{settings.class_name || "ថ្នាក់ដើម"}</span></p>
+                            <p className="font-moul text-[13px]">{settings?.management_unit_1 || "មន្ទីរអប់រំ យុវជន និងកីឡា"}</p>
+                            <p className="font-moul text-[13px]">{settings?.management_unit_2 || "ការិយាល័យអប់រំ យុវជន និងកីឡា"}</p>
+                            <p className="font-moul text-[13px]">{settings?.school_name || "សាលារបស់អ្នក"}</p>
+                            <p className="font-moul text-[13px] mt-2 print:mt-1"> <span className="text-blue-700">{settings?.class_name || "ថ្នាក់ដើម"}</span></p>
                         </div>
                         <div className="text-center">
                             <p className="font-moul text-[14px]">ព្រះរាជាណាចក្រកម្ពុជា</p>
@@ -486,13 +487,13 @@ export default function ParentReportClient({ initialStudents, settings }: { init
                         
                         <div className="text-center w-[180px] print:w-[150px]">
                             <p className="mb-2 font-bold">បានឃើញ និងឯកភាព</p>
-                            <p className="font-moul mb-12 print:mb-6 text-[#0054a6]">{settings.director_name || "នាយកសាលា"}</p>
+                            <p className="font-moul mb-12 print:mb-6 text-[#0054a6]">{settings?.director_name || "នាយកសាលា"}</p>
                         </div>
                         
                         <div className="text-center w-[200px] print:w-[180px]">
-                            <p className="mb-2"><span>{settings.province_date || "......................."}</span>, ថ្ងៃទី.......ខែ.......ឆ្នាំ២០២...</p>
+                            <p className="mb-2"><span>{settings?.province_date || "......................."}</span>, ថ្ងៃទី.......ខែ.......ឆ្នាំ២០២...</p>
                             <p className="font-moul mb-12 print:mb-6 text-[#0054a6]">គ្រូបន្ទុកថ្នាក់</p>
-                            <p className="font-moul text-[#0054a6]" style={{ marginLeft: '2cm', marginTop: '1.5cm' }}>{settings.teacher_name || "ឈ្មោះគ្រូ"}</p>
+                            <p className="font-moul text-[#0054a6]" style={{ marginLeft: '2cm', marginTop: '1.5cm' }}>{settings?.teacher_name || "ឈ្មោះគ្រូ"}</p>
                         </div>
                     </div>
 

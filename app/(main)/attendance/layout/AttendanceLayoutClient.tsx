@@ -6,8 +6,7 @@ import Link from 'next/link'
 import { saveAttendance, getAttendanceForDate } from './actions'
 import ThreeClassroom from './ThreeClassroom'
 import Select from '@/components/ui/forms/Select'
-
-type Student = any
+import type { AttendanceRecord, SeatingConfig, Student } from '@/lib/types'
 
 export default function AttendanceLayoutClient({ initialStudents, userId }: { initialStudents: Student[], userId: string }) {
     const [students, setStudents] = useState<Student[]>(initialStudents)
@@ -139,7 +138,7 @@ export default function AttendanceLayoutClient({ initialStudents, userId }: { in
 
     // Modal logic
     const seatedIds = Object.values(seatingLayout)
-    const availableStudents = students.filter(s => !seatedIds.includes(s.id || s.uid))
+    const availableStudents = students.filter(s => !seatedIds.includes(s.id || s.uid || ''))
     const filteredStudents = availableStudents.filter(s => {
         const name = (s.name_kh || s.full_name || '').toLowerCase()
         const id = (s.student_id || s.student_code || s.id || '').toLowerCase()
@@ -150,7 +149,7 @@ export default function AttendanceLayoutClient({ initialStudents, userId }: { in
     const renderSeat = (tableNum: number, seatNum: number, isCircular = false) => {
         const seatId = `t${tableNum}-s${seatNum}`
         const studentId = seatingLayout[seatId]
-        const student = students.find(s => (s.id || s.uid) === studentId)
+        const student = students.find(s => (s.id || s.uid || '') === studentId)
         const extraClasses = isCircular ? 'w-full h-full shadow-sm absolute' : 'flex-1 relative'
         
         if (student) {
@@ -171,7 +170,7 @@ export default function AttendanceLayoutClient({ initialStudents, userId }: { in
                             <X className="w-3 h-3" />
                         </div>
                     )}
-                    <div className="font-bold text-[11px] leading-tight line-clamp-2" title={student.name_kh || student.full_name}>{student.name_kh || student.full_name}</div>
+                    <div className="font-bold text-[11px] leading-tight line-clamp-2" title={student.name_kh || student.full_name || ''}>{student.name_kh || student.full_name}</div>
                     <div className="text-[9px] opacity-80">{student.student_id || student.student_code || student.id.slice(0, 4)}</div>
                 </div>
             )
@@ -435,7 +434,7 @@ export default function AttendanceLayoutClient({ initialStudents, userId }: { in
                                 <div className="p-4 text-center text-gray-400 text-sm">សិស្សទាំងអស់ត្រូវបានចាត់ចូលតុរួចរាល់ ឬរកមិនឃើញសិស្ស។</div>
                             ) : (
                                 filteredStudents.map(s => (
-                                    <div key={s.id || s.uid} onClick={() => assignStudent(s.id || s.uid)} className="p-3 hover:bg-blue-50 cursor-pointer rounded-xl flex items-center gap-3 border border-transparent hover:border-blue-100 transition">
+                                    <div key={s.id || s.uid || ''} onClick={() => assignStudent(s.id || s.uid || '')} className="p-3 hover:bg-blue-50 cursor-pointer rounded-xl flex items-center gap-3 border border-transparent hover:border-blue-100 transition">
                                         <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0">
                                             {s.gender === 'ស្រី' ? 'ស' : 'ប'}
                                         </div>

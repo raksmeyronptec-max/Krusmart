@@ -6,8 +6,13 @@ import Link from 'next/link'
 import { getScores, saveScores } from './actions'
 import Select from '@/components/ui/forms/Select'
 import SearchableSelect from '@/components/ui/forms/SearchableSelect'
+import type { Student } from '@/lib/types'
 
-type Student = any
+/** One column of the score grid. */
+type SubjectColumn = { key: string, label: string, group?: string, type?: string }
+
+/** A user-defined subject group persisted in the `custom_subjects` localStorage key. */
+type CustomSubject = { id: string, name: string, columns: { id: string, name: string, mode?: string }[] }
 
 const behaviorOptions = ['ល្អ', 'ល្អបង្គួរ', 'មធ្យម', 'ខ្សោយ']
 

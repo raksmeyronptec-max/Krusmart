@@ -8,9 +8,13 @@ import {
 } from 'lucide-react'
 import { getNotifications, addNotification, deleteNotification } from './actions'
 import SearchableSelect from '@/components/ui/forms/SearchableSelect'
+import type { Notification, Student } from '@/lib/types'
 
-export default function NotificationsClient({ initialStudents, userId }: { initialStudents: any[], userId: string }) {
-    const [notifications, setNotifications] = useState<any[]>([])
+/** The dropdown only needs the id and the Khmer name. */
+type StudentOption = Pick<Student, 'id' | 'name_kh'>
+
+export default function NotificationsClient({ initialStudents, userId }: { initialStudents: StudentOption[], userId: string }) {
+    const [notifications, setNotifications] = useState<Notification[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [isSubmitting, setIsSubmitting] = useState(false)
     
@@ -119,7 +123,7 @@ export default function NotificationsClient({ initialStudents, userId }: { initi
                                             { value: 'all', label: '👨‍👩‍👧‍👦 សិស្សទាំងអស់ក្នុងថ្នាក់' },
                                             ...initialStudents.map(s => ({
                                                 value: s.id,
-                                                label: s.khmer_name,
+                                                label: s.name_kh,
                                                 group: 'ជ្រើសរើសសិស្សជាក់លាក់៖',
                                             })),
                                         ]}
@@ -200,7 +204,7 @@ export default function NotificationsClient({ initialStudents, userId }: { initi
                                         let targetBadgeColor = 'bg-indigo-100 text-indigo-700'
                                         if (n.target !== 'all') {
                                             const st = initialStudents.find(s => s.id === n.target)
-                                            targetLabel = st ? `ផ្ញើទៅ៖ ${st.khmer_name}` : `ផ្ញើទៅ៖ ID ${n.target.substring(0,8)}`
+                                            targetLabel = st ? `ផ្ញើទៅ៖ ${st.name_kh}` : `ផ្ញើទៅ៖ ID ${n.target.substring(0,8)}`
                                             targetBadgeColor = 'bg-purple-100 text-purple-700'
                                         }
 

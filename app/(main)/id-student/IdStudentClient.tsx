@@ -4,8 +4,7 @@ import { useState } from 'react'
 import { ArrowLeft, Image as ImageIcon, PenTool, ZoomIn, ZoomOut, Printer, Inbox } from 'lucide-react'
 import Link from 'next/link'
 import Select from '@/components/ui/forms/Select'
-
-type Student = any
+import type { Settings, Student } from '@/lib/types'
 
 const khNumbers = ['០','១','២','៣','៤','៥','៦','៧','៨','៩']
 function toKhmerNum(str: string | number | null | undefined): string {
@@ -70,7 +69,7 @@ export default function IdStudentClient({ initialStudents, settings }: { initial
 
     const handleBgChange = (val: string) => {
         setCurrentBgImage(`/id-templates/${val}`)
-        if (val === '3_id_student.png' && !settings.school_logo) {
+        if (val === '3_id_student.png' && !settings?.school_logo) {
             alert('⚠️ មិនទាន់មាន Logo សាលាទេ!\n\nសូមចូលទៅទំព័រ "ព័ត៌មានគណនី" (Profile) ដើម្បី Upload រូបសញ្ញាសាលា (Logo) ជាមុនសិន។')
         }
     }
@@ -95,13 +94,13 @@ export default function IdStudentClient({ initialStudents, settings }: { initial
         })
     }
 
-    const managementUnit1 = settings.management_unit_1 || ''
-    const schoolName = settings.school_name || ''
-    const academicYear = toKhmerNum(settings.academic_year || '២០២៤-២០២៥')
-    const className = settings.class_name || '១ «ក»'
-    const director = settings.director_name || 'នាយកសាលា'
-    const provinceDate = settings.province_date || 'ភ្នំពេញ'
-    const schoolLogoUrl = settings.school_logo || ''
+    const managementUnit1 = settings?.management_unit_1 || ''
+    const schoolName = settings?.school_name || ''
+    const academicYear = toKhmerNum(settings?.academic_year || '២០២៤-២០២៥')
+    const className = settings?.class_name || '១ «ក»'
+    const director = settings?.director_name || 'នាយកសាលា'
+    const provinceDate = settings?.province_date || 'ភ្នំពេញ'
+    const schoolLogoUrl = settings?.school_logo || ''
 
     return (
         <div className="bg-[#f3f4f6] min-h-screen text-[#1f2937] font-battambang print:bg-white print:m-0 print:p-0">

@@ -1,8 +1,9 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import type { AttendanceRecord, Settings } from '@/lib/types'
 
-export async function getMonthlyAttendance(year: number, month: number) {
+export async function getMonthlyAttendance(year: number, month: number): Promise<AttendanceRecord[]> {
     const supabase = await createClient()
 
     const { data: { user } } = await supabase.auth.getUser()
@@ -26,7 +27,7 @@ export async function getMonthlyAttendance(year: number, month: number) {
     return data || []
 }
 
-export async function getTeacherSettings() {
+export async function getTeacherSettings(): Promise<Settings | null> {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return null

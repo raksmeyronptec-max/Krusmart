@@ -4,9 +4,10 @@ import { useState } from 'react'
 import { ArrowLeft, Book, Printer, PenTool, Search, Users } from 'lucide-react'
 import Link from 'next/link'
 import Select from '@/components/ui/forms/Select'
+import type { AttendanceRecord, Score, Settings, Student } from '@/lib/types'
 
 export default function StudentTrackingClient({ initialStudents, attendanceData, scoresData, settings, academicYear }: { 
-    initialStudents: any[], attendanceData: any[], scoresData: any[], settings: any, academicYear: string 
+    initialStudents: Student[], attendanceData: AttendanceRecord[], scoresData: Score[], settings: Settings | null, academicYear: string 
 }) {
     const [selectedYear, setSelectedYear] = useState(academicYear)
     const [searchTerm, setSearchTerm] = useState('')
@@ -51,16 +52,32 @@ export default function StudentTrackingClient({ initialStudents, attendanceData,
         window.location.reload()
     }
 
-    // Helper to get score for a specific month for a student
     const getStudentScoreData = (uid: string) => {
-        let mData = scoresData.find(d => d.month === selectedMonth && d.year === selectedYear)
-        if (!mData) return null
-        
-        const data = typeof mData.data === 'string' ? JSON.parse(mData.data) : mData.data
-        if (data && data[uid]) {
-            return data[uid]
+        const targetPeriod = `${selectedMonth}-${selectedYear}`
+        const studentScores = scoresData.filter(d => 
+            d.student_id === uid && 
+            d.score_type === 'monthly' && 
+            d.score_period === targetPeriod &&
+            d.score_value !== null
+        )
+
+        if (studentScores.length === 0) return null
+
+        let scoreObj: any = {}
+        let stSum = 0
+        let stCount = 0
+
+        studentScores.forEach(s => {
+            scoreObj[s.subject] = s.score_value
+            stSum += s.score_value!
+            stCount++
+        })
+
+        if (stCount > 0) {
+            scoreObj.average = (stSum / stCount).toFixed(2)
         }
-        return null
+
+        return scoreObj
     }
 
     return (
@@ -212,9 +229,9 @@ export default function StudentTrackingClient({ initialStudents, attendanceData,
                         {/* Header Section */}
                         <div className="flex justify-between items-start mb-4">
                             <div className="text-center text-[13px] font-moul leading-relaxed w-1/3 text-blue-900">
-                                <div>{settings.management_unit_1 || "មន្ទីរអប់រំ យុវជន និងកីឡា..."}</div>
-                                <div>{settings.management_unit_2 || "ការិយាល័យអប់រំ យុវជន និងកីឡា..."}</div>
-                                <div>{settings.school_name || "សាលាបឋមសិក្សា..."}</div>
+                                <div>{settings?.management_unit_1 || "មន្ទីរអប់រំ យុវជន និងកីឡា..."}</div>
+                                <div>{settings?.management_unit_2 || "ការិយាល័យអប់រំ យុវជន និងកីឡា..."}</div>
+                                <div>{settings?.school_name || "សាលាបឋមសិក្សា..."}</div>
                             </div>
                             
                             <div className="flex-1 flex justify-center">
@@ -236,7 +253,7 @@ export default function StudentTrackingClient({ initialStudents, attendanceData,
                         <div className="text-center mb-4 text-[#1e40af]">
                             <h1 className="font-moul text-lg mb-1 tracking-wider">សៀវភៅតាមដានលទ្ធផលសិក្សារបស់សិស្ស</h1>
                             <div className="inline-block border-2 border-[#1e40af] px-4 py-1.5 rounded-lg font-bold text-sm bg-blue-50/50 shadow-sm">
-                                ថ្នាក់ទី {settings.class_name || "១២ ក"} | ឆ្នាំសិក្សា {selectedYear}
+                                ថ្នាក់ទី {settings?.class_name || "១២ ក"} | ឆ្នាំសិក្សា {selectedYear}
                             </div>
                         </div>
 
@@ -295,7 +312,7 @@ export default function StudentTrackingClient({ initialStudents, attendanceData,
                                 <div>បានឃើញ និងឯកភាព</div>
                                 <div className="text-xs font-battambang mt-1 text-slate-500">ហត្ថលេខា និងឈ្មោះនាយកសាលា</div>
                                 <div className="h-24"></div>
-                                <div>{settings.director_name || "នាយកសាលា"}</div>
+                                <div>{settings?.director_name || "នាយកសាលា"}</div>
                             </div>
                             
                             <div className="text-center font-moul leading-relaxed">
@@ -303,7 +320,7 @@ export default function StudentTrackingClient({ initialStudents, attendanceData,
                                 <div>គ្រូបន្ទុកថ្នាក់</div>
                                 <div className="text-xs font-battambang mt-1 text-slate-500">ហត្ថលេខា និងឈ្មោះ</div>
                                 <div className="h-20"></div>
-                                <div className="text-blue-800">{settings.teacher_name || "ឈ្មោះគ្រូ"}</div>
+                                <div className="text-blue-800">{settings?.teacher_name || "ឈ្មោះគ្រូ"}</div>
                             </div>
                         </div>
 

@@ -6,11 +6,10 @@ import Link from 'next/link'
 import { deleteStudent, deleteAllStudents, saveStudentsOrder } from './actions'
 import { TopNav } from "@/components/TopNav"
 import Pagination from "@/components/ui/navigation/Pagination"
+import type { Student } from "@/lib/types"
 
-type Student = any // For simplicity, define proper type later
-
-const getDriveImageUrl = (url: string) => {
-    if (!url) return url;
+const getDriveImageUrl = (url: string | null | undefined) => {
+    if (!url) return '';
     try {
         const urlObj = new URL(url);
         if (urlObj.hostname.includes('drive.google.com')) {
@@ -55,7 +54,7 @@ export default function StudentTableClient({ initialStudents }: { initialStudent
         return age
     }
 
-    const formatLocation = (v: string, c: string, d: string, p: string) => {
+    const formatLocation = (v?: string | null, c?: string | null, d?: string | null, p?: string | null) => {
         const parts = []
         if (v) parts.push(v)
         if (c) parts.push(c)
@@ -64,7 +63,7 @@ export default function StudentTableClient({ initialStudents }: { initialStudent
         return parts.length > 0 ? parts.join(' ') : '-'
     }
 
-    const formatParent = (name: string, job: string) => {
+    const formatParent = (name?: string | null, job?: string | null) => {
         if (!name && !job) return '-'
         let res = name ? name.trim() : 'មិនស្គាល់'
         if (job && job.trim()) res += ` (${job.trim()})`

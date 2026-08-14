@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { getAllScoresByPeriod } from '../../score/total/actions'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, PieChart as RePieChart, Pie, Cell } from 'recharts'
 import Select from '@/components/ui/forms/Select'
+import type { Settings, Student } from '@/lib/types'
 
 const allMonthsMap = [
     { id: 'jan', label: 'មករា' }, { id: 'feb', label: 'កុម្ភៈ' }, { id: 'mar', label: 'មីនា' },
@@ -35,7 +36,7 @@ const config = {
     }
 }
 
-export default function SubjectAnalysisClient({ initialStudents, settings, userId }: { initialStudents: any[], settings: any, userId: string }) {
+export default function SubjectAnalysisClient({ initialStudents, settings, userId }: { initialStudents: Student[], settings: Settings | null, userId: string }) {
     const [academicYear, setAcademicYear] = useState('2025-2026')
     const [currentPeriod, setCurrentPeriod] = useState('jan')
     const [loading, setLoading] = useState(false)
@@ -53,8 +54,8 @@ export default function SubjectAnalysisClient({ initialStudents, settings, userI
             let failed = 0
             let total = 0
             records.forEach(r => {
-                if (r.subject === col.key && r.score_value !== null && r.score_value !== undefined && r.score_value !== "") {
-                    const val = parseFloat(r.score_value)
+                if (r.subject === col.key && r.score_value !== null && r.score_value !== undefined && String(r.score_value) !== "") {
+                    const val = parseFloat(String(r.score_value))
                     if (!isNaN(val)) {
                         total++
                         if (val >= 5.0) passed++

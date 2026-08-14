@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import type { AttendanceRecord, Score, Student } from '@/lib/types'
 import { 
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     BarChart, Bar, PieChart, Pie, Cell, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis
@@ -10,7 +11,7 @@ import Link from 'next/link'
 import Select from '@/components/ui/forms/Select'
 
 export default function ScoreAnalyseClient({ initialStudents, attendanceData, scoresData, academicYear }: { 
-    initialStudents: any[], attendanceData: any[], scoresData: any[], academicYear: string 
+    initialStudents: Student[], attendanceData: AttendanceRecord[], scoresData: Score[], academicYear: string 
 }) {
     const [selectedYear, setSelectedYear] = useState(academicYear)
     const [selectedMonth, setSelectedMonth] = useState('01') // Default Jan
@@ -44,11 +45,10 @@ export default function ScoreAnalyseClient({ initialStudents, attendanceData, sc
             let p = 0, l = 0, a = 0
             
             attendanceData.forEach(att => {
-                const data = typeof att.data === 'string' ? JSON.parse(att.data) : att.data
-                if (data && data[uid]) {
-                    if (data[uid] === 'P') p++
-                    else if (data[uid] === 'L') l++
-                    else if (data[uid] === 'A') a++
+                if (att.student_id === uid) {
+                    if (att.status === 'P') p++
+                    else if (att.status === 'L') l++
+                    else if (att.status === 'A' || att.status === 'AP') a++
                 }
             })
             
@@ -61,27 +61,25 @@ export default function ScoreAnalyseClient({ initialStudents, attendanceData, sc
             let sScores: Record<string, number> = {}
 
             months.forEach(m => {
-                const mData = scoresData.find(d => d.month === m.val && d.year === selectedYear)
-                if (mData) {
-                    const data = typeof mData.data === 'string' ? JSON.parse(mData.data) : mData.data
-                    if (data && data[uid]) {
-                        // calculate average for this month for this student
-                        let stSum = 0, stCount = 0
-                        Object.keys(data[uid]).forEach(k => {
-                            if (k !== 'average' && k !== 'rank' && k !== 'total') {
-                                const val = parseFloat(data[uid][k])
-                                if (!isNaN(val)) { stSum += val; stCount++ }
-                            }
-                        })
-                        
-                        let mAvg = data[uid].average ? parseFloat(data[uid].average) : (stCount > 0 ? stSum / stCount : null)
-                        if (mAvg !== null && !isNaN(mAvg)) {
-                            monthAvgSum += mAvg; monthCount++
-                            monthlyAvgs[m.val].sum += mAvg
-                            monthlyAvgs[m.val].count++
-                            sScores[m.val] = mAvg
-                        }
-                    }
+                const targetPeriod = `${m.val}-${selectedYear}`
+                const monthlyScores = scoresData.filter(d => 
+                    d.student_id === uid && 
+                    d.score_type === 'monthly' && 
+                    d.score_period === targetPeriod &&
+                    d.score_value !== null
+                )
+
+                if (monthlyScores.length > 0) {
+                    let stSum = 0, stCount = 0
+                    monthlyScores.forEach(score => {
+                        stSum += score.score_value!
+                        stCount++
+                    })
+                    const mAvg = stSum / stCount
+                    monthAvgSum += mAvg; monthCount++
+                    monthlyAvgs[m.val].sum += mAvg
+                    monthlyAvgs[m.val].count++
+                    sScores[m.val] = mAvg
                 }
             })
 

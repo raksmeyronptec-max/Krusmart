@@ -6,8 +6,17 @@ import Link from 'next/link'
 import * as XLSX from 'xlsx-js-style'
 import { getAllScoresByPeriod } from '../score/total/actions'
 import Select from '@/components/ui/forms/Select'
+import type { Score, Settings, Student } from '@/lib/types'
 
-type Student = any
+/** A student decorated with the per-period scores and the derived ranking fields. */
+type RankedStudent = Student & {
+    scores: Record<string, number | string | null>
+    total: number
+    average: string
+    finalAverageForRank: number
+    desc: string
+    rank: number
+}
 
 const allMonthsMap = [
     { id: 'jan', label: 'មករា' }, { id: 'feb', label: 'កុម្ភៈ' }, { id: 'mar', label: 'មីនា' },
@@ -67,12 +76,13 @@ export default function RankingClient({ initialStudents, settings, userId }: { i
 
         const records = await getAllScoresByPeriod(scoreMode, fetchPeriod)
 
-        let processedStudents = initialStudents.map(stu => {
-            const studentScores: Record<string, any> = {}
-            records.filter((r: any) => r.student_id === stu.id).forEach((r: any) => {
+        const processedStudents: RankedStudent[] = initialStudents.map(stu => {
+            const studentScores: Record<string, number | string | null> = {}
+            records.filter(r => r.student_id === stu.id).forEach(r => {
                 studentScores[r.subject] = r.score_value
             })
-            return { ...stu, scores: studentScores }
+            // The derived fields are all overwritten by the pass below.
+            return { ...stu, scores: studentScores, total: 0, average: '0.00', finalAverageForRank: 0, desc: '', rank: 0 }
         })
 
         processedStudents.forEach(stu => {
@@ -82,7 +92,7 @@ export default function RankingClient({ initialStudents, settings, userId }: { i
             if (mode === 'monthly' || mode === 'semester') {
                 const cols = config[mode].columns
                 cols.forEach(key => {
-                    const val = parseFloat(stu.scores[key])
+                    const val = parseFloat(String(stu.scores[key] ?? ''))
                     if (!isNaN(val)) {
                         sum += val
                         count++
@@ -92,8 +102,8 @@ export default function RankingClient({ initialStudents, settings, userId }: { i
                 stu.average = count > 0 ? (sum / count).toFixed(2) : "0.00"
                 stu.finalAverageForRank = parseFloat(stu.average)
             } else if (mode === 'yearly') {
-                const s1 = parseFloat(stu.scores['sem1_avg'] || '0')
-                const s2 = parseFloat(stu.scores['sem2_avg'] || '0')
+                const s1 = parseFloat(String(stu.scores['sem1_avg'] ?? '0'))
+                const s2 = parseFloat(String(stu.scores['sem2_avg'] ?? '0'))
                 let div = (s1 > 0 ? 1 : 0) + (s2 > 0 ? 1 : 0)
                 stu.total = s1 + s2
                 stu.average = div > 0 ? (stu.total / div).toFixed(2) : "0.00"

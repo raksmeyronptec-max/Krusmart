@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { ArrowLeft, Package, PlusCircle, Save, X, List, Printer, Edit, Trash2 } from 'lucide-react'
 import Link from 'next/link'
+import type { Settings } from '@/lib/types'
 
 interface InventoryItem {
     id: number
@@ -11,7 +12,7 @@ interface InventoryItem {
     note: string
 }
 
-export default function InventoryClient({ settings }: { settings: any }) {
+export default function InventoryClient({ settings }: { settings: Settings | null }) {
     const [items, setItems] = useState<InventoryItem[]>([])
     const [editId, setEditId] = useState<number | null>(null)
     const [name, setName] = useState('')
@@ -192,13 +193,13 @@ export default function InventoryClient({ settings }: { settings: any }) {
                 </div>
 
                 <div className="w-full text-[11pt] leading-relaxed mb-6 font-moul">
-                    <p>{settings.management_unit_1 || "មន្ទីរអប់រំ យុវជន និងកីឡា..."}</p>
-                    <p>{settings.management_unit_2 || "ការិយាល័យអប់រំ យុវជន និងកីឡា..."}</p>
-                    <p>{settings.school_name || "សាលាបឋមសិក្សា..."}</p>
+                    <p>{settings?.management_unit_1 || "មន្ទីរអប់រំ យុវជន និងកីឡា..."}</p>
+                    <p>{settings?.management_unit_2 || "ការិយាល័យអប់រំ យុវជន និងកីឡា..."}</p>
+                    <p>{settings?.school_name || "សាលាបឋមសិក្សា..."}</p>
                 </div>
 
                 <h2 className="font-moul text-center text-[14pt] mb-2 uppercase">បញ្ជីសារពើភ័ណ្ឌថ្នាក់រៀន</h2>
-                <p className="text-center font-bold text-[11pt] mb-6">ប្រចាំថ្នាក់ទី {settings.class_name || "១២ ក"} សិក្សាឆ្នាំ {settings.academic_year || "២០២៤-២០២៥"}</p>
+                <p className="text-center font-bold text-[11pt] mb-6">ប្រចាំថ្នាក់ទី {settings?.class_name || "១២ ក"} សិក្សាឆ្នាំ {settings?.academic_year || "២០២៤-២០២៥"}</p>
 
                 <table className="report-table">
                     <thead>
@@ -225,15 +226,15 @@ export default function InventoryClient({ settings }: { settings: any }) {
                     <div className="text-center font-moul leading-relaxed">
                         <div className="mb-4 invisible">.</div>
                         <p className="text-[11pt] mb-2">បានឃើញ និងឯកភាព</p>
-                        <p className="uppercase text-[12pt]">{settings.manager_role || "នាយកសាលា"}</p>
+                        <p className="uppercase text-[12pt]">{settings?.manager_role || "នាយកសាលា"}</p>
                         <div className="h-24"></div>
-                        <p className="text-[11.5pt]">{settings.manager_name || ""}</p>
+                        <p className="text-[11.5pt]">{settings?.manager_name || ""}</p>
                     </div>
                     <div className="text-center font-moul leading-relaxed">
                         <p className="text-[11pt] mb-2">ថ្ងៃទី...........ខែ...........ឆ្នាំ...........</p>
                         <p className="text-[12pt]">គ្រូបន្ទុកថ្នាក់</p>
                         <div className="h-24"></div>
-                        <p className="text-[11.5pt]">{settings.homeroom_teacher || "ឈ្មោះគ្រូ"}</p>
+                        <p className="text-[11.5pt]">{settings?.homeroom_teacher || "ឈ្មោះគ្រូ"}</p>
                     </div>
                 </div>
             </div>

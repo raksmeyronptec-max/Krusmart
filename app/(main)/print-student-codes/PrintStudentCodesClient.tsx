@@ -2,8 +2,9 @@
 
 import { ArrowLeft, Key, Printer, Info, Copy, Users } from 'lucide-react'
 import Link from 'next/link'
+import type { Student } from '@/lib/types'
 
-export default function PrintStudentCodesClient({ initialStudents, teacherUid }: { initialStudents: any[], teacherUid: string }) {
+export default function PrintStudentCodesClient({ initialStudents, teacherUid }: { initialStudents: Student[], teacherUid: string }) {
 
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text).then(() => {

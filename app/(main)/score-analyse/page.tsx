@@ -43,7 +43,7 @@ export default async function ScoreAnalysePage() {
     .from('scores')
     .select('*')
     .eq('teacher_id', user.id)
-    .eq('year', academicYear)
+    .like('score_period', `%-${academicYear}%`)
 
   return (
     <ScoreAnalyseClient 

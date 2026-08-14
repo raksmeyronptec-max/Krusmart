@@ -4,8 +4,9 @@ import { useState } from 'react'
 import { ArrowLeft, User, Building2, MapPin, ShieldCheck, Save, Camera, Eye } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import type { Settings } from '@/lib/types'
 
-export default function ProfileClient({ initialSettings }: { initialSettings: any }) {
+export default function ProfileClient({ initialSettings }: { initialSettings: Settings | null }) {
     const supabase = createClient()
     const [settings, setSettings] = useState(initialSettings)
     const [loading, setLoading] = useState(false)
@@ -111,8 +112,8 @@ export default function ProfileClient({ initialSettings }: { initialSettings: an
                         <div className="flex flex-col md:flex-row items-start md:items-end gap-6 md:gap-8 -mt-20 md:-mt-16 mb-6">
                             <div className="relative group mx-auto md:mx-0">
                                 <div className="w-[140px] h-[140px] rounded-full border-[5px] border-white shadow-lg bg-white flex items-center justify-center overflow-hidden">
-                                    {settings.photo_url ? (
-                                        <img src={settings.photo_url} alt="Profile" className="w-full h-full object-cover" />
+                                    {settings?.photo_url ? (
+                                        <img src={settings?.photo_url} alt="Profile" className="w-full h-full object-cover" />
                                     ) : (
                                         <User className="w-16 h-16 text-slate-300" />
                                     )}
@@ -126,11 +127,11 @@ export default function ProfileClient({ initialSettings }: { initialSettings: an
                             <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 w-full">
                                 <div>
                                     <label className="flex items-center gap-2 text-sm font-semibold text-slate-600 mb-1"><User className="w-3.5 h-3.5" /> នាមត្រកូល</label>
-                                    <input type="text" value={settings.surname || ''} onChange={e => handleChange('surname', e.target.value)} className="w-full p-2.5 rounded-lg border border-slate-300 bg-slate-50 font-bold text-blue-900 focus:border-blue-500 focus:bg-white outline-none transition" placeholder="ឧ. រ៉ន" />
+                                    <input type="text" value={settings?.surname || ''} onChange={e => handleChange('surname', e.target.value)} className="w-full p-2.5 rounded-lg border border-slate-300 bg-slate-50 font-bold text-blue-900 focus:border-blue-500 focus:bg-white outline-none transition" placeholder="ឧ. រ៉ន" />
                                 </div>
                                 <div>
                                     <label className="flex items-center gap-2 text-sm font-semibold text-slate-600 mb-1"><User className="w-3.5 h-3.5" /> ឈ្មោះ</label>
-                                    <input type="text" value={settings.name || ''} onChange={e => handleChange('name', e.target.value)} className="w-full p-2.5 rounded-lg border border-slate-300 bg-slate-50 font-bold text-blue-900 focus:border-blue-500 focus:bg-white outline-none transition" placeholder="ឧ. រស្មី" />
+                                    <input type="text" value={settings?.name || ''} onChange={e => handleChange('name', e.target.value)} className="w-full p-2.5 rounded-lg border border-slate-300 bg-slate-50 font-bold text-blue-900 focus:border-blue-500 focus:bg-white outline-none transition" placeholder="ឧ. រស្មី" />
                                 </div>
                             </div>
                         </div>
@@ -147,35 +148,35 @@ export default function ProfileClient({ initialSettings }: { initialSettings: an
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                             <div>
                                 <label className="flex items-center gap-1 text-sm font-semibold text-slate-600 mb-1"><span className="text-slate-400 text-xs">១.</span> អង្គភាពគ្រប់គ្រង ១</label>
-                                <input type="text" value={settings.management_unit_1 || ''} onChange={e => handleChange('management_unit_1', e.target.value)} className="w-full p-2.5 rounded-lg border border-slate-300 bg-slate-50 focus:border-blue-500 focus:bg-white outline-none transition" />
+                                <input type="text" value={settings?.management_unit_1 || ''} onChange={e => handleChange('management_unit_1', e.target.value)} className="w-full p-2.5 rounded-lg border border-slate-300 bg-slate-50 focus:border-blue-500 focus:bg-white outline-none transition" />
                             </div>
                             <div>
                                 <label className="flex items-center gap-1 text-sm font-semibold text-slate-600 mb-1"><span className="text-slate-400 text-xs">២.</span> អង្គភាពគ្រប់គ្រង ២</label>
-                                <input type="text" value={settings.management_unit_2 || ''} onChange={e => handleChange('management_unit_2', e.target.value)} className="w-full p-2.5 rounded-lg border border-slate-300 bg-slate-50 focus:border-blue-500 focus:bg-white outline-none transition" />
+                                <input type="text" value={settings?.management_unit_2 || ''} onChange={e => handleChange('management_unit_2', e.target.value)} className="w-full p-2.5 rounded-lg border border-slate-300 bg-slate-50 focus:border-blue-500 focus:bg-white outline-none transition" />
                             </div>
                             <div>
                                 <label className="flex items-center gap-1 text-sm font-semibold text-slate-600 mb-1"><span className="text-slate-400 text-xs">៣.</span> ឈ្មោះសាលា</label>
-                                <input type="text" value={settings.school_name || ''} onChange={e => handleChange('school_name', e.target.value)} className="w-full p-2.5 rounded-lg border border-slate-300 bg-slate-50 font-bold text-slate-800 focus:border-blue-500 focus:bg-white outline-none transition" />
+                                <input type="text" value={settings?.school_name || ''} onChange={e => handleChange('school_name', e.target.value)} className="w-full p-2.5 rounded-lg border border-slate-300 bg-slate-50 font-bold text-slate-800 focus:border-blue-500 focus:bg-white outline-none transition" />
                             </div>
                             <div>
                                 <label className="flex items-center gap-1 text-sm font-semibold text-slate-600 mb-1"><span className="text-slate-400 text-xs">៤.</span> ឈ្មោះថ្នាក់</label>
-                                <input type="text" value={settings.class_name || ''} onChange={e => handleChange('class_name', e.target.value)} className="w-full p-2.5 rounded-lg border border-slate-300 bg-slate-50 focus:border-blue-500 focus:bg-white outline-none transition" />
+                                <input type="text" value={settings?.class_name || ''} onChange={e => handleChange('class_name', e.target.value)} className="w-full p-2.5 rounded-lg border border-slate-300 bg-slate-50 focus:border-blue-500 focus:bg-white outline-none transition" />
                             </div>
                             <div>
                                 <label className="flex items-center gap-1 text-sm font-semibold text-slate-600 mb-1"><span className="text-slate-400 text-xs">៥.</span> ឈ្មោះគ្រូបន្ទុក</label>
-                                <input type="text" value={settings.homeroom_teacher || ''} onChange={e => handleChange('homeroom_teacher', e.target.value)} className="w-full p-2.5 rounded-lg border border-slate-300 bg-slate-50 focus:border-blue-500 focus:bg-white outline-none transition" />
+                                <input type="text" value={settings?.homeroom_teacher || ''} onChange={e => handleChange('homeroom_teacher', e.target.value)} className="w-full p-2.5 rounded-lg border border-slate-300 bg-slate-50 focus:border-blue-500 focus:bg-white outline-none transition" />
                             </div>
                             <div>
                                 <label className="flex items-center gap-1 text-sm font-semibold text-slate-600 mb-1"><span className="text-slate-400 text-xs">៦.</span> តួនាទីអ្នកគ្រប់គ្រង</label>
-                                <input type="text" value={settings.manager_role || ''} onChange={e => handleChange('manager_role', e.target.value)} className="w-full p-2.5 rounded-lg border border-slate-300 bg-slate-50 focus:border-blue-500 focus:bg-white outline-none transition" />
+                                <input type="text" value={settings?.manager_role || ''} onChange={e => handleChange('manager_role', e.target.value)} className="w-full p-2.5 rounded-lg border border-slate-300 bg-slate-50 focus:border-blue-500 focus:bg-white outline-none transition" />
                             </div>
                             <div>
                                 <label className="flex items-center gap-1 text-sm font-semibold text-slate-600 mb-1"><span className="text-slate-400 text-xs">៧.</span> ខេត្ត (សម្រាប់ថ្ងៃខែ)</label>
-                                <input type="text" value={settings.province_for_date || ''} onChange={e => handleChange('province_for_date', e.target.value)} className="w-full p-2.5 rounded-lg border border-slate-300 bg-slate-50 focus:border-blue-500 focus:bg-white outline-none transition" />
+                                <input type="text" value={settings?.province_for_date || ''} onChange={e => handleChange('province_for_date', e.target.value)} className="w-full p-2.5 rounded-lg border border-slate-300 bg-slate-50 focus:border-blue-500 focus:bg-white outline-none transition" />
                             </div>
                             <div>
                                 <label className="flex items-center gap-1 text-sm font-semibold text-slate-600 mb-1"><span className="text-slate-400 text-xs">៨.</span> ឆ្នាំសិក្សា</label>
-                                <input type="text" value={settings.academic_year || ''} onChange={e => handleChange('academic_year', e.target.value)} className="w-full p-2.5 rounded-lg border border-slate-300 bg-slate-50 focus:border-blue-500 focus:bg-white outline-none transition" />
+                                <input type="text" value={settings?.academic_year || ''} onChange={e => handleChange('academic_year', e.target.value)} className="w-full p-2.5 rounded-lg border border-slate-300 bg-slate-50 focus:border-blue-500 focus:bg-white outline-none transition" />
                             </div>
 
                             {/* School Logo Upload */}
@@ -185,8 +186,8 @@ export default function ProfileClient({ initialSettings }: { initialSettings: an
                                 </label>
                                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
                                     <div className="w-[80px] h-[80px] rounded-lg border-2 border-dashed border-blue-300 bg-white flex items-center justify-center overflow-hidden shrink-0">
-                                        {settings.school_logo ? (
-                                            <img src={settings.school_logo} alt="School Logo" className="w-full h-full object-contain p-1" />
+                                        {settings?.school_logo ? (
+                                            <img src={settings?.school_logo} alt="School Logo" className="w-full h-full object-contain p-1" />
                                         ) : (
                                             <Building2 className="w-8 h-8 text-blue-200" />
                                         )}

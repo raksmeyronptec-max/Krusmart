@@ -4,8 +4,9 @@ import { useState } from 'react'
 import { ArrowLeft, FileSpreadsheet, Printer } from 'lucide-react'
 import Link from 'next/link'
 import * as XLSX from 'xlsx-js-style'
+import type { Settings, Student } from '@/lib/types'
 
-export default function PrintListClient({ initialStudents, settings }: { initialStudents: any[], settings: any }) {
+export default function PrintListClient({ initialStudents, settings }: { initialStudents: Student[], settings: Settings | null }) {
 
     const total = initialStudents.length
     const female = initialStudents.filter(s => s.gender === 'ស្រី' || s.gender === 'F').length
@@ -44,8 +45,8 @@ export default function PrintListClient({ initialStudents, settings }: { initial
 
         const ws_data: any[] = []
         const merges: any[] = []
-        const className = settings.class_name || 'Class'
-        const year = settings.academic_year || 'Year'
+        const className = settings?.class_name || 'Class'
+        const year = settings?.academic_year || 'Year'
 
         const BORDER = {
             top: { style: 'thin', color: { rgb: 'FF000000' } },
@@ -84,7 +85,7 @@ export default function PrintListClient({ initialStudents, settings }: { initial
         ws_data.push(r3); merges.push({ s: { r: 3, c: 0 }, e: { r: 3, c: totalCols - 1 } })
         
         let r4 = Array(totalCols).fill(null).map(() => emptyCell())
-        r4[0] = { v: `សាលា៖ ${settings.school_name || ''} | ${className} | ឆ្នាំសិក្សា៖ ${year}`, t: 's', s: { font: FONT_BOLD, alignment: ALIGN_CENTER } }
+        r4[0] = { v: `សាលា៖ ${settings?.school_name || ''} | ${className} | ឆ្នាំសិក្សា៖ ${year}`, t: 's', s: { font: FONT_BOLD, alignment: ALIGN_CENTER } }
         ws_data.push(r4); merges.push({ s: { r: 4, c: 0 }, e: { r: 4, c: totalCols - 1 } })
 
         ws_data.push(Array(totalCols).fill(null).map(() => emptyCell()))
@@ -135,10 +136,10 @@ export default function PrintListClient({ initialStudents, settings }: { initial
             row[3] = { v: s.gender === 'ស្រី' || s.gender === 'F' ? 'ស' : 'ប', t: 's', s: TD_STYLE }
             row[4] = { v: formatDateDisplay(s.dob), t: 's', s: TD_STYLE }
             
-            row[5] = { v: trimPrefix(s.pob_village, /^(ភូមិទី|ភូមិ)\s*/), t: 's', s: TD_STYLE }
-            row[6] = { v: trimPrefix(s.pob_commune, /^(ឃុំ\/សង្កាត់|សង្កាត់|ឃុំ)\s*/), t: 's', s: TD_STYLE }
-            row[7] = { v: trimPrefix(s.pob_district, /^(ស្រុក\/ខណ្ឌ|ខណ្ឌ|ស្រុក|ក្រុង)\s*/), t: 's', s: TD_STYLE }
-            row[8] = { v: trimPrefix(s.pob_province, /^(ខេត្ត\/ក្រុង|រាជធានី\/ខេត្ត|រាជធានី|ខេត្ត)\s*/), t: 's', s: TD_STYLE }
+            row[5] = { v: trimPrefix(s.birth_village, /^(ភូមិទី|ភូមិ)\s*/), t: 's', s: TD_STYLE }
+            row[6] = { v: trimPrefix(s.birth_commune, /^(ឃុំ\/សង្កាត់|សង្កាត់|ឃុំ)\s*/), t: 's', s: TD_STYLE }
+            row[7] = { v: trimPrefix(s.birth_district, /^(ស្រុក\/ខណ្ឌ|ខណ្ឌ|ស្រុក|ក្រុង)\s*/), t: 's', s: TD_STYLE }
+            row[8] = { v: trimPrefix(s.birth_province, /^(ខេត្ត\/ក្រុង|រាជធានី\/ខេត្ត|រាជធានី|ខេត្ត)\s*/), t: 's', s: TD_STYLE }
             
             row[9] = { v: trimPrefix(s.curr_village, /^(ភូមិទី|ភូមិ)\s*/), t: 's', s: TD_STYLE }
             row[10] = { v: trimPrefix(s.curr_commune, /^(ឃុំ\/សង្កាត់|សង្កាត់|ឃុំ)\s*/), t: 's', s: TD_STYLE }
@@ -272,10 +273,10 @@ export default function PrintListClient({ initialStudents, settings }: { initial
                 
                 <div className="relative mb-[15px]">
                     <div className="text-[11px] font-moul text-black leading-relaxed max-w-[50%]">
-                        <div>{settings.management_unit_1 || "មន្ទីរអប់រំ យុវជន និងកីឡា..."}</div>
-                        <div>{settings.management_unit_2 || "ការិយាល័យអប់រំ យុវជន និងកីឡា..."}</div>
-                        <div>{settings.school_name || "សាលាបឋមសិក្សា..."}</div>
-                        <div className="mt-1 font-sans font-bold">លេខកូដសាលា៖ <span>{settings.school_code || "..."}</span></div>
+                        <div>{settings?.management_unit_1 || "មន្ទីរអប់រំ យុវជន និងកីឡា..."}</div>
+                        <div>{settings?.management_unit_2 || "ការិយាល័យអប់រំ យុវជន និងកីឡា..."}</div>
+                        <div>{settings?.school_name || "សាលាបឋមសិក្សា..."}</div>
+                        <div className="mt-1 font-sans font-bold">លេខកូដសាលា៖ <span>{settings?.school_code || "..."}</span></div>
                     </div>
 
                     <div className="absolute top-0 right-0 text-center">
@@ -292,8 +293,8 @@ export default function PrintListClient({ initialStudents, settings }: { initial
                     </div>
 
                     <div className="flex justify-between items-end mt-4 text-[11px] font-bold text-black px-2">
-                        <div><span className="text-blue-800">{settings.class_name || "..."}</span> <span className="ml-2">ឆ្នាំសិក្សា <span className="text-blue-800">{settings.academic_year || "..."}</span></span></div>
-                        <div>ឈ្មោះគ្រូ៖ <span className="text-blue-800 font-moul">{settings.teacher_name || "..."}</span></div>
+                        <div><span className="text-blue-800">{settings?.class_name || "..."}</span> <span className="ml-2">ឆ្នាំសិក្សា <span className="text-blue-800">{settings?.academic_year || "..."}</span></span></div>
+                        <div>ឈ្មោះគ្រូ៖ <span className="text-blue-800 font-moul">{settings?.teacher_name || "..."}</span></div>
                         <div>សិស្សសរុប៖ <span className="text-blue-800">{total}</span> នាក់</div>
                         <div>ស្រី៖ <span className="text-blue-800">{female}</span> នាក់</div>
                     </div>
@@ -349,10 +350,10 @@ export default function PrintListClient({ initialStudents, settings }: { initial
                                     <td>{s.gender === 'ស្រី' || s.gender === 'F' ? 'ស' : 'ប'}</td>
                                     <td>{formatDateDisplay(s.dob)}</td>
                                     
-                                    <td className="text-[8px] text-slate-700">{trimPrefix(s.pob_village, /^(ភូមិទី|ភូមិ)\s*/)}</td>
-                                    <td className="text-[8px] text-slate-700">{trimPrefix(s.pob_commune, /^(ឃុំ\/សង្កាត់|សង្កាត់|ឃុំ)\s*/)}</td>
-                                    <td className="text-[8px] text-slate-700">{trimPrefix(s.pob_district, /^(ស្រុក\/ខណ្ឌ|ខណ្ឌ|ស្រុក|ក្រុង)\s*/)}</td>
-                                    <td className="text-[8px] text-slate-700">{trimPrefix(s.pob_province, /^(ខេត្ត\/ក្រុង|រាជធានី\/ខេត្ត|រាជធានី|ខេត្ត)\s*/)}</td>
+                                    <td className="text-[8px] text-slate-700">{trimPrefix(s.birth_village, /^(ភូមិទី|ភូមិ)\s*/)}</td>
+                                    <td className="text-[8px] text-slate-700">{trimPrefix(s.birth_commune, /^(ឃុំ\/សង្កាត់|សង្កាត់|ឃុំ)\s*/)}</td>
+                                    <td className="text-[8px] text-slate-700">{trimPrefix(s.birth_district, /^(ស្រុក\/ខណ្ឌ|ខណ្ឌ|ស្រុក|ក្រុង)\s*/)}</td>
+                                    <td className="text-[8px] text-slate-700">{trimPrefix(s.birth_province, /^(ខេត្ត\/ក្រុង|រាជធានី\/ខេត្ត|រាជធានី|ខេត្ត)\s*/)}</td>
                                     
                                     <td className="text-[8px] text-slate-700">{trimPrefix(s.curr_village, /^(ភូមិទី|ភូមិ)\s*/)}</td>
                                     <td className="text-[8px] text-slate-700">{trimPrefix(s.curr_commune, /^(ឃុំ\/សង្កាត់|សង្កាត់|ឃុំ)\s*/)}</td>
@@ -390,17 +391,17 @@ export default function PrintListClient({ initialStudents, settings }: { initial
                 <div className="mt-8 flex justify-between text-[11px] font-bold text-black px-8">
                     <div className="text-center">
                         <p className="mb-1">បានឃើញ និងឯកភាព</p>
-                        <p className="font-moul mt-2">{settings.director_name || "នាយកសាលា"}</p>
+                        <p className="font-moul mt-2">{settings?.director_name || "នាយកសាលា"}</p>
                         <div className="h-20"></div>
                     </div>
 
                     <div className="text-center">
                         <p className="mb-1 font-moul">ថ្ងៃ...........ខែ.........ឆ្នាំ...........ព.ស ២៥៦...</p>
-                        <p className="mb-1 font-moul">ធ្វើនៅ<span>{settings.province_date || ".............."}</span>ថ្ងៃទី.......ខែ...........ឆ្នាំ២០២...</p>
+                        <p className="mb-1 font-moul">ធ្វើនៅ<span>{settings?.province_date || ".............."}</span>ថ្ងៃទី.......ខែ...........ឆ្នាំ២០២...</p>
                         
                         <p className="font-moul mt-3">គ្រូបន្ទុកថ្នាក់</p>
                         <div className="h-16"></div>
-                        <p className="font-moul text-blue-800" style={{ marginLeft: '2cm' }}>{settings.teacher_name || "ឈ្មោះគ្រូ"}</p>
+                        <p className="font-moul text-blue-800" style={{ marginLeft: '2cm' }}>{settings?.teacher_name || "ឈ្មោះគ្រូ"}</p>
                     </div>
                 </div>
             </div>

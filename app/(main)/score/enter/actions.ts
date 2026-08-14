@@ -2,8 +2,9 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import type { ActionResult, Score, ScoreInput } from '@/lib/types'
 
-export async function getScores(scoreType: string, scorePeriod: string) {
+export async function getScores(scoreType: string, scorePeriod: string): Promise<Score[]> {
     const supabase = await createClient()
 
     const { data: { user } } = await supabase.auth.getUser()
@@ -12,6 +13,7 @@ export async function getScores(scoreType: string, scorePeriod: string) {
     const { data, error } = await supabase
         .from('scores')
         .select('*')
+        .eq('teacher_id', user.id)
         .eq('score_type', scoreType)
         .eq('score_period', scorePeriod)
 
@@ -23,7 +25,7 @@ export async function getScores(scoreType: string, scorePeriod: string) {
     return data || []
 }
 
-export async function saveScores(scoreType: string, scorePeriod: string, scoresData: any[]) {
+export async function saveScores(scoreType: string, scorePeriod: string, scoresData: ScoreInput[]): Promise<ActionResult> {
     const supabase = await createClient()
 
     const { data: { user } } = await supabase.auth.getUser()
@@ -37,7 +39,9 @@ export async function saveScores(scoreType: string, scorePeriod: string, scoresD
         subject: s.subject,
         score_type: scoreType,
         score_period: scorePeriod,
-        score_value: s.score_value === '' || s.score_value === null ? null : parseFloat(s.score_value),
+        score_value: s.score_value === '' || s.score_value === null || s.score_value === undefined
+            ? null
+            : parseFloat(String(s.score_value)),
         updated_at: new Date().toISOString()
     }))
 

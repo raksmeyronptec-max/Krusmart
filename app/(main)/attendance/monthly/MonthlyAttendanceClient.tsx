@@ -7,8 +7,7 @@ import * as XLSX from 'xlsx-js-style'
 import html2pdf from 'html2pdf.js'
 import { toKhmerLunarDate } from 'khmer-chhankitek-calendar'
 import Select from '@/components/ui/forms/Select'
-
-type Student = any
+import type { AttendanceRecord, Settings, Student } from '@/lib/types'
 
 const months = ["មករា", "កុម្ភៈ", "មីនា", "មេសា", "ឧសភា", "មិថុនា", "កក្កដា", "សីហា", "កញ្ញា", "តុលា", "វិច្ឆិកា", "ធ្នូ"]
 const days = ["អាទិត្យ", "ច័ន្ទ", "អង្គារ", "ពុធ", "ព្រហស្បតិ៍", "សុក្រ", "សៅរ៍"]
@@ -156,7 +155,7 @@ export default function MonthlyAttendanceClient({ initialStudents, userId }: { i
                 const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
                 let statusChar = ""
                 
-                const stuId = student.id || student.uid
+                const stuId = student.id || student.uid || ''
                 if (student && attendance[dateStr] && attendance[dateStr][stuId]) {
                     const status = attendance[dateStr][stuId].status
                     if (status === 'P') statusChar = "✓" 
@@ -375,7 +374,7 @@ export default function MonthlyAttendanceClient({ initialStudents, userId }: { i
                                             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
                                             let aNum = 0
                                             let lNum = 0
-                                            const stuId = student?.id || student?.uid
+                                            const stuId = student?.id || student?.uid || ''
                                             
                                             if (stuId && attendance[dateStr]?.[stuId]) {
                                                 const status = attendance[dateStr][stuId].status

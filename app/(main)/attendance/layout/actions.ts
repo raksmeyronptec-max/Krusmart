@@ -2,8 +2,9 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import type { ActionResult, AttendanceRecord } from '@/lib/types'
 
-export async function saveAttendance(studentId: string, date: string, status: string, reason: string = '') {
+export async function saveAttendance(studentId: string, date: string, status: string, reason: string = ''): Promise<ActionResult> {
     const supabase = await createClient()
 
     const { data: { user } } = await supabase.auth.getUser()
@@ -30,7 +31,7 @@ export async function saveAttendance(studentId: string, date: string, status: st
     return { success: true }
 }
 
-export async function getAttendanceForDate(date: string) {
+export async function getAttendanceForDate(date: string): Promise<AttendanceRecord[]> {
     const supabase = await createClient()
 
     const { data: { user } } = await supabase.auth.getUser()

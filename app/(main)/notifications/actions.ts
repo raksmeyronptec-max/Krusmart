@@ -2,8 +2,9 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import type { ActionResult, Notification, NotificationInput } from '@/lib/types'
 
-export async function getNotifications() {
+export async function getNotifications(): Promise<Notification[]> {
     const supabase = await createClient()
 
     const { data: { user } } = await supabase.auth.getUser()
@@ -23,7 +24,7 @@ export async function getNotifications() {
     return data || []
 }
 
-export async function addNotification(payload: any) {
+export async function addNotification(payload: NotificationInput): Promise<ActionResult> {
     const supabase = await createClient()
 
     const { data: { user } } = await supabase.auth.getUser()
@@ -45,7 +46,7 @@ export async function addNotification(payload: any) {
     return { success: true }
 }
 
-export async function deleteNotification(id: string) {
+export async function deleteNotification(id: string): Promise<ActionResult> {
     const supabase = await createClient()
 
     const { data: { user } } = await supabase.auth.getUser()

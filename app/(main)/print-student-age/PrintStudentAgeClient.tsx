@@ -4,9 +4,10 @@ import { useMemo } from 'react'
 import { ArrowLeft, Printer, Users } from 'lucide-react'
 import Link from 'next/link'
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts'
+import type { Settings, Student } from '@/lib/types'
 
 export default function PrintStudentAgeClient({ initialStudents, settings, academicYear }: { 
-    initialStudents: any[], settings: any, academicYear: string 
+    initialStudents: Student[], settings: Settings | null, academicYear: string 
 }) {
     const MIN_AGE = 5
     const MAX_AGE = 20
@@ -158,9 +159,9 @@ export default function PrintStudentAgeClient({ initialStudents, settings, acade
             <div className="hidden print:block print-container bg-white w-[297mm] min-h-[210mm] mx-auto p-[10mm_15mm] relative">
                 <div className="flex justify-between items-start mb-6">
                     <div className="text-[10pt] leading-relaxed font-moul" style={{ marginTop: '40pt' }}>
-                        <p>{settings.management_unit_1 || "មន្ទីរអប់រំ យុវជន និងកីឡា..."}</p>
-                        <p>{settings.management_unit_2 || "ការិយាល័យអប់រំ យុវជន និងកីឡា..."}</p>
-                        <p>{settings.school_name || "សាលាបឋមសិក្សា..."}</p>
+                        <p>{settings?.management_unit_1 || "មន្ទីរអប់រំ យុវជន និងកីឡា..."}</p>
+                        <p>{settings?.management_unit_2 || "ការិយាល័យអប់រំ យុវជន និងកីឡា..."}</p>
+                        <p>{settings?.school_name || "សាលាបឋមសិក្សា..."}</p>
                         <p>ឆ្នាំសិក្សា {academicYear}</p>
                     </div>
                     <div className="text-center">
@@ -173,7 +174,7 @@ export default function PrintStudentAgeClient({ initialStudents, settings, acade
                 
                 <div className="flex justify-between items-end mb-2 font-bold text-[11pt]">
                     <p>ចំនួនសិស្សសរុប {allTotal} នាក់ ស្រី {totalF} នាក់</p>
-                    <p>ថ្នាក់ទី៖ {settings.class_name || "១២ ក"}</p>
+                    <p>ថ្នាក់ទី៖ {settings?.class_name || "១២ ក"}</p>
                 </div>
 
                 <table className="report-table">
@@ -217,15 +218,15 @@ export default function PrintStudentAgeClient({ initialStudents, settings, acade
                 <div className="grid grid-cols-2 gap-8 mt-16 px-10">
                     <div className="text-center font-moul leading-relaxed">
                         <div className="text-[11pt] font-bold mb-2">បានឃើញ និងឯកភាព</div>
-                        <div className="text-[12pt] uppercase">{settings.manager_role || "នាយកសាលា"}</div>
+                        <div className="text-[12pt] uppercase">{settings?.manager_role || "នាយកសាលា"}</div>
                         <div className="h-24"></div>
-                        <div className="text-[11.5pt]">{settings.manager_name || ""}</div>
+                        <div className="text-[11.5pt]">{settings?.manager_name || ""}</div>
                     </div>
                     <div className="text-center font-moul leading-relaxed">
                         <div className="text-[11pt] mb-2 font-battambang font-bold">ថ្ងៃទី...........ខែ...........ឆ្នាំ...........</div>
                         <div className="text-[12pt]">គ្រូបន្ទុកថ្នាក់</div>
                         <div className="h-24"></div>
-                        <div className="text-[11.5pt] text-blue-800">{settings.homeroom_teacher || "ឈ្មោះគ្រូ"}</div>
+                        <div className="text-[11.5pt] text-blue-800">{settings?.homeroom_teacher || "ឈ្មោះគ្រូ"}</div>
                     </div>
                 </div>
 

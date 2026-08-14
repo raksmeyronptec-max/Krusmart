@@ -5,6 +5,7 @@ import { ArrowLeft, Award, RefreshCw, Image as ImageIcon, Camera, Printer, ListO
 import Link from 'next/link'
 import { getAllScoresByPeriod } from '../score/total/actions'
 import Select from '@/components/ui/forms/Select'
+import type { Score, Settings, Student } from '@/lib/types'
 
 const allMonthsMap = [
     { id: 'nov', label: 'វិច្ឆិកា', isNextYear: false }, { id: 'dec', label: 'ធ្នូ', isNextYear: false },
@@ -24,7 +25,7 @@ const config = {
     }
 }
 
-export default function CertificateClient({ initialStudents, settings }: { initialStudents: any[], settings: any }) {
+export default function CertificateClient({ initialStudents, settings }: { initialStudents: Student[], settings: Settings | null }) {
     const [scoreType, setScoreType] = useState('monthly')
     const [academicYear, setAcademicYear] = useState('2025-2026')
     const [month, setMonth] = useState('nov')
@@ -38,10 +39,10 @@ export default function CertificateClient({ initialStudents, settings }: { initi
 
     // Certificate Meta
     const [templateUrl, setTemplateUrl] = useState('')
-    const [certOffice, setCertOffice] = useState(settings.management_unit_1 || 'ការិយាល័យអប់រំ យុវជន និងកីឡា ស្រុកព្រះស្តេច')
-    const [certSchool, setCertSchool] = useState(settings.school_name || 'សាលាបឋមសិក្សាភក្សោ')
-    const [certClass, setCertClass] = useState(settings.class_name || '៤')
-    const [certProvince, setCertProvince] = useState(settings.province_date || 'ព្រៃវែង')
+    const [certOffice, setCertOffice] = useState(settings?.management_unit_1 || 'ការិយាល័យអប់រំ យុវជន និងកីឡា ស្រុកព្រះស្តេច')
+    const [certSchool, setCertSchool] = useState(settings?.school_name || 'សាលាបឋមសិក្សាភក្សោ')
+    const [certClass, setCertClass] = useState(settings?.class_name || '៤')
+    const [certProvince, setCertProvince] = useState(settings?.province_date || 'ព្រៃវែង')
     const [showPhoto, setShowPhoto] = useState(true)
 
     // Dates
@@ -64,7 +65,15 @@ export default function CertificateClient({ initialStudents, settings }: { initi
         const period = getScorePeriod()
         const records = await getAllScoresByPeriod(scoreType, period)
         
-        let processedStudents = initialStudents.map(stu => {
+        type ProcessedStudent = Student & {
+            scores: Record<string, any>;
+            total?: number;
+            average?: string;
+            finalAverageForRank?: number;
+            rank?: number;
+        }
+
+        let processedStudents: ProcessedStudent[] = initialStudents.map(stu => {
             const studentScores: Record<string, any> = {}
             records.filter((r: any) => r.student_id === stu.id).forEach((r: any) => {
                 studentScores[r.subject] = r.score_value
@@ -114,10 +123,10 @@ export default function CertificateClient({ initialStudents, settings }: { initi
             else stu.grade = 'F'
         })
 
-        processedStudents.sort((a, b) => b.finalAverageForRank - a.finalAverageForRank)
+        processedStudents.sort((a, b) => (b.finalAverageForRank || 0) - (a.finalAverageForRank || 0))
         let currentRank = 1
         for (let i = 0; i < processedStudents.length; i++) {
-            if (i > 0 && processedStudents[i].finalAverageForRank < processedStudents[i-1].finalAverageForRank) {
+            if (i > 0 && (processedStudents[i].finalAverageForRank || 0) < (processedStudents[i-1].finalAverageForRank || 0)) {
                 currentRank = i + 1
             }
             processedStudents[i].rank = currentRank

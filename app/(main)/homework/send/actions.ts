@@ -2,8 +2,9 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import type { ActionResult, HomeworkAssignment, HomeworkAssignmentInput } from '@/lib/types'
 
-export async function getAssignments() {
+export async function getAssignments(): Promise<HomeworkAssignment[]> {
     const supabase = await createClient()
 
     const { data: { user } } = await supabase.auth.getUser()
@@ -23,7 +24,7 @@ export async function getAssignments() {
     return data || []
 }
 
-export async function addAssignment(payload: any) {
+export async function addAssignment(payload: HomeworkAssignmentInput): Promise<ActionResult> {
     const supabase = await createClient()
 
     const { data: { user } } = await supabase.auth.getUser()
@@ -45,7 +46,7 @@ export async function addAssignment(payload: any) {
     return { success: true }
 }
 
-export async function deleteAssignment(id: string) {
+export async function deleteAssignment(id: string): Promise<ActionResult> {
     const supabase = await createClient()
 
     const { data: { user } } = await supabase.auth.getUser()

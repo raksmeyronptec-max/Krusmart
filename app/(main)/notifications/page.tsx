@@ -13,9 +13,9 @@ export default async function NotificationsPage() {
   // Fetch students for dropdown
   let { data: students, error } = await supabase
     .from('students')
-    .select('id, khmer_name')
+    .select('id, name_kh')
     .eq('teacher_id', user.id)
-    .order('khmer_name', { ascending: true })
+    .order('name_kh', { ascending: true })
 
   if (error) {
     console.error(error)

@@ -1,8 +1,9 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import type { Score } from '@/lib/types'
 
-export async function getAllScoresByPeriod(scoreType: string, scorePeriod: string) {
+export async function getAllScoresByPeriod(scoreType: string, scorePeriod: string): Promise<Score[]> {
     const supabase = await createClient()
 
     const { data: { user } } = await supabase.auth.getUser()
@@ -11,6 +12,7 @@ export async function getAllScoresByPeriod(scoreType: string, scorePeriod: strin
     const { data, error } = await supabase
         .from('scores')
         .select('*')
+        .eq('teacher_id', user.id)
         .eq('score_type', scoreType)
         .eq('score_period', scorePeriod)
 
@@ -22,7 +24,7 @@ export async function getAllScoresByPeriod(scoreType: string, scorePeriod: strin
     return data || []
 }
 
-export async function getAnnualAverages(academicYear: string) {
+export async function getAnnualAverages(academicYear: string): Promise<Score[]> {
     const supabase = await createClient()
 
     const { data: { user } } = await supabase.auth.getUser()
@@ -35,6 +37,7 @@ export async function getAnnualAverages(academicYear: string) {
     const { data, error } = await supabase
         .from('scores')
         .select('*')
+        .eq('teacher_id', user.id)
         .eq('score_type', 'annual')
         .eq('score_period', `annual-${academicYear}`)
 
