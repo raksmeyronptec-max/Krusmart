@@ -1,12 +1,32 @@
 @import "tailwindcss";
 
 @theme inline {
-  /* Brand Colors */
-  --color-brand-primary: #0054a6;
-  --color-brand-secondary: #4facfe;
+  /* ---------------------------------------------------------------------------
+     Brand ramp — navy through cyan.
 
-  /* Design-system semantic tokens (light/dark aware — see :root / .dark below).
-     Used by the shared form + navigation components in components/ui/. */
+     These are palette values, fixed in both themes: `bg-brand-800` must mean the
+     same navy on a light page and a dark one. What changes per theme is the
+     *semantic* layer below (`--brand`, `--surface`, …), which points at
+     different rungs of this ramp in `:root` and `.dark`.
+     ------------------------------------------------------------------------ */
+  --color-brand-950: #0F1B3D;
+  --color-brand-900: #172B57;
+  --color-brand-800: #1D3E73;
+  --color-brand-700: #245A9B;
+  --color-brand-600: #1B6FB0;
+  --color-brand-500: #18A5CC;
+  --color-brand-400: #43C1D8;
+  --color-brand-300: #8ADCE6;
+  --color-brand-100: #EAF8FB;
+
+  /* Semantic status colours. Deliberately separate from the brand ramp: a
+     status must never be confused with an accent, and vice versa. */
+  --color-gold: #D9AA62;
+  --color-success: #16A36A;
+  --color-warning: #D99614;
+  --color-danger: #D9485F;
+
+  /* Theme-aware tokens (see :root / .dark). Everything shared reads these. */
   --color-bg-app: var(--background);
   --color-bg-surface: var(--surface);
   --color-paper: var(--surface-muted);
@@ -15,8 +35,22 @@
   --color-text-body: var(--text-body);
   --color-text-muted: var(--text-muted);
   --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
   --color-brand-contrast: var(--brand-contrast);
   --color-focus-ring: var(--focus-ring);
+
+  /* Elevation. Tinted with the darkest navy rather than pure black, so a
+     shadow reads as part of the palette instead of a grey smudge. */
+  --shadow-sm: var(--elevation-sm);
+  --shadow-md: var(--elevation-md);
+  --shadow-lg: var(--elevation-lg);
+
+  /* Radius. Three steps only — see the consolidation note in the design brief:
+     2xl/3xl collapse to xl so panels stop disagreeing about their corners. */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
 
   /* Fonts */
   --font-kantumruy: 'Kantumruy Pro', sans-serif;
@@ -46,36 +80,49 @@
 @custom-variant dark (&:is(.dark, .dark *));
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #F6F9FC;
+  --foreground: #14213D;
 
-  /* Semantic surface/text/brand ramp. Values chosen to match the greys the
-     app already uses (slate-50/200/500, gray-800) so migrated components sit
-     flush with un-migrated ones during the rollout. */
-  --surface: #ffffff;
-  --surface-muted: #f8fafc; /* slate-50  */
-  --divider: #e2e8f0; /* slate-200 */
-  --text-heading: #0f172a; /* slate-900 */
-  --text-body: #334155; /* slate-700 */
-  --text-muted: #64748b; /* slate-500 */
-  --brand: #0054a6;
-  --brand-contrast: #ffffff;
-  --focus-ring: #0054a6;
+  --surface: #FFFFFF;
+  --surface-muted: #F0F4F8;
+  --divider: #DCE5EF;
+  --text-heading: #14213D;
+  --text-body: #46566B;
+  --text-muted: #7A899A;
+
+  /* Navy carries structure; cyan carries focus. Keeping them distinct is what
+     stops every interactive element reading as the same weight. */
+  --brand: #1D3E73;
+  --brand-hover: #245A9B;
+  --brand-contrast: #FFFFFF;
+  --focus-ring: #18A5CC;
+
+  --elevation-sm: 0 1px 2px 0 rgba(15, 27, 61, 0.05);
+  --elevation-md: 0 4px 6px -1px rgba(15, 27, 61, 0.07), 0 2px 4px -2px rgba(15, 27, 61, 0.05);
+  --elevation-lg: 0 10px 15px -3px rgba(15, 27, 61, 0.08), 0 4px 6px -4px rgba(15, 27, 61, 0.04);
 }
 
 .dark {
-  --background: #0f172a; /* Tailwind slate-900 */
-  --foreground: #f3f4f6; /* Tailwind gray-100 */
+  --background: #0F1B3D;
+  --foreground: #EAF8FB;
 
-  --surface: #1f2937; /* gray-800 — the card colour used across the app */
-  --surface-muted: #111827; /* gray-900 */
-  --divider: #374151; /* gray-700 */
-  --text-heading: #f3f4f6; /* gray-100 */
-  --text-body: #e5e7eb; /* gray-200 */
-  --text-muted: #9ca3af; /* gray-400 */
-  --brand: #4facfe;
-  --brand-contrast: #0b1220;
-  --focus-ring: #4facfe;
+  --surface: #172B57;
+  --surface-muted: #0F1B3D;
+  --divider: rgba(36, 90, 155, 0.4);
+  --text-heading: #EAF8FB;
+  --text-body: #8ADCE6;
+  --text-muted: #7A899A;
+
+  /* Navy disappears against a navy ground, so the accent moves up the ramp to
+     cyan and the contrast colour flips to the darkest navy. */
+  --brand: #43C1D8;
+  --brand-hover: #8ADCE6;
+  --brand-contrast: #0F1B3D;
+  --focus-ring: #43C1D8;
+
+  --elevation-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --elevation-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+  --elevation-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
 }
 
 body {
@@ -86,7 +133,15 @@ body {
   line-height: 1.6;
 }
 
-/* Base Headings matching Moul font if desired */
+/*
+ * The display face, for ceremonial headings only — certificates, print
+ * letterheads, page titles. `.kh-moul` is the single utility for it.
+ *
+ * Ten clients used to redeclare `.font-moul` inside their own styled-jsx, and
+ * nine more used the class without declaring it anywhere, so those nine were
+ * silently rendering in Kantumruy. Standardising on one global utility fixes
+ * those nine and removes the duplication.
+ */
 .kh-moul {
   font-family: var(--font-moul);
   line-height: 1.8;
@@ -123,8 +178,9 @@ body {
     }
   }
 
+  /* Navy → cyan → gold: the three notes of the identity, in order. */
   .animate-gradient-text {
-    background: linear-gradient(-45deg, #0054a6, #4ca6f5, #ff2d75, #0054a6);
+    background: linear-gradient(-45deg, #1D3E73, #18A5CC, #D9AA62, #1D3E73);
     background-size: 300%;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -145,46 +201,46 @@ body {
     position: relative;
     z-index: 1;
   }
-  
+
   .btn-pulse::before {
     content: '';
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    box-shadow: 0 0 0 0 rgba(0, 84, 166, 0.6);
+    box-shadow: 0 0 0 0 rgba(29, 62, 115, 0.6);
     animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
     z-index: -1;
   }
 
   @keyframes pulse-ring {
-    70% { box-shadow: 0 0 0 12px rgba(0, 84, 166, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(0, 84, 166, 0); }
+    70% { box-shadow: 0 0 0 12px rgba(29, 62, 115, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(29, 62, 115, 0); }
   }
 
   /* Dark mode specific animated background */
-  .dark .bg-animate { 
-    background: radial-gradient(circle at 10% 20%, #1e1b4b 0%, transparent 40%), 
-                radial-gradient(circle at 90% 80%, #064e3b 0%, transparent 40%), 
-                radial-gradient(circle at 50% 50%, #451a03 0%, transparent 50%); 
+  .dark .bg-animate {
+    background: radial-gradient(circle at 10% 20%, #172B57 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, #1D3E73 0%, transparent 40%),
+                radial-gradient(circle at 50% 50%, #245A9B 0%, transparent 50%);
   }
 
   /* Accessibility: Reduce motion */
   @media (prefers-reduced-motion: reduce) {
-    .animate-gradient-text, .card-entrance, .btn-pulse::before { 
-      transition: none !important; 
-      animation: none !important; 
+    .animate-gradient-text, .card-entrance, .btn-pulse::before {
+      transition: none !important;
+      animation: none !important;
     }
-    .card-entrance { 
-      opacity: 1; 
-      transform: none; 
+    .card-entrance {
+      opacity: 1;
+      transform: none;
     }
   }
 
   /* Hide number input arrows */
-  input[type="number"]::-webkit-inner-spin-button, 
-  input[type="number"]::-webkit-outer-spin-button { 
-    -webkit-appearance: none; 
-    margin: 0; 
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
   }
 }
 
@@ -202,9 +258,28 @@ body {
   --pp-card-border: rgba(255, 255, 255, 0.1);
   --pp-text: #ffffff;
   --pp-text-muted: #9ca3af;
-  --pp-accent: #10b981;
-  --pp-danger: #ef4444;
-  --pp-header-gradient: linear-gradient(135deg, #0f766e 0%, #059669 100%);
+
+  /* Positive/critical states keep their meaning but now take the design
+     system's exact values, so "present" is the same green a teacher sees. */
+  --pp-accent: #16A36A;
+  --pp-danger: #D9485F;
+  --pp-success: #16A36A;
+  --pp-warning: #D99614;
+  --pp-info: #43C1D8;
+  --pp-gold: #D9AA62;
+
+  /* Feature tiles are categorical — a parent finds "grades" by its colour — so
+     they stay distinguishable rather than collapsing to one accent. Drawn from
+     the brand ramp plus the semantic set. */
+  --pp-cat-1: #43C1D8;
+  --pp-cat-2: #16A36A;
+  --pp-cat-3: #D9AA62;
+  --pp-cat-4: #8ADCE6;
+  --pp-cat-5: #D9485F;
+  --pp-cat-6: #D99614;
+
+  /* Aligned with the teacher app's navy -> cyan, per the design brief. */
+  --pp-header-gradient: linear-gradient(135deg, #1D3E73 0%, #18A5CC 100%);
 
   background-color: var(--pp-bg-app);
   color: var(--pp-text);
@@ -216,9 +291,23 @@ body {
   --pp-card-border: #e5e7eb;
   --pp-text: #111827;
   --pp-text-muted: #4b5563;
-  --pp-accent: #059669;
-  --pp-danger: #dc2626;
-  --pp-header-gradient: linear-gradient(135deg, #0d9488 0%, #047857 100%);
+
+  /* Darkened a step so each still meets contrast on a white card. */
+  --pp-accent: #0F8A58;
+  --pp-danger: #B3384C;
+  --pp-success: #0F8A58;
+  --pp-warning: #A8730F;
+  --pp-info: #18A5CC;
+  --pp-gold: #B08641;
+
+  --pp-cat-1: #18A5CC;
+  --pp-cat-2: #0F8A58;
+  --pp-cat-3: #B08641;
+  --pp-cat-4: #245A9B;
+  --pp-cat-5: #B3384C;
+  --pp-cat-6: #A8730F;
+
+  --pp-header-gradient: linear-gradient(135deg, #1D3E73 0%, #245A9B 100%);
 }
 
 @layer utilities {
@@ -228,8 +317,21 @@ body {
     border-color: var(--pp-card-border);
     box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px 0 rgb(0 0 0 / 0.06);
   }
-  .text-pp        { color: var(--pp-text); }
-  .text-pp-muted  { color: var(--pp-text-muted); }
+  .text-pp         { color: var(--pp-text); }
+  .text-pp-muted   { color: var(--pp-text-muted); }
+  .text-pp-accent  { color: var(--pp-accent); }
+  .text-pp-success { color: var(--pp-success); }
+  .text-pp-warning { color: var(--pp-warning); }
+  .text-pp-danger  { color: var(--pp-danger); }
+  .text-pp-info    { color: var(--pp-info); }
+  .text-pp-gold    { color: var(--pp-gold); }
+  .bg-pp-accent    { background-color: var(--pp-accent); }
+  .bg-pp-success   { background-color: var(--pp-success); }
+  .bg-pp-warning   { background-color: var(--pp-warning); }
+  .bg-pp-danger    { background-color: var(--pp-danger); }
+  .bg-pp-info      { background-color: var(--pp-info); }
+  .bg-pp-gold      { background-color: var(--pp-gold); }
+  .border-pp       { border-color: var(--pp-card-border); }
 
   /* iOS notch / home-indicator insets, as in the legacy portal. */
   .pb-safe { padding-bottom: max(env(safe-area-inset-bottom), 1rem); }

@@ -39,7 +39,7 @@ export default async function MainLayout({
   return (
     <SchoolContextProvider>
       <TeacherContextProvider>
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors">
+        <div className="min-h-screen bg-bg-app transition-colors">
           <TopNav />
           <main>
             {children}

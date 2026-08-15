@@ -275,9 +275,8 @@ export default function ScoreEnterClient({ initialStudents}: { initialStudents: 
     }
 
     return (
-        <div className="min-h-screen bg-[#f9fafb] text-[#1f2937] font-battambang pb-20">
+        <div className="min-h-screen bg-paper text-[var(--text-heading)] font-battambang pb-20">
             <style jsx global>{`
-                .font-moul { font-family: 'Moul', cursive; font-weight: normal; }
                 .font-battambang { font-family: 'Battambang', cursive; }
                 
                 .sticky-col { position: sticky; left: 0; z-index: 10; box-shadow: 2px 0 5px -2px rgba(0,0,0,0.05); }
@@ -291,22 +290,22 @@ export default function ScoreEnterClient({ initialStudents}: { initialStudents: 
 
             {/* Loading Overlay */}
             {(loading || saving) && (
-                <div className="fixed inset-0 bg-white/80 z-[2000] flex flex-col justify-center items-center">
-                    <Loader2 className="w-10 h-10 animate-spin text-indigo-600 mb-2" />
-                    <p className="font-bold text-gray-600">{saving ? 'កំពុងរក្សាទុក...' : 'កំពុងទាញយកទិន្នន័យ...'}</p>
+                <div className="fixed inset-0 bg-bg-surface/80 z-[2000] flex flex-col justify-center items-center">
+                    <Loader2 className="w-10 h-10 animate-spin text-brand mb-2" />
+                    <p className="font-bold text-text-body">{saving ? 'កំពុងរក្សាទុក...' : 'កំពុងទាញយកទិន្នន័យ...'}</p>
                 </div>
             )}
 
-            <nav className="bg-indigo-900 text-white p-4 shadow-lg sticky top-0 z-50">
+            <nav className="bg-brand-900 text-white p-4 shadow-lg sticky top-0 z-50">
                 <div className="container mx-auto flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <Link href="/dashboard" className="hover:text-indigo-200 transition-colors flex items-center gap-1">
+                        <Link href="/dashboard" className="hover:text-brand-300 transition-colors flex items-center gap-1">
                             <ArrowLeft className="w-5 h-5" /> ត្រឡប់
                         </Link>
-                        <h1 className="font-moul text-lg hidden sm:block ml-2">បញ្ចូលពិន្ទុ (Online)</h1>
+                        <h1 className="kh-moul text-lg hidden sm:block ml-2">បញ្ចូលពិន្ទុ (Online)</h1>
                     </div>
                     <div className="text-sm font-bold flex items-center gap-4">
-                        <Link href="/score/total" className="hover:text-indigo-200 transition-colors flex items-center gap-1">
+                        <Link href="/score/total" className="hover:text-brand-300 transition-colors flex items-center gap-1">
                             <Table2 className="w-4 h-4" /> តារាងពិន្ទុ
                         </Link>
                     </div>
@@ -314,27 +313,27 @@ export default function ScoreEnterClient({ initialStudents}: { initialStudents: 
             </nav>
 
             <div className="container mx-auto p-4 md:p-6 mt-4 max-w-[1400px]">
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden relative">
-                    <div className="h-2 w-full bg-[#2da143]"></div>
+                <div className="bg-bg-surface rounded-xl shadow-sm border border-divider overflow-hidden relative">
+                    <div className="h-2 w-full bg-success"></div>
                     
                     <div className="p-6 md:p-8">
-                        <div className="flex flex-col md:flex-row items-start md:items-center justify-between border-b border-gray-100 pb-4 mb-6 gap-4">
+                        <div className="flex flex-col md:flex-row items-start md:items-center justify-between border-b border-divider pb-4 mb-6 gap-4">
                             <div>
-                                <h2 className="font-moul text-[#322a83] text-xl">ទម្រង់បញ្ចូលពិន្ទុសិស្ស</h2>
-                                <p className="text-sm text-gray-500 mt-1">ទិន្នន័យនឹងត្រូវបានរក្សាទុកទៅក្នុង Database</p>
+                                <h2 className="kh-moul text-brand text-xl">ទម្រង់បញ្ចូលពិន្ទុសិស្ស</h2>
+                                <p className="text-sm text-text-muted mt-1">ទិន្នន័យនឹងត្រូវបានរក្សាទុកទៅក្នុង Database</p>
                             </div>
                         </div>
 
                         {/* Controls */}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
                             <div className="col-span-1 md:col-span-2 lg:col-span-4 mb-2">
-                                <label className="block text-xs font-bold text-gray-500 mb-2 ml-1">ជ្រើសរើសប្រភេទពិន្ទុ</label>
+                                <label className="block text-xs font-bold text-text-muted mb-2 ml-1">ជ្រើសរើសប្រភេទពិន្ទុ</label>
                                 <div className="grid grid-cols-2 gap-3 max-w-sm">
-                                    <button onClick={() => setScoreType('monthly')} className={`p-[0.6rem_1rem] rounded-lg font-bold transition flex items-center justify-center gap-2 text-[13px] border ${scoreType === 'monthly' ? 'bg-indigo-600 text-white border-transparent shadow-[0_2px_8px_rgba(79,70,229,0.2)]' : 'bg-white text-slate-500 border-slate-200 hover:border-indigo-600 hover:text-indigo-600 hover:bg-slate-50'}`}>
+                                    <button onClick={() => setScoreType('monthly')} className={`p-[0.6rem_1rem] rounded-lg font-bold transition flex items-center justify-center gap-2 text-[13px] border ${scoreType === 'monthly' ? 'bg-brand text-white border-transparent shadow-[0_2px_8px_rgba(79,70,229,0.2)]' : 'bg-bg-surface text-text-muted border-divider hover:border-brand hover:text-brand hover:bg-paper'}`}>
                                         <CalendarCheck className="w-4 h-4" />
                                         ពិន្ទុប្រចាំខែ
                                     </button>
-                                    <button onClick={() => setScoreType('semester')} className={`p-[0.6rem_1rem] rounded-lg font-bold transition flex items-center justify-center gap-2 text-[13px] border ${scoreType === 'semester' ? 'bg-indigo-600 text-white border-transparent shadow-[0_2px_8px_rgba(79,70,229,0.2)]' : 'bg-white text-slate-500 border-slate-200 hover:border-indigo-600 hover:text-indigo-600 hover:bg-slate-50'}`}>
+                                    <button onClick={() => setScoreType('semester')} className={`p-[0.6rem_1rem] rounded-lg font-bold transition flex items-center justify-center gap-2 text-[13px] border ${scoreType === 'semester' ? 'bg-brand text-white border-transparent shadow-[0_2px_8px_rgba(79,70,229,0.2)]' : 'bg-bg-surface text-text-muted border-divider hover:border-brand hover:text-brand hover:bg-paper'}`}>
                                         <Award className="w-4 h-4" />
                                         ពិន្ទុប្រចាំឆមាស
                                     </button>
@@ -374,9 +373,9 @@ export default function ScoreEnterClient({ initialStudents}: { initialStudents: 
 
                             <div className="relative lg:col-span-2">
                                 <div className="flex justify-between items-end mb-1.5 ml-1">
-                                    <label className="block text-xs font-bold text-gray-500">មុខវិជ្ជា</label>
+                                    <label className="block text-xs font-bold text-text-muted">មុខវិជ្ជា</label>
                                     <div className="flex gap-2">
-                                        <button onClick={() => setIsAddModalOpen(true)} className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1 font-bold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 transition-colors">
+                                        <button onClick={() => setIsAddModalOpen(true)} className="text-xs text-brand hover:text-brand-800 flex items-center gap-1 font-bold bg-brand-100 px-2 py-0.5 rounded border border-divider transition-colors">
                                             <FolderPlus className="w-3 h-3" /> បន្ថែម
                                         </button>
                                     </div>
@@ -395,45 +394,45 @@ export default function ScoreEnterClient({ initialStudents}: { initialStudents: 
                         {/* Quick select monthly */}
                         {scoreType === 'monthly' && (
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-                                <div onClick={() => setSubject('ex_oral')} className="bg-indigo-50 border border-indigo-100 p-3 rounded-lg flex items-center gap-3 cursor-pointer hover:bg-indigo-100 transition">
-                                    <div className="p-2 bg-white rounded-md shadow-sm text-indigo-600"><Mic className="w-4 h-4" /></div>
+                                <div onClick={() => setSubject('ex_oral')} className="bg-brand-100 border border-divider p-3 rounded-lg flex items-center gap-3 cursor-pointer hover:bg-brand-100 transition">
+                                    <div className="p-2 bg-bg-surface rounded-md shadow-sm text-brand"><Mic className="w-4 h-4" /></div>
                                     <div>
-                                        <p className="text-[10px] text-gray-500 font-bold uppercase">បញ្ចូលពិន្ទុ</p>
-                                        <p className="text-xs md:text-sm font-bold text-indigo-900">សំណួរផ្ទាល់មាត់</p>
+                                        <p className="text-[10px] text-text-muted font-bold uppercase">បញ្ចូលពិន្ទុ</p>
+                                        <p className="text-xs md:text-sm font-bold text-text-heading">សំណួរផ្ទាល់មាត់</p>
                                     </div>
                                 </div>
-                                <div onClick={() => setSubject('ex_att')} className="bg-green-50 border border-green-100 p-3 rounded-lg flex items-center gap-3 cursor-pointer hover:bg-green-100 transition">
-                                    <div className="p-2 bg-white rounded-md shadow-sm text-green-600"><UserCheck className="w-4 h-4" /></div>
+                                <div onClick={() => setSubject('ex_att')} className="bg-success/10 border border-divider p-3 rounded-lg flex items-center gap-3 cursor-pointer hover:bg-success/10 transition">
+                                    <div className="p-2 bg-bg-surface rounded-md shadow-sm text-success"><UserCheck className="w-4 h-4" /></div>
                                     <div>
-                                        <p className="text-[10px] text-gray-500 font-bold uppercase">បញ្ចូលពិន្ទុ</p>
-                                        <p className="text-xs md:text-sm font-bold text-green-900">វត្តមាន</p>
+                                        <p className="text-[10px] text-text-muted font-bold uppercase">បញ្ចូលពិន្ទុ</p>
+                                        <p className="text-xs md:text-sm font-bold text-success">វត្តមាន</p>
                                     </div>
                                 </div>
-                                <div onClick={() => setSubject('ex_book')} className="bg-purple-50 border border-purple-100 p-3 rounded-lg flex items-center gap-3 cursor-pointer hover:bg-purple-100 transition">
-                                    <div className="p-2 bg-white rounded-md shadow-sm text-purple-600"><Book className="w-4 h-4" /></div>
+                                <div onClick={() => setSubject('ex_book')} className="bg-brand-100 border border-divider p-3 rounded-lg flex items-center gap-3 cursor-pointer hover:bg-brand-100 transition">
+                                    <div className="p-2 bg-bg-surface rounded-md shadow-sm text-brand"><Book className="w-4 h-4" /></div>
                                     <div>
-                                        <p className="text-[10px] text-gray-500 font-bold uppercase">បញ្ចូលពិន្ទុ</p>
-                                        <p className="text-xs md:text-sm font-bold text-purple-900">សៀវភៅ</p>
+                                        <p className="text-[10px] text-text-muted font-bold uppercase">បញ្ចូលពិន្ទុ</p>
+                                        <p className="text-xs md:text-sm font-bold text-brand-800">សៀវភៅ</p>
                                     </div>
                                 </div>
-                                <div onClick={() => setSubject('ex_hw')} className="bg-orange-50 border border-orange-100 p-3 rounded-lg flex items-center gap-3 cursor-pointer hover:bg-orange-100 transition">
-                                    <div className="p-2 bg-white rounded-md shadow-sm text-orange-600"><Home className="w-4 h-4" /></div>
+                                <div onClick={() => setSubject('ex_hw')} className="bg-warning/10 border border-divider p-3 rounded-lg flex items-center gap-3 cursor-pointer hover:bg-warning/15 transition">
+                                    <div className="p-2 bg-bg-surface rounded-md shadow-sm text-warning"><Home className="w-4 h-4" /></div>
                                     <div>
-                                        <p className="text-[10px] text-gray-500 font-bold uppercase">បញ្ចូលពិន្ទុ</p>
-                                        <p className="text-xs md:text-sm font-bold text-orange-900">កិច្ចការផ្ទះ</p>
+                                        <p className="text-[10px] text-text-muted font-bold uppercase">បញ្ចូលពិន្ទុ</p>
+                                        <p className="text-xs md:text-sm font-bold text-warning">កិច្ចការផ្ទះ</p>
                                     </div>
                                 </div>
                             </div>
                         )}
 
                         {/* Table */}
-                        <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                        <div className="overflow-x-auto border border-divider rounded-lg">
                             <table className="w-full border-collapse text-[13px]">
                                 <thead>
                                     <tr>
-                                        <th className="bg-slate-50 text-slate-700 font-bold p-3 border border-slate-200 whitespace-nowrap sticky-col left-0 text-left">សិស្ស ({initialStudents.length})</th>
+                                        <th className="bg-paper text-text-body font-bold p-3 border border-divider whitespace-nowrap sticky-col left-0 text-left">សិស្ស ({initialStudents.length})</th>
                                         {cols.map(col => (
-                                            <th key={col.id} className="bg-slate-50 text-slate-700 font-bold p-3 border border-slate-200 whitespace-nowrap text-center" style={{ width: col.width || '100px' }}>
+                                            <th key={col.id} className="bg-paper text-text-body font-bold p-3 border border-divider whitespace-nowrap text-center" style={{ width: col.width || '100px' }}>
                                                 {col.label}
                                             </th>
                                         ))}
@@ -441,15 +440,15 @@ export default function ScoreEnterClient({ initialStudents}: { initialStudents: 
                                 </thead>
                                 <tbody>
                                     {initialStudents.map((stu, i) => (
-                                        <tr key={stu.id} className="bg-white hover:bg-slate-50 border-b border-slate-200 transition-colors">
-                                            <td className="p-[6px_12px] border-r border-slate-200 sticky-col left-0 font-bold text-slate-800 bg-white group-hover:bg-slate-50 truncate max-w-[200px]">
+                                        <tr key={stu.id} className="bg-bg-surface hover:bg-paper border-b border-divider transition-colors">
+                                            <td className="p-[6px_12px] border-r border-divider sticky-col left-0 font-bold text-text-heading bg-bg-surface group-hover:bg-paper truncate max-w-[200px]">
                                                 {i+1}. {stu.name_kh || stu.full_name}
                                             </td>
                                             {cols.map(col => (
-                                                <td key={col.id} className="p-[6px_12px] border-r border-slate-200 text-center">
+                                                <td key={col.id} className="p-[6px_12px] border-r border-divider text-center">
                                                     {col.type === 'select' ? (
                                                         <select 
-                                                            className="w-full max-w-[95px] text-center text-center-last p-1.5 rounded-[0.375rem] border border-slate-200 outline-none text-green-700 bg-slate-50 font-bold text-[13px] cursor-pointer focus:bg-white focus:border-green-700 focus:ring-2 focus:ring-green-700/10"
+                                                            className="w-full max-w-[95px] text-center text-center-last p-1.5 rounded-[0.375rem] border border-divider outline-none text-success bg-paper font-bold text-[13px] cursor-pointer focus:bg-bg-surface focus:border-success focus:ring-2 focus:ring-success/10"
                                                             value={scoresData[stu.id]?.[col.id] || ''}
                                                             onChange={e => handleScoreChange(stu.id, col.id, e.target.value)}
                                                         >
@@ -460,7 +459,7 @@ export default function ScoreEnterClient({ initialStudents}: { initialStudents: 
                                                         <input 
                                                             type="number"
                                                             step="0.01"
-                                                            className="w-full max-w-[80px] min-h-[44px] sm:min-h-0 text-center p-1.5 rounded-[0.375rem] border border-slate-200 outline-none text-indigo-600 bg-slate-50 font-bold text-[16px] sm:text-[13px] focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/10"
+                                                            className="w-full max-w-[80px] min-h-[44px] sm:min-h-0 text-center p-1.5 rounded-[0.375rem] border border-divider outline-none text-brand bg-paper font-bold text-[16px] sm:text-[13px] focus:bg-bg-surface focus:border-brand focus:ring-2 focus:ring-focus-ring/10"
                                                             placeholder="-"
                                                             value={scoresData[stu.id]?.[col.id] || ''}
                                                             onChange={e => handleScoreChange(stu.id, col.id, e.target.value)}
@@ -475,11 +474,11 @@ export default function ScoreEnterClient({ initialStudents}: { initialStudents: 
                         </div>
 
                         {/* Actions */}
-                        <div className="flex flex-col md:flex-row gap-4 mt-6 pt-6 border-t border-gray-100">
-                            <button onClick={handleSave} className="flex-1 py-3 bg-[#2da143] hover:bg-[#238535] text-white rounded-lg font-bold shadow-sm transition flex justify-center items-center gap-2">
+                        <div className="flex flex-col md:flex-row gap-4 mt-6 pt-6 border-t border-divider">
+                            <button onClick={handleSave} className="flex-1 py-3 bg-success hover:opacity-90 text-white rounded-lg font-bold shadow-sm transition flex justify-center items-center gap-2">
                                 <Save className="w-5 h-5" /> រក្សាទុកពិន្ទុ
                             </button>
-                            <Link href="/score/total" className="flex-1 py-3 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg font-bold transition flex justify-center items-center gap-2">
+                            <Link href="/score/total" className="flex-1 py-3 bg-bg-surface border border-divider text-text-body hover:bg-paper rounded-lg font-bold transition flex justify-center items-center gap-2">
                                 <Table2 className="w-5 h-5" /> មើលតារាងពិន្ទុសរុប
                             </Link>
                         </div>
@@ -490,20 +489,20 @@ export default function ScoreEnterClient({ initialStudents}: { initialStudents: 
             {/* Add Subject Modal */}
             {isAddModalOpen && (
                 <div className="fixed inset-0 bg-black/50 z-[1000] flex justify-center items-end sm:items-center p-0 sm:p-4">
-                    <div className="bg-white p-6 rounded-xl shadow-2xl max-w-md w-full">
-                        <div className="flex justify-between items-center mb-4 border-b border-gray-100 pb-3">
-                            <h3 className="font-moul text-[#322a83] text-lg flex items-center gap-2">
+                    <div className="bg-bg-surface p-6 rounded-xl shadow-lg max-w-md w-full">
+                        <div className="flex justify-between items-center mb-4 border-b border-divider pb-3">
+                            <h3 className="kh-moul text-brand text-lg flex items-center gap-2">
                                 <FolderPlus className="w-5 h-5" /> បន្ថែមមុខវិជ្ជាថ្មី
                             </h3>
-                            <button onClick={() => setIsAddModalOpen(false)} className="text-gray-400 hover:text-red-500 transition">
+                            <button onClick={() => setIsAddModalOpen(false)} className="text-text-muted hover:text-danger transition">
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
                         
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">ឈ្មោះមុខវិជ្ជា <span className="text-red-500">*</span></label>
-                                <input value={newSubName} onChange={e => setNewSubName(e.target.value)} type="text" className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm" placeholder="ឧ. កុំព្យូទ័រ, ភាសាចិន..." />
+                                <label className="block text-sm font-bold text-text-body mb-1">ឈ្មោះមុខវិជ្ជា <span className="text-danger">*</span></label>
+                                <input value={newSubName} onChange={e => setNewSubName(e.target.value)} type="text" className="w-full p-2.5 border border-divider rounded-lg focus:ring-2 focus:ring-focus-ring outline-none font-bold text-sm" placeholder="ឧ. កុំព្យូទ័រ, ភាសាចិន..." />
                             </div>
                             
                             <Select
@@ -518,17 +517,17 @@ export default function ScoreEnterClient({ initialStudents}: { initialStudents: 
                             />
                             
                             <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">ជួរឈរពិន្ទុ (ជម្រើស)</label>
-                                <p className="text-[11px] text-gray-500 mb-2 leading-relaxed">
+                                <label className="block text-sm font-bold text-text-body mb-1">ជួរឈរពិន្ទុ (ជម្រើស)</label>
+                                <p className="text-[11px] text-text-muted mb-2 leading-relaxed">
                                     បើមុខវិជ្ជានេះមានច្រើនជួរឈរ សូមសរសេរខណ្ឌដោយសញ្ញាក្បៀស (,) ឧ. <strong>ទ្រឹស្តី, អនុវត្តន៍</strong>។ បើទុកទទេ វានឹងយកឈ្មោះមុខវិជ្ជាជាជួរឈរតែមួយ។
                                 </p>
-                                <input value={newSubCols} onChange={e => setNewSubCols(e.target.value)} type="text" className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm" placeholder="ឧ. ទ្រឹស្តី, អនុវត្តន៍" />
+                                <input value={newSubCols} onChange={e => setNewSubCols(e.target.value)} type="text" className="w-full p-2.5 border border-divider rounded-lg focus:ring-2 focus:ring-focus-ring outline-none font-bold text-sm" placeholder="ឧ. ទ្រឹស្តី, អនុវត្តន៍" />
                             </div>
                         </div>
                         
                         <div className="flex gap-3 mt-6 pt-2">
-                            <button onClick={() => setIsAddModalOpen(false)} className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-bold transition">បោះបង់</button>
-                            <button onClick={submitNewSubject} className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold transition flex justify-center items-center gap-2">
+                            <button onClick={() => setIsAddModalOpen(false)} className="flex-1 py-2.5 bg-paper hover:bg-divider text-text-body rounded-lg font-bold transition">បោះបង់</button>
+                            <button onClick={submitNewSubject} className="flex-1 py-2.5 bg-brand hover:bg-brand-hover text-white rounded-lg font-bold transition flex justify-center items-center gap-2">
                                 <Save className="w-4 h-4" /> រក្សាទុក
                             </button>
                         </div>

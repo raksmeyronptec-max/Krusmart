@@ -28,7 +28,7 @@ export default function HomeworkClient({
                 <li key={a.id} className="rounded-2xl border bg-card-dark p-4" style={{ borderColor: 'var(--pp-card-border)' }}>
                   <div className="mb-2 flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <span className="mb-1 inline-block rounded-lg bg-purple-400/10 px-2 py-0.5 text-[11px] font-bold text-purple-300">
+                      <span className="mb-1 inline-block rounded-lg bg-pp-gold/10 px-2 py-0.5 text-[11px] font-bold text-pp-gold">
                         {a.subject}
                       </span>
                       <h3 className="truncate font-bold text-pp">{a.title}</h3>
@@ -42,7 +42,7 @@ export default function HomeworkClient({
                     <img src={a.image_url} alt={a.title} className="mb-3 max-h-48 w-full rounded-xl object-cover" />
                   )}
 
-                  <p className={`flex items-center gap-1.5 text-xs font-semibold ${overdue ? 'text-rose-400' : 'text-pp-muted'}`}>
+                  <p className={`flex items-center gap-1.5 text-xs font-semibold ${overdue ? 'text-pp-danger' : 'text-pp-muted'}`}>
                     <CalendarClock className="h-3.5 w-3.5" aria-hidden="true" />
                     {t('due_date')}: {a.due_date ? new Date(a.due_date).toLocaleDateString('km-KH') : '—'}
                   </p>

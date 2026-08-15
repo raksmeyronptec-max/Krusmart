@@ -232,34 +232,34 @@ export default function HomeworkEnterClient({ initialStudents}: { initialStudent
     const renderTbody = (stuList: StudentRow[], startIndex: number, mode: 'daily' | 'monthly') => {
         return stuList.map((s, index) => {
             const { total, average } = getStudentTotals(s.id)
-            const genderColor = (s.gender === 'ស្រី' || s.gender === 'F') ? 'text-pink-600' : 'text-blue-600'
+            const genderColor = (s.gender === 'ស្រី' || s.gender === 'F') ? 'text-brand' : 'text-brand'
             
             return (
-                <tr key={s.id} className="group transition-colors border-b border-slate-100 last:border-0 hover:bg-indigo-50/50">
-                    <td className="p-2 text-center font-bold text-slate-500 bg-white group-hover:bg-indigo-50/50 sticky left-0 z-20 shadow-[2px_0_5px_rgba(0,0,0,0.05)] border-r border-slate-200">
+                <tr key={s.id} className="group transition-colors border-b border-divider last:border-0 hover:bg-brand-100/50">
+                    <td className="p-2 text-center font-bold text-text-muted bg-white group-hover:bg-brand-100/50 sticky left-0 z-20 shadow-[2px_0_5px_rgba(0,0,0,0.05)] border-r border-divider">
                         {startIndex + index + 1}
                     </td>
-                    <td className="p-2 bg-white group-hover:bg-indigo-50/50 font-bold text-indigo-900 text-[13px] whitespace-nowrap sticky left-[40px] z-20 shadow-[2px_0_5px_rgba(0,0,0,0.05)] border-r border-slate-200 min-w-[150px]">
+                    <td className="p-2 bg-white group-hover:bg-brand-100/50 font-bold text-text-heading text-[13px] whitespace-nowrap sticky left-[40px] z-20 shadow-[2px_0_5px_rgba(0,0,0,0.05)] border-r border-divider min-w-[150px]">
                         {s.name_kh || '-'}
                     </td>
-                    <td className={`p-2 text-center font-bold text-[13px] ${genderColor} border-r border-slate-200 bg-white group-hover:bg-indigo-50/50`}>
+                    <td className={`p-2 text-center font-bold text-[13px] ${genderColor} border-r border-divider bg-white group-hover:bg-brand-100/50`}>
                         {s.gender || '-'}
                     </td>
                     
                     {(mode === 'daily' ? dateColumns.filter(c => c.dayNum === daySelect) : dateColumns).map(col => {
                         const val = scores[s.id]?.[col.dayNum] ?? ''
-                        const bgClass = col.isSunday ? 'bg-red-50' : 'bg-transparent'
+                        const bgClass = col.isSunday ? 'bg-danger/10' : 'bg-transparent'
                         const inputSize = mode === 'daily' ? 'py-2.5 text-[15px]' : 'py-1.5 text-[13px]'
                         
                         return (
-                            <td key={col.dayNum} className={`p-0.5 border-r border-slate-200 ${bgClass}`}>
+                            <td key={col.dayNum} className={`p-0.5 border-r border-divider ${bgClass}`}>
                                 {col.isSunday ? (
                                     <input type="text" disabled readOnly
-                                        className={`w-full text-center ${inputSize} px-0.5 border border-transparent rounded outline-none font-bold text-red-300 bg-transparent cursor-not-allowed select-none`}
+                                        className={`w-full text-center ${inputSize} px-0.5 border border-transparent rounded outline-none font-bold text-danger bg-transparent cursor-not-allowed select-none`}
                                         value="-" title="ថ្ងៃអាទិត្យ មិនអនុញ្ញាតអោយបញ្ចូលទេ" />
                                 ) : (
                                     <input type="number" 
-                                        className={`w-full text-center ${inputSize} px-0.5 border border-transparent hover:border-slate-300 rounded outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 font-bold text-slate-700 bg-transparent transition-all`}
+                                        className={`w-full text-center ${inputSize} px-0.5 border border-transparent hover:border-divider rounded outline-none focus:border-brand focus:ring-1 focus:ring-focus-ring/30 font-bold text-text-body bg-transparent transition-all`}
                                         value={val}
                                         onChange={(e) => handleScoreChange(s.id, col.dayNum, e.target.value)}
                                         min="0" step="0.5" />
@@ -268,12 +268,12 @@ export default function HomeworkEnterClient({ initialStudents}: { initialStudent
                         )
                     })}
                     
-                    <td className="p-2 text-center font-bold text-emerald-600 text-base group-hover:bg-emerald-50 sticky right-[80px] z-20 shadow-[-2px_0_5px_rgba(0,0,0,0.05)] border-l border-emerald-200 bg-emerald-50/30">
+                    <td className="p-2 text-center font-bold text-success text-base group-hover:bg-success/10 sticky right-[80px] z-20 shadow-[-2px_0_5px_rgba(0,0,0,0.05)] border-l border-success/30 bg-success/10">
                         {total}
                     </td>
                     
                     {mode === 'monthly' && (
-                        <td className="p-2 text-center font-bold text-teal-600 text-[15px] group-hover:bg-teal-50 sticky right-0 z-20 shadow-[-2px_0_5px_rgba(0,0,0,0.05)] border-l border-teal-200 bg-teal-50/30">
+                        <td className="p-2 text-center font-bold text-brand-500 text-[15px] group-hover:bg-brand-100 sticky right-0 z-20 shadow-[-2px_0_5px_rgba(0,0,0,0.05)] border-l border-divider bg-brand-100/30">
                             {average}
                         </td>
                     )}
@@ -289,22 +289,22 @@ export default function HomeworkEnterClient({ initialStudents}: { initialStudent
         return (
             <>
                 <tr>
-                    <th rowSpan={2} className="p-2 border-b border-r border-indigo-200 bg-indigo-900 text-white w-10 text-center font-bold text-sm sticky left-0 z-30 shadow-[2px_0_5px_rgba(0,0,0,0.05)]">ល.រ</th>
-                    <th rowSpan={2} className="p-2 border-b border-r border-indigo-200 bg-indigo-900 text-white text-left font-bold text-sm min-w-[150px] sticky left-[40px] z-30 shadow-[2px_0_5px_rgba(0,0,0,0.05)]">ឈ្មោះសិស្ស</th>
-                    <th rowSpan={2} className="p-2 border-b border-r border-indigo-200 bg-indigo-800 text-white w-14 text-center font-bold text-sm">ភេទ</th>
-                    <th colSpan={displayCols.length} className="p-1.5 border-b border-r border-indigo-200 bg-indigo-700 text-white text-center font-bold text-sm">{dateLabel}</th>
-                    <th rowSpan={2} className="p-2 border-b border-emerald-300 bg-emerald-600 text-white w-[80px] min-w-[80px] text-center font-bold text-sm sticky right-[80px] z-30 shadow-[-2px_0_5px_rgba(0,0,0,0.05)]">សរុប</th>
+                    <th rowSpan={2} className="p-2 border-b border-r border-divider bg-brand-900 text-white w-10 text-center font-bold text-sm sticky left-0 z-30 shadow-[2px_0_5px_rgba(0,0,0,0.05)]">ល.រ</th>
+                    <th rowSpan={2} className="p-2 border-b border-r border-divider bg-brand-900 text-white text-left font-bold text-sm min-w-[150px] sticky left-[40px] z-30 shadow-[2px_0_5px_rgba(0,0,0,0.05)]">ឈ្មោះសិស្ស</th>
+                    <th rowSpan={2} className="p-2 border-b border-r border-divider bg-brand-800 text-white w-14 text-center font-bold text-sm">ភេទ</th>
+                    <th colSpan={displayCols.length} className="p-1.5 border-b border-r border-divider bg-brand-700 text-white text-center font-bold text-sm">{dateLabel}</th>
+                    <th rowSpan={2} className="p-2 border-b border-success/40 bg-success text-white w-[80px] min-w-[80px] text-center font-bold text-sm sticky right-[80px] z-30 shadow-[-2px_0_5px_rgba(0,0,0,0.05)]">សរុប</th>
                     {mode === 'monthly' && (
-                        <th rowSpan={2} className="p-2 border-b border-teal-300 bg-teal-600 text-white w-[80px] min-w-[80px] text-center font-bold text-sm sticky right-0 z-30 shadow-[-2px_0_5px_rgba(0,0,0,0.05)]">មធ្យមភាគ</th>
+                        <th rowSpan={2} className="p-2 border-b border-brand-400 bg-brand-500 text-white w-[80px] min-w-[80px] text-center font-bold text-sm sticky right-0 z-30 shadow-[-2px_0_5px_rgba(0,0,0,0.05)]">មធ្យមភាគ</th>
                     )}
                 </tr>
                 <tr>
                     {displayCols.map(col => {
-                        const bg = col.isSunday ? 'bg-red-500/80 text-white' : 'bg-indigo-600 text-indigo-50'
+                        const bg = col.isSunday ? 'bg-danger/80 text-white' : 'bg-brand text-brand-100'
                         const minW = mode === 'daily' ? 'min-w-[80px]' : 'min-w-[34px]'
                         const textSize = mode === 'daily' ? 'text-[14px]' : 'text-[11px]'
                         return (
-                            <th key={col.dayNum} className={`py-1.5 px-0.5 border-b border-r border-indigo-300/30 ${bg} text-center font-bold ${textSize} ${minW}`}>
+                            <th key={col.dayNum} className={`py-1.5 px-0.5 border-b border-r border-divider/30 ${bg} text-center font-bold ${textSize} ${minW}`}>
                                 {col.dayNum}
                             </th>
                         )
@@ -315,25 +315,25 @@ export default function HomeworkEnterClient({ initialStudents}: { initialStudent
     }
 
     return (
-        <div className="min-h-screen bg-[#f0f4f8] text-slate-800 flex flex-col">
-            <div className="bg-animate fixed inset-0 z-[-1] opacity-60 bg-[radial-gradient(circle_at_10%_20%,#e0e7ff_0%,transparent_40%),radial-gradient(circle_at_90%_80%,#dcfce7_0%,transparent_40%),radial-gradient(circle_at_50%_50%,#fef3c7_0%,transparent_40%)]"></div>
+        <div className="min-h-screen bg-paper text-text-heading flex flex-col">
+            <div className="bg-animate fixed inset-0 z-[-1] opacity-60 bg-[radial-gradient(circle_at_10%_20%,var(--brand-100)_0%,transparent_40%),radial-gradient(circle_at_90%_80%,var(--color-success)_0%,transparent_40%),radial-gradient(circle_at_50%_50%,var(--color-gold)_0%,transparent_40%)]"></div>
 
             <div className="max-w-[1400px] mx-auto px-4 py-6 w-full flex flex-col gap-5 flex-1 overflow-hidden h-[calc(100vh-64px)]">
                 
                 {/* Header Section */}
-                <div className="bg-white/80 backdrop-blur-md p-4 md:p-5 rounded-2xl shadow-sm border border-white/50 flex flex-col gap-4 shrink-0">
+                <div className="bg-white/80 backdrop-blur-md p-4 md:p-5 rounded-xl shadow-sm border border-white/50 flex flex-col gap-4 shrink-0">
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                         {/* Title & Back */}
                         <div className="flex items-center gap-4 w-full md:w-auto">
-                            <Link href="/dashboard" className="bg-indigo-50 p-3 rounded-xl hover:bg-indigo-100 text-indigo-600 transition flex items-center gap-2">
+                            <Link href="/dashboard" className="bg-brand-100 p-3 rounded-xl hover:bg-brand-100 text-brand transition flex items-center gap-2">
                                 <ArrowLeft className="w-5 h-5" />
                             </Link>
-                            <div className="bg-indigo-600 p-3 rounded-xl shadow-lg shadow-indigo-200 text-white">
+                            <div className="bg-brand p-3 rounded-xl shadow-lg shadow-indigo-200 text-white">
                                 <BookMarked className="w-6 h-6" />
                             </div>
                             <div>
-                                <h1 className="text-xl md:text-2xl kh-moul text-indigo-900">បញ្ចូលពិន្ទុកិច្ចការផ្ទះ</h1>
-                                <p className="text-slate-500 font-medium text-xs md:text-sm">Homework Score Entry (Cloud Sync)</p>
+                                <h1 className="text-xl md:text-2xl kh-moul text-text-heading">បញ្ចូលពិន្ទុកិច្ចការផ្ទះ</h1>
+                                <p className="text-text-muted font-medium text-xs md:text-sm">Homework Score Entry (Cloud Sync)</p>
                             </div>
                         </div>
 
@@ -355,17 +355,17 @@ export default function HomeworkEnterClient({ initialStudents}: { initialStudent
                                         wrapperClassName="min-w-[130px]"
                                     />
                                     
-                                    <div className="flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm h-[38px]">
+                                    <div className="flex items-center bg-white border border-divider rounded-xl overflow-hidden shadow-sm h-[38px]">
                                         <input 
                                             type="number" 
                                             value={bulkScore}
                                             onChange={(e) => setBulkScore(e.target.value)}
-                                            className="w-16 h-full px-2 text-center text-sm font-bold text-slate-700 outline-none" 
+                                            className="w-16 h-full px-2 text-center text-sm font-bold text-text-body outline-none" 
                                             placeholder="ពិន្ទុ" min="0" step="0.5" 
                                         />
                                         <button 
                                             onClick={fillAllScores}
-                                            className={`h-full px-3 font-bold text-[13px] flex items-center gap-1 transition-colors whitespace-nowrap border-l border-slate-200 ${showBulkSuccess ? 'bg-green-100 text-green-700' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}
+                                            className={`h-full px-3 font-bold text-[13px] flex items-center gap-1 transition-colors whitespace-nowrap border-l border-divider ${showBulkSuccess ? 'bg-success/10 text-success' : 'bg-brand-100 text-brand hover:bg-brand-100'}`}
                                         >
                                             {showBulkSuccess ? <Check className="w-4 h-4" /> : <Zap className="w-4 h-4" />}
                                             {showBulkSuccess ? 'រួចរាល់' : 'ទាំងអស់'}
@@ -402,13 +402,13 @@ export default function HomeworkEnterClient({ initialStudents}: { initialStudent
                                 leadingIcon={<CalendarDays />}
                             />
 
-                            <div className="w-px h-8 bg-slate-200 mx-1 hidden sm:block"></div>
+                            <div className="w-px h-8 bg-divider mx-1 hidden sm:block"></div>
 
                             {/* Save Button */}
                             <button 
                                 onClick={handleSave} 
                                 disabled={isSaving}
-                                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold shadow-lg transition-all hover:scale-105 active:scale-95 ${showSuccess ? 'bg-emerald-500 text-white shadow-emerald-200' : 'bg-[#0054a6] text-white hover:bg-[#1e40af] shadow-blue-200'}`}
+                                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold shadow-lg transition-all hover:scale-105 active:scale-95 ${showSuccess ? 'bg-success text-white shadow-emerald-200' : 'bg-brand text-white hover:bg-[var(--brand)] shadow-blue-200'}`}
                             >
                                 {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : (showSuccess ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />)}
                                 <span>{showSuccess ? 'ជោគជ័យ' : 'រក្សាទុក'}</span>
@@ -416,8 +416,8 @@ export default function HomeworkEnterClient({ initialStudents}: { initialStudent
                         </div>
                     </div>
 
-                    <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-xl text-sm flex items-start gap-3">
-                        <Info className="w-5 h-5 min-w-[20px] text-amber-600 mt-0.5" />
+                    <div className="bg-warning/10 border border-warning/30 text-warning px-4 py-3 rounded-xl text-sm flex items-start gap-3">
+                        <Info className="w-5 h-5 min-w-[20px] text-warning mt-0.5" />
                         <div>
                             <span className="font-bold">បញ្ជាក់៖</span> ពិន្ទុកិច្ចការផ្ទះត្រូវបូកសរុបចាប់ពី <b>ថ្ងៃទី ២៦ នៃខែចាស់</b> រហូតដល់ <b>ថ្ងៃទី ២៥ នៃខែបច្ចុប្បន្ន</b>។
                         </div>
@@ -426,16 +426,16 @@ export default function HomeworkEnterClient({ initialStudents}: { initialStudent
 
                 {/* Section Tabs */}
                 <div className="flex items-center justify-between gap-4 shrink-0 -mb-2 z-10">
-                    <div className="flex p-1 bg-white/80 backdrop-blur-md rounded-xl shadow-sm border border-slate-200/60 w-full sm:w-auto">
+                    <div className="flex p-1 bg-white/80 backdrop-blur-md rounded-xl shadow-sm border border-divider/60 w-full sm:w-auto">
                         <button 
                             onClick={() => setCurrentTab('daily')} 
-                            className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm shadow-md transition-all ${currentTab === 'daily' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:text-indigo-600 hover:bg-slate-50 shadow-none'}`}
+                            className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm shadow-md transition-all ${currentTab === 'daily' ? 'bg-brand text-white' : 'text-text-body hover:text-brand hover:bg-paper shadow-none'}`}
                         >
                             <CalendarCheck className="w-4 h-4" /> បញ្ចូលប្រចាំថ្ងៃ
                         </button>
                         <button 
                             onClick={() => setCurrentTab('monthly')} 
-                            className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm transition-all ${currentTab === 'monthly' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:text-indigo-600 hover:bg-slate-50'}`}
+                            className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm transition-all ${currentTab === 'monthly' ? 'bg-brand text-white shadow-md' : 'text-text-body hover:text-brand hover:bg-paper'}`}
                         >
                             <TableProperties className="w-4 h-4" /> ពិនិត្យប្រចាំខែ
                         </button>
@@ -443,21 +443,21 @@ export default function HomeworkEnterClient({ initialStudents}: { initialStudent
                 </div>
 
                 {/* Table Container */}
-                <div className="flex-1 bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/50 overflow-hidden flex flex-col relative min-h-0">
+                <div className="flex-1 bg-white/95 backdrop-blur-xl rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/50 overflow-hidden flex flex-col relative min-h-0">
                     <div className="flex-1 overflow-auto custom-scrollbar relative">
                         {isLoading ? (
-                            <div className="flex-1 flex flex-col items-center justify-center p-8 text-indigo-500 h-full gap-3 mt-10">
+                            <div className="flex-1 flex flex-col items-center justify-center p-8 text-brand-500 h-full gap-3 mt-10">
                                 <Loader2 className="w-10 h-10 animate-spin opacity-80" />
                                 <p className="font-bold">កំពុងទាញយកទិន្នន័យ...</p>
                             </div>
                         ) : students.length === 0 ? (
-                            <div className="p-8 mt-10 text-center text-slate-500 flex flex-col items-center justify-center gap-2">
+                            <div className="p-8 mt-10 text-center text-text-muted flex flex-col items-center justify-center gap-2">
                                 <Users className="w-10 h-10 opacity-50 mb-2" />
                                 <p>មិនមានទិន្នន័យសិស្សទេ។ សូមទៅកាន់បញ្ជីឈ្មោះសិស្សដើម្បីបញ្ចូលជាមុនសិន។</p>
                             </div>
                         ) : currentTab === 'daily' ? (
-                            <div className="grid grid-cols-1 xl:grid-cols-2 bg-slate-50 min-h-full">
-                                <div className="border-b xl:border-b-0 xl:border-r border-slate-300">
+                            <div className="grid grid-cols-1 xl:grid-cols-2 bg-paper min-h-full">
+                                <div className="border-b xl:border-b-0 xl:border-r border-divider">
                                     <table className="w-full border-collapse">
                                         <thead>{renderThead('daily')}</thead>
                                         <tbody className="bg-white text-sm">{renderTbody(leftStudents, 0, 'daily')}</tbody>
@@ -479,10 +479,10 @@ export default function HomeworkEnterClient({ initialStudents}: { initialStudent
                     </div>
                     
                     {/* Footer Stats */}
-                    <div className="p-3 bg-white border-t border-slate-200 flex justify-between items-center text-sm text-slate-500 shrink-0">
-                        <span className="font-bold text-[#0054a6]">សិស្សសរុប៖ {students.length} នាក់ (ស្រី {femaleCount})</span>
-                        <span className="italic text-xs bg-slate-100 px-2 py-1 rounded flex items-center gap-1">
-                            <Check className="w-3 h-3 text-blue-500" /> Cloud Sync Ready
+                    <div className="p-3 bg-white border-t border-divider flex justify-between items-center text-sm text-text-muted shrink-0">
+                        <span className="font-bold text-brand">សិស្សសរុប៖ {students.length} នាក់ (ស្រី {femaleCount})</span>
+                        <span className="italic text-xs bg-paper px-2 py-1 rounded flex items-center gap-1">
+                            <Check className="w-3 h-3 text-brand-500" /> Cloud Sync Ready
                         </span>
                     </div>
                 </div>

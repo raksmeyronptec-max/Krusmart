@@ -148,18 +148,18 @@ export default function ScoreAnalyseClient({ initialStudents, attendanceData, sc
         })
 
         const attendancePieData = [
-            { name: 'មក (P)', value: globalTotalP, fill: '#22c55e' },
-            { name: 'ច្បាប់ (L)', value: globalTotalL, fill: '#eab308' },
-            { name: 'អវត្តមាន (A)', value: globalTotalA, fill: '#ef4444' }
+            { name: 'មក (P)', value: globalTotalP, fill: '#16A36A' },
+            { name: 'ច្បាប់ (L)', value: globalTotalL, fill: '#D99614' },
+            { name: 'អវត្តមាន (A)', value: globalTotalA, fill: '#D9485F' }
         ]
 
         const gradeData = [
-            { name: 'A', value: gradesCount.A, fill: '#22c55e' },
-            { name: 'B', value: gradesCount.B, fill: '#3b82f6' },
-            { name: 'C', value: gradesCount.C, fill: '#eab308' },
-            { name: 'D', value: gradesCount.D, fill: '#f97316' },
-            { name: 'E', value: gradesCount.E, fill: '#ef4444' },
-            { name: 'F', value: gradesCount.F, fill: '#b91c1c' }
+            { name: 'A', value: gradesCount.A, fill: '#16A36A' },
+            { name: 'B', value: gradesCount.B, fill: '#18A5CC' },
+            { name: 'C', value: gradesCount.C, fill: '#D99614' },
+            { name: 'D', value: gradesCount.D, fill: '#C4762A' },
+            { name: 'E', value: gradesCount.E, fill: '#D9485F' },
+            { name: 'F', value: gradesCount.F, fill: '#A32A38' }
         ]
 
         return {
@@ -177,18 +177,18 @@ export default function ScoreAnalyseClient({ initialStudents, attendanceData, sc
     }, [initialStudents, attendanceData, scoresData, selectedYear])
 
     return (
-        <div className="min-h-screen bg-[#f0f4f8] text-slate-800 font-battambang pb-10">
-            <nav className="bg-[#0054a6] text-white p-4 shadow-lg sticky top-0 z-50">
+        <div className="min-h-screen bg-paper text-text-heading font-battambang pb-10">
+            <nav className="bg-brand text-white p-4 shadow-lg sticky top-0 z-50">
                 <div className="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-4">
                     <div className="flex items-center gap-4">
-                        <Link href="/dashboard" className="flex items-center gap-2 hover:text-yellow-400 transition font-bold text-sm bg-white/10 px-3 py-1.5 rounded-lg border border-white/20">
+                        <Link href="/dashboard" className="flex items-center gap-2 hover:text-warning transition font-bold text-sm bg-bg-surface/10 px-3 py-1.5 rounded-lg border border-white/20">
                             <ArrowLeft className="w-4 h-4" /> ទំព័រដើម
                         </Link>
-                        <h1 className="font-moul text-lg hidden sm:block">ប្រព័ន្ធវិភាគទិន្នន័យសិស្សកម្រិតខ្ពស់ (Holistic)</h1>
+                        <h1 className="kh-moul text-lg hidden sm:block">ប្រព័ន្ធវិភាគទិន្នន័យសិស្សកម្រិតខ្ពស់ (Holistic)</h1>
                     </div>
                     
                     <div className="flex items-center gap-3">
-                        <div className="bg-white/10 rounded-lg px-3 py-1.5 border border-white/20 flex items-center gap-2">
+                        <div className="bg-bg-surface/10 rounded-lg px-3 py-1.5 border border-white/20 flex items-center gap-2">
                             <Select
                                 variant="ghost"
                                 ariaLabel="ឆ្នាំសិក្សា"
@@ -200,10 +200,10 @@ export default function ScoreAnalyseClient({ initialStudents, attendanceData, sc
                                     { value: '2025-2026', label: 'ឆ្នាំ ២០២៥-២០២៦' },
                                 ]}
                                 leadingIcon={<Filter />}
-                                className="text-sm text-white [&>option]:text-gray-800"
+                                className="text-sm text-white [&>option]:text-text-heading"
                             />
                         </div>
-                        <button className="bg-yellow-500 hover:bg-yellow-600 text-white p-2 rounded-lg transition" title="Refresh Data">
+                        <button className="bg-warning hover:opacity-90 text-white p-2 rounded-lg transition" title="Refresh Data">
                             <RefreshCw className="w-4 h-4" />
                         </button>
                     </div>
@@ -214,70 +214,70 @@ export default function ScoreAnalyseClient({ initialStudents, attendanceData, sc
                 
                 {/* Summary Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 border-l-4 border-l-blue-500 flex items-center gap-4">
-                        <div className="p-3 bg-blue-100 text-blue-600 rounded-full"><Users className="w-6 h-6" /></div>
+                    <div className="bg-bg-surface p-4 rounded-xl shadow-sm border border-divider border-l-4 border-l-blue-500 flex items-center gap-4">
+                        <div className="p-3 bg-brand-100 text-brand rounded-full"><Users className="w-6 h-6" /></div>
                         <div>
-                            <p className="text-xs text-gray-500 font-bold uppercase">សិស្សសរុប</p>
-                            <p className="text-2xl font-bold text-blue-700 leading-tight">{initialStudents.length}</p>
-                            <p className="text-[10px] text-gray-500 font-medium mt-0.5">ស្រី៖ {initialStudents.filter(s=>s.gender==='ស្រី'||s.gender==='F').length} នាក់</p>
+                            <p className="text-xs text-text-muted font-bold uppercase">សិស្សសរុប</p>
+                            <p className="text-2xl font-bold text-brand leading-tight">{initialStudents.length}</p>
+                            <p className="text-[10px] text-text-muted font-medium mt-0.5">ស្រី៖ {initialStudents.filter(s=>s.gender==='ស្រី'||s.gender==='F').length} នាក់</p>
                         </div>
                     </div>
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 border-l-4 border-l-indigo-500 flex items-center gap-4">
-                        <div className="p-3 bg-indigo-100 text-indigo-600 rounded-full"><Award className="w-6 h-6" /></div>
+                    <div className="bg-bg-surface p-4 rounded-xl shadow-sm border border-divider border-l-4 border-l-indigo-500 flex items-center gap-4">
+                        <div className="p-3 bg-brand-100 text-brand rounded-full"><Award className="w-6 h-6" /></div>
                         <div>
-                            <p className="text-xs text-gray-500 font-bold uppercase">មធ្យមភាគថ្នាក់សរុប</p>
-                            <p className="text-2xl font-bold text-indigo-700 leading-tight">{analytics.classOverallAvg}</p>
-                            <p className="text-[10px] text-gray-500 font-medium mt-0.5">មធ្យមភាគសរុបគ្រប់ខែ</p>
+                            <p className="text-xs text-text-muted font-bold uppercase">មធ្យមភាគថ្នាក់សរុប</p>
+                            <p className="text-2xl font-bold text-brand leading-tight">{analytics.classOverallAvg}</p>
+                            <p className="text-[10px] text-text-muted font-medium mt-0.5">មធ្យមភាគសរុបគ្រប់ខែ</p>
                         </div>
                     </div>
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 border-l-4 border-l-green-500 flex items-center gap-4">
-                        <div className="p-3 bg-green-100 text-green-600 rounded-full"><CheckSquare className="w-6 h-6" /></div>
+                    <div className="bg-bg-surface p-4 rounded-xl shadow-sm border border-divider border-l-4 border-l-green-500 flex items-center gap-4">
+                        <div className="p-3 bg-success/10 text-success rounded-full"><CheckSquare className="w-6 h-6" /></div>
                         <div>
-                            <p className="text-xs text-gray-500 font-bold uppercase">អត្រាវត្តមានសរុប</p>
-                            <p className="text-2xl font-bold text-green-700 leading-tight">{analytics.avgAttRate}%</p>
-                            <p className="text-[10px] text-gray-500 font-medium mt-0.5">វត្តមានគិតជាភាគរយ</p>
+                            <p className="text-xs text-text-muted font-bold uppercase">អត្រាវត្តមានសរុប</p>
+                            <p className="text-2xl font-bold text-success leading-tight">{analytics.avgAttRate}%</p>
+                            <p className="text-[10px] text-text-muted font-medium mt-0.5">វត្តមានគិតជាភាគរយ</p>
                         </div>
                     </div>
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 border-l-4 border-l-red-500 flex items-center gap-4">
-                        <div className="p-3 bg-red-100 text-red-600 rounded-full"><AlertTriangle className="w-6 h-6" /></div>
+                    <div className="bg-bg-surface p-4 rounded-xl shadow-sm border border-divider border-l-4 border-l-red-500 flex items-center gap-4">
+                        <div className="p-3 bg-danger/10 text-danger rounded-full"><AlertTriangle className="w-6 h-6" /></div>
                         <div>
-                            <p className="text-xs text-gray-500 font-bold uppercase">សិស្សប្រឈមហានិភ័យ</p>
-                            <p className="text-2xl font-bold text-red-700 leading-tight">{analytics.riskCount}</p>
-                            <p className="text-[10px] text-gray-500 font-medium mt-0.5">ពិន្ទុខ្សោយ ឬអវត្តមានច្រើន</p>
+                            <p className="text-xs text-text-muted font-bold uppercase">សិស្សប្រឈមហានិភ័យ</p>
+                            <p className="text-2xl font-bold text-danger leading-tight">{analytics.riskCount}</p>
+                            <p className="text-[10px] text-text-muted font-medium mt-0.5">ពិន្ទុខ្សោយ ឬអវត្តមានច្រើន</p>
                         </div>
                     </div>
                 </div>
 
                 {/* Holistic Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
-                    <div className="bg-teal-50 p-4 rounded-xl border border-teal-200 flex items-center justify-between shadow-sm">
+                    <div className="bg-brand-100 p-4 rounded-xl border border-divider flex items-center justify-between shadow-sm">
                         <div>
-                            <p className="text-xs text-teal-600 font-bold uppercase mb-1">សុខភាព (ធម្មតា)</p>
-                            <p className="text-2xl font-bold text-teal-800">{analytics.healthyCount} នាក់</p>
+                            <p className="text-xs text-brand-500 font-bold uppercase mb-1">សុខភាព (ធម្មតា)</p>
+                            <p className="text-2xl font-bold text-brand-800">{analytics.healthyCount} នាក់</p>
                         </div>
-                        <div className="p-3 bg-teal-100 text-teal-600 rounded-full"><HeartPulse className="w-6 h-6" /></div>
+                        <div className="p-3 bg-brand-100 text-brand-500 rounded-full"><HeartPulse className="w-6 h-6" /></div>
                     </div>
-                    <div className="bg-orange-50 p-4 rounded-xl border border-orange-200 flex items-center justify-between shadow-sm">
+                    <div className="bg-warning/10 p-4 rounded-xl border border-warning/30 flex items-center justify-between shadow-sm">
                         <div>
-                            <p className="text-xs text-orange-600 font-bold uppercase mb-1">សិស្សរៀនយឺត (កំពុងជួយ)</p>
-                            <p className="text-2xl font-bold text-orange-800">{analytics.slowCount} នាក់</p>
+                            <p className="text-xs text-warning font-bold uppercase mb-1">សិស្សរៀនយឺត (កំពុងជួយ)</p>
+                            <p className="text-2xl font-bold text-warning">{analytics.slowCount} នាក់</p>
                         </div>
-                        <div className="p-3 bg-orange-100 text-orange-600 rounded-full"><BookOpen className="w-6 h-6" /></div>
+                        <div className="p-3 bg-warning/10 text-warning rounded-full"><BookOpen className="w-6 h-6" /></div>
                     </div>
-                    <div className="bg-rose-50 p-4 rounded-xl border border-rose-200 flex items-center justify-between shadow-sm">
+                    <div className="bg-danger/10 p-4 rounded-xl border border-danger/30 flex items-center justify-between shadow-sm">
                         <div>
-                            <p className="text-xs text-rose-600 font-bold uppercase mb-1">ជួបការលំបាក (ខ្វះខាត)</p>
-                            <p className="text-2xl font-bold text-rose-800">{analytics.diffCount} នាក់</p>
+                            <p className="text-xs text-danger font-bold uppercase mb-1">ជួបការលំបាក (ខ្វះខាត)</p>
+                            <p className="text-2xl font-bold text-danger">{analytics.diffCount} នាក់</p>
                         </div>
-                        <div className="p-3 bg-rose-100 text-rose-600 rounded-full"><HelpingHand className="w-6 h-6" /></div>
+                        <div className="p-3 bg-danger/10 text-danger rounded-full"><HelpingHand className="w-6 h-6" /></div>
                     </div>
                 </div>
 
                 {/* Charts */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="bg-white p-5 lg:col-span-2 border-t-4 border-[#0054a6] rounded-xl shadow-sm">
+                    <div className="bg-bg-surface p-5 lg:col-span-2 border-t-4 border-brand rounded-xl shadow-sm">
                         <div className="flex justify-between items-center mb-4 border-b pb-2">
-                            <h2 className="font-bold text-[#0054a6] flex items-center gap-2">
+                            <h2 className="font-bold text-brand flex items-center gap-2">
                                 <TrendingUp className="w-5 h-5" />
                                 និន្នាការពិន្ទុមធ្យមប្រចាំខែ
                             </h2>
@@ -289,15 +289,15 @@ export default function ScoreAnalyseClient({ initialStudents, attendanceData, sc
                                     <XAxis dataKey="name" axisLine={false} tickLine={false} />
                                     <YAxis domain={[0, 10]} axisLine={false} tickLine={false} />
                                     <Tooltip />
-                                    <Line type="monotone" dataKey="avg" stroke="#0054a6" strokeWidth={3} dot={{r: 4, fill: '#0054a6'}} />
+                                    <Line type="monotone" dataKey="avg" stroke="var(--brand)" strokeWidth={3} dot={{r: 4, fill: 'var(--brand)'}} />
                                 </LineChart>
                             </ResponsiveContainer>
                         </div>
                     </div>
 
-                    <div className="bg-white p-5 border-t-4 border-green-500 rounded-xl shadow-sm">
+                    <div className="bg-bg-surface p-5 border-t-4 border-success rounded-xl shadow-sm">
                         <div className="flex justify-between items-center mb-4 border-b pb-2">
-                            <h2 className="font-bold text-green-700 flex items-center gap-2">
+                            <h2 className="font-bold text-success flex items-center gap-2">
                                 <Award className="w-5 h-5" />
                                 បំណែងចែកនិទ្ទេសសរុប
                             </h2>
@@ -318,16 +318,16 @@ export default function ScoreAnalyseClient({ initialStudents, attendanceData, sc
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="bg-white p-5 lg:col-span-2 border-t-4 border-indigo-500 rounded-xl shadow-sm">
+                    <div className="bg-bg-surface p-5 lg:col-span-2 border-t-4 border-brand rounded-xl shadow-sm">
                         <div className="flex justify-between items-center mb-4 border-b pb-2">
-                            <h2 className="font-bold text-indigo-700 flex items-center gap-2">
-                                <AlertTriangle className="w-5 h-5 text-red-500" />
+                            <h2 className="font-bold text-brand flex items-center gap-2">
+                                <AlertTriangle className="w-5 h-5 text-danger" />
                                 សិស្សប្រឈមហានិភ័យសរុប (ពិន្ទុទាប ឬ អវត្តមានច្រើន)
                             </h2>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm text-left">
-                                <thead className="bg-red-50 text-red-800 text-xs uppercase">
+                                <thead className="bg-danger/10 text-danger text-xs uppercase">
                                     <tr>
                                         <th className="px-4 py-3 rounded-tl-lg">ឈ្មោះសិស្ស</th>
                                         <th className="px-4 py-3 text-center">មធ្យមភាគសរុប</th>
@@ -336,32 +336,32 @@ export default function ScoreAnalyseClient({ initialStudents, attendanceData, sc
                                         <th className="px-4 py-3 rounded-tr-lg">ស្ថានភាពហានិភ័យ</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100">
+                                <tbody className="divide-y divide-divider">
                                     {Object.values(analytics.studentData)
                                         .filter(d => d.isRisk)
                                         .slice(0, 5)
                                         .map((d, i) => (
-                                        <tr key={i} className="hover:bg-red-50/50 transition">
-                                            <td className="px-4 py-3 font-bold text-gray-800">{d.student.name_kh || d.student.full_name}</td>
-                                            <td className="px-4 py-3 text-center text-red-600 font-bold">{d.overallAvg !== null ? d.overallAvg.toFixed(2) : '-'}</td>
-                                            <td className="px-4 py-3 text-center text-red-600 font-bold">{d.a}</td>
-                                            <td className="px-4 py-3 text-center text-gray-600">{d.attRate.toFixed(1)}%</td>
+                                        <tr key={i} className="hover:bg-danger/5 transition">
+                                            <td className="px-4 py-3 font-bold text-text-heading">{d.student.name_kh || d.student.full_name}</td>
+                                            <td className="px-4 py-3 text-center text-danger font-bold">{d.overallAvg !== null ? d.overallAvg.toFixed(2) : '-'}</td>
+                                            <td className="px-4 py-3 text-center text-danger font-bold">{d.a}</td>
+                                            <td className="px-4 py-3 text-center text-text-body">{d.attRate.toFixed(1)}%</td>
                                             <td className="px-4 py-3">
-                                                <span className="bg-red-100 text-red-700 text-[10px] px-2 py-1 rounded-full font-bold">ប្រឈមខ្ពស់</span>
+                                                <span className="bg-danger/10 text-danger text-[10px] px-2 py-1 rounded-full font-bold">ប្រឈមខ្ពស់</span>
                                             </td>
                                         </tr>
                                     ))}
                                     {Object.values(analytics.studentData).filter(d => d.isRisk).length === 0 && (
-                                        <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-500 italic">មិនមានសិស្សប្រឈមហានិភ័យទេ 👏</td></tr>
+                                        <tr><td colSpan={5} className="px-4 py-8 text-center text-text-muted italic">មិនមានសិស្សប្រឈមហានិភ័យទេ 👏</td></tr>
                                     )}
                                 </tbody>
                             </table>
                         </div>
                     </div>
 
-                    <div className="bg-white p-5 border-t-4 border-yellow-500 rounded-xl shadow-sm">
+                    <div className="bg-bg-surface p-5 border-t-4 border-warning rounded-xl shadow-sm">
                         <div className="flex justify-between items-center mb-4 border-b pb-2">
-                            <h2 className="font-bold text-yellow-700 flex items-center gap-2">
+                            <h2 className="font-bold text-warning flex items-center gap-2">
                                 <CheckSquare className="w-5 h-5" />
                                 សូចនាករវត្តមានរួម
                             </h2>

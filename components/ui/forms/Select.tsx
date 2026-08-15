@@ -2,7 +2,7 @@
 
 import { forwardRef, useId } from "react"
 import { ChevronDown } from "lucide-react"
-import { type ControlVariant, controlClass, fieldLabel } from "./fieldStyles"
+import { type ControlVariant, controlClass, fieldLabel, requiredMark } from "./fieldStyles"
 
 export type SelectOption = {
   value: string
@@ -96,7 +96,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select(
       {label && (
         <label htmlFor={selectId} className={fieldLabel}>
           {label}
-          {required && <span className="ml-0.5 text-red-500">*</span>}
+          {required && <span className={requiredMark}>*</span>}
         </label>
       )}
       <div className="relative w-full">

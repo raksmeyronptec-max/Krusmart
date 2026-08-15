@@ -12,12 +12,12 @@ import { randomiseCleaningGroups } from '@/lib/utils/cleaning-random'
 type LeaderRole = keyof CleaningLeaders
 
 const days = [
-  { id: 'monday', name: 'ថ្ងៃច័ន្ទ', color: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-200' },
-  { id: 'tuesday', name: 'ថ្ងៃអង្គារ', color: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-200' },
-  { id: 'wednesday', name: 'ថ្ងៃពុធ', color: 'bg-green-100', text: 'text-green-700', border: 'border-green-200' },
-  { id: 'thursday', name: 'ថ្ងៃព្រហស្បតិ៍', color: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-200' },
-  { id: 'friday', name: 'ថ្ងៃសុក្រ', color: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200' },
-  { id: 'saturday', name: 'ថ្ងៃសៅរ៍', color: 'bg-rose-100', text: 'text-rose-700', border: 'border-rose-200' }
+  { id: 'monday', name: 'ថ្ងៃច័ន្ទ', color: 'bg-warning/10', text: 'text-warning', border: 'border-warning/30' },
+  { id: 'tuesday', name: 'ថ្ងៃអង្គារ', color: 'bg-brand-100', text: 'text-brand', border: 'border-divider' },
+  { id: 'wednesday', name: 'ថ្ងៃពុធ', color: 'bg-success/10', text: 'text-success', border: 'border-success/30' },
+  { id: 'thursday', name: 'ថ្ងៃព្រហស្បតិ៍', color: 'bg-success/10', text: 'text-success', border: 'border-success/30' },
+  { id: 'friday', name: 'ថ្ងៃសុក្រ', color: 'bg-brand-100', text: 'text-brand', border: 'border-divider' },
+  { id: 'saturday', name: 'ថ្ងៃសៅរ៍', color: 'bg-danger/10', text: 'text-danger', border: 'border-danger/30' }
 ];
 
 export default function CleaningSchedulePage() {
@@ -155,26 +155,26 @@ export default function CleaningSchedulePage() {
       `}</style>
       
       {/* Top Header Section */}
-      <div className="no-print bg-white/60 backdrop-blur-md p-6 md:p-8 rounded-3xl shadow-sm border border-white/50 mb-8">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between pb-6 border-b border-blue-100 gap-4">
+      <div className="no-print bg-white/60 backdrop-blur-md p-6 md:p-8 rounded-xl shadow-sm border border-white/50 mb-8">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between pb-6 border-b border-divider gap-4">
               <div className="flex items-center gap-4">
-                  <div className="p-3.5 bg-gradient-to-br from-blue-100 to-sky-100 rounded-2xl shadow-sm border border-white">
-                      <CalendarDays className="w-7 h-7 text-blue-600" />
+                  <div className="p-3.5 bg-gradient-to-br from-brand-100 to-brand-100 rounded-xl shadow-sm border border-white">
+                      <CalendarDays className="w-7 h-7 text-brand" />
                   </div>
                   <div>
-                      <p className="text-sm font-bold text-blue-500 mb-1">PTEC កម្មវិធីកត់ត្រា</p>
-                      <h1 className="kh-moul text-xl md:text-2xl bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-sky-600">រៀបចំវេនសម្អាតប្រចាំសប្ដាហ៍</h1>
+                      <p className="text-sm font-bold text-brand-500 mb-1">PTEC កម្មវិធីកត់ត្រា</p>
+                      <h1 className="kh-moul text-xl md:text-2xl bg-clip-text text-transparent bg-gradient-to-r from-brand-700 to-brand-500">រៀបចំវេនសម្អាតប្រចាំសប្ដាហ៍</h1>
                   </div>
               </div>
               
               <div className="flex flex-wrap gap-3">
-                  <button onClick={handleSave} disabled={saving} className="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold transition shadow-sm flex items-center gap-2 disabled:opacity-50">
+                  <button onClick={handleSave} disabled={saving} className="bg-success hover:bg-success text-white px-5 py-2.5 rounded-xl font-bold transition shadow-sm flex items-center gap-2 disabled:opacity-50">
                       {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} រក្សាទុក
                   </button>
-                  <button onClick={() => setIsRandomOpen(true)} className="bg-violet-600 hover:bg-violet-700 text-white px-5 py-2.5 rounded-xl font-bold transition shadow-sm flex items-center gap-2">
+                  <button onClick={() => setIsRandomOpen(true)} className="bg-brand hover:bg-brand-hover text-white px-5 py-2.5 rounded-xl font-bold transition shadow-sm flex items-center gap-2">
                       <Shuffle className="w-4 h-4" /> ចាត់តាំងស្វ័យប្រវត្តិ
                   </button>
-                  <button onClick={() => window.print()} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-bold transition shadow-sm flex items-center gap-2">
+                  <button onClick={() => window.print()} className="bg-brand hover:bg-brand-hover text-white px-5 py-2.5 rounded-xl font-bold transition shadow-sm flex items-center gap-2">
                       <Printer className="w-4 h-4" /> មើលតារាងបោះពុម្ព
                   </button>
               </div>
@@ -182,45 +182,45 @@ export default function CleaningSchedulePage() {
 
           {/* Leaders Section */}
           <div className="mt-8">
-              <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                 <Crown className="w-5 h-5 text-amber-500" /> គណៈកម្មការថ្នាក់
+              <h3 className="font-bold text-text-heading mb-4 flex items-center gap-2">
+                 <Crown className="w-5 h-5 text-warning" /> គណៈកម្មការថ្នាក់
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5 bg-blue-50/50 p-5 rounded-2xl border border-blue-100">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5 bg-brand-100/50 p-5 rounded-xl border border-divider">
                   {(['pres', 'vp1', 'vp2'] as const).map((role) => (
                       <div key={role} className="relative group">
-                          <label className="block text-sm font-bold text-blue-800 mb-1.5 ml-1">
+                          <label className="block text-sm font-bold text-brand-800 mb-1.5 ml-1">
                              {role === 'pres' ? 'ប្រធានថ្នាក់' : role === 'vp1' ? 'អនុប្រធានទី១' : 'អនុប្រធានទី២'}
                           </label>
                           
                           {leaders[role] ? (
-                              <div className="flex items-center justify-between bg-white border border-blue-200 p-2.5 rounded-xl shadow-sm">
+                              <div className="flex items-center justify-between bg-white border border-divider p-2.5 rounded-xl shadow-sm">
                                   <div className="flex items-center gap-2">
                                       {leaders[role].image ? (
                                         // eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture
-                                        <img src={leaders[role].image} className="w-8 h-8 rounded-full object-cover border border-slate-200" alt="img" />
+                                        <img src={leaders[role].image} className="w-8 h-8 rounded-full object-cover border border-divider" alt="img" />
                                       ) : (
-                                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold">{leaders[role].name.charAt(0)}</div>
+                                        <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-brand font-bold">{leaders[role].name.charAt(0)}</div>
                                       )}
-                                      <span className="text-sm font-bold text-slate-700">{leaders[role].name}</span>
+                                      <span className="text-sm font-bold text-text-body">{leaders[role].name}</span>
                                   </div>
-                                  <button onClick={() => handleRemove(role)} className="text-rose-400 hover:text-rose-600 p-1 bg-rose-50 rounded-lg">
+                                  <button onClick={() => handleRemove(role)} className="text-danger hover:text-danger p-1 bg-danger/10 rounded-lg">
                                     <X className="w-4 h-4" />
                                   </button>
                               </div>
                           ) : (
                               <div className="relative">
-                                  <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                  <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-text-muted" />
                                   <input 
                                     type="text" 
                                     placeholder="ស្វែងរកសិស្ស..." 
-                                    className="w-full pl-3 pr-10 py-2.5 border border-blue-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                    className="w-full pl-3 pr-10 py-2.5 border border-divider rounded-xl text-sm focus:ring-2 focus:ring-focus-ring outline-none"
                                     value={searchKeys[role] || ""}
                                     onChange={(e) => setSearchKeys({...searchKeys, [role]: e.target.value})}
                                   />
                                   {searchKeys[role] && (
-                                     <div className="absolute top-full left-0 z-50 w-full mt-1 bg-white border border-blue-100 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                                     <div className="absolute top-full left-0 z-50 w-full mt-1 bg-white border border-divider rounded-xl shadow-lg max-h-48 overflow-y-auto">
                                         {students.filter(s => s.name_kh.includes(searchKeys[role])).map(s => (
-                                          <div key={s.id} onClick={() => handleSelect(role, s)} className="p-2 hover:bg-blue-50 cursor-pointer flex items-center gap-2 border-b border-gray-50 last:border-0 text-sm">
+                                          <div key={s.id} onClick={() => handleSelect(role, s)} className="p-2 hover:bg-brand-100 cursor-pointer flex items-center gap-2 border-b border-divider last:border-0 text-sm">
                                             {s.name_kh}
                                           </div>
                                         ))}
@@ -235,18 +235,18 @@ export default function CleaningSchedulePage() {
 
           {/* Groups Section */}
           <div className="mt-8">
-              <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                 <Users className="w-5 h-5 text-indigo-500" /> បែងចែកសមាជិកតាមវេន
+              <h3 className="font-bold text-text-heading mb-4 flex items-center gap-2">
+                 <Users className="w-5 h-5 text-brand-500" /> បែងចែកសមាជិកតាមវេន
               </h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {days.map((day) => (
-                      <div key={day.id} className={`${day.color} border ${day.border} p-5 rounded-2xl flex flex-col h-full shadow-sm`}>
+                      <div key={day.id} className={`${day.color} border ${day.border} p-5 rounded-xl flex flex-col h-full shadow-sm`}>
                           <div className="flex items-center justify-between mb-4 pb-3 border-b border-black/5">
                               <h4 className={`font-bold ${day.text} flex items-center gap-2`}>
                                   <CalendarDays className="w-4 h-4" /> {day.name}
                               </h4>
-                              <span className="text-xs font-bold bg-white/50 px-2 py-1 rounded-full text-slate-600">
+                              <span className="text-xs font-bold bg-white/50 px-2 py-1 rounded-full text-text-body">
                                   {groups[day.id]?.length || 0} នាក់
                               </span>
                           </div>
@@ -259,14 +259,14 @@ export default function CleaningSchedulePage() {
                                           // eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture
                                           <img src={member.image} className="w-6 h-6 rounded-full object-cover" alt="img" />
                                         ) : (
-                                          <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600">{member.name.charAt(0)}</div>
+                                          <div className="w-6 h-6 rounded-full bg-divider flex items-center justify-center text-xs font-bold text-text-body">{member.name.charAt(0)}</div>
                                         )}
-                                        <span className="text-sm font-bold text-slate-700">{member.name}</span>
+                                        <span className="text-sm font-bold text-text-body">{member.name}</span>
                                         {member.role && member.role !== 'សមាជិក' && (
-                                          <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold text-violet-700">{member.role}</span>
+                                          <span className="rounded-full bg-brand-100 px-2 py-0.5 text-[10px] font-bold text-brand">{member.role}</span>
                                         )}
                                     </div>
-                                    <button onClick={() => handleRemove('group', day.id, member.id)} className="text-rose-400 hover:text-rose-600">
+                                    <button onClick={() => handleRemove('group', day.id, member.id)} className="text-danger hover:text-danger">
                                       <X className="w-4 h-4" />
                                     </button>
                                 </div>
@@ -274,18 +274,18 @@ export default function CleaningSchedulePage() {
                           </div>
                           
                           <div className="relative mt-auto">
-                              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
                               <input 
                                 type="text" 
                                 placeholder="បន្ថែមសិស្ស..." 
-                                className="w-full pl-9 pr-3 py-2 border border-white/60 bg-white/60 rounded-xl text-sm focus:ring-2 focus:ring-blue-400 outline-none placeholder:text-slate-500"
+                                className="w-full pl-9 pr-3 py-2 border border-white/60 bg-white/60 rounded-xl text-sm focus:ring-2 focus:ring-focus-ring outline-none placeholder:text-text-muted"
                                 value={searchKeys[day.id] || ""}
                                 onChange={(e) => setSearchKeys({...searchKeys, [day.id]: e.target.value})}
                               />
                               {searchKeys[day.id] && (
-                                 <div className="absolute bottom-full left-0 z-50 w-full mb-1 bg-white border border-blue-100 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                                 <div className="absolute bottom-full left-0 z-50 w-full mb-1 bg-white border border-divider rounded-xl shadow-lg max-h-48 overflow-y-auto">
                                     {students.filter(s => s.name_kh.includes(searchKeys[day.id])).map(s => (
-                                      <div key={s.id} onClick={() => handleSelect('group', s, day.id)} className="p-2 hover:bg-blue-50 cursor-pointer flex items-center gap-2 border-b border-gray-50 last:border-0 text-sm">
+                                      <div key={s.id} onClick={() => handleSelect('group', s, day.id)} className="p-2 hover:bg-brand-100 cursor-pointer flex items-center gap-2 border-b border-divider last:border-0 text-sm">
                                         {s.name_kh}
                                       </div>
                                     ))}
@@ -361,20 +361,20 @@ export default function CleaningSchedulePage() {
       {/* Automatic assignment */}
       {isRandomOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="random-title">
-          <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl">
+          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-lg">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
-                <h3 id="random-title" className="kh-moul text-lg text-violet-700">ចាត់តាំងវេនសម្អាតដោយស្វ័យប្រវត្តិ</h3>
-                <p className="mt-1.5 text-sm text-slate-500">
+                <h3 id="random-title" className="kh-moul text-lg text-brand">ចាត់តាំងវេនសម្អាតដោយស្វ័យប្រវត្តិ</h3>
+                <p className="mt-1.5 text-sm text-text-muted">
                   បែងចែកសិស្សស្មើៗគ្នាតាមភេទ។ គណៈកម្មការថ្នាក់មិនត្រូវបានរាប់បញ្ចូលទេ។
                 </p>
               </div>
-              <button onClick={() => setIsRandomOpen(false)} aria-label="បិទ" className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+              <button onClick={() => setIsRandomOpen(false)} aria-label="បិទ" className="rounded-lg p-1.5 text-text-muted hover:bg-paper hover:text-text-body">
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <p className="mb-3 text-sm font-bold text-slate-700">ជ្រើសរើសថ្ងៃ</p>
+            <p className="mb-3 text-sm font-bold text-text-body">ជ្រើសរើសថ្ងៃ</p>
             <div className="mb-6 grid grid-cols-2 gap-2 sm:grid-cols-3">
               {days.map(day => {
                 const on = randomDays.includes(day.id);
@@ -384,7 +384,7 @@ export default function CleaningSchedulePage() {
                     type="button"
                     onClick={() => toggleRandomDay(day.id)}
                     aria-pressed={on}
-                    className={`flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-sm font-bold transition ${on ? 'border-violet-300 bg-violet-50 text-violet-700' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'}`}
+                    className={`flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-sm font-bold transition ${on ? 'border-divider bg-brand-100 text-brand' : 'border-divider bg-white text-text-muted hover:border-divider'}`}
                   >
                     {on && <Check className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
                     {day.name}
@@ -393,7 +393,7 @@ export default function CleaningSchedulePage() {
               })}
             </div>
 
-            <div className="rounded-xl bg-amber-50 px-4 py-3 text-xs text-amber-800">
+            <div className="rounded-xl bg-warning/10 px-4 py-3 text-xs text-warning">
               សិស្សដែលអាចចាត់តាំងបាន៖ <b>{students.length - [leaders.pres, leaders.vp1, leaders.vp2].filter(Boolean).length}</b> នាក់
               {randomDays.length > 0 && <> · ប្រហែល <b>{Math.ceil((students.length - [leaders.pres, leaders.vp1, leaders.vp2].filter(Boolean).length) / randomDays.length)}</b> នាក់ក្នុងមួយថ្ងៃ</>}
               <br />
@@ -401,15 +401,15 @@ export default function CleaningSchedulePage() {
             </div>
 
             <div className="mt-6 flex gap-3">
-              <button onClick={() => setIsRandomOpen(false)} className="flex-1 rounded-xl bg-slate-100 px-4 py-3 font-bold text-slate-600 transition hover:bg-slate-200">
+              <button onClick={() => setIsRandomOpen(false)} className="flex-1 rounded-xl bg-paper px-4 py-3 font-bold text-text-body transition hover:bg-divider">
                 បោះបង់
               </button>
-              <button onClick={handleRandomise} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-3 font-bold text-white shadow transition hover:bg-violet-700">
+              <button onClick={handleRandomise} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3 font-bold text-white shadow transition hover:bg-brand-hover">
                 <Shuffle className="h-4 w-4" /> ចាត់តាំង
               </button>
             </div>
 
-            <p className="mt-3 text-center text-xs text-slate-400">
+            <p className="mt-3 text-center text-xs text-text-muted">
               លទ្ធផលនឹងមិនត្រូវបានរក្សាទុកទេ រហូតដល់អ្នកចុច «រក្សាទុក»។
             </p>
           </div>

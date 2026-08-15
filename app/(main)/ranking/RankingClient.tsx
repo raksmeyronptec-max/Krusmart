@@ -159,9 +159,8 @@ export default function RankingClient({ initialStudents, settings}: { initialStu
     const failF = failSt.filter(s => s.gender === 'ស្រី' || s.gender === 'F').length
     
     return (
-        <div className="min-h-screen bg-slate-50 font-battambang print:bg-white pb-10">
+        <div className="min-h-screen bg-paper font-battambang print:bg-white pb-10">
             <style jsx global>{`
-                .font-moul { font-family: 'Moul', cursive; }
                 .font-battambang { font-family: 'Battambang', cursive; }
                 @media print {
                     @page { size: A4 portrait; margin: 0.5cm; }
@@ -181,33 +180,33 @@ export default function RankingClient({ initialStudents, settings}: { initialStu
                 <div className="max-w-6xl mx-auto py-8 px-4 no-print">
                     {loading && (
                         <div className="fixed inset-0 bg-white/80 z-50 flex flex-col items-center justify-center backdrop-blur-sm">
-                            <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
-                            <p className="mt-4 font-moul text-blue-600 animate-pulse">កំពុងរៀបចំទិន្នន័យ...</p>
+                            <div className="w-16 h-16 border-4 border-divider border-t-blue-600 rounded-full animate-spin"></div>
+                            <p className="mt-4 kh-moul text-brand animate-pulse">កំពុងរៀបចំទិន្នន័យ...</p>
                         </div>
                     )}
                     
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 bg-white p-6 rounded-xl shadow-sm border border-divider">
                         <div className="flex items-center gap-4">
-                            <Link href="/dashboard" className="p-3 bg-slate-50 text-slate-500 hover:bg-blue-50 hover:text-blue-600 rounded-2xl transition-all shadow-sm">
+                            <Link href="/dashboard" className="p-3 bg-paper text-text-muted hover:bg-brand-100 hover:text-brand rounded-xl transition-all shadow-sm">
                                 <ArrowLeft className="w-6 h-6" />
                             </Link>
                             <div>
-                                <h1 className="text-2xl sm:text-3xl font-moul text-slate-800 flex items-center gap-3">
-                                    <span className="bg-blue-600 text-white p-2 rounded-xl shadow-lg shadow-blue-200">
+                                <h1 className="text-2xl sm:text-3xl kh-moul text-text-heading flex items-center gap-3">
+                                    <span className="bg-brand text-white p-2 rounded-xl shadow-lg shadow-blue-200">
                                         <Award className="w-6 h-6" />
                                     </span>
                                     តារាងចំណាត់ថ្នាក់
                                 </h1>
-                                <p className="text-slate-500 mt-1 text-sm font-medium">ជ្រើសរើសខែ ឬ ឆមាសដើម្បីបោះពុម្ភតារាងចំណាត់ថ្នាក់សិស្ស</p>
+                                <p className="text-text-muted mt-1 text-sm font-medium">ជ្រើសរើសខែ ឬ ឆមាសដើម្បីបោះពុម្ភតារាងចំណាត់ថ្នាក់សិស្ស</p>
                             </div>
                         </div>
                         
-                        <div className="flex items-center gap-3 bg-blue-50/50 px-5 py-3 rounded-2xl border border-blue-100 shadow-inner">
+                        <div className="flex items-center gap-3 bg-brand-100/50 px-5 py-3 rounded-xl border border-divider shadow-inner">
                             <div className="bg-white p-1.5 rounded-lg shadow-sm">
-                                <CalendarDays className="w-5 h-5 text-blue-600" />
+                                <CalendarDays className="w-5 h-5 text-brand" />
                             </div>
                             <div>
-                                <label className="text-[11px] font-bold text-blue-500 uppercase tracking-wider block">ឆ្នាំសិក្សា</label>
+                                <label className="text-[11px] font-bold text-brand-500 uppercase tracking-wider block">ឆ្នាំសិក្សា</label>
                                 <Select
                                     variant="ghost"
                                     ariaLabel="ឆ្នាំសិក្សា"
@@ -218,22 +217,22 @@ export default function RankingClient({ initialStudents, settings}: { initialStu
                                         { value: '2025-2026', label: '2025 - 2026' },
                                         { value: '2026-2027', label: '2026 - 2027' },
                                     ]}
-                                    className="text-base text-slate-800"
+                                    className="text-base text-text-heading"
                                 />
                             </div>
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden grid grid-cols-1 lg:grid-cols-12">
-                        <div className="lg:col-span-8 p-6 sm:p-8 border-b lg:border-b-0 lg:border-r border-slate-100 bg-slate-50/30">
+                    <div className="bg-white rounded-xl shadow-sm border border-divider overflow-hidden grid grid-cols-1 lg:grid-cols-12">
+                        <div className="lg:col-span-8 p-6 sm:p-8 border-b lg:border-b-0 lg:border-r border-divider bg-paper/30">
                             <div className="flex items-center gap-2 mb-6">
-                                <CalendarRange className="w-5 h-5 text-slate-400" />
-                                <h3 className="text-base font-bold text-slate-700 font-moul">ការវាយតម្លៃប្រចាំខែ</h3>
+                                <CalendarRange className="w-5 h-5 text-text-muted" />
+                                <h3 className="text-base font-bold text-text-body kh-moul">ការវាយតម្លៃប្រចាំខែ</h3>
                             </div>
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                                 {MONTHS_BY_CALENDAR.map(m => (
                                     <button key={m.id} onClick={() => loadData('monthly', m.id)} className="select-btn group">
-                                        <span className="font-moul text-[15px] group-hover:text-blue-600">{m.label}</span>
+                                        <span className="kh-moul text-[15px] group-hover:text-brand">{m.label}</span>
                                     </button>
                                 ))}
                             </div>
@@ -241,31 +240,31 @@ export default function RankingClient({ initialStudents, settings}: { initialStu
                         <div className="lg:col-span-4 p-6 sm:p-8 flex flex-col justify-between">
                             <div>
                                 <div className="flex items-center gap-2 mb-6">
-                                    <Layers className="w-5 h-5 text-slate-400" />
-                                    <h3 className="text-base font-bold text-slate-700 font-moul">ការវាយតម្លៃសរុប</h3>
+                                    <Layers className="w-5 h-5 text-text-muted" />
+                                    <h3 className="text-base font-bold text-text-body kh-moul">ការវាយតម្លៃសរុប</h3>
                                 </div>
                                 <div className="flex flex-col gap-4">
-                                    <button onClick={() => loadData('semester', 'sem1')} className="select-btn flex-row justify-between px-6 hover:border-blue-400">
+                                    <button onClick={() => loadData('semester', 'sem1')} className="select-btn flex-row justify-between px-6 hover:border-brand-400">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold">1</div>
-                                            <span className="font-moul text-[15px]">ឆមាសទី១</span>
+                                            <div className="w-8 h-8 rounded-full bg-paper flex items-center justify-center text-text-muted font-bold">1</div>
+                                            <span className="kh-moul text-[15px]">ឆមាសទី១</span>
                                         </div>
                                     </button>
-                                    <button onClick={() => loadData('semester', 'sem2')} className="select-btn flex-row justify-between px-6 hover:border-blue-400">
+                                    <button onClick={() => loadData('semester', 'sem2')} className="select-btn flex-row justify-between px-6 hover:border-brand-400">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold">2</div>
-                                            <span className="font-moul text-[15px]">ឆមាសទី២</span>
+                                            <div className="w-8 h-8 rounded-full bg-paper flex items-center justify-center text-text-muted font-bold">2</div>
+                                            <span className="kh-moul text-[15px]">ឆមាសទី២</span>
                                         </div>
                                     </button>
                                 </div>
                             </div>
-                            <div className="mt-8 pt-8 border-t border-slate-100">
-                                <button onClick={() => loadData('yearly', 'annual')} className="select-btn flex-row justify-between px-6 w-full border-fuchsia-200 hover:border-fuchsia-500 hover:text-fuchsia-600 bg-gradient-to-r from-fuchsia-50 to-white">
+                            <div className="mt-8 pt-8 border-t border-divider">
+                                <button onClick={() => loadData('yearly', 'annual')} className="select-btn flex-row justify-between px-6 w-full border-gold/30 hover:border-gold hover:text-gold bg-gradient-to-r from-gold/10 to-white">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-xl bg-fuchsia-100 flex items-center justify-center shadow-inner">
-                                            <Award className="w-6 h-6 text-fuchsia-600" />
+                                        <div className="w-10 h-10 rounded-xl bg-gold/10 flex items-center justify-center shadow-inner">
+                                            <Award className="w-6 h-6 text-gold" />
                                         </div>
-                                        <span className="font-moul text-[16px]">ប្រចាំឆ្នាំ</span>
+                                        <span className="kh-moul text-[16px]">ប្រចាំឆ្នាំ</span>
                                     </div>
                                 </button>
                             </div>
@@ -289,12 +288,12 @@ export default function RankingClient({ initialStudents, settings}: { initialStu
                         </button>
                     </div>
 
-                    <div className="relative text-center mb-4 font-moul text-blue-900 leading-relaxed">
+                    <div className="relative text-center mb-4 kh-moul text-blue-900 leading-relaxed">
                         <h3 className="text-[15px] tracking-wide">ព្រះរាជាណាចក្រកម្ពុជា</h3>
                         <h3 className="text-[14px] tracking-widest mt-0.5">ជាតិ សាសនា ព្រះមហាក្សត្រ</h3>
                         <div className="text-[10px] mt-1">❧❧❧ ❖ ☙☙☙</div>
                         
-                        <div className="absolute left-0 top-[40px] text-left w-[38%] text-[10.5px] font-moul font-normal leading-[1.7] whitespace-nowrap z-10">
+                        <div className="absolute left-0 top-[40px] text-left w-[38%] text-[10.5px] kh-moul font-normal leading-[1.7] whitespace-nowrap z-10">
                             <p>{settings?.management_unit_1 || "មន្ទីរអប់រំ យុវជន និងកីឡា..."}</p>
                             <p>{settings?.management_unit_2 || "ការិយាល័យអប់រំ..."}</p>
                             <p className="mt-1">{settings?.school_name || "សាលា..."}</p>
@@ -303,8 +302,8 @@ export default function RankingClient({ initialStudents, settings}: { initialStu
                         </div>
                         
                         <div className="mt-2 pb-2 w-full text-center">
-                            <h1 className="text-[18px] font-moul mb-1.5 text-blue-900">តារាងចំណាត់ថ្នាក់សិស្ស</h1>
-                            <p className="font-moul text-[15px] text-blue-800">
+                            <h1 className="text-[18px] kh-moul mb-1.5 text-blue-900">តារាងចំណាត់ថ្នាក់សិស្ស</h1>
+                            <p className="kh-moul text-[15px] text-blue-800">
                                 {currentMode === 'monthly' ? `ប្រចាំខែ ${MONTHS_BY_CALENDAR.find(m => m.id === currentPeriod)?.label}` : currentMode === 'semester' ? `ប្រចាំឆមាសទី${currentPeriod === 'sem1' ? '១' : '២'}` : 'ប្រចាំឆ្នាំ'}
                             </p>
                         </div>
@@ -371,14 +370,14 @@ export default function RankingClient({ initialStudents, settings}: { initialStu
                     <div className="mt-4 flex justify-between font-bold text-[12px]">
                         <div className="w-1/2 flex flex-col items-center pt-2">
                             <p className="mb-1 text-blue-900">បានឃើញ និង ឯកភាព</p>
-                            <p className="font-moul mb-12 text-blue-900">នាយកសាលា</p>
+                            <p className="kh-moul mb-12 text-blue-900">នាយកសាលា</p>
                         </div>
                         
                         <div className="w-1/2 flex flex-col items-center pt-2">
                             <p className="mb-1 text-blue-900">ថ្ងៃ.........................................................ព.ស. ២៥៦...</p>
                             <p className="mb-1 text-blue-900"><span>ធ្វើនៅ {settings?.province_date || ".............."}</span>, <span>ថ្ងៃទី........ ខែ........... ឆ្នាំ ២០២...</span></p>
-                            <p className="font-moul mb-12 mt-1 text-blue-900">គ្រូបន្ទុកថ្នាក់</p>
-                            <p className="font-moul font-bold text-[13px] text-blue-900" style={{ marginLeft: '1.5cm' }}>{settings?.teacher_name || ".........."}</p>
+                            <p className="kh-moul mb-12 mt-1 text-blue-900">គ្រូបន្ទុកថ្នាក់</p>
+                            <p className="kh-moul font-bold text-[13px] text-blue-900" style={{ marginLeft: '1.5cm' }}>{settings?.teacher_name || ".........."}</p>
                         </div>
                     </div>
                 </div>

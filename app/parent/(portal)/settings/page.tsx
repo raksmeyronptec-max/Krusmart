@@ -35,7 +35,7 @@ export default function ParentSettingsPage() {
             className="tap-target flex w-full items-center justify-between rounded-xl px-1 py-3"
           >
             <span className="flex items-center gap-3">
-              {dark ? <Moon className="h-5 w-5 text-indigo-400" /> : <Sun className="h-5 w-5 text-amber-400" />}
+              {dark ? <Moon className="h-5 w-5 text-pp-info" /> : <Sun className="h-5 w-5 text-pp-warning" />}
               <span className="text-left">
                 <span className="block text-sm font-semibold text-pp">{t('theme')}</span>
                 <span className="block text-xs text-pp-muted">
@@ -53,7 +53,7 @@ export default function ParentSettingsPage() {
 
           <div className="flex items-center justify-between border-t px-1 py-3" style={{ borderColor: 'var(--pp-card-border)' }}>
             <span className="flex items-center gap-3">
-              <Languages className="h-5 w-5 text-emerald-400" />
+              <Languages className="h-5 w-5 text-pp-success" />
               <span className="text-sm font-semibold text-pp">{t('language_label')}</span>
             </span>
             <div className="flex gap-1 rounded-xl p-1" style={{ backgroundColor: 'var(--pp-card-border)' }}>

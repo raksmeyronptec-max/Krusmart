@@ -178,7 +178,7 @@ export default function ScorePrintClient({
   }
 
   return (
-    <div className="min-h-screen font-battambang print:bg-white">
+    <div className="min-h-screen font-battambang print:bg-bg-surface">
       <style jsx global>{`
         .print-container { display: none; }
         @media print {
@@ -199,13 +199,13 @@ export default function ScorePrintClient({
       <div className="no-print mx-auto max-w-5xl px-4 py-6 md:py-8">
         <Link
           href="/score/total"
-          className="mb-6 inline-flex min-h-11 items-center gap-2 rounded-xl bg-white/60 px-4 py-2 font-bold text-[#0054a6] shadow-sm backdrop-blur-sm transition hover:text-blue-800"
+          className="mb-6 inline-flex min-h-11 items-center gap-2 rounded-xl bg-bg-surface/60 px-4 py-2 font-bold text-brand shadow-sm backdrop-blur-sm transition hover:text-brand-800"
         >
           <ArrowLeft className="h-5 w-5" aria-hidden="true" /> ត្រឡប់ទៅតារាងពិន្ទុ
         </Link>
 
-        <div className="rounded-2xl border border-divider bg-bg-surface p-6 shadow-lg md:p-8">
-          <h1 className="kh-moul mb-6 border-b border-divider pb-4 text-xl text-[#0054a6] md:text-2xl dark:text-blue-300">
+        <div className="rounded-xl border border-divider bg-bg-surface p-6 shadow-lg md:p-8">
+          <h1 className="kh-moul mb-6 border-b border-divider pb-4 text-xl text-brand md:text-2xl dark:text-brand-300">
             តារាងពិន្ទុតាមទម្រង់ក្រសួង
           </h1>
 
@@ -253,7 +253,7 @@ export default function ScorePrintClient({
             ] as const).map(([label, value]) => (
               <div key={label} className="rounded-xl border border-divider bg-bg-surface p-3 text-center">
                 <p className="mb-1 text-xs font-bold text-text-muted">{label}</p>
-                <p className="text-xl font-bold text-[#0054a6] dark:text-blue-300">{toKhmerNumber(value)}</p>
+                <p className="text-xl font-bold text-brand dark:text-brand-300">{toKhmerNumber(value)}</p>
               </div>
             ))}
           </div>
@@ -262,7 +262,7 @@ export default function ScorePrintClient({
             <button
               onClick={() => window.print()}
               disabled={loading || rows.length === 0}
-              className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-red-600 px-6 py-2.5 font-bold text-white shadow-md transition hover:bg-red-700 disabled:opacity-50"
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-danger px-6 py-2.5 font-bold text-white shadow-md transition hover:opacity-90 disabled:opacity-50"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Printer className="h-4 w-4" aria-hidden="true" />}
               បោះពុម្ព
@@ -270,7 +270,7 @@ export default function ScorePrintClient({
             <button
               onClick={exportExcel}
               disabled={loading || rows.length === 0}
-              className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 font-bold text-white shadow-md transition hover:bg-emerald-700 disabled:opacity-50"
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-success px-6 py-2.5 font-bold text-white shadow-md transition hover:opacity-90 disabled:opacity-50"
             >
               <FileSpreadsheet className="h-4 w-4" aria-hidden="true" /> នាំចេញ Excel
             </button>

@@ -151,18 +151,18 @@ export default function RecordBookClient({
       <div className="no-print mx-auto max-w-5xl px-4 py-6 md:py-8">
         <Link
           href="/dashboard"
-          className="mb-6 inline-flex min-h-11 items-center gap-2 rounded-xl bg-white/60 px-4 py-2 font-bold text-[#0054a6] shadow-sm backdrop-blur-sm transition hover:text-blue-800"
+          className="mb-6 inline-flex min-h-11 items-center gap-2 rounded-xl bg-white/60 px-4 py-2 font-bold text-brand shadow-sm backdrop-blur-sm transition hover:text-brand-800"
         >
           <ArrowLeft className="h-5 w-5" aria-hidden="true" /> ត្រឡប់ទៅទំព័រដើម
         </Link>
 
-        <div className="rounded-2xl border border-divider bg-bg-surface p-6 shadow-lg md:p-8">
+        <div className="rounded-xl border border-divider bg-bg-surface p-6 shadow-lg md:p-8">
           <div className="mb-6 flex items-center gap-3 border-b border-divider pb-4">
-            <div className="rounded-full bg-emerald-100 p-3 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+            <div className="rounded-full bg-success/10 p-3 text-success dark:bg-success/10 dark:text-success">
               <BookUser className="h-6 w-6" aria-hidden="true" />
             </div>
             <div>
-              <h1 className="kh-moul text-xl text-[#0054a6] md:text-2xl dark:text-blue-300">សៀវភៅសិក្ខាគារិក</h1>
+              <h1 className="kh-moul text-xl text-brand md:text-2xl dark:text-brand-300">សៀវភៅសិក្ខាគារិក</h1>
               <p className="mt-1 text-sm text-text-muted">
                 ទំហំ A4 ផ្តេក — មួយសន្លឹកក្នុងមួយសិស្ស · ឆ្នាំសិក្សា {academicYear}
               </p>
@@ -191,13 +191,13 @@ export default function RecordBookClient({
             <button
               onClick={() => window.print()}
               disabled={students.length === 0}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-red-600 px-6 py-2.5 font-bold text-white shadow-md transition hover:bg-red-700 disabled:opacity-50"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-danger px-6 py-2.5 font-bold text-white shadow-md transition hover:opacity-90 disabled:opacity-50"
             >
               <Printer className="h-4 w-4" aria-hidden="true" /> បោះពុម្ព
             </button>
           </div>
 
-          <div className="flex items-center gap-2 rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:bg-blue-950/50 dark:text-blue-200">
+          <div className="flex items-center gap-2 rounded-xl bg-brand-100 px-4 py-3 text-sm text-brand-800 dark:bg-brand-900/50 dark:text-brand-300">
             <Users className="h-4 w-4 shrink-0" aria-hidden="true" />
             {students.length === 0
               ? 'មិនទាន់មានសិស្សក្នុងបញ្ជីនៅឡើយទេ'

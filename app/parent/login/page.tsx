@@ -63,7 +63,7 @@ export default function ParentLoginPage() {
             <GraduationCap className="h-10 w-10 text-white" aria-hidden="true" />
           </div>
           <h1 className="kh-moul text-3xl text-white">{tr('auth_title')}</h1>
-          <p className="mt-2 text-sm font-medium text-emerald-100/90">{tr('auth_subtitle')}</p>
+          <p className="mt-2 text-sm font-medium text-pp/90">{tr('auth_subtitle')}</p>
         </header>
 
         <form
@@ -71,7 +71,7 @@ export default function ParentLoginPage() {
           className="space-y-4 rounded-3xl border border-white/20 bg-white/10 p-6 shadow-2xl backdrop-blur-md"
         >
           <div>
-            <label htmlFor="pp-email" className="mb-1.5 block text-xs font-semibold text-emerald-100">
+            <label htmlFor="pp-email" className="mb-1.5 block text-xs font-semibold text-pp">
               {tr('email_label')}
             </label>
             <input
@@ -82,12 +82,12 @@ export default function ParentLoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder={tr('email_placeholder')}
-              className="tap-target w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-[16px] text-white outline-none transition placeholder:text-white/40 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/30"
+              className="tap-target w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-[16px] text-white outline-none transition placeholder:text-white/40 focus:border-pp focus:ring-2 focus:ring-[var(--pp-success)]/30"
             />
           </div>
 
           <div>
-            <label htmlFor="pp-password" className="mb-1.5 block text-xs font-semibold text-emerald-100">
+            <label htmlFor="pp-password" className="mb-1.5 block text-xs font-semibold text-pp">
               {tr('password_label')}
             </label>
             <input
@@ -98,12 +98,12 @@ export default function ParentLoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder={tr('password_placeholder')}
-              className="tap-target w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-[16px] text-white outline-none transition placeholder:text-white/40 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/30"
+              className="tap-target w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-[16px] text-white outline-none transition placeholder:text-white/40 focus:border-pp focus:ring-2 focus:ring-[var(--pp-success)]/30"
             />
           </div>
 
           {error && (
-            <p role="alert" className="flex items-center gap-2 rounded-xl bg-red-500/20 p-3 text-sm font-bold text-red-200">
+            <p role="alert" className="flex items-center gap-2 rounded-xl bg-pp-danger/20 p-3 text-sm font-bold text-pp-danger">
               <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
               {error}
             </p>

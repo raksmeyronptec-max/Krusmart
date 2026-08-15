@@ -13,7 +13,7 @@ import {
 } from "react"
 import { createPortal } from "react-dom"
 import { ChevronDown, Search, Loader2, Check } from "lucide-react"
-import { controlClass, fieldLabel, menuListClass, menuSurface } from "./fieldStyles"
+import { controlClass, fieldLabel, menuListClass, menuSurface, requiredMark } from "./fieldStyles"
 
 export type SearchableSelectOption = {
   value: string
@@ -419,7 +419,7 @@ const SearchableSelect = forwardRef<HTMLButtonElement, SearchableSelectProps>(
         {label && (
           <label htmlFor={controlId} className={fieldLabel}>
             {label}
-            {required && <span className="ml-0.5 text-red-500">*</span>}
+            {required && <span className={requiredMark}>*</span>}
           </label>
         )}
 

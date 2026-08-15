@@ -272,19 +272,19 @@ export default function EnrollmentPage() {
     }
 
     return (
-        <div className="min-h-screen bg-[#f4f7fb] dark:bg-gray-900 pb-24 transition-colors">
+        <div className="min-h-screen bg-bg-app dark:bg-bg-app pb-24 transition-colors">
 
             <div className="container mx-auto p-4 md:p-6 max-w-5xl mt-4">
-                <form ref={formRef} onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden relative transition-colors">
-                    <div className="h-2 w-full bg-[#2da143]"></div>
+                <form ref={formRef} onSubmit={handleSubmit} className="bg-bg-surface dark:bg-bg-surface rounded-xl shadow-sm border border-divider dark:border-divider overflow-hidden relative transition-colors">
+                    <div className="h-2 w-full bg-success"></div>
                     
                     <div className="p-6 md:p-8">
-                        <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-3 mb-6">
-                            <h2 className="kh-moul text-[#322a83] dark:text-[#4facfe] text-xl">គ្រប់គ្រងបញ្ជីសិស្ស</h2>
+                        <div className="flex items-center justify-between border-b border-divider dark:border-divider pb-3 mb-6">
+                            <h2 className="kh-moul text-brand dark:text-brand-400 text-xl">គ្រប់គ្រងបញ្ជីសិស្ស</h2>
                         </div>
 
                         {error && (
-                            <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg border border-red-200 text-sm font-bold">
+                            <div className="mb-4 p-3 bg-danger/10 text-danger rounded-lg border border-danger/30 text-sm font-bold">
                                 {error}
                             </div>
                         )}
@@ -292,26 +292,26 @@ export default function EnrollmentPage() {
                         <div className="flex flex-col md:flex-row gap-8 lg:gap-12 mb-2">
                             {/* Avatar Section */}
                             <div className="flex flex-col items-center gap-3 w-32 flex-shrink-0">
-                                <label className="text-[13px] font-bold text-gray-600 dark:text-gray-300">រូបតំណាង</label>
+                                <label className="text-[13px] font-bold text-text-body dark:text-text-body">រូបតំណាង</label>
                                 
                                 <div 
-                                    className="w-[100px] h-[100px] border-2 border-indigo-500 rounded-xl flex justify-center items-center overflow-hidden bg-white cursor-pointer hover:border-indigo-700 transition-all relative group"
+                                    className="w-[100px] h-[100px] border-2 border-brand rounded-xl flex justify-center items-center overflow-hidden bg-bg-surface cursor-pointer hover:border-brand-700 transition-all relative group"
                                     onClick={() => setShowAvatarModal(true)}
                                 >
                                     {photoUrl ? (
                                         // eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture
                                         <img src={photoUrl} alt="Preview" className="w-full h-full object-cover" onError={() => setPhotoUrl('')} />
                                     ) : (
-                                        <ImageIcon className="w-10 h-10 text-gray-300" />
+                                        <ImageIcon className="w-10 h-10 text-text-muted" />
                                     )}
                                 </div>
                                 
                                 <div className="flex flex-col w-full gap-2 mt-1">
-                                    <button type="button" onClick={() => setShowAvatarModal(true)} className="text-[11px] bg-[#f0fdf4] text-[#16a34a] w-full py-1.5 rounded border border-[#bbf7d0] hover:bg-[#dcfce7] font-bold transition-colors flex justify-center items-center gap-1">
+                                    <button type="button" onClick={() => setShowAvatarModal(true)} className="text-[11px] bg-success/10 text-success w-full py-1.5 rounded border border-[var(--color-success)] hover:bg-[var(--color-success)] font-bold transition-colors flex justify-center items-center gap-1">
                                         <Smile className="w-3 h-3" /> ជ្រើសរូបតុក្កតា
                                     </button>
-                                    <button type="button" onClick={() => fileInputRef.current?.click()} className="text-[11px] bg-[#edf2ff] text-[#4f46e5] w-full py-1.5 rounded border border-[#c7d2fe] hover:bg-[#e0e7ff] font-bold transition-colors">ជ្រើសរូបផ្ទាល់</button>
-                                    <button type="button" onClick={() => setShowUrlModal(true)} className="text-[11px] bg-[#f9fafb] text-[#4b5563] w-full py-1.5 rounded border border-[#e5e7eb] hover:bg-[#f3f4f6] font-bold transition-colors">ប្រើរូបភាពពីURL</button>
+                                    <button type="button" onClick={() => fileInputRef.current?.click()} className="text-[11px] bg-brand-100 text-brand w-full py-1.5 rounded border border-[var(--brand-300)] hover:bg-[var(--brand-100)] font-bold transition-colors">ជ្រើសរូបផ្ទាល់</button>
+                                    <button type="button" onClick={() => setShowUrlModal(true)} className="text-[11px] bg-paper text-text-body w-full py-1.5 rounded border border-[var(--divider)] hover:bg-[var(--surface-muted)] font-bold transition-colors">ប្រើរូបភាពពីURL</button>
                                 </div>
                                 <input type="file" ref={fileInputRef} accept="image/*" className="hidden" onChange={handlePhotoUpload} />
                             </div>
@@ -321,22 +321,22 @@ export default function EnrollmentPage() {
                                 
                                 {/* Row 1 */}
                                 <div className="flex flex-col">
-                                    <label className="text-[13px] font-bold text-gray-600 dark:text-gray-300 mb-1">អត្តលេខ*</label>
-                                    <input name="studentId" required type="text" placeholder="អត្តលេខ" className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none dark:bg-gray-700 dark:text-white font-bold text-indigo-900 dark:text-indigo-300" />
+                                    <label className="text-[13px] font-bold text-text-body dark:text-text-body mb-1">អត្តលេខ*</label>
+                                    <input name="studentId" required type="text" placeholder="អត្តលេខ" className="border border-divider dark:border-divider rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-focus-ring outline-none dark:bg-paper dark:text-white font-bold text-text-heading dark:text-brand-300" />
                                 </div>
                                 <div className="flex flex-col">
-                                    <label className="text-[13px] font-bold text-gray-600 dark:text-gray-300 mb-1">ថ្នាក់ទី*</label>
-                                    <input name="grade" required type="text" placeholder="ឧ. ១ក" className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none dark:bg-gray-700 dark:text-white" />
+                                    <label className="text-[13px] font-bold text-text-body dark:text-text-body mb-1">ថ្នាក់ទី*</label>
+                                    <input name="grade" required type="text" placeholder="ឧ. ១ក" className="border border-divider dark:border-divider rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-focus-ring outline-none dark:bg-paper dark:text-white" />
                                 </div>
                                 <div className="flex flex-col">
-                                    <label className="text-[13px] font-bold text-gray-600 dark:text-gray-300 mb-1">ឈ្មោះសិស្ស (ខ្មែរ)*</label>
-                                    <input name="studentName" required type="text" placeholder="គោត្តនាម និងនាម" className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none dark:bg-gray-700 dark:text-white" />
+                                    <label className="text-[13px] font-bold text-text-body dark:text-text-body mb-1">ឈ្មោះសិស្ស (ខ្មែរ)*</label>
+                                    <input name="studentName" required type="text" placeholder="គោត្តនាម និងនាម" className="border border-divider dark:border-divider rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-focus-ring outline-none dark:bg-paper dark:text-white" />
                                 </div>
 
                                 {/* Row 2 */}
                                 <div className="flex flex-col">
-                                    <label className="text-[13px] font-bold text-gray-600 dark:text-gray-300 mb-1">ឈ្មោះសិស្សជាអក្សរឡាតាំង</label>
-                                    <input name="latinName" type="text" placeholder="Latin Name" className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none dark:bg-gray-700 dark:text-white" />
+                                    <label className="text-[13px] font-bold text-text-body dark:text-text-body mb-1">ឈ្មោះសិស្សជាអក្សរឡាតាំង</label>
+                                    <input name="latinName" type="text" placeholder="Latin Name" className="border border-divider dark:border-divider rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-focus-ring outline-none dark:bg-paper dark:text-white" />
                                 </div>
                                 <Select
                                     name="gender"
@@ -346,22 +346,22 @@ export default function EnrollmentPage() {
                                     options={['ប្រុស', 'ស្រី']}
                                 />
                                 <div className="flex flex-col">
-                                    <label className="text-[13px] font-bold text-gray-600 dark:text-gray-300 mb-1">ថ្ងៃខែឆ្នាំកំណើត*</label>
-                                    <input name="dob" required type="date" value={dob} onChange={handleDobChange} className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none dark:bg-gray-700 dark:text-white" />
+                                    <label className="text-[13px] font-bold text-text-body dark:text-text-body mb-1">ថ្ងៃខែឆ្នាំកំណើត*</label>
+                                    <input name="dob" required type="date" value={dob} onChange={handleDobChange} className="border border-divider dark:border-divider rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-focus-ring outline-none dark:bg-paper dark:text-white" />
                                 </div>
                                 <div className="flex flex-col">
-                                    <label className="text-[13px] font-bold text-gray-600 dark:text-gray-300 mb-1">អាយុ (ឆ្នាំ)</label>
-                                    <input type="text" value={age} readOnly placeholder="គណនាស្វ័យប្រវត្តិ" className="border border-gray-200 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-gray-50 dark:bg-gray-800 text-gray-500 font-bold outline-none cursor-not-allowed" />
+                                    <label className="text-[13px] font-bold text-text-body dark:text-text-body mb-1">អាយុ (ឆ្នាំ)</label>
+                                    <input type="text" value={age} readOnly placeholder="គណនាស្វ័យប្រវត្តិ" className="border border-divider dark:border-divider rounded-md px-3 py-2 text-sm bg-paper dark:bg-bg-surface text-text-muted font-bold outline-none cursor-not-allowed" />
                                 </div>
                                 <div className="flex flex-col md:col-span-2">
-                                    <label className="text-[13px] font-bold text-gray-600 dark:text-gray-300 mb-1">លេខទូរស័ព្ទអាណាព្យាបាល</label>
-                                    <input name="phone" type="text" placeholder="លេខទូរស័ព្ទ" className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none dark:bg-gray-700 dark:text-white" />
+                                    <label className="text-[13px] font-bold text-text-body dark:text-text-body mb-1">លេខទូរស័ព្ទអាណាព្យាបាល</label>
+                                    <input name="phone" type="text" placeholder="លេខទូរស័ព្ទ" className="border border-divider dark:border-divider rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-focus-ring outline-none dark:bg-paper dark:text-white" />
                                 </div>
 
                                 {/* Address Section */}
-                                <div className="md:col-span-2 lg:col-span-3 mt-4 mb-2 flex items-center gap-2 border-b border-gray-200 dark:border-gray-700 pb-2">
-                                    <MapPin className="w-4 h-4 text-emerald-600" />
-                                    <h3 className="text-sm font-bold text-[#322a83] dark:text-[#4facfe]">ទីកន្លែងកំណើត</h3>
+                                <div className="md:col-span-2 lg:col-span-3 mt-4 mb-2 flex items-center gap-2 border-b border-divider dark:border-divider pb-2">
+                                    <MapPin className="w-4 h-4 text-success" />
+                                    <h3 className="text-sm font-bold text-brand dark:text-brand-400">ទីកន្លែងកំណើត</h3>
                                 </div>
                                 <SearchableSelect
                                     name="birthProvince"
@@ -404,9 +404,9 @@ export default function EnrollmentPage() {
                                     onChange={setBirthVill}
                                 />
 
-                                <div className="md:col-span-2 lg:col-span-3 mt-4 mb-2 flex items-center gap-2 border-b border-gray-200 dark:border-gray-700 pb-2">
-                                    <Home className="w-4 h-4 text-blue-600" />
-                                    <h3 className="text-sm font-bold text-[#322a83] dark:text-[#4facfe]">អាសយដ្ឋានសព្វថ្ងៃ</h3>
+                                <div className="md:col-span-2 lg:col-span-3 mt-4 mb-2 flex items-center gap-2 border-b border-divider dark:border-divider pb-2">
+                                    <Home className="w-4 h-4 text-brand" />
+                                    <h3 className="text-sm font-bold text-brand dark:text-brand-400">អាសយដ្ឋានសព្វថ្ងៃ</h3>
                                 </div>
                                 <SearchableSelect
                                     name="currProvince"
@@ -450,9 +450,9 @@ export default function EnrollmentPage() {
                                 />
 
                                 {/* Status */}
-                                <div className="md:col-span-2 lg:col-span-3 mt-4 mb-2 flex items-center gap-2 border-b border-gray-200 dark:border-gray-700 pb-2">
-                                    <Award className="w-4 h-4 text-orange-600" />
-                                    <h3 className="text-sm font-bold text-[#322a83] dark:text-[#4facfe]">ស្ថានភាព និងអាហារូបករណ៍</h3>
+                                <div className="md:col-span-2 lg:col-span-3 mt-4 mb-2 flex items-center gap-2 border-b border-divider dark:border-divider pb-2">
+                                    <Award className="w-4 h-4 text-warning" />
+                                    <h3 className="text-sm font-bold text-brand dark:text-brand-400">ស្ថានភាព និងអាហារូបករណ៍</h3>
                                 </div>
                                 <Select name="isNewStudent" label="សិស្សថ្មី" options={YES_NO} defaultValue="ទេ" />
                                 <Select name="isRepeater" label="សិស្សត្រួតថ្នាក់" options={YES_NO} defaultValue="ទេ" />
@@ -473,59 +473,59 @@ export default function EnrollmentPage() {
                                 <Select name="isScholarship" label="អាហារូបករណ៍" options={YES_NO} defaultValue="ទេ" />
 
                                 {/* Parents */}
-                                <div className="md:col-span-2 lg:col-span-3 mt-4 mb-2 flex items-center gap-2 border-b border-gray-200 dark:border-gray-700 pb-2">
-                                    <Users className="w-4 h-4 text-pink-600" />
-                                    <h3 className="text-sm font-bold text-[#322a83] dark:text-[#4facfe]">ព័ត៌មានឪពុកម្តាយ និងអាណាព្យាបាល</h3>
+                                <div className="md:col-span-2 lg:col-span-3 mt-4 mb-2 flex items-center gap-2 border-b border-divider dark:border-divider pb-2">
+                                    <Users className="w-4 h-4 text-brand" />
+                                    <h3 className="text-sm font-bold text-brand dark:text-brand-400">ព័ត៌មានឪពុកម្តាយ និងអាណាព្យាបាល</h3>
                                 </div>
-                                <div className="flex flex-col"><input name="fatherName" type="text" placeholder="ឈ្មោះឪពុក" className="border border-pink-100 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-pink-500 outline-none dark:bg-gray-700 dark:text-white" /></div>
-                                <div className="flex flex-col"><input name="fatherJob" type="text" placeholder="មុខរបរ" className="border border-pink-100 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-pink-500 outline-none dark:bg-gray-700 dark:text-white" /></div>
+                                <div className="flex flex-col"><input name="fatherName" type="text" placeholder="ឈ្មោះឪពុក" className="border border-divider dark:border-divider rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-focus-ring outline-none dark:bg-paper dark:text-white" /></div>
+                                <div className="flex flex-col"><input name="fatherJob" type="text" placeholder="មុខរបរ" className="border border-divider dark:border-divider rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-focus-ring outline-none dark:bg-paper dark:text-white" /></div>
                                 <div className="hidden lg:block"></div>
-                                <div className="flex flex-col"><input name="motherName" type="text" placeholder="ឈ្មោះម្តាយ" className="border border-pink-100 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-pink-500 outline-none dark:bg-gray-700 dark:text-white" /></div>
-                                <div className="flex flex-col"><input name="motherJob" type="text" placeholder="មុខរបរ" className="border border-pink-100 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-pink-500 outline-none dark:bg-gray-700 dark:text-white" /></div>
+                                <div className="flex flex-col"><input name="motherName" type="text" placeholder="ឈ្មោះម្តាយ" className="border border-divider dark:border-divider rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-focus-ring outline-none dark:bg-paper dark:text-white" /></div>
+                                <div className="flex flex-col"><input name="motherJob" type="text" placeholder="មុខរបរ" className="border border-divider dark:border-divider rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-focus-ring outline-none dark:bg-paper dark:text-white" /></div>
                                 <div className="hidden lg:block"></div>
-                                <div className="flex flex-col"><input name="guardianName" type="text" placeholder="ឈ្មោះអាណាព្យាបាល" className="border border-pink-200 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-pink-500 outline-none dark:bg-gray-700 dark:text-white" /></div>
-                                <div className="flex flex-col"><input name="guardianJob" type="text" placeholder="មុខរបរ" className="border border-pink-200 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-pink-500 outline-none dark:bg-gray-700 dark:text-white" /></div>
+                                <div className="flex flex-col"><input name="guardianName" type="text" placeholder="ឈ្មោះអាណាព្យាបាល" className="border border-divider dark:border-divider rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-focus-ring outline-none dark:bg-paper dark:text-white" /></div>
+                                <div className="flex flex-col"><input name="guardianJob" type="text" placeholder="មុខរបរ" className="border border-divider dark:border-divider rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-focus-ring outline-none dark:bg-paper dark:text-white" /></div>
 
                                 {/* Additional */}
-                                <div className="md:col-span-2 lg:col-span-3 mt-4 mb-2 flex items-center gap-2 border-b border-gray-200 dark:border-gray-700 pb-2">
-                                    <FileText className="w-4 h-4 text-purple-600" />
-                                    <h3 className="text-sm font-bold text-[#322a83] dark:text-[#4facfe]">ព័ត៌មានបន្ថែមផ្សេងៗ</h3>
+                                <div className="md:col-span-2 lg:col-span-3 mt-4 mb-2 flex items-center gap-2 border-b border-divider dark:border-divider pb-2">
+                                    <FileText className="w-4 h-4 text-brand" />
+                                    <h3 className="text-sm font-bold text-brand dark:text-brand-400">ព័ត៌មានបន្ថែមផ្សេងៗ</h3>
                                 </div>
                                 <div className="flex flex-col">
-                                    <label className="text-[13px] font-bold text-purple-700 dark:text-purple-400 mb-1">ជនជាតិដើមភាគតិច</label>
-                                    <input name="ethnicity" type="text" placeholder="ឧ. ព្នង, គួយ..." className="border border-purple-200 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none dark:bg-gray-700 dark:text-white" />
+                                    <label className="text-[13px] font-bold text-brand dark:text-brand-300 mb-1">ជនជាតិដើមភាគតិច</label>
+                                    <input name="ethnicity" type="text" placeholder="ឧ. ព្នង, គួយ..." className="border border-divider dark:border-divider rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-focus-ring outline-none dark:bg-paper dark:text-white" />
                                 </div>
                                 <div className="flex flex-col">
-                                    <label className="text-[13px] font-bold text-purple-700 dark:text-purple-400 mb-1">លក្ខណៈពិសេស</label>
-                                    <input name="specialFeatures" type="text" placeholder="លក្ខណៈផ្សេងៗ..." className="border border-purple-200 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none dark:bg-gray-700 dark:text-white" />
+                                    <label className="text-[13px] font-bold text-brand dark:text-brand-300 mb-1">លក្ខណៈពិសេស</label>
+                                    <input name="specialFeatures" type="text" placeholder="លក្ខណៈផ្សេងៗ..." className="border border-divider dark:border-divider rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-focus-ring outline-none dark:bg-paper dark:text-white" />
                                 </div>
                                 <div className="flex flex-col">
-                                    <label className="text-[13px] font-bold text-purple-700 dark:text-purple-400 mb-1">សេចក្តីផ្សេងៗ</label>
-                                    <input name="otherRemarks" type="text" placeholder="ព័ត៌មានបន្ថែមផ្សេងៗ..." className="border border-purple-200 dark:border-gray-600 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none dark:bg-gray-700 dark:text-white" />
+                                    <label className="text-[13px] font-bold text-brand dark:text-brand-300 mb-1">សេចក្តីផ្សេងៗ</label>
+                                    <input name="otherRemarks" type="text" placeholder="ព័ត៌មានបន្ថែមផ្សេងៗ..." className="border border-divider dark:border-divider rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-focus-ring outline-none dark:bg-paper dark:text-white" />
                                 </div>
                             </div>
                         </div>
 
                         {/* Notice Info */}
-                        <div className="mt-6 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-[12px] text-blue-800 dark:text-blue-200 flex items-start gap-2 border border-blue-100 dark:border-blue-800">
+                        <div className="mt-6 p-3 bg-brand-100 dark:bg-brand-900/40 rounded-lg text-[12px] text-brand-800 dark:text-brand-300 flex items-start gap-2 border border-divider dark:border-brand-800">
                             <span className="font-bold flex-shrink-0">i</span>
                             <div>
                                 <span>បញ្ជាក់: ចំពោះព័ត៌មានដែលមានសញ្ញា * ត្រូវតែបំពេញឱ្យបានគ្រប់ជ្រុងជ្រោយ។ អាយុនឹងត្រូវបានគណនាដោយស្វ័យប្រវត្តិ។</span><br/>
-                                <span className="font-bold text-red-600 dark:text-red-400 mt-1 block">ចំណាំ: ចំនួនសិស្សអតិបរមាក្នុងមួយថ្នាក់គឺកំណត់ត្រឹម ១០០នាក់ ប៉ុណ្ណោះ។</span>
+                                <span className="font-bold text-danger dark:text-danger mt-1 block">ចំណាំ: ចំនួនសិស្សអតិបរមាក្នុងមួយថ្នាក់គឺកំណត់ត្រឹម ១០០នាក់ ប៉ុណ្ណោះ។</span>
                             </div>
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="flex flex-wrap gap-3 mt-6 pt-6 border-t border-gray-100 dark:border-gray-700">
-                            <button disabled={isLoading} type="submit" className="bg-[#2ba041] hover:bg-[#238535] disabled:opacity-50 text-white px-8 py-2.5 rounded text-[13px] font-bold shadow-sm transition-colors flex items-center gap-2">
+                        <div className="flex flex-wrap gap-3 mt-6 pt-6 border-t border-divider dark:border-divider">
+                            <button disabled={isLoading} type="submit" className="bg-success hover:opacity-90 disabled:opacity-50 text-white px-8 py-2.5 rounded text-[13px] font-bold shadow-sm transition-colors flex items-center gap-2">
                                 {isLoading ? <span className="animate-pulse">កំពុងរក្សាទុក...</span> : <><Save className="w-4 h-4" /> រក្សាទុក</>}
                             </button>
                             
-                            <button type="button" onClick={downloadTemplate} className="bg-[#2653e7] hover:bg-[#1d40b8] text-white px-6 py-2.5 rounded text-[13px] font-bold flex items-center gap-2 shadow-sm transition-colors cursor-pointer">
+                            <button type="button" onClick={downloadTemplate} className="bg-brand hover:bg-brand-hover text-white px-6 py-2.5 rounded text-[13px] font-bold flex items-center gap-2 shadow-sm transition-colors cursor-pointer">
                                 <Download className="w-4 h-4" /> <span>ទាញយកគំរូ Excel</span>
                             </button>
 
-                            <label className="bg-[#df4b06] hover:bg-[#bd3f04] text-white px-6 py-2.5 rounded text-[13px] font-bold shadow-sm transition-colors cursor-pointer flex items-center gap-2">
+                            <label className="bg-warning hover:opacity-90 text-white px-6 py-2.5 rounded text-[13px] font-bold shadow-sm transition-colors cursor-pointer flex items-center gap-2">
                                 <FileSpreadsheet className="w-4 h-4" /> <span>នាំចូលឯកសារ Excel (.xlsx, .csv)</span>
                                 <input type="file" accept=".xlsx, .xls, .csv" className="hidden" onChange={handleExcelImport} />
                             </label>
@@ -537,24 +537,24 @@ export default function EnrollmentPage() {
             {/* Avatar Modal */}
             {showAvatarModal && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex justify-center items-end sm:items-center p-0 sm:p-4">
-                    <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-2xl w-full max-w-2xl mx-4">
-                        <div className="flex justify-between items-center border-b dark:border-gray-700 pb-4 mb-4">
-                            <h3 className="kh-moul text-indigo-800 dark:text-indigo-300 text-sm flex items-center gap-2">
+                    <div className="bg-bg-surface dark:bg-bg-surface p-6 rounded-xl shadow-lg w-full max-w-2xl mx-4">
+                        <div className="flex justify-between items-center border-b dark:border-divider pb-4 mb-4">
+                            <h3 className="kh-moul text-brand-800 dark:text-brand-300 text-sm flex items-center gap-2">
                                 <Smile className="w-5 h-5" /> ជ្រើសរើសរូបតុក្កតាតំណាង (Avatar)
                             </h3>
-                            <button onClick={() => setShowAvatarModal(false)} className="text-gray-500 hover:text-red-500 text-xl font-bold">&times;</button>
+                            <button onClick={() => setShowAvatarModal(false)} className="text-text-muted hover:text-danger text-xl font-bold">&times;</button>
                         </div>
-                        <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-2 max-h-[60vh] overflow-y-auto p-2 bg-gray-50 dark:bg-gray-900 rounded border dark:border-gray-700">
+                        <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-2 max-h-[60vh] overflow-y-auto p-2 bg-paper dark:bg-bg-app rounded border dark:border-divider">
                             {/* Example seeds */}
                             {[1,3,6,9,10,13,15,17,18,19,20,23,29,52,54,58,59,64,65,68,74,75,84].map(seed => (
-                                <div key={`notionists-${seed}`} onClick={() => selectAvatar(seed, 'notionists')} className="cursor-pointer border-2 border-transparent hover:border-indigo-500 rounded p-1 bg-white dark:bg-gray-800 transition">
+                                <div key={`notionists-${seed}`} onClick={() => selectAvatar(seed, 'notionists')} className="cursor-pointer border-2 border-transparent hover:border-brand rounded p-1 bg-bg-surface dark:bg-bg-surface transition">
                                     {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture */}
                                     <img src={`https://api.dicebear.com/7.x/notionists/svg?seed=${seed}`} alt="avatar" />
                                 </div>
                             ))}
                         </div>
                         <div className="mt-6 flex justify-end">
-                            <button onClick={() => setShowAvatarModal(false)} className="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white px-6 py-2 rounded font-bold text-sm hover:bg-gray-300 dark:hover:bg-gray-600 transition">បិទ</button>
+                            <button onClick={() => setShowAvatarModal(false)} className="bg-divider dark:bg-paper text-text-heading dark:text-white px-6 py-2 rounded font-bold text-sm hover:bg-paper dark:hover:bg-paper transition">បិទ</button>
                         </div>
                     </div>
                 </div>
@@ -563,12 +563,12 @@ export default function EnrollmentPage() {
             {/* URL Modal */}
             {showUrlModal && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex justify-center items-end sm:items-center p-0 sm:p-4">
-                    <div className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-2xl w-96 mx-4">
-                        <h3 className="kh-moul text-sm text-indigo-800 dark:text-indigo-300 mb-3">បញ្ចូល Link រូបភាព</h3>
-                        <input id="urlInput" type="text" className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm mb-4 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="https://drive.google.com/..." />
+                    <div className="bg-bg-surface dark:bg-bg-surface p-5 rounded-xl shadow-lg w-96 mx-4">
+                        <h3 className="kh-moul text-sm text-brand-800 dark:text-brand-300 mb-3">បញ្ចូល Link រូបភាព</h3>
+                        <input id="urlInput" type="text" className="w-full border border-divider dark:border-divider dark:bg-paper dark:text-white rounded px-3 py-2 text-sm mb-4 outline-none focus:ring-2 focus:ring-focus-ring" placeholder="https://drive.google.com/..." />
                         <div className="flex gap-2">
-                            <button onClick={() => applyUrlPhoto((document.getElementById('urlInput') as HTMLInputElement).value)} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded font-bold text-sm transition">យល់ព្រម</button>
-                            <button onClick={() => setShowUrlModal(false)} className="flex-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white text-gray-700 py-2 rounded font-bold text-sm transition">បោះបង់</button>
+                            <button onClick={() => applyUrlPhoto((document.getElementById('urlInput') as HTMLInputElement).value)} className="flex-1 bg-brand hover:bg-brand-hover text-white py-2 rounded font-bold text-sm transition">យល់ព្រម</button>
+                            <button onClick={() => setShowUrlModal(false)} className="flex-1 bg-paper hover:bg-divider dark:bg-paper dark:hover:bg-paper dark:text-white text-text-body py-2 rounded font-bold text-sm transition">បោះបង់</button>
                         </div>
                     </div>
                 </div>

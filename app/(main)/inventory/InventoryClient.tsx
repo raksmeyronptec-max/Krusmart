@@ -142,7 +142,7 @@ export default function InventoryClient({
     }
 
     return (
-        <div className="min-h-screen bg-[#f0f4f8] text-slate-800 font-battambang print:bg-white print:m-0 print:p-0">
+        <div className="min-h-screen bg-paper text-text-heading font-battambang print:bg-white print:m-0 print:p-0">
             <style jsx global>{`
                 .print-container { display: none; }
                 @media print {
@@ -166,43 +166,43 @@ export default function InventoryClient({
 
             <div className="no-print max-w-5xl mx-auto px-4 mt-8 pb-10">
                 <div className="flex justify-between items-center mb-6">
-                    <Link href="/dashboard" className="inline-flex items-center gap-2 text-[#0054a6] hover:text-blue-800 font-bold transition bg-white/50 px-4 py-2 rounded-xl backdrop-blur-sm shadow-sm w-fit">
+                    <Link href="/dashboard" className="inline-flex items-center gap-2 text-brand hover:text-brand-800 font-bold transition bg-white/50 px-4 py-2 rounded-xl backdrop-blur-sm shadow-sm w-fit">
                         <ArrowLeft className="w-5 h-5" /> ត្រឡប់ទៅទំព័រដើម
                     </Link>
                 </div>
 
-                <div className="bg-white/95 backdrop-blur border border-white/50 rounded-2xl p-6 md:p-8 shadow-lg mb-8">
+                <div className="bg-white/95 backdrop-blur border border-white/50 rounded-xl p-6 md:p-8 shadow-lg mb-8">
                     <div className="flex items-center gap-3 mb-6 border-b pb-4">
-                        <div className="p-3 bg-blue-100 rounded-full text-[#0054a6]">
+                        <div className="p-3 bg-brand-100 rounded-full text-brand">
                             <Package className="w-6 h-6" />
                         </div>
-                        <h1 className="font-moul text-xl md:text-2xl text-[#0054a6]">បញ្ជីសារពើភ័ណ្ឌថ្នាក់រៀន</h1>
+                        <h1 className="kh-moul text-xl md:text-2xl text-brand">បញ្ជីសារពើភ័ណ្ឌថ្នាក់រៀន</h1>
                     </div>
 
-                    <div className="bg-blue-50/50 border border-blue-100 p-5 rounded-2xl mb-8">
-                        <h3 className="font-bold text-gray-700 mb-4 flex items-center gap-2">
-                            {editId ? <Edit className="w-5 h-5 text-yellow-600" /> : <PlusCircle className="w-5 h-5 text-green-600" />}
+                    <div className="bg-brand-100/50 border border-divider p-5 rounded-xl mb-8">
+                        <h3 className="font-bold text-text-body mb-4 flex items-center gap-2">
+                            {editId ? <Edit className="w-5 h-5 text-warning" /> : <PlusCircle className="w-5 h-5 text-success" />}
                             {editId ? 'កែប្រែព័ត៌មានសម្ភារៈ' : 'បញ្ចូលសម្ភារៈថ្មី'}
                         </h3>
                         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                             <div className="md:col-span-5">
-                                <label className="block text-sm font-bold text-gray-600 mb-1">ឈ្មោះសម្ភារៈ <span className="text-red-500">*</span></label>
-                                <input type="text" value={name} onChange={e => setName(e.target.value)} required placeholder="-- ជ្រើសរើស ឬវាយបញ្ចូល --" className="w-full padding-3 rounded-xl border border-gray-200 outline-none bg-white p-2 font-bold focus:border-[#0054a6]" />
+                                <label className="block text-sm font-bold text-text-body mb-1">ឈ្មោះសម្ភារៈ <span className="text-danger">*</span></label>
+                                <input type="text" value={name} onChange={e => setName(e.target.value)} required placeholder="-- ជ្រើសរើស ឬវាយបញ្ចូល --" className="w-full padding-3 rounded-xl border border-divider outline-none bg-white p-2 font-bold focus:border-brand" />
                             </div>
                             <div className="md:col-span-2">
-                                <label className="block text-sm font-bold text-gray-600 mb-1">ចំនួន <span className="text-red-500">*</span></label>
-                                <input type="number" value={qty} onChange={e => setQty(e.target.value)} required min="1" placeholder="ឧ. 20" className="w-full padding-3 rounded-xl border border-gray-200 outline-none bg-white p-2 text-center font-bold focus:border-[#0054a6]" />
+                                <label className="block text-sm font-bold text-text-body mb-1">ចំនួន <span className="text-danger">*</span></label>
+                                <input type="number" value={qty} onChange={e => setQty(e.target.value)} required min="1" placeholder="ឧ. 20" className="w-full padding-3 rounded-xl border border-divider outline-none bg-white p-2 text-center font-bold focus:border-brand" />
                             </div>
                             <div className="md:col-span-3">
-                                <label className="block text-sm font-bold text-gray-600 mb-1">ផ្សេងៗ (ចំណាំ)</label>
-                                <input type="text" value={note} onChange={e => setNote(e.target.value)} placeholder="ស្ថានភាព (ល្អ, ខូច...)" className="w-full padding-3 rounded-xl border border-gray-200 outline-none bg-white p-2 focus:border-[#0054a6]" />
+                                <label className="block text-sm font-bold text-text-body mb-1">ផ្សេងៗ (ចំណាំ)</label>
+                                <input type="text" value={note} onChange={e => setNote(e.target.value)} placeholder="ស្ថានភាព (ល្អ, ខូច...)" className="w-full padding-3 rounded-xl border border-divider outline-none bg-white p-2 focus:border-brand" />
                             </div>
                             <div className="md:col-span-2 flex gap-2">
-                                <button type="submit" disabled={pending} className={`w-full text-white font-bold py-2.5 rounded-xl transition shadow flex justify-center items-center gap-2 disabled:opacity-60 ${editId ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-[#0054a6] hover:bg-blue-700'}`}>
+                                <button type="submit" disabled={pending} className={`w-full text-white font-bold py-2.5 rounded-xl transition shadow flex justify-center items-center gap-2 disabled:opacity-60 ${editId ? 'bg-warning hover:bg-warning' : 'bg-brand hover:bg-brand-hover'}`}>
                                     <Save className="w-4 h-4" /> យល់ព្រម
                                 </button>
                                 {editId && (
-                                    <button type="button" onClick={resetForm} className="bg-gray-400 hover:bg-gray-500 text-white font-bold py-2.5 px-3 rounded-xl transition shadow">
+                                    <button type="button" onClick={resetForm} className="bg-divider hover:bg-text-muted text-white font-bold py-2.5 px-3 rounded-xl transition shadow">
                                         <X className="w-4 h-4" />
                                     </button>
                                 )}
@@ -211,19 +211,19 @@ export default function InventoryClient({
                     </div>
 
                     <div className="flex justify-between items-center mb-4">
-                        <h3 className="font-bold text-gray-700 flex items-center gap-2">
-                            <List className="w-5 h-5 text-[#0054a6]" /> បញ្ជីទិន្នន័យសម្ភារៈ ({items.length})
+                        <h3 className="font-bold text-text-body flex items-center gap-2">
+                            <List className="w-5 h-5 text-brand" /> បញ្ជីទិន្នន័យសម្ភារៈ ({items.length})
                         </h3>
                         <div className="flex gap-2">
-                            <button onClick={printPage} className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl font-bold transition shadow-md flex items-center gap-2 text-sm">
+                            <button onClick={printPage} className="bg-danger hover:opacity-90 text-white px-5 py-2.5 rounded-xl font-bold transition shadow-md flex items-center gap-2 text-sm">
                                 <Printer className="w-4 h-4" /> បោះពុម្ព PDF
                             </button>
                         </div>
                     </div>
 
-                    <div className="overflow-x-auto rounded-xl border border-gray-200">
+                    <div className="overflow-x-auto rounded-xl border border-divider">
                         <table className="w-full text-sm text-left">
-                            <thead className="bg-gray-100 text-gray-700 font-bold border-b">
+                            <thead className="bg-paper text-text-body font-bold border-b">
                                 <tr>
                                     <th className="p-3 text-center w-16">ល.រ</th>
                                     <th className="p-3">ឈ្មោះសម្ភារៈ</th>
@@ -232,20 +232,20 @@ export default function InventoryClient({
                                     <th className="p-3 text-center w-32">គ្រប់គ្រង</th>
                                 </tr>
                             </thead>
-                            <tbody className="bg-white divide-y divide-gray-100">
+                            <tbody className="bg-white divide-y divide-divider">
                                 {items.length === 0 ? (
-                                    <tr><td colSpan={5} className="p-6 text-center text-gray-400 font-bold">មិនទាន់មានទិន្នន័យសម្ភារៈនៅឡើយទេ</td></tr>
+                                    <tr><td colSpan={5} className="p-6 text-center text-text-muted font-bold">មិនទាន់មានទិន្នន័យសម្ភារៈនៅឡើយទេ</td></tr>
                                 ) : (
                                     items.map((item, index) => (
-                                        <tr key={item.id} className="hover:bg-gray-50 transition">
-                                            <td className="p-3 text-center font-bold text-gray-600 border-r border-gray-100">{index + 1}</td>
-                                            <td className="p-3 font-bold text-[#0054a6]">{item.name}</td>
+                                        <tr key={item.id} className="hover:bg-paper transition">
+                                            <td className="p-3 text-center font-bold text-text-body border-r border-divider">{index + 1}</td>
+                                            <td className="p-3 font-bold text-brand">{item.name}</td>
                                             <td className="p-3 text-center font-bold">{item.qty}</td>
-                                            <td className="p-3 text-gray-600 text-sm">{item.note || '-'}</td>
+                                            <td className="p-3 text-text-body text-sm">{item.note || '-'}</td>
                                             <td className="p-3 text-center">
                                                 <div className="flex justify-center gap-2">
-                                                    <button onClick={() => editItem(item)} className="p-1.5 bg-yellow-100 text-yellow-600 rounded-lg hover:bg-yellow-200 transition" title="កែប្រែ"><Edit className="w-4 h-4" /></button>
-                                                    <button onClick={() => deleteItem(item.id)} className="p-1.5 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition" title="លុប"><Trash2 className="w-4 h-4" /></button>
+                                                    <button onClick={() => editItem(item)} className="p-1.5 bg-warning/10 text-warning rounded-lg hover:bg-warning/20 transition" title="កែប្រែ"><Edit className="w-4 h-4" /></button>
+                                                    <button onClick={() => deleteItem(item.id)} className="p-1.5 bg-danger/10 text-danger rounded-lg hover:bg-danger/20 transition" title="លុប"><Trash2 className="w-4 h-4" /></button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -260,17 +260,17 @@ export default function InventoryClient({
             {/* Print Area */}
             <div className="print-container bg-white w-[210mm] min-h-[297mm] mx-auto relative p-[15mm] text-black">
                 <div className="text-center w-full mb-6">
-                    <h3 className="font-moul text-[13pt] mb-1">ព្រះរាជាណាចក្រកម្ពុជា</h3>
-                    <h3 className="font-moul text-[13pt] mb-1">ជាតិ សាសនា ព្រះមហាក្សត្រ</h3>
+                    <h3 className="kh-moul text-[13pt] mb-1">ព្រះរាជាណាចក្រកម្ពុជា</h3>
+                    <h3 className="kh-moul text-[13pt] mb-1">ជាតិ សាសនា ព្រះមហាក្សត្រ</h3>
                 </div>
 
-                <div className="w-full text-[11pt] leading-relaxed mb-6 font-moul">
+                <div className="w-full text-[11pt] leading-relaxed mb-6 kh-moul">
                     <p>{settings?.management_unit_1 || "មន្ទីរអប់រំ យុវជន និងកីឡា..."}</p>
                     <p>{settings?.management_unit_2 || "ការិយាល័យអប់រំ យុវជន និងកីឡា..."}</p>
                     <p>{settings?.school_name || "សាលាបឋមសិក្សា..."}</p>
                 </div>
 
-                <h2 className="font-moul text-center text-[14pt] mb-2 uppercase">បញ្ជីសារពើភ័ណ្ឌថ្នាក់រៀន</h2>
+                <h2 className="kh-moul text-center text-[14pt] mb-2 uppercase">បញ្ជីសារពើភ័ណ្ឌថ្នាក់រៀន</h2>
                 <p className="text-center font-bold text-[11pt] mb-6">ប្រចាំថ្នាក់ទី {settings?.class_name || "១២ ក"} សិក្សាឆ្នាំ {settings?.academic_year || "២០២៤-២០២៥"}</p>
 
                 <table className="report-table">
@@ -295,14 +295,14 @@ export default function InventoryClient({
                 </table>
 
                 <div className="grid grid-cols-2 gap-8 mt-10">
-                    <div className="text-center font-moul leading-relaxed">
+                    <div className="text-center kh-moul leading-relaxed">
                         <div className="mb-4 invisible">.</div>
                         <p className="text-[11pt] mb-2">បានឃើញ និងឯកភាព</p>
                         <p className="uppercase text-[12pt]">{settings?.manager_role || "នាយកសាលា"}</p>
                         <div className="h-24"></div>
                         <p className="text-[11.5pt]">{settings?.manager_name || ""}</p>
                     </div>
-                    <div className="text-center font-moul leading-relaxed">
+                    <div className="text-center kh-moul leading-relaxed">
                         <p className="text-[11pt] mb-2">ថ្ងៃទី...........ខែ...........ឆ្នាំ...........</p>
                         <p className="text-[12pt]">គ្រូបន្ទុកថ្នាក់</p>
                         <div className="h-24"></div>

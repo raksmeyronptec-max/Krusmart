@@ -32,7 +32,7 @@ export function PortalHeader({
         </Link>
         <div>
           <h1 className="kh-moul text-lg text-white">{t(titleKey)}</h1>
-          {subtitle && <p className="text-xs font-medium text-emerald-100/90">{subtitle}</p>}
+          {subtitle && <p className="text-xs font-medium text-pp/90">{subtitle}</p>}
         </div>
       </div>
     </header>

@@ -296,19 +296,19 @@ export default function MonthlyAttendanceClient({ initialStudents}: { initialStu
                                 <div className="w-1/3 text-center flex flex-col items-center">
                                     {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture */}
                                     <img src="/logo.png" className="h-[75px] w-auto mb-[5px] object-contain" alt="Logo" onError={(e) => (e.currentTarget.src = '/logo.png')} />
-                                    <p className="font-moul text-[11pt] m-0 leading-[1.4]">{schoolName}</p>
+                                    <p className="kh-moul text-[11pt] m-0 leading-[1.4]">{schoolName}</p>
                                 </div>
                                 <div className="w-1/3"></div>
                                 <div className="w-1/3 text-center flex flex-col items-center">
-                                    <h3 className="font-moul text-[13.5pt] m-0 mb-[5px]">ព្រះរាជាណាចក្រកម្ពុជា</h3>
-                                    <h3 className="font-moul text-[12.5pt] m-0 mb-[5px]">ជាតិ សាសនា ព្រះមហាក្សត្រ</h3>
+                                    <h3 className="kh-moul text-[13.5pt] m-0 mb-[5px]">ព្រះរាជាណាចក្រកម្ពុជា</h3>
+                                    <h3 className="kh-moul text-[12.5pt] m-0 mb-[5px]">ជាតិ សាសនា ព្រះមហាក្សត្រ</h3>
                                     {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture */}
                                     <img src="https://lh3.googleusercontent.com/d/1BnGzoisjHxGRiMbsrP-rZ1F9zvSfdtAh" className="h-[18px] mt-[4px]" alt="Line" />
                                 </div>
                             </div>
                             
                             <div className="w-full text-center mb-[10px] mt-[5px]">
-                                <h2 className="font-moul text-[12.5pt] m-0 mb-[10px]">សម្រង់អវត្តមានប្រចាំខែ {KHMER_MONTH_LABELS[month]}</h2>
+                                <h2 className="kh-moul text-[12.5pt] m-0 mb-[10px]">សម្រង់អវត្តមានប្រចាំខែ {KHMER_MONTH_LABELS[month]}</h2>
                                 <div className="flex justify-between w-full text-[11pt] font-bold mb-[5px]">
                                     <span className="text-[11.5pt]">{classDisplay}</span>
                                     <span className="text-[11.5pt]">{academicYearText}</span>
@@ -399,15 +399,15 @@ export default function MonthlyAttendanceClient({ initialStudents}: { initialStu
                                 
                                 <div className="text-center mt-[35px] w-[75%]">
                                     <p className="text-[11.5pt] mb-[5px] font-bold">បានឃើញ និងឯកភាព</p>
-                                    <p className="font-moul text-[11.5pt]">{managerRole}</p>
+                                    <p className="kh-moul text-[11.5pt]">{managerRole}</p>
                                 </div>
                             </div>
 
                             <div className="w-[40%] text-center">
                                 <p className="m-0 text-[10.5pt]">{toKhmerLunarDate(today).lunarDateText}</p>
                                 <p className="m-0 text-[10.5pt]">ត្រូវនឹងថ្ងៃទី {toKhmerNumber(String(today.getDate()).padStart(2, '0'))} ខែ {KHMER_MONTH_LABELS[today.getMonth()]} ឆ្នាំ {toKhmerNumber(today.getFullYear())}</p>
-                                <p className="font-moul text-[11.5pt] mt-[2px] mb-[40px]">គ្រូបន្ទុកថ្នាក់</p>
-                                <p className="font-moul m-[45px] text-[11.5pt] relative left-[50px]">{teacherName}</p>
+                                <p className="kh-moul text-[11.5pt] mt-[2px] mb-[40px]">គ្រូបន្ទុកថ្នាក់</p>
+                                <p className="kh-moul m-[45px] text-[11.5pt] relative left-[50px]">{teacherName}</p>
                             </div>
                         </div>
                     )}
@@ -423,7 +423,6 @@ export default function MonthlyAttendanceClient({ initialStudents}: { initialStu
     return (
         <div className="min-h-screen bg-[#f0f2f5] font-hanuman">
             <style jsx global>{`
-                .font-moul { font-family: 'Moul', cursive; font-weight: normal; }
                 .font-hanuman { font-family: 'Hanuman', serif; }
                 @media print {
                     @page { size: A4 landscape; margin: 0; }
@@ -433,11 +432,11 @@ export default function MonthlyAttendanceClient({ initialStudents}: { initialStu
             `}</style>
 
             {/* Top Navigation Matches Original */}
-            <nav className="bg-[#0054a6] text-white p-3 md:p-4 shadow-lg sticky top-0 z-50 print-hide mb-5">
+            <nav className="bg-brand text-white p-3 md:p-4 shadow-lg sticky top-0 z-50 print-hide mb-5">
                 <div className="container mx-auto flex flex-col md:flex-row justify-between items-center gap-3">
                     <div className="flex items-center justify-between w-full md:w-auto gap-4">
                         <div className="flex items-center gap-2">
-                            <Link href="/dashboard" className="flex items-center gap-1 md:gap-2 hover:text-yellow-400 transition font-bold text-xs md:text-sm bg-white/10 px-2 py-1.5 rounded-lg">
+                            <Link href="/dashboard" className="flex items-center gap-1 md:gap-2 hover:text-gold transition font-bold text-xs md:text-sm bg-white/10 px-2 py-1.5 rounded-lg">
                                 <span className="hidden sm:inline">ទំព័រដើម</span>
                             </Link>
                             <h1 className="kh-moul text-sm md:text-lg hidden lg:block">ប្រព័ន្ធគ្រប់គ្រងវត្តមាន</h1>
@@ -449,17 +448,17 @@ export default function MonthlyAttendanceClient({ initialStudents}: { initialStu
                     </div>
 
                     <div className="flex gap-2 md:gap-4 text-xs md:text-sm font-bold items-center w-full md:w-auto overflow-x-auto no-scrollbar pb-1 md:pb-0 justify-start md:justify-end whitespace-nowrap">
-                        <Link href="/attendance/monthly" className="text-yellow-400 flex items-center gap-1 px-2 py-1 bg-white/10 rounded transition">វត្តមានបញ្ជី</Link>
-                        <Link href="/attendance/layout" className="hover:text-yellow-400 flex items-center gap-1 px-2 py-1 bg-white/5 rounded md:bg-transparent transition">វត្តមានប្លង់តុ</Link>
+                        <Link href="/attendance/monthly" className="text-gold flex items-center gap-1 px-2 py-1 bg-white/10 rounded transition">វត្តមានបញ្ជី</Link>
+                        <Link href="/attendance/layout" className="hover:text-gold flex items-center gap-1 px-2 py-1 bg-white/5 rounded md:bg-transparent transition">វត្តមានប្លង់តុ</Link>
                     </div>
                 </div>
             </nav>
 
-            <div className="bg-white p-4 rounded-lg shadow-[0_4px_15px_rgba(0,0,0,0.1)] max-w-[1300px] mx-auto mb-5 print-hide flex gap-4 items-center justify-center flex-wrap border border-gray-200">
+            <div className="bg-white p-4 rounded-lg shadow-[0_4px_15px_rgba(0,0,0,0.1)] max-w-[1300px] mx-auto mb-5 print-hide flex gap-4 items-center justify-center flex-wrap border border-divider">
                 <Link href="/dashboard" className="bg-[#475569] text-white px-5 py-2.5 rounded-md font-bold hover:opacity-90 transition">ត្រឡប់ក្រោយ</Link>
                 
                 <div className="flex items-center gap-2">
-                    <label className="font-bold text-gray-700" htmlFor="monthly-attendance-month">ខែ៖</label>
+                    <label className="font-bold text-text-body" htmlFor="monthly-attendance-month">ខែ៖</label>
                     <Select
                         id="monthly-attendance-month"
                         value={String(month)}
@@ -469,20 +468,20 @@ export default function MonthlyAttendanceClient({ initialStudents}: { initialStu
                 </div>
                 
                 <div className="flex items-center gap-2">
-                    <label className="font-bold text-gray-700">ឆ្នាំ៖</label>
-                    <input type="number" value={year} onChange={e => setYear(parseInt(e.target.value))} className="border border-gray-300 rounded p-2 outline-none focus:border-[#1a73e8] w-[80px]" />
+                    <label className="font-bold text-text-body">ឆ្នាំ៖</label>
+                    <input type="number" value={year} onChange={e => setYear(parseInt(e.target.value))} className="border border-divider rounded p-2 outline-none focus:border-[#1a73e8] w-[80px]" />
                 </div>
                 
                 <div className="flex items-center gap-2">
-                    <label className="font-bold text-gray-700">ចំនួនសិស្ស៖</label>
-                    <input type="number" value={studentCount} onChange={e => setStudentCount(parseInt(e.target.value))} max={100} min={1} className="border border-gray-300 rounded p-2 outline-none focus:border-[#1a73e8] w-[70px]" />
+                    <label className="font-bold text-text-body">ចំនួនសិស្ស៖</label>
+                    <input type="number" value={studentCount} onChange={e => setStudentCount(parseInt(e.target.value))} max={100} min={1} className="border border-divider rounded p-2 outline-none focus:border-[#1a73e8] w-[70px]" />
                 </div>
                 
-                <button onClick={exportExcel} className="bg-[#16a34a] text-white px-5 py-2.5 rounded-md font-bold hover:opacity-90 transition flex items-center gap-2">ទាញយក Excel</button>
-                <button onClick={downloadPDF} disabled={isDownloading} className="bg-[#d93025] text-white px-5 py-2.5 rounded-md font-bold hover:opacity-90 transition flex items-center gap-2">
+                <button onClick={exportExcel} className="bg-success text-white px-5 py-2.5 rounded-md font-bold hover:opacity-90 transition flex items-center gap-2">ទាញយក Excel</button>
+                <button onClick={downloadPDF} disabled={isDownloading} className="bg-danger text-white px-5 py-2.5 rounded-md font-bold hover:opacity-90 transition flex items-center gap-2">
                     {isDownloading ? 'កំពុងទាញយក...' : 'ទាញយក PDF'}
                 </button>
-                <button onClick={() => window.print()} className="bg-[#1a73e8] text-white px-5 py-2.5 rounded-md font-bold hover:opacity-90 transition flex items-center gap-2">បោះពុម្ព</button>
+                <button onClick={() => window.print()} className="bg-brand text-white px-5 py-2.5 rounded-md font-bold hover:opacity-90 transition flex items-center gap-2">បោះពុម្ព</button>
             </div>
 
             <div id="printArea" className="preview-scroll w-full max-w-[297mm] mx-auto">

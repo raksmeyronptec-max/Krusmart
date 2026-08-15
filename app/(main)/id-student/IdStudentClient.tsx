@@ -89,9 +89,8 @@ export default function IdStudentClient({ initialStudents, settings }: { initial
     const schoolLogoUrl = settings?.school_logo || ''
 
     return (
-        <div className="bg-[#f3f4f6] min-h-screen text-[#1f2937] font-battambang print:bg-white print:m-0 print:p-0">
+        <div className="bg-[var(--surface-muted)] min-h-screen text-[var(--text-heading)] font-battambang print:bg-bg-surface print:m-0 print:p-0">
             <style jsx global>{`
-                .font-moul { font-family: 'Moul', cursive; font-weight: normal; }
                 .font-battambang { font-family: 'Battambang', cursive; }
                 
                 .student-card {
@@ -153,17 +152,17 @@ export default function IdStudentClient({ initialStudents, settings }: { initial
                 }
             `}</style>
 
-            <nav className="bg-indigo-900 text-white p-4 shadow-lg sticky top-0 z-50 no-print">
+            <nav className="bg-brand-900 text-white p-4 shadow-lg sticky top-0 z-50 no-print">
                 <div className="container mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-3 w-full sm:w-auto">
-                        <Link href="/dashboard" className="hover:text-indigo-200 transition-colors p-2 -ml-2 rounded-full hover:bg-white/10">
+                        <Link href="/dashboard" className="hover:text-brand-300 transition-colors p-2 -ml-2 rounded-full hover:bg-bg-surface/10">
                             <ArrowLeft className="w-6 h-6" />
                         </Link>
-                        <h1 className="font-moul text-lg">បោះពុម្ពកាតសិស្ស</h1>
+                        <h1 className="kh-moul text-lg">បោះពុម្ពកាតសិស្ស</h1>
                     </div>
                     
                     <div className="flex flex-wrap items-center gap-2 sm:gap-4 w-full sm:w-auto text-sm">
-                        <div className="bg-white/10 flex items-center rounded overflow-hidden shadow-inner px-3 py-2 gap-2">
+                        <div className="bg-bg-surface/10 flex items-center rounded overflow-hidden shadow-inner px-3 py-2 gap-2">
                             <ImageIcon className="w-4 h-4" />
                             <span className="hidden sm:inline">ផ្ទៃខាងក្រោយ:</span>
                             <Select
@@ -176,24 +175,24 @@ export default function IdStudentClient({ initialStudents, settings }: { initial
                                     { value: '2_id-student.jpg', label: 'ទម្រង់ទី ២' },
                                     { value: '3_id_student.png', label: 'ទម្រង់ទី ៣ (Logo)' },
                                 ]}
-                                className="text-white [&>option]:text-gray-900"
+                                className="text-white [&>option]:text-text-heading"
                             />
                         </div>
 
-                        <div className="bg-white/10 flex items-center rounded overflow-hidden shadow-inner">
-                            <label className="cursor-pointer hover:bg-white/20 px-3 py-2 flex items-center gap-2 transition-colors border-r border-white/20">
+                        <div className="bg-bg-surface/10 flex items-center rounded overflow-hidden shadow-inner">
+                            <label className="cursor-pointer hover:bg-bg-surface/20 px-3 py-2 flex items-center gap-2 transition-colors border-r border-white/20">
                                 <PenTool className="w-4 h-4" /> <span className="hidden sm:inline">ហត្ថលេខា</span>
                                 <input type="file" accept="image/*" className="hidden" onChange={uploadSignature} />
                             </label>
-                            <button onClick={() => zoomSignature(0.1)} className="hover:bg-white/20 px-3 py-2 transition-colors flex items-center" title="ពង្រីក (Zoom In)">
+                            <button onClick={() => zoomSignature(0.1)} className="hover:bg-bg-surface/20 px-3 py-2 transition-colors flex items-center" title="ពង្រីក (Zoom In)">
                                 <ZoomIn className="w-4 h-4" />
                             </button>
-                            <button onClick={() => zoomSignature(-0.1)} className="hover:bg-white/20 px-3 py-2 transition-colors flex items-center" title="បង្រួម (Zoom Out)">
+                            <button onClick={() => zoomSignature(-0.1)} className="hover:bg-bg-surface/20 px-3 py-2 transition-colors flex items-center" title="បង្រួម (Zoom Out)">
                                 <ZoomOut className="w-4 h-4" />
                             </button>
                         </div>
 
-                        <button onClick={() => window.print()} className="bg-blue-600 hover:bg-blue-700 px-5 py-2 rounded font-bold shadow-md flex items-center gap-2 transition-colors ml-auto text-white">
+                        <button onClick={() => window.print()} className="bg-brand hover:bg-brand-hover px-5 py-2 rounded font-bold shadow-md flex items-center gap-2 transition-colors ml-auto text-white">
                             <Printer className="w-4 h-4" /> បោះពុម្ព
                         </button>
                     </div>
@@ -202,7 +201,7 @@ export default function IdStudentClient({ initialStudents, settings }: { initial
 
             <div className="container mx-auto max-w-5xl my-8 print:my-0 print:max-w-none">
                 {initialStudents.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-16 text-gray-500 bg-white rounded-xl shadow-sm no-print">
+                    <div className="flex flex-col items-center justify-center py-16 text-text-muted bg-bg-surface rounded-xl shadow-sm no-print">
                         <Inbox className="w-16 h-16 mb-4 opacity-50" />
                         <p className="text-lg font-bold">មិនមានទិន្នន័យសិស្សសម្រាប់បោះពុម្ពទេ</p>
                     </div>
@@ -225,33 +224,33 @@ export default function IdStudentClient({ initialStudents, settings }: { initial
                                         <img src={schoolLogoUrl} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[75%] h-auto opacity-20 z-[1] object-contain" alt="Watermark" />
                                     )}
                                     
-                                    <div className="absolute text-center font-moul leading-relaxed px-2 flex items-center justify-center" style={{ color: '#ff0000', width: '70%', left: '22%', top: '16%', height: '5%', fontSize: '11px', zIndex: 10 }}>
+                                    <div className="absolute text-center kh-moul leading-relaxed px-2 flex items-center justify-center" style={{ color: '#ff0000', width: '70%', left: '22%', top: '16%', height: '5%', fontSize: '11px', zIndex: 10 }}>
                                         {managementUnit1}
                                     </div>
 
-                                    <div className="absolute w-full text-center font-moul" style={{ color: '#0000ff', top: '24%', fontSize: '18px', zIndex: 10 }}>
+                                    <div className="absolute w-full text-center kh-moul" style={{ color: '#0000ff', top: '24%', fontSize: '18px', zIndex: 10 }}>
                                         ប័ណ្ណសម្គាល់ខ្លួនសិស្ស
                                     </div>
 
-                                    <div className="absolute w-full text-center text-black font-moul" style={{ top: '30%', fontSize: '14px', zIndex: 10 }}>
+                                    <div className="absolute w-full text-center text-black kh-moul" style={{ top: '30%', fontSize: '14px', zIndex: 10 }}>
                                         ឆ្នាំសិក្សា {academicYear}
                                     </div>
                                     
-                                    <div className="absolute w-full text-center font-moul" style={{ color: '#0000ff', top: '34%', fontSize: '15px', zIndex: 10 }}>
+                                    <div className="absolute w-full text-center kh-moul" style={{ color: '#0000ff', top: '34%', fontSize: '15px', zIndex: 10 }}>
                                         {className}
                                     </div>
 
                                     <div className="absolute flex flex-col" style={{ width: '88%', left: '6%', top: '39%', fontSize: '13px', gap: '4px', zIndex: 10 }}>
                                         <div className="flex items-end">
                                             <span className="text-black whitespace-nowrap" style={{ marginBottom: '1px' }}>គោត្តនាម និងនាម:</span>
-                                            <span className="font-moul ml-2 flex-grow truncate text-center py-2" style={{ color: '#ff0000', fontSize: '14px', marginTop: '-8px', marginBottom: '-8px' }}>{student.name_kh || student.full_name || '-'}</span>
+                                            <span className="kh-moul ml-2 flex-grow truncate text-center py-2" style={{ color: '#ff0000', fontSize: '14px', marginTop: '-8px', marginBottom: '-8px' }}>{student.name_kh || student.full_name || '-'}</span>
                                             <span className="text-black whitespace-nowrap ml-2" style={{ marginBottom: '1px' }}>ភេទ</span>
-                                            <span className="font-moul ml-2 text-center" style={{ color: '#ff0000', width: '40px', fontSize: '14px' }}>{student.gender || '-'}</span>
+                                            <span className="kh-moul ml-2 text-center" style={{ color: '#ff0000', width: '40px', fontSize: '14px' }}>{student.gender || '-'}</span>
                                         </div>
 
                                         <div className="flex items-end">
                                             <span className="text-black whitespace-nowrap" style={{ marginBottom: '1px' }}>ថ្ងៃខែឆ្នាំកំណើត :</span>
-                                            <span className="font-moul ml-4 flex-grow" style={{ color: '#ff0000', fontSize: '14px' }}>{dob}</span>
+                                            <span className="kh-moul ml-4 flex-grow" style={{ color: '#ff0000', fontSize: '14px' }}>{dob}</span>
                                         </div>
 
                                         <div className="flex items-start" style={{ marginTop: '2px' }}>
@@ -261,20 +260,20 @@ export default function IdStudentClient({ initialStudents, settings }: { initial
 
                                         <div className="flex items-end" style={{ marginTop: '2px' }}>
                                             <span className="text-black whitespace-nowrap" style={{ marginBottom: '1px' }}>ឈ្មោះឪពុក</span>
-                                            <span className="font-moul ml-2 truncate text-center py-2" style={{ color: '#ff0000', width: '30%', fontSize: '13px', marginTop: '-8px', marginBottom: '-8px' }}>{father}</span>
+                                            <span className="kh-moul ml-2 truncate text-center py-2" style={{ color: '#ff0000', width: '30%', fontSize: '13px', marginTop: '-8px', marginBottom: '-8px' }}>{father}</span>
                                             <span className="text-black whitespace-nowrap ml-2" style={{ marginBottom: '1px' }}>ឈ្មោះម្តាយ</span>
-                                            <span className="font-moul ml-2 flex-grow truncate text-center py-2" style={{ color: '#ff0000', fontSize: '13px', marginTop: '-8px', marginBottom: '-8px' }}>{mother}</span>
+                                            <span className="kh-moul ml-2 flex-grow truncate text-center py-2" style={{ color: '#ff0000', fontSize: '13px', marginTop: '-8px', marginBottom: '-8px' }}>{mother}</span>
                                         </div>
 
                                         <div className="flex items-end" style={{ marginTop: '2px' }}>
                                             <span className="text-black whitespace-nowrap" style={{ marginBottom: '1px' }}>លេខទូរសព្ទអាណាព្យាបាល :</span>
-                                            <span className="font-moul ml-4 flex-grow" style={{ color: '#ff0000', fontSize: '13px' }}>{phone}</span>
+                                            <span className="kh-moul ml-4 flex-grow" style={{ color: '#ff0000', fontSize: '13px' }}>{phone}</span>
                                         </div>
                                     </div>
 
                                     <div className="absolute w-full flex justify-center items-end" style={{ top: '63%', fontSize: '12px', zIndex: 10 }}>
                                         <span className="text-black" style={{ marginBottom: '2px' }}>ជាសិស្ស</span>
-                                        <span className="font-moul ml-3 truncate py-2" style={{ color: '#0000ff', maxWidth: '64%', fontSize: '12px', marginTop: '-8px', marginBottom: '-8px' }}>{schoolName}</span>
+                                        <span className="kh-moul ml-3 truncate py-2" style={{ color: '#0000ff', maxWidth: '64%', fontSize: '12px', marginTop: '-8px', marginBottom: '-8px' }}>{schoolName}</span>
                                     </div>
 
                                     <div className="absolute bg-white flex items-center justify-center overflow-hidden z-20" style={{ left: '9%', bottom: '8%', width: '25mm', height: '33mm', border: '1.5px solid #0000ff' }}>
@@ -293,7 +292,7 @@ export default function IdStudentClient({ initialStudents, settings }: { initial
                                         <div className="text-black text-center mb-1" style={{ fontSize: '11px' }}>
                                             {provinceDate} ថ្ងៃទី១១ ខែមីនា ឆ្នាំ២០២៦
                                         </div>
-                                        <div className="text-black font-moul text-center z-20 mt-1" style={{ fontSize: '14px' }}>
+                                        <div className="text-black kh-moul text-center z-20 mt-1" style={{ fontSize: '14px' }}>
                                             {director}
                                         </div>
                                         <div className="w-full flex items-center justify-center mt-1 z-10 pointer-events-none relative" style={{ height: '15mm' }}>

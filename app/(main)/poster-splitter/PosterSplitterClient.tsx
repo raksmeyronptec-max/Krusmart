@@ -203,7 +203,7 @@ export default function PosterSplitterClient() {
         min={min}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="min-h-11 w-full rounded-xl border border-gray-200 bg-white p-2.5 text-center font-bold outline-none transition focus:border-[#0054a6] dark:border-gray-700 dark:bg-gray-900"
+        className="min-h-11 w-full rounded-xl border border-divider bg-white p-2.5 text-center font-bold outline-none transition focus:border-brand dark:border-divider dark:bg-bg-app"
       />
     </div>
   )
@@ -212,18 +212,18 @@ export default function PosterSplitterClient() {
     <div className="mx-auto max-w-5xl px-4 py-6 md:py-8">
       <Link
         href="/decorations"
-        className="mb-6 inline-flex min-h-11 items-center gap-2 rounded-xl bg-white/60 px-4 py-2 font-bold text-[#0054a6] shadow-sm backdrop-blur-sm transition hover:text-blue-800"
+        className="mb-6 inline-flex min-h-11 items-center gap-2 rounded-xl bg-white/60 px-4 py-2 font-bold text-brand shadow-sm backdrop-blur-sm transition hover:text-brand-800"
       >
         <ArrowLeft className="h-5 w-5" aria-hidden="true" /> ត្រឡប់ទៅសម្ភារៈតុបតែង
       </Link>
 
-      <div className="rounded-2xl border border-divider bg-bg-surface p-6 shadow-lg md:p-8">
+      <div className="rounded-xl border border-divider bg-bg-surface p-6 shadow-lg md:p-8">
         <div className="mb-6 flex items-center gap-3 border-b border-divider pb-4">
-          <div className="rounded-full bg-violet-100 p-3 text-violet-700 dark:bg-violet-950 dark:text-violet-300">
+          <div className="rounded-full bg-brand-100 p-3 text-brand dark:bg-brand-900 dark:text-brand-300">
             <Scissors className="h-6 w-6" aria-hidden="true" />
           </div>
           <div>
-            <h1 className="kh-moul text-xl text-[#0054a6] md:text-2xl dark:text-blue-300">បំបែកសន្លឹក Poster</h1>
+            <h1 className="kh-moul text-xl text-brand md:text-2xl dark:text-brand-300">បំបែកសន្លឹក Poster</h1>
             <p className="mt-1 text-sm text-text-muted">
               បំបែករូបភាពធំមួយ ទៅជាសន្លឹកតូចៗ ដើម្បីបោះពុម្ពដោយម៉ាស៊ីនធម្មតា
             </p>
@@ -243,10 +243,10 @@ export default function PosterSplitterClient() {
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            className="flex min-h-11 w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50/50 px-4 py-8 text-center transition hover:border-blue-400 hover:bg-blue-50 dark:border-gray-700 dark:bg-gray-800/50"
+            className="flex min-h-11 w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-divider bg-brand-100/50 px-4 py-8 text-center transition hover:border-brand-400 hover:bg-brand-100 dark:border-divider dark:bg-bg-surface/50"
           >
-            <ImageUp className="h-8 w-8 text-[#0054a6]" aria-hidden="true" />
-            <span className="font-bold text-[#0054a6] dark:text-blue-300">
+            <ImageUp className="h-8 w-8 text-brand" aria-hidden="true" />
+            <span className="font-bold text-brand dark:text-brand-300">
               {fileName || 'ជ្រើសរើសរូបភាព Poster'}
             </span>
             <span className="text-xs text-text-muted">
@@ -256,9 +256,9 @@ export default function PosterSplitterClient() {
         </div>
 
         {preview && (
-          <div className="mb-6 overflow-hidden rounded-2xl border border-divider">
+          <div className="mb-6 overflow-hidden rounded-xl border border-divider">
             {/* eslint-disable-next-line @next/next/no-img-element -- a local object URL for a user-picked file; next/image cannot optimise a blob and would only add a network hop */}
-            <img src={preview} alt="Poster preview" className="max-h-64 w-full object-contain bg-gray-50 dark:bg-gray-900" />
+            <img src={preview} alt="Poster preview" className="max-h-64 w-full object-contain bg-paper dark:bg-bg-app" />
           </div>
         )}
 
@@ -293,12 +293,12 @@ export default function PosterSplitterClient() {
           {numberField('poster-overlap', 'ចន្លោះត្រួតគ្នា', overlap, setOverlap, 'មម')}
         </div>
 
-        <label className="mb-6 flex min-h-11 cursor-pointer items-center gap-3 rounded-xl bg-gray-50 px-4 dark:bg-gray-800">
+        <label className="mb-6 flex min-h-11 cursor-pointer items-center gap-3 rounded-xl bg-paper px-4 dark:bg-bg-surface">
           <input
             type="checkbox"
             checked={includeGuide}
             onChange={(e) => setIncludeGuide(e.target.checked)}
-            className="h-4 w-4 accent-[#0054a6]"
+            className="h-4 w-4 accent-brand"
           />
           <span className="text-sm font-bold text-text-body">បន្ថែមទំព័រណែនាំការតម្រៀប (Layout Guide)</span>
         </label>
@@ -307,8 +307,8 @@ export default function PosterSplitterClient() {
         <div
           className={`mb-6 flex items-center gap-3 rounded-xl px-4 py-3 text-sm ${
             plan.error
-              ? 'bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-300'
-              : 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300'
+              ? 'bg-danger/10 text-danger dark:bg-danger/10 dark:text-danger'
+              : 'bg-success/10 text-success dark:bg-success/10 dark:text-success'
           }`}
         >
           <Grid3x3 className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -325,7 +325,7 @@ export default function PosterSplitterClient() {
         <button
           onClick={generate}
           disabled={!image || busy || !!plan.error}
-          className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#0054a6] px-6 py-3 font-bold text-white shadow-md transition hover:bg-blue-700 disabled:opacity-50"
+          className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand px-6 py-3 font-bold text-white shadow-md transition hover:bg-brand-hover disabled:opacity-50"
         >
           {busy ? (
             <><Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> កំពុងបង្កើត... {toKhmerNumber(progress)}%</>
@@ -335,8 +335,8 @@ export default function PosterSplitterClient() {
         </button>
 
         {busy && (
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-            <div className="h-full bg-[#0054a6] transition-all" style={{ width: `${progress}%` }} />
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-divider dark:bg-paper">
+            <div className="h-full bg-brand transition-all" style={{ width: `${progress}%` }} />
           </div>
         )}
       </div>

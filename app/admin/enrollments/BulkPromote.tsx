@@ -44,12 +44,12 @@ export default function BulkPromote({ classes }: { classes: ClassOption[] }) {
   const label = (c: ClassOption) => `${c.academicYearName} › ${c.name}`
 
   return (
-    <section className="space-y-4 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+    <section className="space-y-4 rounded-xl border border-divider bg-white p-6 shadow-sm">
       <div className="flex items-center gap-2">
-        <ArrowUpCircle className="h-5 w-5 text-blue-600" aria-hidden="true" />
-        <h2 className="font-bold text-gray-800">ឡើងថ្នាក់ជាក្រុម (ចុងឆ្នាំសិក្សា)</h2>
+        <ArrowUpCircle className="h-5 w-5 text-brand" aria-hidden="true" />
+        <h2 className="font-bold text-text-heading">ឡើងថ្នាក់ជាក្រុម (ចុងឆ្នាំសិក្សា)</h2>
       </div>
-      <p className="text-sm text-gray-500">
+      <p className="text-sm text-text-muted">
         ផ្លាស់ប្តូរសិស្សសកម្មទាំងអស់ពីថ្នាក់មួយ ទៅថ្នាក់មួយទៀត។ ប្រវត្តិចាស់នៅតែរក្សាទុក។
       </p>
 
@@ -58,8 +58,8 @@ export default function BulkPromote({ classes }: { classes: ClassOption[] }) {
           role="status"
           className={`rounded-xl border p-4 text-sm font-bold ${
             message.ok
-              ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-              : 'border-rose-200 bg-rose-50 text-rose-800'
+              ? 'border-success/30 bg-success/10 text-success'
+              : 'border-danger/30 bg-danger/10 text-danger'
           }`}
         >
           {message.text}
@@ -89,26 +89,26 @@ export default function BulkPromote({ classes }: { classes: ClassOption[] }) {
         <button
           onClick={() => { setConfirming(true); setMessage(null) }}
           disabled={!fromId || !toId}
-          className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-xl bg-brand px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-40"
         >
           ឡើងថ្នាក់ជាក្រុម
         </button>
       ) : (
-        <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
-          <p className="text-sm font-bold text-amber-900">
+        <div className="space-y-3 rounded-xl border border-warning/30 bg-warning/10 p-4">
+          <p className="text-sm font-bold text-warning">
             តើអ្នកពិតជាចង់ផ្លាស់ប្តូរសិស្សទាំងអស់ពី {from && label(from)} ទៅ {to && label(to)} មែនទេ?
           </p>
           <div className="flex gap-3">
             <button
               onClick={() => setConfirming(false)}
-              className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700"
+              className="rounded-xl border border-divider bg-white px-4 py-2 text-sm font-bold text-text-body"
             >
               បោះបង់
             </button>
             <button
               onClick={run}
               disabled={pending}
-              className="flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+              className="flex items-center gap-2 rounded-xl bg-warning px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
             >
               {pending && <Loader2 className="h-4 w-4 animate-spin" />}
               បញ្ជាក់

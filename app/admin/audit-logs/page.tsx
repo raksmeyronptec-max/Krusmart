@@ -21,25 +21,25 @@ export default async function AdminAuditLogsPage() {
       {logs.length === 0 ? (
         <EmptyState message="មិនទាន់មានកំណត់ហេតុទេ" />
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-xl border border-divider bg-white shadow-sm">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left">
+            <thead className="bg-paper text-left">
               <tr>
-                <th className="p-4 font-bold text-gray-700">ពេលវេលា</th>
-                <th className="p-4 font-bold text-gray-700">សកម្មភាព</th>
-                <th className="p-4 font-bold text-gray-700">ប្រភេទ</th>
-                <th className="p-4 font-bold text-gray-700">លេខសម្គាល់</th>
+                <th className="p-4 font-bold text-text-body">ពេលវេលា</th>
+                <th className="p-4 font-bold text-text-body">សកម្មភាព</th>
+                <th className="p-4 font-bold text-text-body">ប្រភេទ</th>
+                <th className="p-4 font-bold text-text-body">លេខសម្គាល់</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-divider">
               {logs.map((log) => (
-                <tr key={log.id} className="hover:bg-slate-50">
-                  <td className="whitespace-nowrap p-4 text-xs text-gray-500">
+                <tr key={log.id} className="hover:bg-paper">
+                  <td className="whitespace-nowrap p-4 text-xs text-text-muted">
                     {new Date(log.created_at).toLocaleString('km-KH')}
                   </td>
-                  <td className="p-4 font-medium text-gray-800">{log.action}</td>
-                  <td className="p-4 text-gray-600">{log.entity_type}</td>
-                  <td className="p-4 font-mono text-xs text-gray-400">{log.entity_id ?? '—'}</td>
+                  <td className="p-4 font-medium text-text-heading">{log.action}</td>
+                  <td className="p-4 text-text-body">{log.entity_type}</td>
+                  <td className="p-4 font-mono text-xs text-text-muted">{log.entity_id ?? '—'}</td>
                 </tr>
               ))}
             </tbody>

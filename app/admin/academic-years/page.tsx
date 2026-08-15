@@ -20,25 +20,25 @@ export default async function AdminAcademicYearsPage() {
       {scope.years.length === 0 ? (
         <EmptyState message="មិនទាន់មានឆ្នាំសិក្សាទេ" />
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-xl border border-divider bg-white shadow-sm">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left">
+            <thead className="bg-paper text-left">
               <tr>
-                <th className="p-4 font-bold text-gray-700">ឆ្នាំសិក្សា</th>
-                <th className="p-4 font-bold text-gray-700">ចាប់ផ្តើម</th>
-                <th className="p-4 font-bold text-gray-700">បញ្ចប់</th>
-                <th className="p-4 font-bold text-gray-700">ស្ថានភាព</th>
+                <th className="p-4 font-bold text-text-body">ឆ្នាំសិក្សា</th>
+                <th className="p-4 font-bold text-text-body">ចាប់ផ្តើម</th>
+                <th className="p-4 font-bold text-text-body">បញ្ចប់</th>
+                <th className="p-4 font-bold text-text-body">ស្ថានភាព</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-divider">
               {scope.years.map((y) => (
-                <tr key={y.id} className="hover:bg-slate-50">
-                  <td className="p-4 font-bold text-gray-800">{y.name}</td>
-                  <td className="p-4 text-gray-600">{y.start_date || '—'}</td>
-                  <td className="p-4 text-gray-600">{y.end_date || '—'}</td>
+                <tr key={y.id} className="hover:bg-paper">
+                  <td className="p-4 font-bold text-text-heading">{y.name}</td>
+                  <td className="p-4 text-text-body">{y.start_date || '—'}</td>
+                  <td className="p-4 text-text-body">{y.end_date || '—'}</td>
                   <td className="p-4">
                     {y.is_active
-                      ? <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">កំពុងប្រើប្រាស់</span>
+                      ? <span className="rounded-full bg-success/10 px-3 py-1 text-xs font-bold text-success">កំពុងប្រើប្រាស់</span>
                       : <ActivateYearButton yearId={y.id} />}
                   </td>
                 </tr>

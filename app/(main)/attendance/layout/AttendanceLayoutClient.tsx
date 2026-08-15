@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
+import { Badge, ATTENDANCE_BADGE } from '@/components/ui/feedback/Badge'
 import { ArrowLeft, Calendar, Layout, LayoutTemplate, Save, User, X, Users, Search, Loader2, Check, Home } from 'lucide-react'
 import Link from 'next/link'
 import { saveAttendance, getAttendanceForDate } from './actions'
@@ -158,10 +159,13 @@ export default function AttendanceLayoutClient({ initialStudents}: { initialStud
         
         if (student) {
             const status = attendanceHistory[date]?.[studentId]?.status || 'P'
+            // Status is carried by the seat's fill and border; the student's
+            // name stays on the heading colour so it is legible at 11px and does
+            // not depend on colour vision to be read.
             const statusColors: Record<string, string> = {
-                'P': 'bg-[#dcfce7] border-[#22c55e] text-[#166534]',
-                'L': 'bg-[#fef9c3] border-[#eab308] text-[#854d0e]',
-                'A': 'bg-[#fee2e2] border-[#ef4444] text-[#991b1b]'
+                'P': 'bg-success/15 border-success text-text-heading',
+                'L': 'bg-warning/15 border-warning text-text-heading',
+                'A': 'bg-danger/15 border-danger text-text-heading'
             }
 
             return (
@@ -170,7 +174,7 @@ export default function AttendanceLayoutClient({ initialStudents}: { initialStud
                     
                     {isEditMode && (
                         <div onClick={(e) => removeStudentFromSeat(e, seatId)} 
-                             className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 w-5 h-5 flex items-center justify-center text-xs z-20 hover:bg-red-600 transition-colors">
+                             className="absolute -top-2 -right-2 bg-danger text-white rounded-full p-0.5 w-5 h-5 flex items-center justify-center text-xs z-20 hover:opacity-90 transition-colors">
                             <X className="w-3 h-3" />
                         </div>
                     )}
@@ -182,7 +186,7 @@ export default function AttendanceLayoutClient({ initialStudents}: { initialStud
 
         return (
             <div key={seatId} onClick={() => handleSeatClick(seatId)} 
-                 className={`seat empty ${extraClasses} border-2 border-dashed border-gray-300 bg-gray-50 text-gray-400 rounded-xl flex items-center justify-center text-xs font-bold cursor-pointer transition-colors hover:border-blue-500 hover:bg-blue-50 hover:text-blue-500`}>
+                 className={`seat empty ${extraClasses} border-2 border-dashed border-divider bg-paper text-text-muted rounded-xl flex items-center justify-center text-xs font-bold cursor-pointer transition-colors hover:border-brand-500 hover:bg-brand-100 hover:text-brand-500`}>
                 <span>+</span>
             </div>
         )
@@ -211,8 +215,8 @@ export default function AttendanceLayoutClient({ initialStudents}: { initialStud
 
             return (
                 <div key={i} className="relative w-[300px] h-[300px] shrink-0 flex items-center justify-center mx-auto">
-                    <div className="w-[84px] h-[84px] rounded-full border-2 border-gray-400 bg-gray-50 flex items-center justify-center z-10 shadow-sm relative">
-                        <span className="font-bold text-gray-600 text-sm">តុទី {i}</span>
+                    <div className="w-[84px] h-[84px] rounded-full border-2 border-divider bg-paper flex items-center justify-center z-10 shadow-sm relative">
+                        <span className="font-bold text-text-body text-sm">តុទី {i}</span>
                     </div>
                     {seatsHtml}
                 </div>
@@ -220,8 +224,8 @@ export default function AttendanceLayoutClient({ initialStudents}: { initialStud
         }
 
         return (
-            <div key={i} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col gap-3 flex-1 min-w-[150px]">
-                <div className="text-center text-xs font-bold text-gray-400 uppercase tracking-wider">តុទី {i}</div>
+            <div key={i} className="bg-bg-surface rounded-xl p-4 shadow-sm border border-divider flex flex-col gap-3 flex-1 min-w-[150px]">
+                <div className="text-center text-xs font-bold text-text-muted uppercase tracking-wider">តុទី {i}</div>
                 <div className="flex gap-3 h-24 relative">
                     {Array.from({ length: config.seatsPerTable }).map((_, idx) => renderSeat(i, idx + 1))}
                 </div>
@@ -276,49 +280,49 @@ export default function AttendanceLayoutClient({ initialStudents}: { initialStud
     }
 
     return (
-        <div className={`min-h-screen bg-[#f8fafc] pb-[100px] ${isEditMode ? 'bg-gray-100' : ''}`}>
+        <div className={`min-h-screen bg-paper pb-[100px] ${isEditMode ? 'bg-paper' : ''}`}>
             {/* Top Navigation Matches Original */}
-            <nav className="bg-[#0054a6] text-white p-3 md:p-4 shadow-lg sticky top-0 z-50 print:hidden">
+            <nav className="bg-brand text-white p-3 md:p-4 shadow-lg sticky top-0 z-50 print:hidden">
                 <div className="container mx-auto flex flex-col md:flex-row justify-between items-center gap-3">
                     <div className="flex items-center justify-between w-full md:w-auto gap-4">
                         <div className="flex items-center gap-2">
-                            <Link href="/dashboard" className="flex items-center gap-1 md:gap-2 hover:text-yellow-400 transition font-bold text-xs md:text-sm bg-white/10 px-2 py-1.5 rounded-lg">
+                            <Link href="/dashboard" className="flex items-center gap-1 md:gap-2 hover:text-gold transition font-bold text-xs md:text-sm bg-bg-surface/10 px-2 py-1.5 rounded-lg">
                                 <Home className="w-4 h-4" /> <span className="hidden sm:inline">ទំព័រដើម</span>
                             </Link>
                             <h1 className="kh-moul text-sm md:text-lg hidden lg:block">ប្រព័ន្ធគ្រប់គ្រងវត្តមាន</h1>
                         </div>
                         
-                        <div className="flex items-center bg-white/10 rounded px-2 py-1 border border-white/20 shrink-0">
+                        <div className="flex items-center bg-bg-surface/10 rounded px-2 py-1 border border-white/20 shrink-0">
                             <span className="text-xs md:text-sm font-bold text-white px-2">ថ្នាក់ទី ១២ក</span>
                         </div>
                     </div>
 
                     <div className="flex gap-2 md:gap-4 text-xs md:text-sm font-bold items-center w-full md:w-auto overflow-x-auto no-scrollbar pb-1 md:pb-0 justify-start md:justify-end whitespace-nowrap">
-                        <Link href="/attendance/monthly" className="hover:text-yellow-400 flex items-center gap-1 px-2 py-1 bg-white/5 rounded md:bg-transparent transition"><Calendar className="w-4 h-4" /> វត្តមានបញ្ជី</Link>
-                        <Link href="/attendance/layout" className="text-yellow-400 flex items-center gap-1 px-2 py-1 bg-white/10 rounded transition"><Layout className="w-4 h-4" /> វត្តមានប្លង់តុ</Link>
+                        <Link href="/attendance/monthly" className="hover:text-gold flex items-center gap-1 px-2 py-1 bg-bg-surface/5 rounded md:bg-transparent transition"><Calendar className="w-4 h-4" /> វត្តមានបញ្ជី</Link>
+                        <Link href="/attendance/layout" className="text-gold flex items-center gap-1 px-2 py-1 bg-bg-surface/10 rounded transition"><Layout className="w-4 h-4" /> វត្តមានប្លង់តុ</Link>
                     </div>
                 </div>
             </nav>
 
-            <div className="bg-white p-4 shadow-sm border-b border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4 z-40 relative">
-                <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-lg border w-full md:w-auto justify-between">
-                    <label className="font-bold text-xs md:text-sm text-gray-700 whitespace-nowrap">កាលបរិច្ឆេទ៖</label>
-                    <input type="date" value={date} onChange={handleDateChange} className="border p-1.5 md:p-2 rounded font-bold text-[#0054a6] outline-none text-sm w-32 md:w-auto cursor-pointer" />
+            <div className="bg-bg-surface p-4 shadow-sm border-b border-divider flex flex-col md:flex-row justify-between items-center gap-4 z-40 relative">
+                <div className="flex items-center gap-2 bg-paper p-2 rounded-lg border w-full md:w-auto justify-between">
+                    <label className="font-bold text-xs md:text-sm text-text-body whitespace-nowrap">កាលបរិច្ឆេទ៖</label>
+                    <input type="date" value={date} onChange={handleDateChange} className="border p-1.5 md:p-2 rounded font-bold text-brand outline-none text-sm w-32 md:w-auto cursor-pointer" />
                 </div>
 
                     <div className="flex gap-3 w-full md:w-auto items-center">
-                        <div className="flex bg-gray-100 rounded-lg p-1 mr-2 hidden md:flex">
-                            <button onClick={() => setViewMode('2d')} className={`px-3 py-1.5 text-sm font-bold rounded-md transition ${viewMode === '2d' ? 'bg-white shadow-sm text-[#0054a6]' : 'text-gray-500 hover:text-gray-700'}`}>2D</button>
-                            <button onClick={() => { setViewMode('3d'); setIsEditMode(false); }} className={`px-3 py-1.5 text-sm font-bold rounded-md transition ${viewMode === '3d' ? 'bg-white shadow-sm text-[#0054a6]' : 'text-gray-500 hover:text-gray-700'}`}>3D</button>
+                        <div className="flex bg-paper rounded-lg p-1 mr-2 hidden md:flex">
+                            <button onClick={() => setViewMode('2d')} className={`px-3 py-1.5 text-sm font-bold rounded-md transition ${viewMode === '2d' ? 'bg-bg-surface shadow-sm text-brand' : 'text-text-muted hover:text-text-body'}`}>2D</button>
+                            <button onClick={() => { setViewMode('3d'); setIsEditMode(false); }} className={`px-3 py-1.5 text-sm font-bold rounded-md transition ${viewMode === '3d' ? 'bg-bg-surface shadow-sm text-brand' : 'text-text-muted hover:text-text-body'}`}>3D</button>
                         </div>
                         {!isEditMode ? (
-                            <button onClick={toggleMode} className="flex-1 md:flex-none px-4 py-2 rounded-lg font-bold text-white bg-[#7c3aed] hover:bg-[#6d28d9] transition flex items-center justify-center gap-2 shadow-sm">
+                            <button onClick={toggleMode} className="flex-1 md:flex-none px-4 py-2 rounded-lg font-bold text-white bg-brand-600 hover:bg-brand-700 transition flex items-center justify-center gap-2 shadow-sm">
                                 <Layout className="w-4 h-4" />
                                 <span>កែសម្រួលប្លង់</span>
                             </button>
                         ) : (
-                            <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-xl overflow-x-auto max-w-full">
-                                <button onClick={toggleMode} className="px-3 py-1.5 text-gray-700 hover:bg-white rounded-lg transition flex items-center gap-1 text-sm font-bold whitespace-nowrap">
+                            <div className="flex items-center gap-2 bg-paper p-1 rounded-xl overflow-x-auto max-w-full">
+                                <button onClick={toggleMode} className="px-3 py-1.5 text-text-body hover:bg-bg-surface rounded-lg transition flex items-center gap-1 text-sm font-bold whitespace-nowrap">
                                     <ArrowLeft className="w-4 h-4" /> ត្រឡប់
                                 </button>
                                 
@@ -339,13 +343,13 @@ export default function AttendanceLayoutClient({ initialStudents}: { initialStud
                                     wrapperClassName="w-[180px]"
                                 />
 
-                                <div className="flex items-center gap-1 bg-white px-2 py-1.5 rounded-lg border border-gray-200">
-                                    <span className="text-xs text-gray-500 whitespace-nowrap">តុ:</span>
+                                <div className="flex items-center gap-1 bg-bg-surface px-2 py-1.5 rounded-lg border border-divider">
+                                    <span className="text-xs text-text-muted whitespace-nowrap">តុ:</span>
                                     <input type="number" value={config.totalTables} onChange={e => handleConfigChange('totalTables', parseInt(e.target.value) || 0)} className="w-10 text-center font-bold outline-none text-sm bg-transparent" />
                                 </div>
                                 
-                                <div className="flex items-center gap-1 bg-white px-2 py-1.5 rounded-lg border border-gray-200">
-                                    <span className="text-xs text-gray-500 whitespace-nowrap">ជួរ:</span>
+                                <div className="flex items-center gap-1 bg-bg-surface px-2 py-1.5 rounded-lg border border-divider">
+                                    <span className="text-xs text-text-muted whitespace-nowrap">ជួរ:</span>
                                     <input type="number" value={config.gridCols} onChange={e => handleConfigChange('gridCols', parseInt(e.target.value) || 1)} className="w-10 text-center font-bold outline-none text-sm bg-transparent" />
                                 </div>
 
@@ -362,7 +366,7 @@ export default function AttendanceLayoutClient({ initialStudents}: { initialStud
                             </div>
                         )}
 
-                        <button onClick={isEditMode ? toggleMode : handleSave} className={`flex-1 md:flex-none px-4 py-2 rounded-lg font-bold text-white transition flex items-center justify-center gap-2 shadow-sm ${isEditMode ? 'bg-[#22c55e] hover:bg-[#16a34a]' : 'bg-[#0054a6] hover:bg-[#1e40af]'}`}>
+                        <button onClick={isEditMode ? toggleMode : handleSave} className={`flex-1 md:flex-none px-4 py-2 rounded-lg font-bold text-white transition flex items-center justify-center gap-2 shadow-sm ${isEditMode ? 'bg-[var(--color-success)] hover:bg-[var(--color-success)]' : 'bg-brand hover:bg-[var(--brand)]'}`}>
                             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : (isEditMode ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />)}
                             {isEditMode ? 'បញ្ចប់' : 'រក្សាទុក'}
                         </button>
@@ -374,18 +378,18 @@ export default function AttendanceLayoutClient({ initialStudents}: { initialStud
                 {/* Teacher Desk & Blackboard */}
                 <div className="flex flex-col mb-10 gap-4 min-w-[600px]">
                     <div className="flex justify-start">
-                        <div className="bg-white px-6 py-3 rounded-2xl shadow-sm border-b-4 border-blue-600 flex items-center gap-3 transform -translate-y-2">
-                            <User className="w-5 h-5 text-gray-800" />
-                            <span className="font-bold text-gray-800 text-lg kh-moul">តុគ្រូបង្រៀន</span>
+                        <div className="bg-bg-surface px-6 py-3 rounded-xl shadow-sm border-b-4 border-brand flex items-center gap-3 transform -translate-y-2">
+                            <User className="w-5 h-5 text-text-heading" />
+                            <span className="font-bold text-text-heading text-lg kh-moul">តុគ្រូបង្រៀន</span>
                         </div>
                     </div>
                     
                     <div className="flex justify-center w-full">
-                        <div className="w-full max-w-4xl bg-[#1e293b] rounded-full h-10 flex items-center justify-center shadow-lg border-2 border-[#451a03] relative">
-                            <span className="text-slate-400 font-sans tracking-[0.2em] text-xs font-bold uppercase">ក្ដារខៀន</span>
+                        <div className="w-full max-w-4xl bg-[var(--text-heading)] rounded-full h-10 flex items-center justify-center shadow-lg border-2 border-warning/40 relative">
+                            <span className="text-text-muted font-sans tracking-[0.2em] text-xs font-bold uppercase">ក្ដារខៀន</span>
                         </div>
                     </div>
-                    <div className="w-full border-b-2 border-dashed border-gray-200 mt-2"></div>
+                    <div className="w-full border-b-2 border-dashed border-divider mt-2"></div>
                 </div>
 
                 {renderGrid()}
@@ -393,58 +397,51 @@ export default function AttendanceLayoutClient({ initialStudents}: { initialStud
 
             {/* Legend */}
             {!isEditMode && (
-                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white rounded-full px-6 py-3 flex items-center gap-6 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)] border border-gray-100 z-30">
-                    <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                        <span className="text-xs font-bold text-gray-600">វត្តមាន</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                        <span className="text-xs font-bold text-gray-600">ច្បាប់</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                        <span className="text-xs font-bold text-gray-600">អវត្តមាន</span>
-                    </div>
+                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-bg-surface rounded-full px-6 py-3 flex items-center gap-6 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)] border border-divider z-30">
+                    {(['P', 'L', 'A'] as const).map((code) => (
+                        <Badge key={code} variant={ATTENDANCE_BADGE[code].variant} size="sm">
+                            {ATTENDANCE_BADGE[code].label}
+                        </Badge>
+                    ))}
                 </div>
             )}
 
             {/* Student Select Modal */}
             {showModal && (
                 <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-sm" onClick={() => setShowModal(false)}>
-                    <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-h-[90vh] sm:max-h-[85vh] overflow-y-auto max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}>
-                        <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                            <h3 className="font-bold text-gray-800 flex items-center gap-2">
-                                <Users className="w-5 h-5 text-blue-600" />
+                    <div className="bg-bg-surface rounded-t-2xl sm:rounded-xl w-full max-h-[90vh] sm:max-h-[85vh] overflow-y-auto max-w-md shadow-lg overflow-hidden flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}>
+                        <div className="p-4 border-b border-divider flex justify-between items-center bg-paper">
+                            <h3 className="font-bold text-text-heading flex items-center gap-2">
+                                <Users className="w-5 h-5 text-brand" />
                                 ជ្រើសរើសសិស្ស
                             </h3>
-                            <button onClick={() => setShowModal(false)} className="p-1 hover:bg-gray-200 rounded-full"><X className="w-5 h-5 text-gray-500" /></button>
+                            <button onClick={() => setShowModal(false)} className="p-1 hover:bg-divider rounded-full"><X className="w-5 h-5 text-text-muted" /></button>
                         </div>
                         
-                        <div className="p-3 border-b border-gray-100">
+                        <div className="p-3 border-b border-divider">
                             <div className="relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="ស្វែងរកឈ្មោះ ឬអត្តលេខសិស្ស..." className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 text-sm" />
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                                <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="ស្វែងរកឈ្មោះ ឬអត្តលេខសិស្ស..." className="w-full pl-9 pr-4 py-2 border border-divider rounded-xl focus:outline-none focus:border-brand-500 text-sm" />
                             </div>
                         </div>
 
                         <div className="overflow-y-auto p-2 flex-1 space-y-1 min-h-[200px]">
                             {students.length === 0 ? (
                                 <div className="p-6 text-center flex flex-col items-center gap-3">
-                                    <User className="w-10 h-10 text-gray-300" />
-                                    <div className="text-gray-500 text-sm">មិនទាន់មានទិន្នន័យសិស្សទេ!</div>
+                                    <User className="w-10 h-10 text-text-muted" />
+                                    <div className="text-text-muted text-sm">មិនទាន់មានទិន្នន័យសិស្សទេ!</div>
                                 </div>
                             ) : filteredStudents.length === 0 ? (
-                                <div className="p-4 text-center text-gray-400 text-sm">សិស្សទាំងអស់ត្រូវបានចាត់ចូលតុរួចរាល់ ឬរកមិនឃើញសិស្ស។</div>
+                                <div className="p-4 text-center text-text-muted text-sm">សិស្សទាំងអស់ត្រូវបានចាត់ចូលតុរួចរាល់ ឬរកមិនឃើញសិស្ស។</div>
                             ) : (
                                 filteredStudents.map(s => (
-                                    <div key={s.id || s.uid || ''} onClick={() => assignStudent(s.id || s.uid || '')} className="p-3 hover:bg-blue-50 cursor-pointer rounded-xl flex items-center gap-3 border border-transparent hover:border-blue-100 transition">
-                                        <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0">
+                                    <div key={s.id || s.uid || ''} onClick={() => assignStudent(s.id || s.uid || '')} className="p-3 hover:bg-brand-100 cursor-pointer rounded-xl flex items-center gap-3 border border-transparent hover:border-divider transition">
+                                        <div className="w-8 h-8 rounded-full bg-brand-100 text-brand flex items-center justify-center font-bold text-xs shrink-0">
                                             {s.gender === 'ស្រី' ? 'ស' : 'ប'}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <div className="font-bold text-gray-700 text-sm truncate">{s.name_kh || s.full_name || 'គ្មានឈ្មោះ'}</div>
-                                            <div className="text-xs text-gray-400">ID: {s.student_id || s.student_code || s.id.slice(0, 4)}</div>
+                                            <div className="font-bold text-text-body text-sm truncate">{s.name_kh || s.full_name || 'គ្មានឈ្មោះ'}</div>
+                                            <div className="text-xs text-text-muted">ID: {s.student_id || s.student_code || s.id.slice(0, 4)}</div>
                                         </div>
                                     </div>
                                 ))

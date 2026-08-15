@@ -23,20 +23,20 @@ export default async function AdminSettingsPage() {
 
   return (
     <AdminPage title="ការកំណត់សាលា" description="ព័ត៌មានទូទៅរបស់សាលារៀន">
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-        <dl className="divide-y divide-gray-100">
+      <div className="overflow-hidden rounded-xl border border-divider bg-white shadow-sm">
+        <dl className="divide-y divide-divider">
           {rows.map((r) => (
             <div key={r.label} className="flex flex-col gap-1 p-4 sm:flex-row sm:items-center">
-              <dt className="w-56 shrink-0 text-sm font-bold text-gray-600">{r.label}</dt>
-              <dd className="text-sm text-gray-800">
-                {r.value || <span className="text-gray-400">មិនទាន់កំណត់</span>}
+              <dt className="w-56 shrink-0 text-sm font-bold text-text-body">{r.label}</dt>
+              <dd className="text-sm text-text-heading">
+                {r.value || <span className="text-text-muted">មិនទាន់កំណត់</span>}
               </dd>
             </div>
           ))}
         </dl>
       </div>
 
-      <p className="text-center text-xs text-gray-400">
+      <p className="text-center text-xs text-text-muted">
         ការកែសម្រួលព័ត៌មានសាលា នឹងត្រូវបានបន្ថែមនៅដំណាក់កាលបន្ទាប់។
       </p>
     </AdminPage>

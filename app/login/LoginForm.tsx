@@ -162,7 +162,7 @@ export default function LoginForm() {
   }
 
   return (
-    <div className="w-full max-w-md md:max-w-4xl mx-auto shadow-2xl transition-all duration-500 my-8 bg-white dark:bg-gray-800 p-6 md:p-8 lg:p-10 border border-white dark:border-gray-700 rounded-2xl md:rounded-3xl card-entrance">
+    <div className="w-full max-w-md md:max-w-4xl mx-auto shadow-2xl transition-all duration-500 my-8 bg-white dark:bg-brand-900 p-6 md:p-8 lg:p-10 border border-white dark:border-divider rounded-2xl md:rounded-3xl card-entrance">
       <div className="flex flex-col md:flex-row gap-8 md:gap-12 items-center">
         
         {/* Left Side: Logo & Title */}
@@ -176,24 +176,24 @@ export default function LoginForm() {
           <h2 className="kh-moul text-xl md:text-2xl lg:text-3xl animate-gradient-text mb-2">
             ចូលគណនីប្រព័ន្ធ
           </h2>
-          <p className="text-gray-500 dark:text-gray-400 text-sm md:text-base mt-2 mb-4 md:mb-8">
+          <p className="text-text-muted dark:text-text-muted text-sm md:text-base mt-2 mb-4 md:mb-8">
             ប្រព័ន្ធជំនួយការគ្រូបង្រៀនឌីជីថល KruSmart
           </p>
         </div>
 
         {/* Right Side: Form */}
-        <div className="w-full md:w-1/2 order-2 bg-gray-50 dark:bg-gray-900/50 p-5 md:p-6 lg:p-8 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-inner relative">
+        <div className="w-full md:w-1/2 order-2 bg-paper dark:bg-brand-950/50 p-5 md:p-6 lg:p-8 rounded-2xl border border-divider dark:border-divider shadow-inner relative">
           
           {mode === 'verify' ? (
               <div className="flex flex-col items-center animate-in fade-in zoom-in duration-300">
-                  <div className="w-16 h-16 bg-blue-50 dark:bg-gray-700/50 rounded-full flex items-center justify-center mx-auto mb-4 text-[#0054a6] dark:text-[#4facfe] shadow-inner">
+                  <div className="w-16 h-16 bg-brand-100 dark:bg-brand-800/50 rounded-full flex items-center justify-center mx-auto mb-4 text-brand dark:text-brand-400 shadow-inner">
                       <ShieldCheck className="w-8 h-8" />
                   </div>
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2 kh-moul">ផ្ទៀងផ្ទាត់គណនី</h3>
-                  <p className="text-gray-500 dark:text-gray-400 text-sm mb-6 text-center">សូមបញ្ចូលលេខកូដ ៨ ខ្ទង់ ដែលប្រព័ន្ធបានផ្ញើទៅ<br/><b>{email}</b></p>
+                  <h3 className="text-xl font-bold text-text-heading dark:text-white mb-2 kh-moul">ផ្ទៀងផ្ទាត់គណនី</h3>
+                  <p className="text-text-muted dark:text-text-muted text-sm mb-6 text-center">សូមបញ្ចូលលេខកូដ ៨ ខ្ទង់ ដែលប្រព័ន្ធបានផ្ញើទៅ<br/><b>{email}</b></p>
                   
                   {successMsg && (
-                      <div className="text-green-700 text-xs md:text-sm bg-green-50 p-3 rounded-md border border-green-200 mb-4 text-center break-words font-medium">
+                      <div className="text-success text-xs md:text-sm bg-success/10 p-3 rounded-md border border-success/30 mb-4 text-center break-words font-medium">
                           {successMsg}
                       </div>
                   )}
@@ -208,13 +208,13 @@ export default function LoginForm() {
                               value={digit}
                               onChange={(e) => handleOtpChange(index, e.target.value)}
                               onKeyDown={(e) => handleOtpKeyDown(index, e)}
-                              className="w-8 h-10 md:w-10 md:h-12 text-center text-lg md:text-xl font-bold border-2 border-gray-200 dark:border-gray-600 rounded-md focus:border-[#0054a6] focus:ring-2 focus:ring-blue-200 dark:bg-gray-700 dark:text-white outline-none transition-all"
+                              className="w-8 h-10 md:w-10 md:h-12 text-center text-lg md:text-xl font-bold border-2 border-divider dark:border-divider rounded-md focus:border-brand focus:ring-2 focus:ring-focus-ring/30 dark:bg-brand-800 dark:text-white outline-none transition-all"
                           />
                       ))}
                   </div>
 
                   {error && (
-                    <div className="text-red-700 text-sm bg-red-50 p-3 rounded-md border border-red-200 mb-4 text-center break-words font-medium w-full">
+                    <div className="text-danger text-sm bg-danger/10 p-3 rounded-md border border-danger/30 mb-4 text-center break-words font-medium w-full">
                       {error}
                     </div>
                   )}
@@ -222,32 +222,32 @@ export default function LoginForm() {
                   <button 
                       onClick={handleVerifyOtp}
                       disabled={isLoading || otp.join('').length !== 8}
-                      className="btn-pulse w-full bg-[#0054a6] disabled:bg-blue-300 hover:bg-blue-800 text-white font-bold py-3 rounded-xl transition shadow-md flex justify-center items-center gap-2"
+                      className="btn-pulse w-full bg-brand disabled:opacity-50 hover:bg-brand-800 text-white font-bold py-3 rounded-xl transition shadow-md flex justify-center items-center gap-2"
                   >
                       {isLoading ? <Loader2 className="animate-spin w-5 h-5" /> : 'បញ្ជាក់លេខកូដ (Verify)'}
                   </button>
                   
                   <div className="flex justify-between w-full mt-5">
-                      <button onClick={() => {setMode('login'); setSuccessMsg(null);}} className="text-sm text-gray-500 hover:text-[#0054a6] transition font-medium">
+                      <button onClick={() => {setMode('login'); setSuccessMsg(null);}} className="text-sm text-text-muted hover:text-brand transition font-medium">
                           ត្រឡប់ទៅការចូលគណនី
                       </button>
-                      <button onClick={handleResendOtp} disabled={isLoading} className="text-sm text-[#0054a6] dark:text-[#4facfe] hover:underline transition font-bold disabled:opacity-50">
+                      <button onClick={handleResendOtp} disabled={isLoading} className="text-sm text-brand dark:text-brand-400 hover:underline transition font-bold disabled:opacity-50">
                           ផ្ញើកូដម្ដងទៀត (Resend)
                       </button>
                   </div>
               </div>
           ) : (
             <>
-              <div className="flex border-b border-gray-200 dark:border-gray-700 mb-6" role="tablist">
+              <div className="flex border-b border-divider dark:border-divider mb-6" role="tablist">
                   <button 
                       onClick={() => {setMode('login'); setError(null); setSuccessMsg(null);}}
-                      className={`flex-1 py-3 text-sm font-medium transition ${mode === 'login' ? 'border-b-2 border-[#0054a6] text-[#0054a6] dark:border-[#4facfe] dark:text-[#4facfe]' : 'text-gray-500 hover:bg-blue-50 dark:hover:bg-gray-700'}`}
+                      className={`flex-1 py-3 text-sm font-medium transition ${mode === 'login' ? 'border-b-2 border-brand text-brand dark:border-brand-400 dark:text-brand-400' : 'text-text-muted hover:bg-brand-100 dark:hover:bg-paper'}`}
                   >
                       ចូលគណនី
                   </button>
                   <button 
                       onClick={() => {setMode('register'); setError(null); setSuccessMsg(null);}}
-                      className={`flex-1 py-3 text-sm font-medium transition ${mode === 'register' ? 'border-b-2 border-[#0054a6] text-[#0054a6] dark:border-[#4facfe] dark:text-[#4facfe]' : 'text-gray-500 hover:bg-blue-50 dark:hover:bg-gray-700'}`}
+                      className={`flex-1 py-3 text-sm font-medium transition ${mode === 'register' ? 'border-b-2 border-brand text-brand dark:border-brand-400 dark:text-brand-400' : 'text-text-muted hover:bg-brand-100 dark:hover:bg-paper'}`}
                   >
                       បង្កើតថ្មី
                   </button>
@@ -255,7 +255,7 @@ export default function LoginForm() {
 
               <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
-                      <label htmlFor="email" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">អុីមែល (Email)</label>
+                      <label htmlFor="email" className="block text-sm font-semibold text-text-body dark:text-text-body mb-1">អុីមែល (Email)</label>
                       <div className="relative">
                           <input 
                               type="email" 
@@ -264,15 +264,15 @@ export default function LoginForm() {
                               value={email}
                               onChange={handleEmailChange}
                               placeholder="name@school.edu.kh" 
-                              className={`w-full pl-4 pr-10 py-3 border rounded-lg focus:ring-2 outline-none transition bg-white dark:bg-gray-800 dark:text-white shadow-sm ${email.length > 0 ? (isValidEmail ? 'border-green-500 focus:ring-green-500' : 'border-red-400 focus:ring-red-400') : 'border-gray-300 dark:border-gray-600 focus:ring-[#0054a6]'}`}
+                              className={`w-full pl-4 pr-10 py-3 border rounded-lg focus:ring-2 outline-none transition bg-white dark:bg-brand-900 dark:text-white shadow-sm ${email.length > 0 ? (isValidEmail ? 'border-success focus:ring-success' : 'border-danger focus:ring-danger') : 'border-divider dark:border-divider focus:ring-focus-ring'}`}
                           />
-                          {email.length > 0 && isValidEmail && <CheckCircle className="absolute right-3 top-3.5 w-5 h-5 text-green-500" />}
-                          {email.length > 0 && !isValidEmail && <XCircle className="absolute right-3 top-3.5 w-5 h-5 text-red-500" />}
+                          {email.length > 0 && isValidEmail && <CheckCircle className="absolute right-3 top-3.5 w-5 h-5 text-success" />}
+                          {email.length > 0 && !isValidEmail && <XCircle className="absolute right-3 top-3.5 w-5 h-5 text-danger" />}
                       </div>
                   </div>
 
                   <div>
-                      <label htmlFor="password" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">ពាក្យសម្ងាត់ (Password)</label>
+                      <label htmlFor="password" className="block text-sm font-semibold text-text-body dark:text-text-body mb-1">ពាក្យសម្ងាត់ (Password)</label>
                       <div className="relative">
                           <input 
                               type={showPassword ? 'text' : 'password'} 
@@ -282,12 +282,12 @@ export default function LoginForm() {
                               onChange={handlePasswordChange}
                               placeholder="••••••••" 
                               minLength={6}
-                              className="w-full pl-4 pr-24 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#0054a6] outline-none transition bg-white dark:bg-gray-800 dark:text-white shadow-sm"
+                              className="w-full pl-4 pr-24 py-3 border border-divider dark:border-divider rounded-lg focus:ring-2 focus:ring-focus-ring outline-none transition bg-white dark:bg-brand-900 dark:text-white shadow-sm"
                           />
                           <button 
                               type="button" 
                               onClick={() => setShowPassword(!showPassword)}
-                              className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500 hover:text-[#0054a6] dark:hover:text-[#4facfe] transition z-10 text-sm font-medium"
+                              className="absolute inset-y-0 right-0 px-3 flex items-center text-text-muted hover:text-brand dark:hover:text-brand-400 transition z-10 text-sm font-medium"
                           >
                               {showPassword ? (
                                 <span className="flex items-center gap-1.5"><EyeOff className="w-4 h-4" /> លាក់</span>
@@ -300,7 +300,7 @@ export default function LoginForm() {
 
                   {mode === 'register' && (
                       <div>
-                        <label htmlFor="confirm-password" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">ផ្ទៀងផ្ទាត់ពាក្យសម្ងាត់ (Confirm)</label>
+                        <label htmlFor="confirm-password" className="block text-sm font-semibold text-text-body dark:text-text-body mb-1">ផ្ទៀងផ្ទាត់ពាក្យសម្ងាត់ (Confirm)</label>
                         <div className="relative">
                             <input 
                                 type={showConfirmPassword ? 'text' : 'password'} 
@@ -310,12 +310,12 @@ export default function LoginForm() {
                                 onChange={handleConfirmPasswordChange}
                                 placeholder="••••••••" 
                                 minLength={6}
-                                className="w-full pl-4 pr-24 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#0054a6] outline-none transition bg-white dark:bg-gray-800 dark:text-white shadow-sm"
+                                className="w-full pl-4 pr-24 py-3 border border-divider dark:border-divider rounded-lg focus:ring-2 focus:ring-focus-ring outline-none transition bg-white dark:bg-brand-900 dark:text-white shadow-sm"
                             />
                             <button 
                                 type="button" 
                                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500 hover:text-[#0054a6] dark:hover:text-[#4facfe] transition z-10 text-sm font-medium"
+                                className="absolute inset-y-0 right-0 px-3 flex items-center text-text-muted hover:text-brand dark:hover:text-brand-400 transition z-10 text-sm font-medium"
                             >
                                 {showConfirmPassword ? (
                                   <span className="flex items-center gap-1.5"><EyeOff className="w-4 h-4" /> លាក់</span>
@@ -328,26 +328,26 @@ export default function LoginForm() {
                   )}
 
                   {mode === 'register' && (
-                      <div className="mt-4 flex items-start bg-blue-50 dark:bg-gray-800 p-3 rounded-lg border border-blue-100 dark:border-gray-700">
+                      <div className="mt-4 flex items-start bg-brand-100 dark:bg-brand-900 p-3 rounded-lg border border-divider dark:border-divider">
                           <div className="flex items-center h-5 mt-0.5">
-                              <input id="terms" type="checkbox" required className="w-4 h-4 border border-gray-300 dark:border-gray-600 rounded" />
+                              <input id="terms" type="checkbox" required className="w-4 h-4 border border-divider dark:border-divider rounded" />
                           </div>
-                          <label htmlFor="terms" className="ml-2 text-xs md:text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                              ខ្ញុំយល់ព្រមតាម <a href="#" className="text-[#0054a6] dark:text-[#4facfe] hover:underline font-bold">លក្ខខណ្ឌនៃការប្រើប្រាស់</a>។
+                          <label htmlFor="terms" className="ml-2 text-xs md:text-sm text-text-body dark:text-text-body cursor-pointer">
+                              ខ្ញុំយល់ព្រមតាម <a href="#" className="text-brand dark:text-brand-400 hover:underline font-bold">លក្ខខណ្ឌនៃការប្រើប្រាស់</a>។
                           </label>
                       </div>
                   )}
 
                   {mode === 'login' && (
                       <div className="flex justify-end pt-1">
-                          <button type="button" className="text-sm font-medium text-[#0054a6] dark:text-[#4facfe] hover:underline">ភ្លេចលេខសម្ងាត់?</button>
+                          <button type="button" className="text-sm font-medium text-brand dark:text-brand-400 hover:underline">ភ្លេចលេខសម្ងាត់?</button>
                       </div>
                   )}
 
                   <button 
                       type="submit" 
                       disabled={isLoading || !isValidEmail || password.length < 6}
-                      className="btn-pulse w-full bg-[#0054a6] hover:bg-blue-800 disabled:bg-blue-300 text-white font-bold py-3.5 rounded-lg transition shadow-md flex justify-center items-center mt-4"
+                      className="btn-pulse w-full bg-brand hover:bg-brand-800 disabled:opacity-50 text-white font-bold py-3.5 rounded-lg transition shadow-md flex justify-center items-center mt-4"
                   >
                       <span>{mode === 'login' ? 'ចូលប្រព័ន្ធ (Login)' : 'ចុះឈ្មោះថ្មី'}</span>
                       {isLoading && <Loader2 className="animate-spin ml-2 w-5 h-5" />}
@@ -355,15 +355,15 @@ export default function LoginForm() {
               </form>
 
               <div className="flex items-center my-6">
-                  <div className="flex-grow border-t border-gray-300 dark:border-gray-600"></div>
-                  <span className="flex-shrink-0 mx-4 text-gray-500 text-xs md:text-sm">ឬ (Or)</span>
-                  <div className="flex-grow border-t border-gray-300 dark:border-gray-600"></div>
+                  <div className="flex-grow border-t border-divider dark:border-divider"></div>
+                  <span className="flex-shrink-0 mx-4 text-text-muted text-xs md:text-sm">ឬ (Or)</span>
+                  <div className="flex-grow border-t border-divider dark:border-divider"></div>
               </div>
 
               <button 
                   onClick={handleGoogleLogin}
                   type="button" 
-                  className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-semibold py-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition shadow-sm flex justify-center items-center gap-2"
+                  className="w-full bg-white dark:bg-brand-900 border border-divider dark:border-divider text-text-body dark:text-text-body font-semibold py-3 rounded-lg hover:bg-paper dark:hover:bg-paper transition shadow-sm flex justify-center items-center gap-2"
               >
                   <svg className="w-5 h-5" viewBox="0 0 24 24">
                       <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -375,13 +375,13 @@ export default function LoginForm() {
               </button>
 
               {error && (
-                  <div className="text-red-700 text-xs md:text-sm bg-red-50 p-3 rounded-md border border-red-200 mt-4 text-center break-words font-medium">
+                  <div className="text-danger text-xs md:text-sm bg-danger/10 p-3 rounded-md border border-danger/30 mt-4 text-center break-words font-medium">
                       {error}
                   </div>
               )}
               
               {successMsg && (
-                  <div className="text-green-700 text-xs md:text-sm bg-green-50 p-3 rounded-md border border-green-200 mt-4 text-center break-words font-medium">
+                  <div className="text-success text-xs md:text-sm bg-success/10 p-3 rounded-md border border-success/30 mt-4 text-center break-words font-medium">
                       {successMsg}
                   </div>
               )}

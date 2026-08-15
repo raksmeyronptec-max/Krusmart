@@ -22,15 +22,15 @@ export default function StudentCardClient({
 
       <section className="px-4 py-6">
         <div className="mx-auto w-full max-w-[340px] overflow-hidden rounded-3xl bg-header-green p-1 shadow-2xl">
-          <div className="rounded-[1.4rem] bg-white p-5 text-center text-[#0f172a]">
-            <p className="kh-moul text-[13px] leading-tight text-[#0f766e]">
+          <div className="rounded-[1.4rem] bg-white p-5 text-center text-[var(--pp-bg-app)]">
+            <p className="kh-moul text-[13px] leading-tight text-[var(--pp-info)]">
               {settings?.school_name || t('school_name_default')}
             </p>
-            <p className="mb-4 text-[10px] text-gray-500">
+            <p className="mb-4 text-[10px] text-pp-muted">
               {t('academic_year_default')} {toKhmerNumber(settings?.academic_year || '')}
             </p>
 
-            <div className="mx-auto mb-3 h-28 w-24 overflow-hidden rounded-xl border-2 border-[#0f766e] bg-gray-100">
+            <div className="mx-auto mb-3 h-28 w-24 overflow-hidden rounded-xl border-2 border-[var(--pp-info)] bg-[var(--pp-bg-card)]">
               {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote photo on a card surface */}
               <img
                 src={student.photo_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${student.id}&backgroundColor=b6e3f4`}
@@ -39,8 +39,8 @@ export default function StudentCardClient({
               />
             </div>
 
-            <h2 className="kh-moul text-lg text-[#0f172a]">{student.name_kh}</h2>
-            {student.name_en && <p className="mb-3 text-[11px] uppercase tracking-wide text-gray-500">{student.name_en}</p>}
+            <h2 className="kh-moul text-lg text-[var(--pp-bg-app)]">{student.name_kh}</h2>
+            {student.name_en && <p className="mb-3 text-[11px] uppercase tracking-wide text-pp-muted">{student.name_en}</p>}
 
             <dl className="mt-3 space-y-1.5 text-left text-[12px]">
               {[
@@ -49,8 +49,8 @@ export default function StudentCardClient({
                 [t('gender'), student.gender],
                 [t('dob'), formatKhmerDate(student.dob)],
               ].map(([label, value]) => (
-                <div key={label} className="flex justify-between gap-3 border-b border-dashed border-gray-200 pb-1">
-                  <dt className="text-gray-500">{label}</dt>
+                <div key={label} className="flex justify-between gap-3 border-b border-dashed border-pp pb-1">
+                  <dt className="text-pp-muted">{label}</dt>
                   <dd className="font-bold">{value || '—'}</dd>
                 </div>
               ))}

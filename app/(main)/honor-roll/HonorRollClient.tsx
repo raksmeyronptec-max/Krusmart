@@ -122,9 +122,8 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
     }
 
     return (
-        <div className="min-h-screen bg-slate-50 font-battambang print:bg-white pb-10 relative">
+        <div className="min-h-screen bg-paper font-battambang print:bg-white pb-10 relative">
             <style jsx global>{`
-                .font-moul { font-family: 'Moul', cursive; }
                 .font-battambang { font-family: 'Battambang', cursive; }
                 
                 :root { 
@@ -234,33 +233,33 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
                     <div className="max-w-4xl mx-auto py-8 px-4 no-print relative z-10">
                         {loading && (
                             <div className="fixed inset-0 bg-white/80 z-50 flex flex-col items-center justify-center backdrop-blur-sm">
-                                <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
-                                <p className="mt-4 font-moul text-blue-600 animate-pulse">កំពុងទាញយកទិន្នន័យ...</p>
+                                <div className="w-16 h-16 border-4 border-divider border-t-blue-600 rounded-full animate-spin"></div>
+                                <p className="mt-4 kh-moul text-brand animate-pulse">កំពុងទាញយកទិន្នន័យ...</p>
                             </div>
                         )}
                         
-                        <Link href="/dashboard" className="inline-flex items-center gap-2 text-[#0a2351] hover:text-[#000a20] font-bold transition mb-6 bg-white/50 px-4 py-2 rounded-xl">
+                        <Link href="/dashboard" className="inline-flex items-center gap-2 text-brand hover:text-brand-hover font-bold transition mb-6 bg-white/50 px-4 py-2 rounded-xl">
                             <ArrowLeft className="w-5 h-5" /> ត្រឡប់ទៅទំព័រដើម
                         </Link>
 
-                        <div className="bg-white/95 backdrop-blur-md p-6 md:p-10 text-center border-t-4 border-[#bf953f] rounded-[1.5rem] shadow-[0_10px_30px_rgba(0,0,0,0.05)]">
+                        <div className="bg-white/95 backdrop-blur-md p-6 md:p-10 text-center border-t-4 border-gold rounded-[1.5rem] shadow-[0_10px_30px_rgba(0,0,0,0.05)]">
                             <div className="flex justify-center mb-4">
-                                <div className="p-4 bg-yellow-50 rounded-full text-yellow-600 border border-yellow-200">
-                                    <Award className="w-8 h-8 text-[#bf953f]" />
+                                <div className="p-4 bg-gold/10 rounded-full text-gold border border-gold/30">
+                                    <Award className="w-8 h-8 text-gold" />
                                 </div>
                             </div>
-                            <h1 className="font-moul text-xl md:text-2xl text-[#0a2351] mb-2">តារាងកិត្តិយស (Premium Edition)</h1>
-                            <p className="text-gray-500 font-bold mb-8">រចនាបថស៊ុមពណ៌មាស និង សម្រាប់សិស្សឆ្នើមទាំង ៥</p>
+                            <h1 className="kh-moul text-xl md:text-2xl text-brand mb-2">តារាងកិត្តិយស (Premium Edition)</h1>
+                            <p className="text-text-muted font-bold mb-8">រចនាបថស៊ុមពណ៌មាស និង សម្រាប់សិស្សឆ្នើមទាំង ៥</p>
 
                             <div className="mb-6 flex justify-center w-full overflow-x-auto pb-2">
-                                <div className="inline-flex bg-gray-100 p-1 rounded-xl whitespace-nowrap">
-                                    <button onClick={() => setCurrentMode('monthly')} className={`select-btn ${currentMode === 'monthly' ? 'bg-white shadow text-[#0a2351]' : 'text-gray-500 hover:bg-white/50'}`}>
+                                <div className="inline-flex bg-paper p-1 rounded-xl whitespace-nowrap">
+                                    <button onClick={() => setCurrentMode('monthly')} className={`select-btn ${currentMode === 'monthly' ? 'bg-white shadow text-brand' : 'text-text-muted hover:bg-white/50'}`}>
                                         <Calendar className="w-4 h-4" /> ប្រចាំខែ
                                     </button>
-                                    <button onClick={() => setCurrentMode('semester')} className={`select-btn ${currentMode === 'semester' ? 'bg-white shadow text-[#0a2351]' : 'text-gray-500 hover:bg-white/50'}`}>
+                                    <button onClick={() => setCurrentMode('semester')} className={`select-btn ${currentMode === 'semester' ? 'bg-white shadow text-brand' : 'text-text-muted hover:bg-white/50'}`}>
                                         <Bookmark className="w-4 h-4" /> ប្រចាំឆមាស
                                     </button>
-                                    <button onClick={() => setCurrentMode('yearly')} className={`select-btn ${currentMode === 'yearly' ? 'bg-white shadow text-[#0a2351]' : 'text-gray-500 hover:bg-white/50'}`}>
+                                    <button onClick={() => setCurrentMode('yearly')} className={`select-btn ${currentMode === 'yearly' ? 'bg-white shadow text-brand' : 'text-text-muted hover:bg-white/50'}`}>
                                         <Award className="w-4 h-4" /> ប្រចាំឆ្នាំ
                                     </button>
                                 </div>
@@ -268,7 +267,7 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left mb-8 max-w-2xl mx-auto">
                                 <div>
-                                    <label className="block font-bold text-gray-700 mb-2">ឆ្នាំសិក្សា</label>
+                                    <label className="block font-bold text-text-body mb-2">ឆ្នាំសិក្សា</label>
                                     <Select
                                         ariaLabel="ឆ្នាំសិក្សា"
                                         value={academicYear}
@@ -279,7 +278,7 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
 
                                 {currentMode !== 'yearly' && (
                                     <div>
-                                        <label className="block font-bold text-gray-700 mb-2">{currentMode === 'monthly' ? 'ជ្រើសរើសខែ' : 'ជ្រើសរើសឆមាស'}</label>
+                                        <label className="block font-bold text-text-body mb-2">{currentMode === 'monthly' ? 'ជ្រើសរើសខែ' : 'ជ្រើសរើសឆមាស'}</label>
                                         <Select
                                             ariaLabel={currentMode === 'monthly' ? 'ជ្រើសរើសខែ' : 'ជ្រើសរើសឆមាស'}
                                             value={currentPeriod}
@@ -296,7 +295,7 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
                             </div>
 
                             <div className="flex justify-center">
-                                <button onClick={() => loadData(currentMode, currentPeriod)} className="px-8 py-3 bg-[#0a2351] hover:bg-[#000a20] text-white rounded-xl font-bold transition shadow-lg flex items-center justify-center gap-2">
+                                <button onClick={() => loadData(currentMode, currentPeriod)} className="px-8 py-3 bg-brand hover:bg-brand-hover text-white rounded-xl font-bold transition shadow-lg flex items-center justify-center gap-2">
                                     <Printer className="w-5 h-5" /> មើលគំរូ និង បោះពុម្ភ
                                 </button>
                             </div>
@@ -304,12 +303,12 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
                     </div>
                 </>
             ) : (
-                <div className="relative pt-8 pb-8 bg-slate-400 min-h-screen preview-mode">
+                <div className="relative pt-8 pb-8 bg-divider min-h-screen preview-mode">
                     <div className="fixed top-4 right-4 flex flex-col gap-3 z-50 no-print">
-                        <button onClick={() => window.print()} className="bg-blue-600 text-white p-3 rounded-full shadow-xl hover:bg-blue-700 hover:scale-105 transition" title="បោះពុម្ភ">
+                        <button onClick={() => window.print()} className="bg-brand text-white p-3 rounded-full shadow-lg hover:bg-brand-hover hover:scale-105 transition" title="បោះពុម្ភ">
                             <Printer className="w-6 h-6" />
                         </button>
-                        <button onClick={() => setShowPreview(false)} className="bg-slate-600 text-white p-3 rounded-full shadow-xl hover:bg-slate-700 hover:scale-105 transition" title="បិទ">
+                        <button onClick={() => setShowPreview(false)} className="bg-text-muted text-white p-3 rounded-full shadow-lg hover:opacity-90 hover:scale-105 transition" title="បិទ">
                             <ArrowLeft className="w-6 h-6" />
                         </button>
                     </div>
@@ -338,8 +337,8 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
 
                                     <div className="w-full relative z-10">
                                         <div className="text-center w-full mb-1">
-                                            <h3 className="font-moul text-[11pt] mb-1">ព្រះរាជាណាចក្រកម្ពុជា</h3>
-                                            <h3 className="font-moul text-[11pt] mb-1">ជាតិ សាសនា ព្រះមហាក្សត្រ</h3>
+                                            <h3 className="kh-moul text-[11pt] mb-1">ព្រះរាជាណាចក្រកម្ពុជា</h3>
+                                            <h3 className="kh-moul text-[11pt] mb-1">ជាតិ សាសនា ព្រះមហាក្សត្រ</h3>
                                             <div className="text-[10px] mt-1 text-center">❧❧❧ ❖ ☙☙☙</div>
                                         </div>
                                         
@@ -352,8 +351,8 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
                                     </div>
 
                                     <div className="text-center w-full mt-0 mb-1 z-10">
-                                        <h2 className="font-moul text-[15pt] mb-1 text-[#bf953f] tracking-wide" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.1)' }}>តារាងកិត្តិយស</h2>
-                                        <h3 className="font-moul text-[10pt] text-[#0a2351]">
+                                        <h2 className="kh-moul text-[15pt] mb-1 text-gold tracking-wide" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.1)' }}>តារាងកិត្តិយស</h2>
+                                        <h3 className="kh-moul text-[10pt] text-brand">
                                             {currentMode === 'monthly' ? `ប្រចាំខែ ${MONTHS_BY_CALENDAR.find(m => m.id === currentPeriod)?.label}` : currentMode === 'semester' ? `ប្រចាំឆមាសទី${currentPeriod === 'sem1' ? '១' : '២'}` : 'ប្រចាំឆ្នាំ'}
                                         </h3>
                                     </div>
@@ -367,17 +366,17 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
                                                     <div className="rank-badge">{stu.rank}</div>
                                                     {i === 0 && <Award className="card-crown" />}
                                                     <div className="w-[60px] h-[60px] mb-2 mt-2 rounded-xl bg-slate-100 flex items-center justify-center overflow-hidden border border-slate-200">
-                                                        <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                                                        <svg className="w-8 h-8 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
                                                     </div>
                                                     <h4 className="student-name">{stu.name_kh || stu.full_name}</h4>
                                                     <div className="text-[10px] text-slate-500 mb-2">អត្តលេខ៖ {toKhmerNumber(stu.id)}</div>
                                                     <div className="flex items-center gap-4 border-t border-slate-100 pt-2 w-full justify-center">
                                                         <div className="flex flex-col items-center">
-                                                            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">និទ្ទេស</span>
-                                                            <span className={`font-bold text-[14px] ${stu.grade === 'A' ? 'text-red-600' : stu.grade === 'B' ? 'text-orange-600' : stu.grade === 'C' ? 'text-yellow-600' : 'text-blue-600'}`}>{stu.grade}</span>
+                                                            <span className="text-[9px] text-text-muted font-bold uppercase tracking-wider mb-0.5">និទ្ទេស</span>
+                                                            <span className={`font-bold text-[14px] ${stu.grade === 'A' ? 'text-gold' : stu.grade === 'B' ? 'text-brand-500' : stu.grade === 'C' ? 'text-warning' : 'text-brand'}`}>{stu.grade}</span>
                                                         </div>
                                                         <div className="flex flex-col items-center">
-                                                            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">មធ្យមភាគ</span>
+                                                            <span className="text-[9px] text-text-muted font-bold uppercase tracking-wider mb-0.5">មធ្យមភាគ</span>
                                                             <span className="font-bold text-[14px] text-slate-700">{toKhmerNumber(stu.average)}</span>
                                                         </div>
                                                     </div>
@@ -396,11 +395,11 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
                                         <div className="flex justify-between w-full items-start">
                                             <div className="text-center w-[45%]">
                                                 <p className="text-[10pt] font-normal">បានឃើញ និងឯកភាព</p>
-                                                <p className="font-moul text-[10pt] mt-1">នាយកសាលា</p>
+                                                <p className="kh-moul text-[10pt] mt-1">នាយកសាលា</p>
                                             </div>
                                             <div className="text-center w-[45%]">
-                                                <p className="mb-1 font-moul text-[10pt]">គ្រូបន្ទុកថ្នាក់</p>
-                                                <p className="font-moul text-[10pt] mt-[20px]">{settings?.teacher_name || "ឈ្មោះគ្រូ"}</p>
+                                                <p className="mb-1 kh-moul text-[10pt]">គ្រូបន្ទុកថ្នាក់</p>
+                                                <p className="kh-moul text-[10pt] mt-[20px]">{settings?.teacher_name || "ឈ្មោះគ្រូ"}</p>
                                             </div>
                                         </div>
                                     </div>

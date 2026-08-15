@@ -23,11 +23,11 @@ export default async function AdminSubjectsPage() {
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {subjects.map((s) => (
-            <div key={s.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-              <p className="font-bold text-gray-800">{s.name}</p>
-              {s.code && <p className="mt-1 font-mono text-xs text-gray-400">{s.code}</p>}
+            <div key={s.id} className="rounded-xl border border-divider bg-white p-4 shadow-sm">
+              <p className="font-bold text-text-heading">{s.name}</p>
+              {s.code && <p className="mt-1 font-mono text-xs text-text-muted">{s.code}</p>}
               {!s.is_active && (
-                <span className="mt-2 inline-block rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500">
+                <span className="mt-2 inline-block rounded-full bg-paper px-2 py-0.5 text-xs text-text-muted">
                   មិនប្រើប្រាស់
                 </span>
               )}

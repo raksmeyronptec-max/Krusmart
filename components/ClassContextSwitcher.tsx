@@ -63,7 +63,7 @@ function ClassContextSwitcherInner({ compact = false }: { compact?: boolean }) {
   if (!hasMultiple) {
     return (
       <div
-        className={`flex items-center gap-1.5 rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-blue-800 dark:border-gray-700 dark:bg-gray-800 dark:text-blue-300 ${
+        className={`flex items-center gap-1.5 rounded-full border border-divider bg-brand-100 px-3 py-1.5 text-brand-800 dark:border-divider dark:bg-bg-surface dark:text-brand-300 ${
           compact ? 'text-[11px]' : 'text-xs'
         }`}
         title={describe(assignment)}
@@ -90,7 +90,7 @@ function ClassContextSwitcherInner({ compact = false }: { compact?: boolean }) {
         ariaLabel="ជ្រើសរើសថ្នាក់ និងមុខវិជ្ជា"
         searchPlaceholder="ស្វែងរកថ្នាក់..."
         emptyMessage="រកមិនឃើញថ្នាក់"
-        leadingIcon={<LayoutGrid className="h-4 w-4 text-[#0054a6]" aria-hidden="true" />}
+        leadingIcon={<LayoutGrid className="h-4 w-4 text-brand" aria-hidden="true" />}
         value={assignment.id}
         onChange={handleChange}
         options={assignments.map((a) => ({

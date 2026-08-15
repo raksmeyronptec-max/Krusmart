@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { Badge, ATTENDANCE_BADGE, ATTENDANCE_COLORS } from '@/components/ui/feedback/Badge'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { logger } from '@/lib/utils/logger'
@@ -123,10 +124,15 @@ interface ThreeState {
     revealStart: number;
 }
 
+/**
+ * WebGL materials take a numeric colour, so the 3D view cannot read a CSS token.
+ * It shares `ATTENDANCE_COLORS` with the 2D seating plan instead, which is what
+ * keeps a "present" seat the same green in both.
+ */
 const STATUS3 = {
-    P: { color: 0x22c55e, hex: '#22c55e' },
-    L: { color: 0xeab308, hex: '#eab308' },
-    A: { color: 0xef4444, hex: '#ef4444' }
+    P: { color: ATTENDANCE_COLORS.P.three, hex: ATTENDANCE_COLORS.P.hex },
+    L: { color: ATTENDANCE_COLORS.L.three, hex: ATTENDANCE_COLORS.L.hex },
+    A: { color: ATTENDANCE_COLORS.A.three, hex: ATTENDANCE_COLORS.A.hex }
 };
 const easeOutBack3 = (x: number) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
 
@@ -527,7 +533,7 @@ export default function ThreeClassroom({ config, seatingLayout, students, attend
             [-1, 1].forEach((s) => { const p = box3(0.07, 0.78, 0.7, MAT3(0x586b80, { metalness: 0.3, roughness: 0.5 })); p.position.set(s * 0.9, 0.39, 0); td.add(p); });
             const tch = buildChair3(MAT3(0xb6c0cc, { roughness: 0.85 })); tch.position.set(0, 0, -0.7); tch.rotation.y = Math.PI; td.add(tch);
             td.position.set(-roomW / 2 + 2.0, 0, frontWallZ + 1.7); ts.worldGroup.add(td);
-            const tl = makeLabel3('តុគ្រូបង្រៀន', '#0054a6'); tl.sprite.position.set(-roomW / 2 + 2.0, 1.5, frontWallZ + 1.7); tl.sprite.userData.baseY = 1.5; ts.worldGroup.add(tl.sprite);
+            const tl = makeLabel3('តុគ្រូបង្រៀន', '#1D3E73'); tl.sprite.position.set(-roomW / 2 + 2.0, 1.5, frontWallZ + 1.7); tl.sprite.userData.baseY = 1.5; ts.worldGroup.add(tl.sprite);
 
             const door = new THREE.Group();
             const frame = box3(1.1, 2.1, 0.16, MAT3(0x9c6b3f, { roughness: 0.6 })); frame.position.y = 1.05; door.add(frame);
@@ -663,9 +669,9 @@ export default function ThreeClassroom({ config, seatingLayout, students, attend
     }
 
     return (
-        <div className="fixed inset-0 z-[100] bg-[#0b1220] flex flex-col">
+        <div className="fixed inset-0 z-[100] bg-brand-950 flex flex-col">
             <div className="absolute top-4 left-4 z-50">
-                <button onClick={onClose} className="bg-white/10 hover:bg-white/20 text-white rounded-full p-2 backdrop-blur-sm transition-colors border border-white/20 shadow-sm" title="Back to 2D" data-close-3d>
+                <button onClick={onClose} className="bg-bg-surface/10 hover:bg-bg-surface/20 text-white rounded-full p-2 backdrop-blur-sm transition-colors border border-white/20 shadow-sm" title="Back to 2D" data-close-3d>
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
                 </button>
             </div>
@@ -673,60 +679,62 @@ export default function ThreeClassroom({ config, seatingLayout, students, attend
             <canvas ref={canvasRef} className="w-full h-full block touch-none cursor-grab" style={{ touchAction: 'none' }}></canvas>
             
             {loading && (
-                <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#0b1220] gap-4">
-                    <div className="w-11 h-11 border-4 border-white/20 border-t-[#4da3ff] rounded-full animate-spin"></div>
-                    <p className="text-[#9fc2e8] text-sm">កំពុងបង្កើតថ្នាក់រៀន ៣វិមាត្រ…</p>
+                <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-brand-950 gap-4">
+                    <div className="w-11 h-11 border-4 border-white/20 border-t-brand-400 rounded-full animate-spin"></div>
+                    <p className="text-brand-300 text-sm">កំពុងបង្កើតថ្នាក់រៀន ៣វិមាត្រ…</p>
                 </div>
             )}
 
             {/* HUD Overlay */}
-            <div className="absolute left-1/2 bottom-5 -translate-x-1/2 flex items-center justify-center gap-2 p-2 max-w-[94vw] flex-wrap bg-white/80 backdrop-blur-md rounded-2xl border border-white/50 shadow-lg z-30">
+            <div className="absolute left-1/2 bottom-5 -translate-x-1/2 flex items-center justify-center gap-2 p-2 max-w-[94vw] flex-wrap bg-bg-surface/80 backdrop-blur-md rounded-xl border border-white/50 shadow-lg z-30">
                 <div className="flex gap-2">
-                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white/60">
-                        <span className="w-2.5 h-2.5 rounded bg-green-500"></span>
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-bg-surface/60">
+                        <span className="w-2.5 h-2.5 rounded bg-success"></span>
                         <div className="flex flex-col leading-none">
-                            <span className="font-bold text-[#0f1f33]">{toKhmerNumber(stats.p)}</span>
-                            <span className="text-[9px] text-[#5b6b7e] mt-0.5">មក</span>
+                            <span className="font-bold text-text-heading">{toKhmerNumber(stats.p)}</span>
+                            <span className="text-[9px] text-text-muted mt-0.5">មក</span>
                         </div>
                     </div>
-                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white/60">
-                        <span className="w-2.5 h-2.5 rounded bg-yellow-500"></span>
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-bg-surface/60">
+                        <span className="w-2.5 h-2.5 rounded bg-warning"></span>
                         <div className="flex flex-col leading-none">
-                            <span className="font-bold text-[#0f1f33]">{toKhmerNumber(stats.l)}</span>
-                            <span className="text-[9px] text-[#5b6b7e] mt-0.5">ច្បាប់</span>
+                            <span className="font-bold text-text-heading">{toKhmerNumber(stats.l)}</span>
+                            <span className="text-[9px] text-text-muted mt-0.5">ច្បាប់</span>
                         </div>
                     </div>
-                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white/60">
-                        <span className="w-2.5 h-2.5 rounded bg-red-500"></span>
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-bg-surface/60">
+                        <span className="w-2.5 h-2.5 rounded bg-danger"></span>
                         <div className="flex flex-col leading-none">
-                            <span className="font-bold text-[#0f1f33]">{toKhmerNumber(stats.a)}</span>
-                            <span className="text-[9px] text-[#5b6b7e] mt-0.5">អវត្ត</span>
+                            <span className="font-bold text-text-heading">{toKhmerNumber(stats.a)}</span>
+                            <span className="text-[9px] text-text-muted mt-0.5">អវត្ត</span>
                         </div>
                     </div>
                 </div>
                 
-                <div className="w-px h-6 bg-[#0f1f33]/10 mx-1"></div>
+                <div className="w-px h-6 bg-brand-950/10 mx-1"></div>
                 
-                <div className="flex gap-1 bg-[#0f1f33]/5 p-1 rounded-xl">
-                    <button onClick={() => setCurrent3DView('top')} className={`px-3 py-1.5 rounded-lg text-[13px] font-bold transition whitespace-nowrap ${current3DView === 'top' ? 'bg-[#0054a6] text-white shadow-md' : 'text-[#42546b] hover:bg-white/70 hover:text-[#0f1f33]'}`}>ពីលើ</button>
-                    <button onClick={() => setCurrent3DView('teacher')} className={`px-3 py-1.5 rounded-lg text-[13px] font-bold transition whitespace-nowrap ${current3DView === 'teacher' ? 'bg-[#0054a6] text-white shadow-md' : 'text-[#42546b] hover:bg-white/70 hover:text-[#0f1f33]'}`}>ទិដ្ឋភាពគ្រូ</button>
-                    <button onClick={() => setCurrent3DView('student')} className={`px-3 py-1.5 rounded-lg text-[13px] font-bold transition whitespace-nowrap ${current3DView === 'student' ? 'bg-[#0054a6] text-white shadow-md' : 'text-[#42546b] hover:bg-white/70 hover:text-[#0f1f33]'}`}>ទិដ្ឋភាពសិស្ស</button>
+                <div className="flex gap-1 bg-brand-950/5 p-1 rounded-xl">
+                    <button onClick={() => setCurrent3DView('top')} className={`px-3 py-1.5 rounded-lg text-[13px] font-bold transition whitespace-nowrap ${current3DView === 'top' ? 'bg-brand text-white shadow-md' : 'text-text-muted hover:bg-bg-surface/70 hover:text-text-heading'}`}>ពីលើ</button>
+                    <button onClick={() => setCurrent3DView('teacher')} className={`px-3 py-1.5 rounded-lg text-[13px] font-bold transition whitespace-nowrap ${current3DView === 'teacher' ? 'bg-brand text-white shadow-md' : 'text-text-muted hover:bg-bg-surface/70 hover:text-text-heading'}`}>ទិដ្ឋភាពគ្រូ</button>
+                    <button onClick={() => setCurrent3DView('student')} className={`px-3 py-1.5 rounded-lg text-[13px] font-bold transition whitespace-nowrap ${current3DView === 'student' ? 'bg-brand text-white shadow-md' : 'text-text-muted hover:bg-bg-surface/70 hover:text-text-heading'}`}>ទិដ្ឋភាពសិស្ស</button>
                 </div>
 
-                <div className="w-px h-6 bg-[#0f1f33]/10 mx-1"></div>
+                <div className="w-px h-6 bg-brand-950/10 mx-1"></div>
 
-                <button onClick={() => setLabelsVisible(!labelsVisible)} className={`px-3 py-1.5 rounded-lg text-[13px] font-bold transition whitespace-nowrap ${labelsVisible ? 'bg-green-500/15 text-green-700' : 'bg-[#0f1f33]/5 text-[#42546b]'}`}>ឈ្មោះ</button>
-                <button onClick={() => setAutoSpin(!autoSpin)} className={`px-3 py-1.5 rounded-lg text-[13px] font-bold transition whitespace-nowrap ${autoSpin ? 'bg-green-500/15 text-green-700' : 'bg-[#0f1f33]/5 text-[#42546b]'}`}>បង្វិល</button>
+                <button onClick={() => setLabelsVisible(!labelsVisible)} className={`px-3 py-1.5 rounded-lg text-[13px] font-bold transition whitespace-nowrap ${labelsVisible ? 'bg-success/15 text-success' : 'bg-brand-950/5 text-text-muted'}`}>ឈ្មោះ</button>
+                <button onClick={() => setAutoSpin(!autoSpin)} className={`px-3 py-1.5 rounded-lg text-[13px] font-bold transition whitespace-nowrap ${autoSpin ? 'bg-success/15 text-success' : 'bg-brand-950/5 text-text-muted'}`}>បង្វិល</button>
             </div>
 
-            <div className="absolute left-4 bottom-5 hidden md:flex flex-col gap-1.5 p-3 text-[11px] text-[#42546b] bg-white/80 backdrop-blur-md border border-white/50 rounded-2xl z-30 shadow-lg">
-                <div className="flex items-center gap-2 font-bold"><span className="w-2.5 h-2.5 rounded bg-green-500"></span> វត្តមាន</div>
-                <div className="flex items-center gap-2 font-bold"><span className="w-2.5 h-2.5 rounded bg-yellow-500"></span> ច្បាប់</div>
-                <div className="flex items-center gap-2 font-bold"><span className="w-2.5 h-2.5 rounded bg-red-500"></span> អវត្តមាន</div>
+            <div className="absolute left-4 bottom-5 hidden md:flex flex-col gap-1.5 p-3 text-[11px] text-text-muted bg-bg-surface/80 backdrop-blur-md border border-white/50 rounded-xl z-30 shadow-lg">
+                {(['P', 'L', 'A'] as const).map((code) => (
+                    <Badge key={code} variant={ATTENDANCE_BADGE[code].variant} size="sm">
+                        {ATTENDANCE_BADGE[code].label}
+                    </Badge>
+                ))}
             </div>
 
-            <div className="absolute right-4 bottom-5 hidden md:block p-3 text-[11px] text-[#5b6b7e] max-w-[220px] leading-relaxed bg-white/80 backdrop-blur-md border border-white/50 rounded-2xl z-30 shadow-lg">
-                <b className="text-[#0054a6]">អូស</b> បង្វិល · <b className="text-[#0054a6]">scroll/pinch</b> ពង្រីក · <b className="text-[#0054a6]">ចុចតុ</b> ប្តូរវត្តមាន
+            <div className="absolute right-4 bottom-5 hidden md:block p-3 text-[11px] text-text-muted max-w-[220px] leading-relaxed bg-bg-surface/80 backdrop-blur-md border border-white/50 rounded-xl z-30 shadow-lg">
+                <b className="text-brand">អូស</b> បង្វិល · <b className="text-brand">scroll/pinch</b> ពង្រីក · <b className="text-brand">ចុចតុ</b> ប្តូរវត្តមាន
             </div>
         </div>
     )

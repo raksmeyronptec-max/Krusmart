@@ -10,9 +10,9 @@ export default function FamilyClient({ student }: { student: Student | null }) {
   if (!student) return <PortalHeader titleKey="family_title" />
 
   const people = [
-    { labelKey: 'father'   as const, name: student.father_name,   job: student.father_job,   Icon: User,  tone: 'text-blue-400',  bg: 'bg-blue-400/10' },
-    { labelKey: 'mother'   as const, name: student.mother_name,   job: student.mother_job,   Icon: Heart, tone: 'text-pink-400',  bg: 'bg-pink-400/10' },
-    { labelKey: 'guardian' as const, name: student.guardian_name, job: student.guardian_job, Icon: Users, tone: 'text-amber-400', bg: 'bg-amber-400/10' },
+    { labelKey: 'father'   as const, name: student.father_name,   job: student.father_job,   Icon: User,  tone: 'text-pp-info',  bg: 'bg-pp-info/10' },
+    { labelKey: 'mother'   as const, name: student.mother_name,   job: student.mother_job,   Icon: Heart, tone: 'text-pp-gold',  bg: 'bg-pp-gold/10' },
+    { labelKey: 'guardian' as const, name: student.guardian_name, job: student.guardian_job, Icon: Users, tone: 'text-pp-warning', bg: 'bg-pp-warning/10' },
   ]
 
   return (

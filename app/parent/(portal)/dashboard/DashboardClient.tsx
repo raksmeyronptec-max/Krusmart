@@ -12,17 +12,17 @@ import type { Notification, Student } from '@/lib/types'
 
 /** The six tracking cards and two info cards, in the legacy portal's order and colours. */
 const TRACKING: { key: TranslationKey; href: string; icon: typeof CalendarCheck; color: string; bg: string }[] = [
-  { key: 'track_attendance', href: '/parent/attendance',   icon: CalendarCheck,  color: 'text-orange-400',  bg: 'bg-orange-400/10' },
-  { key: 'track_grades',     href: '/parent/grades',       icon: BarChart3,      color: 'text-blue-400',    bg: 'bg-blue-400/10' },
-  { key: 'track_homework',   href: '/parent/homework',     icon: BookOpenCheck,  color: 'text-purple-400',  bg: 'bg-purple-400/10' },
-  { key: 'track_health',     href: '/parent/health',       icon: HeartPulse,     color: 'text-rose-400',    bg: 'bg-rose-400/10' },
-  { key: 'track_library',    href: '/parent/library',      icon: BookUser,       color: 'text-emerald-400', bg: 'bg-emerald-400/10' },
-  { key: 'track_card',       href: '/parent/student-card', icon: Contact2,       color: 'text-amber-400',   bg: 'bg-amber-400/10' },
+  { key: 'track_attendance', href: '/parent/attendance',   icon: CalendarCheck,  color: 'text-pp-warning',  bg: 'bg-pp-warning/10' },
+  { key: 'track_grades',     href: '/parent/grades',       icon: BarChart3,      color: 'text-pp-info',    bg: 'bg-pp-info/10' },
+  { key: 'track_homework',   href: '/parent/homework',     icon: BookOpenCheck,  color: 'text-pp-gold',  bg: 'bg-pp-gold/10' },
+  { key: 'track_health',     href: '/parent/health',       icon: HeartPulse,     color: 'text-pp-danger',    bg: 'bg-pp-danger/10' },
+  { key: 'track_library',    href: '/parent/library',      icon: BookUser,       color: 'text-pp-success', bg: 'bg-pp-success/10' },
+  { key: 'track_card',       href: '/parent/student-card', icon: Contact2,       color: 'text-pp-warning',   bg: 'bg-pp-warning/10' },
 ]
 
 const INFO: typeof TRACKING = [
-  { key: 'info_profile', href: '/parent/profile', icon: User,  color: 'text-indigo-400', bg: 'bg-indigo-400/10' },
-  { key: 'info_family',  href: '/parent/family',  icon: Users, color: 'text-pink-400',   bg: 'bg-pink-400/10' },
+  { key: 'info_profile', href: '/parent/profile', icon: User,  color: 'text-pp-info', bg: 'bg-pp-info/10' },
+  { key: 'info_family',  href: '/parent/family',  icon: Users, color: 'text-pp-gold',   bg: 'bg-pp-gold/10' },
 ]
 
 export default function DashboardClient({
@@ -42,7 +42,7 @@ export default function DashboardClient({
   const Card = ({ item }: { item: (typeof TRACKING)[number] }) => (
     <Link
       href={item.href}
-      className="feature-card flex w-full flex-col items-center justify-center gap-3 rounded-2xl border bg-card-dark p-4 text-center outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+      className="feature-card flex w-full flex-col items-center justify-center gap-3 rounded-2xl border bg-card-dark p-4 text-center outline-none focus-visible:ring-2 focus-visible:ring-[var(--pp-success)]"
     >
       <span className={`flex h-12 w-12 items-center justify-center rounded-xl ${item.bg}`}>
         <item.icon className={`h-6 w-6 ${item.color}`} aria-hidden="true" />
@@ -57,7 +57,7 @@ export default function DashboardClient({
         <div className="mb-6 flex items-start justify-between pt-2">
           <div>
             <h2 className="text-lg font-bold text-white">{schoolName}</h2>
-            <p className="text-xs font-medium text-emerald-100/90">{academicYear}</p>
+            <p className="text-xs font-medium text-pp/90">{academicYear}</p>
           </div>
 
           <button
@@ -68,15 +68,15 @@ export default function DashboardClient({
             <Bell className="h-6 w-6 text-white" aria-hidden="true" />
             {notifications.length > 0 && (
               <span className="absolute right-1 top-1 flex h-2.5 w-2.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
-                <span className="relative inline-flex h-2.5 w-2.5 rounded-full border border-emerald-800 bg-red-500" />
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-pp-danger opacity-75" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full border border-pp bg-pp-danger" />
               </span>
             )}
           </button>
         </div>
 
         <div className="flex items-center gap-4 rounded-2xl border border-white/20 bg-white/10 p-3 backdrop-blur-sm">
-          <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full border-2 border-white bg-gray-300">
+          <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full border-2 border-white bg-[var(--pp-card-border)]">
             {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote avatar; next/image adds nothing here */}
             <img
               src={student?.photo_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${student?.id ?? 'student'}&backgroundColor=b6e3f4`}
@@ -85,11 +85,11 @@ export default function DashboardClient({
             />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="mb-0.5 text-[12px] font-semibold text-emerald-100">{t('student_info_label')}</p>
+            <p className="mb-0.5 text-[12px] font-semibold text-pp">{t('student_info_label')}</p>
             <h3 className="truncate text-base font-bold text-white">
               {student?.name_kh || t('unknown_name')}
             </h3>
-            <p className="text-xs text-emerald-100/80">
+            <p className="text-xs text-pp/80">
               {t('class_label')} {student?.grade || '—'} · {student?.student_id || '—'}
             </p>
           </div>

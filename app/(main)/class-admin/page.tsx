@@ -29,17 +29,17 @@ export default async function ClassAdminPage() {
     <div className="mx-auto max-w-6xl px-4 py-6 md:py-8">
       <Link
         href="/dashboard"
-        className="mb-6 inline-flex min-h-11 items-center gap-2 rounded-xl bg-white/60 px-4 py-2 font-bold text-[#0054a6] shadow-sm backdrop-blur-sm transition hover:text-blue-800"
+        className="mb-6 inline-flex min-h-11 items-center gap-2 rounded-xl bg-white/60 px-4 py-2 font-bold text-brand shadow-sm backdrop-blur-sm transition hover:text-brand-800"
       >
         <ArrowLeft className="h-5 w-5" aria-hidden="true" /> ត្រឡប់ទៅទំព័រដើម
       </Link>
 
-      <header className="mb-8 flex items-center gap-4 rounded-3xl border border-divider bg-bg-surface p-6 shadow-sm">
-        <div className="rounded-2xl bg-blue-100 p-3.5 text-[#0054a6] dark:bg-blue-950">
+      <header className="mb-8 flex items-center gap-4 rounded-xl border border-divider bg-bg-surface p-6 shadow-sm">
+        <div className="rounded-xl bg-brand-100 p-3.5 text-brand dark:bg-brand-900">
           <BookOpen className="h-7 w-7" aria-hidden="true" />
         </div>
         <div>
-          <h1 className="kh-moul text-xl text-[#0054a6] md:text-2xl dark:text-blue-300">
+          <h1 className="kh-moul text-xl text-brand md:text-2xl dark:text-brand-300">
             រដ្ឋបាលថ្នាក់រៀន
           </h1>
           <p className="mt-1 text-sm text-text-muted">
@@ -55,14 +55,14 @@ export default async function ClassAdminPage() {
             <Link
               key={book.id}
               href={`/class-admin/${book.id}`}
-              className="group flex flex-col rounded-2xl border border-divider bg-bg-surface p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+              className="group flex flex-col rounded-xl border border-divider bg-bg-surface p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-divider hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
             >
               <div className="mb-3 flex items-start justify-between gap-3">
-                <div className="rounded-xl bg-blue-50 p-2.5 text-[#0054a6] transition group-hover:bg-blue-100 dark:bg-blue-950/60 dark:text-blue-300">
+                <div className="rounded-xl bg-brand-100 p-2.5 text-brand transition group-hover:bg-brand-100 dark:bg-brand-900/60 dark:text-brand-300">
                   <BookIcon name={book.icon} />
                 </div>
                 {count > 0 && (
-                  <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                  <span className="rounded-full bg-success/10 px-2.5 py-1 text-xs font-bold text-success dark:bg-success/10 dark:text-success">
                     {toKhmerNumber(count)} កំណត់ត្រា
                   </span>
                 )}

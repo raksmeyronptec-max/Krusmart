@@ -106,7 +106,7 @@ export default function BookClient({
 
   const renderInput = (f: BookField) => {
     const base =
-      'w-full min-h-11 rounded-xl border border-gray-200 bg-white p-2.5 outline-none transition focus:border-[#0054a6] dark:border-gray-700 dark:bg-gray-900'
+      'w-full min-h-11 rounded-xl border border-divider bg-white p-2.5 outline-none transition focus:border-brand dark:border-divider dark:bg-bg-app'
 
     if (f.type === 'textarea') {
       return (
@@ -177,33 +177,33 @@ export default function BookClient({
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <Link
             href="/class-admin"
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-white/60 px-4 py-2 font-bold text-[#0054a6] shadow-sm backdrop-blur-sm transition hover:text-blue-800"
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-white/60 px-4 py-2 font-bold text-brand shadow-sm backdrop-blur-sm transition hover:text-brand-800"
           >
             <ArrowLeft className="h-5 w-5" aria-hidden="true" /> ត្រឡប់ទៅបញ្ជីសៀវភៅ
           </Link>
           <button
             onClick={() => window.print()}
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-bold text-white shadow-md transition hover:bg-red-700"
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-danger px-5 py-2.5 text-sm font-bold text-white shadow-md transition hover:opacity-90"
           >
             <Printer className="h-4 w-4" aria-hidden="true" /> បោះពុម្ព
           </button>
         </div>
 
-        <div className="rounded-2xl border border-divider bg-bg-surface p-5 shadow-lg md:p-8">
-          <h1 className="kh-moul mb-6 border-b border-divider pb-4 text-lg text-[#0054a6] md:text-xl dark:text-blue-300">
+        <div className="rounded-xl border border-divider bg-bg-surface p-5 shadow-lg md:p-8">
+          <h1 className="kh-moul mb-6 border-b border-divider pb-4 text-lg text-brand md:text-xl dark:text-brand-300">
             {book.title}
           </h1>
 
           {/* Entry form */}
           <form
             onSubmit={handleSubmit}
-            className="mb-8 rounded-2xl border border-blue-100 bg-blue-50/50 p-5 dark:border-gray-700 dark:bg-gray-800/50"
+            className="mb-8 rounded-xl border border-divider bg-brand-100/50 p-5 dark:border-divider dark:bg-bg-surface/50"
           >
             <h2 className="mb-4 flex items-center gap-2 font-bold text-text-heading">
               {editId ? (
-                <><Edit className="h-5 w-5 text-yellow-600" aria-hidden="true" /> កែប្រែកំណត់ត្រា</>
+                <><Edit className="h-5 w-5 text-warning" aria-hidden="true" /> កែប្រែកំណត់ត្រា</>
               ) : (
-                <><PlusCircle className="h-5 w-5 text-green-600" aria-hidden="true" /> បញ្ចូលកំណត់ត្រាថ្មី</>
+                <><PlusCircle className="h-5 w-5 text-success" aria-hidden="true" /> បញ្ចូលកំណត់ត្រាថ្មី</>
               )}
             </h2>
 
@@ -223,7 +223,7 @@ export default function BookClient({
                 type="submit"
                 disabled={pending}
                 className={`inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 font-bold text-white shadow transition disabled:opacity-60 sm:flex-none sm:px-8 ${
-                  editId ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-[#0054a6] hover:bg-blue-700'
+                  editId ? 'bg-warning hover:bg-warning' : 'bg-brand hover:bg-brand-hover'
                 }`}
               >
                 <Save className="h-4 w-4" aria-hidden="true" /> រក្សាទុក
@@ -232,7 +232,7 @@ export default function BookClient({
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-gray-400 px-4 py-2.5 font-bold text-white shadow transition hover:bg-gray-500"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-divider px-4 py-2.5 font-bold text-white shadow transition hover:bg-text-muted"
                 >
                   <X className="h-4 w-4" aria-hidden="true" /> បោះបង់
                 </button>
@@ -247,7 +247,7 @@ export default function BookClient({
 
           <div className="overflow-x-auto rounded-xl border border-divider">
             <table className="w-full text-left text-sm">
-              <thead className="border-b bg-gray-100 font-bold text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+              <thead className="border-b bg-paper font-bold text-text-body dark:bg-bg-surface dark:text-text-body">
                 <tr>
                   <th className="w-14 p-3 text-center">ល.រ</th>
                   {columns.map((f) => (
@@ -256,7 +256,7 @@ export default function BookClient({
                   <th className="w-28 p-3 text-center">គ្រប់គ្រង</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 bg-bg-surface dark:divide-gray-800">
+              <tbody className="divide-y divide-divider bg-bg-surface dark:divide-divider">
                 {entries.length === 0 ? (
                   <tr>
                     <td colSpan={columns.length + 2} className="p-6 text-center font-bold text-text-muted">
@@ -265,7 +265,7 @@ export default function BookClient({
                   </tr>
                 ) : (
                   entries.map((entry, i) => (
-                    <tr key={entry.id} className="transition hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                    <tr key={entry.id} className="transition hover:bg-paper dark:hover:bg-paper/50">
                       <td className="p-3 text-center font-bold text-text-muted">{toKhmerNumber(i + 1)}</td>
                       {columns.map((f) => (
                         <td key={f.key} className="max-w-xs p-3 text-text-body">
@@ -277,14 +277,14 @@ export default function BookClient({
                           <button
                             onClick={() => handleEdit(entry)}
                             aria-label="កែប្រែ"
-                            className="rounded-lg bg-yellow-100 p-2 text-yellow-600 transition hover:bg-yellow-200"
+                            className="rounded-lg bg-warning/10 p-2 text-warning transition hover:bg-warning/20"
                           >
                             <Edit className="h-4 w-4" aria-hidden="true" />
                           </button>
                           <button
                             onClick={() => handleDelete(entry)}
                             aria-label="លុប"
-                            className="rounded-lg bg-red-100 p-2 text-red-600 transition hover:bg-red-200"
+                            className="rounded-lg bg-danger/10 p-2 text-danger transition hover:bg-danger/20"
                           >
                             <Trash2 className="h-4 w-4" aria-hidden="true" />
                           </button>

@@ -161,9 +161,8 @@ export default function CertificateClient({ initialStudents, settings }: { initi
     const selectedStudentsData = studentsData.filter(s => selectedStudentIds.includes(s.id))
 
     return (
-        <div className="bg-[#f0f4f8] min-h-screen text-slate-800 pb-20 print:bg-white print:m-0 print:p-0">
+        <div className="bg-paper min-h-screen text-text-heading pb-20 print:bg-white print:m-0 print:p-0">
             <style jsx global>{`
-                .font-moul { font-family: 'Moul', cursive; font-weight: normal; }
                 .font-battambang { font-family: 'Battambang', cursive; }
 
                 .input-field {
@@ -221,37 +220,37 @@ export default function CertificateClient({ initialStudents, settings }: { initi
 
             <div className="no-print max-w-[1200px] mx-auto px-4 py-6">
                 <div className="flex items-center gap-4 mb-6">
-                    <Link href="/dashboard" className="p-3 bg-white rounded-xl shadow-sm hover:shadow-md text-blue-600 transition-all border border-slate-200">
+                    <Link href="/dashboard" className="p-3 bg-white rounded-xl shadow-sm hover:shadow-md text-brand transition-all border border-divider">
                         <ArrowLeft className="w-6 h-6" />
                     </Link>
                     <div>
-                        <h1 className="text-2xl font-moul text-[#0054a6] flex items-center gap-3">
-                            <Award className="w-8 h-8 text-yellow-500" /> បោះពុម្ពបណ្ណសរសើរ (Certificates)
+                        <h1 className="text-2xl kh-moul text-brand flex items-center gap-3">
+                            <Award className="w-8 h-8 text-gold" /> បោះពុម្ពបណ្ណសរសើរ (Certificates)
                         </h1>
-                        <p className="text-slate-500 text-sm mt-1">ទាញយកទិន្នន័យពិន្ទុ និងចំណាត់ថ្នាក់ ដើម្បីបញ្ចូលក្នុងស៊ុមបណ្ណសរសើរដោយស្វ័យប្រវត្តិ</p>
+                        <p className="text-text-muted text-sm mt-1">ទាញយកទិន្នន័យពិន្ទុ និងចំណាត់ថ្នាក់ ដើម្បីបញ្ចូលក្នុងស៊ុមបណ្ណសរសើរដោយស្វ័យប្រវត្តិ</p>
                     </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div className="flex flex-col gap-6">
-                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                            <h2 className="font-bold text-lg mb-4 flex items-center gap-2 text-slate-700">
-                                <span className="bg-blue-100 text-blue-700 w-6 h-6 rounded-full flex items-center justify-center text-sm">1</span> ជ្រើសរើសទិន្នន័យ
+                        <div className="bg-white p-6 rounded-xl shadow-sm border border-divider">
+                            <h2 className="font-bold text-lg mb-4 flex items-center gap-2 text-text-body">
+                                <span className="bg-brand-100 text-brand w-6 h-6 rounded-full flex items-center justify-center text-sm">1</span> ជ្រើសរើសទិន្នន័យ
                             </h2>
                             
                             <div className="space-y-4">
                                 <div>
-                                    <label className="block text-sm font-bold text-slate-600 mb-2">ប្រភេទពិន្ទុ</label>
-                                    <div className="flex bg-slate-100 p-1 rounded-xl">
-                                        <button onClick={() => setScoreType('monthly')} className={`flex-1 py-2 rounded-lg font-bold transition text-sm ${scoreType === 'monthly' ? 'bg-white shadow text-[#0054a6]' : 'text-slate-500 hover:bg-white/50'}`}>ប្រចាំខែ</button>
-                                        <button onClick={() => setScoreType('semester')} className={`flex-1 py-2 rounded-lg font-bold transition text-sm ${scoreType === 'semester' ? 'bg-white shadow text-[#0054a6]' : 'text-slate-500 hover:bg-white/50'}`}>ប្រចាំឆមាស</button>
-                                        <button onClick={() => setScoreType('yearly')} className={`flex-1 py-2 rounded-lg font-bold transition text-sm ${scoreType === 'yearly' ? 'bg-white shadow text-[#0054a6]' : 'text-slate-500 hover:bg-white/50'}`}>ប្រចាំឆ្នាំ</button>
+                                    <label className="block text-sm font-bold text-text-body mb-2">ប្រភេទពិន្ទុ</label>
+                                    <div className="flex bg-paper p-1 rounded-xl">
+                                        <button onClick={() => setScoreType('monthly')} className={`flex-1 py-2 rounded-lg font-bold transition text-sm ${scoreType === 'monthly' ? 'bg-white shadow text-brand' : 'text-text-muted hover:bg-white/50'}`}>ប្រចាំខែ</button>
+                                        <button onClick={() => setScoreType('semester')} className={`flex-1 py-2 rounded-lg font-bold transition text-sm ${scoreType === 'semester' ? 'bg-white shadow text-brand' : 'text-text-muted hover:bg-white/50'}`}>ប្រចាំឆមាស</button>
+                                        <button onClick={() => setScoreType('yearly')} className={`flex-1 py-2 rounded-lg font-bold transition text-sm ${scoreType === 'yearly' ? 'bg-white shadow text-brand' : 'text-text-muted hover:bg-white/50'}`}>ប្រចាំឆ្នាំ</button>
                                     </div>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-3">
                                     <div>
-                                        <label className="block text-sm font-bold text-slate-600 mb-2">ឆ្នាំសិក្សា</label>
+                                        <label className="block text-sm font-bold text-text-body mb-2">ឆ្នាំសិក្សា</label>
                                         <Select
                                             ariaLabel="ឆ្នាំសិក្សា"
                                             value={academicYear}
@@ -261,7 +260,7 @@ export default function CertificateClient({ initialStudents, settings }: { initi
                                     </div>
                                     {scoreType === 'monthly' && (
                                         <div>
-                                            <label className="block text-sm font-bold text-slate-600 mb-2">ខែ</label>
+                                            <label className="block text-sm font-bold text-text-body mb-2">ខែ</label>
                                             <Select
                                                 ariaLabel="ខែ"
                                                 value={month}
@@ -272,7 +271,7 @@ export default function CertificateClient({ initialStudents, settings }: { initi
                                     )}
                                     {scoreType === 'semester' && (
                                         <div>
-                                            <label className="block text-sm font-bold text-slate-600 mb-2">ឆមាស</label>
+                                            <label className="block text-sm font-bold text-text-body mb-2">ឆមាស</label>
                                             <Select
                                                 ariaLabel="ឆមាស"
                                                 value={semester}
@@ -286,20 +285,20 @@ export default function CertificateClient({ initialStudents, settings }: { initi
                                     )}
                                 </div>
 
-                                <button onClick={loadData} className="w-full bg-[#0054a6] text-white py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-800 transition-colors shadow-lg shadow-blue-200 mt-2">
+                                <button onClick={loadData} className="w-full bg-brand text-white py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-brand-800 transition-colors shadow-lg shadow-blue-200 mt-2">
                                     <RefreshCw className="w-4 h-4" /> ទាញយកចំណាត់ថ្នាក់សិស្ស
                                 </button>
                             </div>
                         </div>
 
-                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                            <h2 className="font-bold text-lg mb-4 flex items-center gap-2 text-slate-700">
-                                <span className="bg-blue-100 text-blue-700 w-6 h-6 rounded-full flex items-center justify-center text-sm">2</span> រូបភាពស៊ុម & ព័ត៌មាន
+                        <div className="bg-white p-6 rounded-xl shadow-sm border border-divider">
+                            <h2 className="font-bold text-lg mb-4 flex items-center gap-2 text-text-body">
+                                <span className="bg-brand-100 text-brand w-6 h-6 rounded-full flex items-center justify-center text-sm">2</span> រូបភាពស៊ុម & ព័ត៌មាន
                             </h2>
 
                             <div className="space-y-4">
-                                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                                    <label className="block text-sm font-bold text-slate-600 mb-2">ជ្រើសរើសស៊ុមពី Folder របស់អ្នក</label>
+                                <div className="bg-paper p-4 rounded-xl border border-divider">
+                                    <label className="block text-sm font-bold text-text-body mb-2">ជ្រើសរើសស៊ុមពី Folder របស់អ្នក</label>
                                     <Select
                                         ariaLabel="រូបភាពស៊ុម"
                                         placeholder="-- ជ្រើសរើសរូបភាពស៊ុម --"
@@ -312,81 +311,81 @@ export default function CertificateClient({ initialStudents, settings }: { initi
                                         wrapperClassName="mb-3"
                                     />
 
-                                    <div className="relative w-full h-32 bg-white rounded-lg border border-slate-200 flex flex-col items-center justify-center overflow-hidden shadow-inner">
+                                    <div className="relative w-full h-32 bg-white rounded-lg border border-divider flex flex-col items-center justify-center overflow-hidden shadow-inner">
                                         {templateUrl ? (
                                             // eslint-disable-next-line @next/next/no-img-element
                                             <img src={templateUrl} className="absolute inset-0 w-full h-full object-cover z-0" alt="Preview" />
                                         ) : (
                                             <div className="relative z-10 text-center">
-                                                <ImageIcon className="w-8 h-8 mx-auto text-slate-300 mb-1" />
-                                                <p className="text-[11px] text-slate-400 font-bold">ទីតាំងបង្ហាញរូបភាព</p>
+                                                <ImageIcon className="w-8 h-8 mx-auto text-text-muted mb-1" />
+                                                <p className="text-[11px] text-text-muted font-bold">ទីតាំងបង្ហាញរូបភាព</p>
                                             </div>
                                         )}
                                     </div>
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-bold text-slate-600 mb-1">ការិយាល័យ / មន្ទីរអប់រំ</label>
-                                    <input type="text" value={certOffice} onChange={e => setCertOffice(e.target.value)} className="input-field py-2 text-sm text-green-800 font-bold" />
+                                    <label className="block text-sm font-bold text-text-body mb-1">ការិយាល័យ / មន្ទីរអប់រំ</label>
+                                    <input type="text" value={certOffice} onChange={e => setCertOffice(e.target.value)} className="input-field py-2 text-sm text-success font-bold" />
                                 </div>
                                 
                                 <div className="grid grid-cols-2 gap-3">
                                     <div>
-                                        <label className="block text-sm font-bold text-slate-600 mb-1">ឈ្មោះសាលា</label>
-                                        <input type="text" value={certSchool} onChange={e => setCertSchool(e.target.value)} className="input-field py-2 text-sm text-green-800 font-bold" />
+                                        <label className="block text-sm font-bold text-text-body mb-1">ឈ្មោះសាលា</label>
+                                        <input type="text" value={certSchool} onChange={e => setCertSchool(e.target.value)} className="input-field py-2 text-sm text-success font-bold" />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-bold text-slate-600 mb-1">ថ្នាក់ទី</label>
-                                        <input type="text" value={certClass} onChange={e => setCertClass(e.target.value)} className="input-field py-2 text-sm text-red-600 font-bold" />
+                                        <label className="block text-sm font-bold text-text-body mb-1">ថ្នាក់ទី</label>
+                                        <input type="text" value={certClass} onChange={e => setCertClass(e.target.value)} className="input-field py-2 text-sm text-danger font-bold" />
                                     </div>
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-bold text-slate-600 mb-1">ធ្វើនៅ (ខេត្ត)</label>
+                                    <label className="block text-sm font-bold text-text-body mb-1">ធ្វើនៅ (ខេត្ត)</label>
                                     <input type="text" value={certProvince} onChange={e => setCertProvince(e.target.value)} className="input-field py-2 text-[11px] text-[#000080]" />
                                 </div>
 
-                                <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-100">
+                                <div className="flex items-center justify-between mt-4 pt-4 border-t border-divider">
                                     <div>
-                                        <label className="block text-sm font-bold text-slate-600 mb-1 flex items-center gap-2">
-                                            <Camera className="w-4 h-4 text-[#0054a6]" /> ភ្ជាប់រូបថតសិស្ស (៤x៦)
+                                        <label className="block text-sm font-bold text-text-body mb-1 flex items-center gap-2">
+                                            <Camera className="w-4 h-4 text-brand" /> ភ្ជាប់រូបថតសិស្ស (៤x៦)
                                         </label>
-                                        <p className="text-[10px] text-slate-500">បើកដើម្បីទាញយករូបថតពីបញ្ជីឈ្មោះសិស្សមកបង្ហាញ</p>
+                                        <p className="text-[10px] text-text-muted">បើកដើម្បីទាញយករូបថតពីបញ្ជីឈ្មោះសិស្សមកបង្ហាញ</p>
                                     </div>
                                     <label className="relative inline-flex items-center cursor-pointer">
                                         <input type="checkbox" checked={showPhoto} onChange={e => setShowPhoto(e.target.checked)} className="sr-only peer" />
-                                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#0054a6]"></div>
+                                        <div className="w-11 h-6 bg-divider peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-divider after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
                                     </label>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col overflow-hidden h-full min-h-[500px]">
-                        <div className="p-4 border-b border-slate-100 bg-slate-50 flex flex-col gap-4">
+                    <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-divider flex flex-col overflow-hidden h-full min-h-[500px]">
+                        <div className="p-4 border-b border-divider bg-paper flex flex-col gap-4">
                             <div className="flex flex-wrap justify-between items-center gap-3">
-                                <h2 className="font-bold text-lg flex items-center gap-2 text-slate-700">
-                                    <span className="bg-blue-100 text-blue-700 w-6 h-6 rounded-full flex items-center justify-center text-sm">3</span> បញ្ជីសិស្សទទួលបានចំណាត់ថ្នាក់
+                                <h2 className="font-bold text-lg flex items-center gap-2 text-text-body">
+                                    <span className="bg-brand-100 text-brand w-6 h-6 rounded-full flex items-center justify-center text-sm">3</span> បញ្ជីសិស្សទទួលបានចំណាត់ថ្នាក់
                                 </h2>
-                                <div className="flex items-center gap-3 bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm w-full sm:w-auto justify-between">
-                                    <span className="text-sm text-slate-500 font-bold px-3">បានជ្រើសរើស: {selectedStudentIds.length} នាក់</span>
-                                    <button onClick={handlePrint} disabled={selectedStudentIds.length === 0} className="bg-green-600 text-white px-5 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-green-700 transition-colors shadow-md shadow-green-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm whitespace-nowrap">
+                                <div className="flex items-center gap-3 bg-white p-1.5 rounded-xl border border-divider shadow-sm w-full sm:w-auto justify-between">
+                                    <span className="text-sm text-text-muted font-bold px-3">បានជ្រើសរើស: {selectedStudentIds.length} នាក់</span>
+                                    <button onClick={handlePrint} disabled={selectedStudentIds.length === 0} className="bg-success text-white px-5 py-2 rounded-lg font-bold flex items-center gap-2 hover:opacity-90 transition-colors shadow-md shadow-green-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm whitespace-nowrap">
                                         <Printer className="w-4 h-4" /> បោះពុម្ពបណ្ណសរសើរ
                                     </button>
                                 </div>
                             </div>
                             <div className="flex gap-2">
-                                <button onClick={() => selectTop(3)} className="px-3 py-1.5 bg-yellow-100 text-yellow-700 rounded-lg text-sm font-bold hover:bg-yellow-200 transition">រើស Top 3</button>
-                                <button onClick={() => selectTop(5)} className="px-3 py-1.5 bg-yellow-100 text-yellow-700 rounded-lg text-sm font-bold hover:bg-yellow-200 transition">រើស Top 5</button>
+                                <button onClick={() => selectTop(3)} className="px-3 py-1.5 bg-gold/10 text-gold rounded-lg text-sm font-bold hover:bg-gold/20 transition">រើស Top 3</button>
+                                <button onClick={() => selectTop(5)} className="px-3 py-1.5 bg-gold/10 text-gold rounded-lg text-sm font-bold hover:bg-gold/20 transition">រើស Top 5</button>
                             </div>
                         </div>
 
                         <div className="flex-1 overflow-auto p-0">
                             <table className="w-full text-sm text-left">
-                                <thead className="bg-slate-100 text-slate-600 sticky top-0 z-10">
+                                <thead className="bg-paper text-text-body sticky top-0 z-10">
                                     <tr>
                                         <th className="p-3 w-12 text-center">
-                                            <input type="checkbox" checked={selectedStudentIds.length === studentsData.length && studentsData.length > 0} onChange={toggleAll} className="w-4 h-4 rounded border-gray-300 text-blue-600" />
+                                            <input type="checkbox" checked={selectedStudentIds.length === studentsData.length && studentsData.length > 0} onChange={toggleAll} className="w-4 h-4 rounded border-divider text-brand" />
                                         </th>
                                         <th className="p-3 font-bold">ចំណាត់ថ្នាក់</th>
                                         <th className="p-3 font-bold">ឈ្មោះសិស្ស</th>
@@ -396,29 +395,29 @@ export default function CertificateClient({ initialStudents, settings }: { initi
                                         <th className="p-3 font-bold">និទ្ទេស</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100">
+                                <tbody className="divide-y divide-divider">
                                     {studentsData.length === 0 ? (
                                         <tr>
-                                            <td colSpan={7} className="p-8 text-center text-slate-400">
+                                            <td colSpan={7} className="p-8 text-center text-text-muted">
                                                 <ListOrdered className="w-12 h-12 mx-auto mb-3 opacity-30" />
                                                 សូមរង់ចាំបន្តិច ទិន្នន័យកំពុងទាញយក...
                                             </td>
                                         </tr>
                                     ) : studentsData.map(stu => (
-                                        <tr key={stu.id} className="hover:bg-slate-50 transition-colors">
+                                        <tr key={stu.id} className="hover:bg-paper transition-colors">
                                             <td className="p-3 text-center">
-                                                <input type="checkbox" checked={selectedStudentIds.includes(stu.id)} onChange={() => toggleSelection(stu.id)} className="w-4 h-4 rounded border-gray-300 text-blue-600" />
+                                                <input type="checkbox" checked={selectedStudentIds.includes(stu.id)} onChange={() => toggleSelection(stu.id)} className="w-4 h-4 rounded border-divider text-brand" />
                                             </td>
                                             <td className="p-3 font-bold text-center">
-                                                <span className={`inline-block w-6 h-6 text-center leading-6 rounded-full ${stu.rank === 1 ? 'bg-yellow-400 text-white' : stu.rank === 2 ? 'bg-slate-300 text-white' : stu.rank === 3 ? 'bg-orange-400 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                                                <span className={`inline-block w-6 h-6 text-center leading-6 rounded-full ${stu.rank === 1 ? 'bg-gold text-brand-950' : stu.rank === 2 ? 'bg-divider text-text-heading' : stu.rank === 3 ? 'bg-[#C4762A] text-white' : 'bg-paper text-text-muted'}`}>
                                                     {stu.rank}
                                                 </span>
                                             </td>
-                                            <td className="p-3 font-bold text-slate-800">{stu.name_kh || stu.full_name}</td>
+                                            <td className="p-3 font-bold text-text-heading">{stu.name_kh || stu.full_name}</td>
                                             <td className="p-3">{stu.gender}</td>
-                                            <td className="p-3 font-bold text-yellow-600">{stu.total}</td>
-                                            <td className="p-3 font-bold text-blue-600">{stu.average}</td>
-                                            <td className="p-3 font-bold text-green-600">{stu.grade}</td>
+                                            <td className="p-3 font-bold text-gold">{stu.total}</td>
+                                            <td className="p-3 font-bold text-brand">{stu.average}</td>
+                                            <td className="p-3 font-bold text-success">{stu.grade}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -435,35 +434,35 @@ export default function CertificateClient({ initialStudents, settings }: { initi
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         {templateUrl && <img src={templateUrl} className="cert-bg-image" alt="Template" />}
                         <div className="cert-content">
-                            <div className="absolute text-center font-moul leading-relaxed px-2 flex items-center justify-center" style={{ color: '#000080', width: '20%', left: '40%', top: '22%', height: '5%', fontSize: '16px' }}>
+                            <div className="absolute text-center kh-moul leading-relaxed px-2 flex items-center justify-center" style={{ color: '#000080', width: '20%', left: '40%', top: '22%', height: '5%', fontSize: '16px' }}>
                                 {certOffice}
                             </div>
 
-                            <div className="absolute w-full text-center font-moul" style={{ color: '#ff0000', top: '28%', fontSize: '20px' }}>
+                            <div className="absolute w-full text-center kh-moul" style={{ color: '#ff0000', top: '28%', fontSize: '20px' }}>
                                 {certSchool}
                             </div>
 
-                            <div className="absolute font-moul w-full text-center" style={{ color: '#000080', top: '55%', fontSize: '24px' }}>
+                            <div className="absolute kh-moul w-full text-center" style={{ color: '#000080', top: '55%', fontSize: '24px' }}>
                                 {student.name_kh || student.full_name}
                             </div>
                             
-                            <div className="absolute font-moul text-center" style={{ color: '#000080', top: '65%', left: '30%', width: '10%' }}>
+                            <div className="absolute kh-moul text-center" style={{ color: '#000080', top: '65%', left: '30%', width: '10%' }}>
                                 {student.gender}
                             </div>
                             
-                            <div className="absolute font-moul text-center" style={{ color: '#000080', top: '65%', left: '46%', width: '10%' }}>
+                            <div className="absolute kh-moul text-center" style={{ color: '#000080', top: '65%', left: '46%', width: '10%' }}>
                                 {certClass}
                             </div>
 
-                            <div className="absolute font-moul text-center" style={{ color: '#000080', top: '65%', left: '62%', width: '10%' }}>
+                            <div className="absolute kh-moul text-center" style={{ color: '#000080', top: '65%', left: '62%', width: '10%' }}>
                                 {student.rank}
                             </div>
                             
-                            <div className="absolute font-moul text-center" style={{ color: '#000080', top: '65%', left: '76%', width: '15%' }}>
+                            <div className="absolute kh-moul text-center" style={{ color: '#000080', top: '65%', left: '76%', width: '15%' }}>
                                 {student.average}
                             </div>
 
-                            <div className="absolute font-moul text-center" style={{ color: '#000080', top: '78%', left: '60%', width: '30%', fontSize: '14px' }}>
+                            <div className="absolute kh-moul text-center" style={{ color: '#000080', top: '78%', left: '60%', width: '30%', fontSize: '14px' }}>
                                 ធ្វើនៅ{certProvince} ថ្ងៃទី{solarDay} ខែ{solarMonth} ឆ្នាំ{solarYear}
                             </div>
 

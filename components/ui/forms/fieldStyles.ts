@@ -52,3 +52,10 @@ export const menuListClass = "max-h-60 overflow-y-auto overscroll-contain"
 
 /** Field label used above controls. */
 export const fieldLabel = "mb-1 text-[13px] font-bold text-text-body"
+
+/**
+ * The asterisk on a required field. Both selects had their own copy of this
+ * using `text-red-500`; `danger` is the semantic token for the same intent and
+ * tracks the palette.
+ */
+export const requiredMark = "ml-0.5 text-danger"

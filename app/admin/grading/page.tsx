@@ -32,26 +32,26 @@ export default async function AdminGradingPage() {
       description="កំណត់មាត្រដ្ឋាននិទ្ទេសតាមកម្រិតសិក្សា និងគ្រប់គ្រងការវាយតម្លៃ"
     >
       <section className="space-y-4">
-        <h2 className="font-bold text-gray-800">មាត្រដ្ឋាននិទ្ទេស</h2>
+        <h2 className="font-bold text-text-heading">មាត្រដ្ឋាននិទ្ទេស</h2>
         {schemes.length === 0 ? (
           <EmptyState message="មិនទាន់មានមាត្រដ្ឋាននិទ្ទេសទេ" />
         ) : (
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             {schemes.map((s) => (
-              <div key={s.id} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+              <div key={s.id} className="rounded-xl border border-divider bg-white p-5 shadow-sm">
                 <div className="mb-3 flex items-start justify-between gap-2">
                   <div>
-                    <p className="font-bold text-gray-800">{s.levelName}</p>
-                    <p className="text-xs text-gray-500">{s.name}</p>
+                    <p className="font-bold text-text-heading">{s.levelName}</p>
+                    <p className="text-xs text-text-muted">{s.name}</p>
                   </div>
                   {s.isDefault && (
-                    <span className="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700">
+                    <span className="shrink-0 rounded-full bg-brand-100 px-2 py-0.5 text-xs font-bold text-brand">
                       លំនាំដើម
                     </span>
                   )}
                 </div>
 
-                <p className="mb-3 text-xs text-gray-500">
+                <p className="mb-3 text-xs text-text-muted">
                   ពិន្ទុពេញ {toKhmerNumber(s.config.maxScore)} · ជាប់ពី {toKhmerNumber(s.config.passMark)}
                 </p>
 
@@ -59,12 +59,12 @@ export default async function AdminGradingPage() {
                   {s.config.bands.map((b) => (
                     <li key={b.letter} className="flex items-center justify-between text-sm">
                       <span className="flex items-center gap-2">
-                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-slate-100 text-xs font-bold text-slate-700">
+                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-paper text-xs font-bold text-text-body">
                           {b.letter}
                         </span>
-                        <span className="text-gray-600">{b.label}</span>
+                        <span className="text-text-body">{b.label}</span>
                       </span>
-                      <span className="font-mono text-xs text-gray-400">
+                      <span className="font-mono text-xs text-text-muted">
                         {toKhmerNumber(b.min)}–{toKhmerNumber(b.max)}
                       </span>
                     </li>
@@ -77,7 +77,7 @@ export default async function AdminGradingPage() {
       </section>
 
       <section className="space-y-4">
-        <h2 className="font-bold text-gray-800">ការវាយតម្លៃ</h2>
+        <h2 className="font-bold text-text-heading">ការវាយតម្លៃ</h2>
 
         <AdminCreateForm title="បង្កើតការវាយតម្លៃថ្មី" action={createAssessment}>
           <Field label="ឈ្មោះការវាយតម្លៃ" name="name" required placeholder="ឧ. ប្រឡងឆមាសទី១" />
@@ -96,29 +96,29 @@ export default async function AdminGradingPage() {
         {assessments.length === 0 ? (
           <EmptyState message="មិនទាន់មានការវាយតម្លៃក្នុងឆ្នាំសិក្សានេះទេ" />
         ) : (
-          <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm">
+          <div className="overflow-x-auto rounded-xl border border-divider bg-white shadow-sm">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-left">
+              <thead className="bg-paper text-left">
                 <tr>
-                  <th className="p-4 font-bold text-gray-700">ឈ្មោះ</th>
-                  <th className="p-4 font-bold text-gray-700">ថ្នាក់ / មុខវិជ្ជា</th>
-                  <th className="p-4 font-bold text-gray-700">ប្រភេទ</th>
-                  <th className="p-4 text-right font-bold text-gray-700">ពិន្ទុពេញ</th>
-                  <th className="p-4 text-right font-bold text-gray-700">ទម្ងន់</th>
-                  <th className="p-4 font-bold text-gray-700">ថ្ងៃ</th>
+                  <th className="p-4 font-bold text-text-body">ឈ្មោះ</th>
+                  <th className="p-4 font-bold text-text-body">ថ្នាក់ / មុខវិជ្ជា</th>
+                  <th className="p-4 font-bold text-text-body">ប្រភេទ</th>
+                  <th className="p-4 text-right font-bold text-text-body">ពិន្ទុពេញ</th>
+                  <th className="p-4 text-right font-bold text-text-body">ទម្ងន់</th>
+                  <th className="p-4 font-bold text-text-body">ថ្ងៃ</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-divider">
                 {assessments.map((a) => (
-                  <tr key={a.id} className="hover:bg-slate-50">
-                    <td className="p-4 font-bold text-gray-800">{a.name}</td>
-                    <td className="p-4 text-gray-600">{a.className} › {a.subjectName}</td>
-                    <td className="p-4 text-gray-600">
+                  <tr key={a.id} className="hover:bg-paper">
+                    <td className="p-4 font-bold text-text-heading">{a.name}</td>
+                    <td className="p-4 text-text-body">{a.className} › {a.subjectName}</td>
+                    <td className="p-4 text-text-body">
                       {ASSESSMENT_TYPES.find((t) => t.value === a.type)?.label ?? a.type}
                     </td>
-                    <td className="p-4 text-right text-gray-800">{toKhmerNumber(a.maxScore)}</td>
-                    <td className="p-4 text-right text-gray-800">{toKhmerNumber(a.weight)}</td>
-                    <td className="p-4 text-xs text-gray-500">{a.date ?? '—'}</td>
+                    <td className="p-4 text-right text-text-heading">{toKhmerNumber(a.maxScore)}</td>
+                    <td className="p-4 text-right text-text-heading">{toKhmerNumber(a.weight)}</td>
+                    <td className="p-4 text-xs text-text-muted">{a.date ?? '—'}</td>
                   </tr>
                 ))}
               </tbody>

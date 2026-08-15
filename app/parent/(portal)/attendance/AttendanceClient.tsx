@@ -8,10 +8,10 @@ import type { AttendanceRecord } from '@/lib/types'
 import type { AttendanceSummary } from '../../queries'
 
 const STATUS = {
-  P:  { key: 'present'    as const, tone: 'text-emerald-400', bg: 'bg-emerald-400/10', Icon: CheckCircle2 },
-  L:  { key: 'late'       as const, tone: 'text-amber-400',   bg: 'bg-amber-400/10',   Icon: Clock },
-  A:  { key: 'absent'     as const, tone: 'text-rose-400',    bg: 'bg-rose-400/10',    Icon: XCircle },
-  AP: { key: 'permission' as const, tone: 'text-blue-400',    bg: 'bg-blue-400/10',    Icon: FileText },
+  P:  { key: 'present'    as const, tone: 'text-pp-success', bg: 'bg-pp-success/10', Icon: CheckCircle2 },
+  L:  { key: 'late'       as const, tone: 'text-pp-warning',   bg: 'bg-pp-warning/10',   Icon: Clock },
+  A:  { key: 'absent'     as const, tone: 'text-pp-danger',    bg: 'bg-pp-danger/10',    Icon: XCircle },
+  AP: { key: 'permission' as const, tone: 'text-pp-info',    bg: 'bg-pp-info/10',    Icon: FileText },
 }
 
 export default function AttendanceClient({

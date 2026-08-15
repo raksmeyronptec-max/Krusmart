@@ -36,23 +36,23 @@ export default async function AdminClassesPage() {
       {classes.length === 0 ? (
         <EmptyState message="មិនទាន់មានថ្នាក់រៀនក្នុងឆ្នាំសិក្សានេះទេ" />
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-xl border border-divider bg-white shadow-sm">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left">
+            <thead className="bg-paper text-left">
               <tr>
-                <th className="p-4 font-bold text-gray-700">ថ្នាក់</th>
-                <th className="p-4 font-bold text-gray-700">កម្រិត</th>
-                <th className="p-4 font-bold text-gray-700">ដំណាក់កាល</th>
-                <th className="p-4 text-right font-bold text-gray-700">ចំនួនសិស្ស</th>
+                <th className="p-4 font-bold text-text-body">ថ្នាក់</th>
+                <th className="p-4 font-bold text-text-body">កម្រិត</th>
+                <th className="p-4 font-bold text-text-body">ដំណាក់កាល</th>
+                <th className="p-4 text-right font-bold text-text-body">ចំនួនសិស្ស</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-divider">
               {classes.map((c) => (
-                <tr key={c.id} className="hover:bg-slate-50">
-                  <td className="p-4 font-bold text-gray-800">{c.name}</td>
-                  <td className="p-4 text-gray-600">{c.gradeName || '—'}</td>
-                  <td className="p-4 text-gray-600">{c.levelName || '—'}</td>
-                  <td className="p-4 text-right font-medium text-gray-800">{toKhmerNumber(c.studentCount)}</td>
+                <tr key={c.id} className="hover:bg-paper">
+                  <td className="p-4 font-bold text-text-heading">{c.name}</td>
+                  <td className="p-4 text-text-body">{c.gradeName || '—'}</td>
+                  <td className="p-4 text-text-body">{c.levelName || '—'}</td>
+                  <td className="p-4 text-right font-medium text-text-heading">{toKhmerNumber(c.studentCount)}</td>
                 </tr>
               ))}
             </tbody>

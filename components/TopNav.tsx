@@ -154,10 +154,10 @@ export function TopNav() {
     // each printed certificate, ID card, report and attendance sheet. `no-print`
     // matches the class the feature pages' own @media print blocks already use;
     // `print:hidden` covers pages that define no print CSS of their own.
-    <header className="no-print print:hidden sticky top-0 z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur-lg border-b border-gray-200 dark:border-gray-800 shadow-sm relative transition-colors duration-300">
+    <header className="no-print print:hidden sticky top-0 z-50 bg-bg-surface/90 backdrop-blur-lg border-b border-divider shadow-sm relative transition-colors duration-300">
       <nav className="max-w-7xl mx-auto px-4 md:px-8 py-3 flex justify-between items-center" aria-label="Main Navigation">
         <div className="flex items-center gap-6">
-          <Link href="/dashboard" className="focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0054a6] rounded-md flex items-center gap-2">
+          <Link href="/dashboard" className="focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring rounded-md flex items-center gap-2">
             <div className="w-9 h-9 md:w-11 md:h-11 rounded-lg flex items-center justify-center overflow-hidden shadow-sm">
               {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture */}
               <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" />
@@ -172,22 +172,22 @@ export function TopNav() {
         </div>
         
         {/* Right side buttons - Matching legacy code strictly */}
-        <div className="hidden lg:flex items-center gap-4 md:gap-6 text-sm font-bold text-[#0054a6] dark:text-blue-300">
+        <div className="hidden lg:flex items-center gap-4 md:gap-6 text-sm font-bold text-brand">
             
             <button 
               onClick={handleCheckIn} 
               disabled={isCheckingIn}
-              className={`flex items-center gap-1.5 ${isCheckingIn ? 'bg-green-400' : 'bg-green-500 hover:bg-green-600'} text-white px-4 py-2 rounded-full transition font-bold shadow-md shadow-green-500/30`}
+              className={`tap-target flex items-center gap-1.5 bg-success text-white px-4 py-2 rounded-full transition font-bold shadow-sm ${isCheckingIn ? 'opacity-70' : 'hover:opacity-90'}`}
             >
                 {isCheckingIn ? <Loader2 className="w-4 h-4 animate-spin" /> : <MapPin className="w-4 h-4" />}
                 <span>{isCheckingIn ? 'កំពុងពិនិត្យ...' : 'ចុះវត្តមាន'}</span>
             </button>
 
             <div className="relative group">
-                <button className="tap-target flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-gray-800 text-blue-800 dark:text-blue-300 rounded-full border border-blue-100 dark:border-gray-700 transition-colors focus:outline-none hover:bg-blue-100 dark:hover:bg-gray-700" aria-haspopup="true" aria-expanded="false">
+                <button className="tap-target flex items-center gap-2 px-3 py-1.5 bg-brand-100 dark:bg-brand-900 text-brand-800 dark:text-brand-300 rounded-full border border-divider transition-colors focus:outline-none hover:bg-brand-100/70 dark:hover:bg-brand-800" aria-haspopup="true" aria-expanded="false">
                     {photoUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture
-                        <img src={photoUrl} alt="Profile" className="w-5 h-5 rounded-full object-cover border border-blue-200" />
+                        <img src={photoUrl} alt="Profile" className="w-5 h-5 rounded-full object-cover border border-divider" />
                     ) : (
                         <UserCircle className="w-4 h-4" aria-hidden="true" />
                     )}
@@ -195,9 +195,9 @@ export function TopNav() {
                     <ChevronDown className="w-4 h-4 transition-transform duration-200" aria-hidden="true" />
                 </button>
                 
-                <div className="absolute right-0 left-auto mt-2 w-56 rounded-xl shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 invisible opacity-0 group-hover:visible group-hover:opacity-100 z-50 border border-gray-100 dark:border-gray-700 overflow-hidden transform origin-top-right transition-all">
+                <div className="absolute right-0 left-auto mt-2 w-56 rounded-xl shadow-md bg-bg-surface invisible opacity-0 group-hover:visible group-hover:opacity-100 z-50 border border-divider overflow-hidden transform origin-top-right transition-all">
                     <div className="py-1">
-                        <Link href="/profile" className="flex w-full items-center gap-2 px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                        <Link href="/profile" className="flex w-full items-center gap-2 px-4 py-3 text-sm text-text-body hover:bg-paper transition">
                             <User className="w-4 h-4" aria-hidden="true" /> ប្រវត្តិរូប
                         </Link>
                         <button 
@@ -207,29 +207,29 @@ export function TopNav() {
                                     toast.success('បានចម្លងកូដថ្នាក់ដោយជោគជ័យ!');
                                 }
                             }}
-                            className="flex w-full items-center gap-2 px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+                            className="flex w-full items-center gap-2 px-4 py-3 text-sm text-text-body hover:bg-paper transition"
                         >
                             <Copy className="w-4 h-4" aria-hidden="true" /> <span className="copy-text">Copy កូដថ្នាក់</span>
                         </button>
-                        <Link href="/print-student-codes" className="flex w-full items-center gap-2 px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                        <Link href="/print-student-codes" className="flex w-full items-center gap-2 px-4 py-3 text-sm text-text-body hover:bg-paper transition">
                             <CheckSquare className="w-4 h-4" aria-hidden="true" /> កូដអាណាព្យាបាល
                         </Link>
-                        <Link href="/team" className="flex w-full items-center gap-2 px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                        <Link href="/team" className="flex w-full items-center gap-2 px-4 py-3 text-sm text-text-body hover:bg-paper transition">
                             <Users className="w-4 h-4" aria-hidden="true" /> ក្រុមការងារ Krusmart
                         </Link>
-                        <a href="https://www.ptec.edu.kh/" target="_blank" rel="noopener noreferrer" className="flex w-full items-center gap-2 px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                        <a href="https://www.ptec.edu.kh/" target="_blank" rel="noopener noreferrer" className="flex w-full items-center gap-2 px-4 py-3 text-sm text-text-body hover:bg-paper transition">
                             <ExternalLink className="w-4 h-4" aria-hidden="true" /> គេហទំព័រវិទ្យាស្ថាន
                         </a>
                     </div>
-                    <div className="border-t border-gray-100 dark:border-gray-700 py-1">
-                        <button onClick={handleLogout} className="flex w-full items-center gap-2 px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 font-bold transition">
+                    <div className="border-t border-divider py-1">
+                        <button onClick={handleLogout} className="flex w-full items-center gap-2 px-4 py-3 text-sm text-danger hover:bg-danger/5 font-bold transition">
                             <LogOut className="w-4 h-4" aria-hidden="true" /> ចាកចេញ
                         </button>
                     </div>
                 </div>
             </div>
 
-            <button className="flex items-center gap-1.5 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white px-4 py-2 rounded-lg transition font-bold shadow-md shadow-purple-500/30">
+            <button className="tap-target flex items-center gap-1.5 bg-gradient-to-r from-brand-800 to-brand-600 hover:from-brand-700 hover:to-brand-500 text-brand-contrast dark:text-white px-4 py-2 rounded-lg transition font-bold shadow-sm">
                 <Crown className="w-4 h-4" aria-hidden="true" /> <span>Premium</span>
             </button>
 
@@ -241,7 +241,7 @@ export function TopNav() {
             <ThemeToggle />
             <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="p-2 text-[#0054a6] dark:text-[#4facfe] bg-blue-50 dark:bg-gray-800 rounded-lg hover:bg-blue-100 dark:hover:bg-gray-700 transition"
+                className="tap-target p-2 text-brand bg-brand-100 dark:bg-brand-900 rounded-lg hover:bg-brand-100/70 dark:hover:bg-brand-800 transition"
             >
                 {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
@@ -255,17 +255,17 @@ export function TopNav() {
         action — a teacher should never have to open a menu to check it, and it
         sits within thumb reach at the top of the content area.
       */}
-      <div className="border-t border-gray-100 px-4 py-2 dark:border-gray-800 md:hidden">
+      <div className="border-t border-divider px-4 py-2 md:hidden">
         <ClassContextSwitcher compact />
       </div>
 
       {isMobileMenuOpen && (
-        <div className="lg:hidden flex-col gap-2 mt-1 pt-4 border-t border-gray-100 dark:border-gray-800 text-sm font-bold text-[#0054a6] dark:text-blue-300 bg-white dark:bg-gray-900 absolute left-0 right-0 px-4 pb-6 shadow-xl rounded-b-2xl z-50 transition-all flex">
+        <div className="lg:hidden flex-col gap-2 mt-1 pt-4 border-t border-divider text-sm font-bold text-brand bg-bg-surface absolute left-0 right-0 px-4 pb-6 shadow-lg rounded-b-xl z-50 transition-all flex">
 
           <button
             onClick={handleCheckIn}
             disabled={isCheckingIn}
-            className={`w-full flex justify-center items-center gap-2 px-4 py-3.5 ${isCheckingIn ? 'bg-green-100 dark:bg-green-900/50' : 'bg-green-50 dark:bg-green-900/30 hover:bg-green-100 dark:hover:bg-green-900/50'} text-green-700 dark:text-green-400 rounded-xl border border-green-200 dark:border-green-800 mb-1 transition font-bold shadow-sm`}
+            className={`tap-target w-full flex justify-center items-center gap-2 px-4 py-3.5 bg-success/10 text-success rounded-xl border border-success/20 mb-1 transition font-bold shadow-sm ${isCheckingIn ? 'opacity-70' : 'hover:bg-success/15'}`}
           >
               {isCheckingIn ? <Loader2 className="w-5 h-5 animate-spin" /> : <MapPin className="w-5 h-5" />}
               <span>{isCheckingIn ? 'កំពុងពិនិត្យ...' : 'ចុះវត្តមាន (Check-in)'}</span>
@@ -281,8 +281,8 @@ export function TopNav() {
                   onClick={() => setIsMobileMenuOpen(false)}
                   className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${
                     isActive
-                      ? "bg-blue-50 dark:bg-gray-800 text-blue-800 dark:text-blue-300 border border-blue-100 dark:border-gray-700"
-                      : "text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800"
+                      ? "bg-brand-100 dark:bg-brand-900 text-brand-800 dark:text-brand-300 border border-divider"
+                      : "text-text-body hover:bg-paper"
                   }`}
                 >
                   <item.icon className="w-5 h-5" /> {item.name}
@@ -291,9 +291,9 @@ export function TopNav() {
             })}
           </div>
 
-          <div className="border-t border-gray-200 dark:border-gray-800 my-2"></div>
+          <div className="border-t border-divider my-2"></div>
           
-          <button onClick={handleLogout} className="flex items-center gap-3 py-3 px-3 w-full text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition font-bold">
+          <button onClick={handleLogout} className="tap-target flex items-center gap-3 py-3 px-3 w-full text-left text-danger hover:bg-danger/5 rounded-lg transition font-bold">
               <LogOut className="w-5 h-5" aria-hidden="true" /> <span className="text-sm">ចាកចេញ</span>
           </button>
         </div>

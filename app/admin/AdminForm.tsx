@@ -45,8 +45,8 @@ export function AdminCreateForm({
           role="status"
           className={`rounded-xl border p-4 text-sm font-bold ${
             message.ok
-              ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-              : 'border-rose-200 bg-rose-50 text-rose-800'
+              ? 'border-success/30 bg-success/10 text-success'
+              : 'border-danger/30 bg-danger/10 text-danger'
           }`}
         >
           {message.text}
@@ -56,22 +56,22 @@ export function AdminCreateForm({
       {!open ? (
         <button
           onClick={() => { setOpen(true); setMessage(null) }}
-          className="flex items-center gap-2 rounded-xl bg-[#0054a6] px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700"
+          className="flex items-center gap-2 rounded-xl bg-brand px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-brand-hover"
         >
           <Plus className="h-4 w-4" /> {title}
         </button>
       ) : (
         <form
           action={onSubmit}
-          className="space-y-4 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"
+          className="space-y-4 rounded-xl border border-divider bg-white p-6 shadow-sm"
         >
           <div className="flex items-center justify-between">
-            <h2 className="kh-moul text-base text-[#0054a6]">{title}</h2>
+            <h2 className="kh-moul text-base text-brand">{title}</h2>
             <button
               type="button"
               onClick={() => setOpen(false)}
               aria-label="បិទ"
-              className="rounded-lg p-1 text-gray-400 transition hover:bg-gray-100"
+              className="rounded-lg p-1 text-text-muted transition hover:bg-paper"
             >
               <X className="h-5 w-5" />
             </button>
@@ -83,14 +83,14 @@ export function AdminCreateForm({
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-bold text-gray-700 transition hover:bg-gray-50"
+              className="rounded-xl border border-divider px-5 py-2.5 text-sm font-bold text-text-body transition hover:bg-paper"
             >
               បោះបង់
             </button>
             <button
               type="submit"
               disabled={pending}
-              className="flex items-center gap-2 rounded-xl bg-[#0054a6] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700 disabled:opacity-50"
+              className="flex items-center gap-2 rounded-xl bg-brand px-5 py-2.5 text-sm font-bold text-white transition hover:bg-brand-hover disabled:opacity-50"
             >
               {pending && <Loader2 className="h-4 w-4 animate-spin" />}
               {submitLabel}
@@ -110,13 +110,13 @@ export function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-sm font-bold text-gray-700">{label}</span>
+      <span className="mb-1.5 block text-sm font-bold text-text-body">{label}</span>
       <input
         name={name}
         type={type}
         required={required}
         placeholder={placeholder}
-        className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm outline-none transition focus:border-[#0054a6] focus:ring-2 focus:ring-blue-100"
+        className="w-full rounded-xl border border-divider px-4 py-2.5 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/20"
       />
     </label>
   )
@@ -134,12 +134,12 @@ export function SelectField({
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-sm font-bold text-gray-700">{label}</span>
+      <span className="mb-1.5 block text-sm font-bold text-text-body">{label}</span>
       <select
         name={name}
         required={required}
         defaultValue=""
-        className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-[#0054a6] focus:ring-2 focus:ring-blue-100"
+        className="w-full rounded-xl border border-divider bg-white px-4 py-2.5 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/20"
       >
         <option value="" disabled>{placeholder}</option>
         {options.map((o) => (

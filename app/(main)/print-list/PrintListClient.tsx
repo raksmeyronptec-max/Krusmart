@@ -181,9 +181,8 @@ export default function PrintListClient({ initialStudents, settings }: { initial
     }
 
     return (
-        <div className="bg-[#f1f5f9] min-h-screen text-[#0f172a] font-battambang pb-10 print:bg-white print:m-0 print:p-0">
+        <div className="bg-[#f1f5f9] min-h-screen text-[#0f172a] font-battambang pb-10 print:bg-bg-surface print:m-0 print:p-0">
             <style jsx global>{`
-                .font-moul { font-family: 'Moul', cursive; font-weight: normal; }
                 .font-battambang { font-family: 'Battambang', cursive; }
 
                 @media print {
@@ -241,20 +240,20 @@ export default function PrintListClient({ initialStudents, settings }: { initial
                 .w-other { width: 50px; font-size: 8px; }
             `}</style>
 
-            <div className="no-print bg-white shadow-md border-b border-slate-200 sticky top-0 z-40">
+            <div className="no-print bg-bg-surface shadow-md border-b border-divider sticky top-0 z-40">
                 <div className="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
-                        <Link href="/dashboard" className="p-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 transition">
+                        <Link href="/dashboard" className="p-2 bg-paper hover:bg-divider rounded-lg text-text-body transition">
                             <ArrowLeft className="w-5 h-5" />
                         </Link>
-                        <h1 className="text-lg font-bold text-blue-800 font-moul mt-1">បោះពុម្ពបញ្ជីជីវប្រវត្តិសិស្ស</h1>
+                        <h1 className="text-lg font-bold text-brand-800 kh-moul mt-1">បោះពុម្ពបញ្ជីជីវប្រវត្តិសិស្ស</h1>
                     </div>
 
                     <div className="flex gap-2 ml-auto">
-                        <button onClick={exportExcel} className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-sm transition">
+                        <button onClick={exportExcel} className="flex items-center gap-2 bg-success hover:opacity-90 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-sm transition">
                             <FileSpreadsheet className="w-4 h-4" /> ទាញយក Excel
                         </button>
-                        <button onClick={printList} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-sm transition">
+                        <button onClick={printList} className="flex items-center gap-2 bg-brand hover:bg-brand-hover text-white px-4 py-2 rounded-lg font-bold text-sm shadow-sm transition">
                             <Printer className="w-4 h-4" /> បោះពុម្ព
                         </button>
                     </div>
@@ -265,7 +264,7 @@ export default function PrintListClient({ initialStudents, settings }: { initial
             <div className="w-[297mm] max-w-none mx-auto bg-white min-h-[210mm] mt-6 shrink-0 shadow-xl border border-slate-200 p-[8mm] print-container mb-10">
                 
                 <div className="relative mb-[15px]">
-                    <div className="text-[11px] font-moul text-black leading-relaxed max-w-[50%]">
+                    <div className="text-[11px] kh-moul text-black leading-relaxed max-w-[50%]">
                         <div>{settings?.management_unit_1 || "មន្ទីរអប់រំ យុវជន និងកីឡា..."}</div>
                         <div>{settings?.management_unit_2 || "ការិយាល័យអប់រំ យុវជន និងកីឡា..."}</div>
                         <div>{settings?.school_name || "សាលាបឋមសិក្សា..."}</div>
@@ -273,21 +272,21 @@ export default function PrintListClient({ initialStudents, settings }: { initial
                     </div>
 
                     <div className="absolute top-0 right-0 text-center">
-                        <h2 className="font-moul text-[13px] text-black tracking-wide">ព្រះរាជាណាចក្រកម្ពុជា</h2>
-                        <h3 className="font-moul text-[13px] text-black mt-1 tracking-wider">ជាតិ សាសនា ព្រះមហាក្សត្រ</h3>
+                        <h2 className="kh-moul text-[13px] text-black tracking-wide">ព្រះរាជាណាចក្រកម្ពុជា</h2>
+                        <h3 className="kh-moul text-[13px] text-black mt-1 tracking-wider">ជាតិ សាសនា ព្រះមហាក្សត្រ</h3>
                         <div className="flex justify-center mt-1">
                             <span className="text-[10px]">❧❧❧ ❖ ☙☙☙</span>
                         </div>
                     </div>
 
                     <div className="text-center mt-4">
-                        <h1 className="font-moul text-lg text-black">បញ្ជីហៅឈ្មោះសិស្ស</h1>
-                        <h2 className="font-moul text-base text-black mt-1">ផ្នែកជីវប្រវត្តិសង្ខេបរបស់សិស្ស</h2>
+                        <h1 className="kh-moul text-lg text-black">បញ្ជីហៅឈ្មោះសិស្ស</h1>
+                        <h2 className="kh-moul text-base text-black mt-1">ផ្នែកជីវប្រវត្តិសង្ខេបរបស់សិស្ស</h2>
                     </div>
 
                     <div className="flex justify-between items-end mt-4 text-[11px] font-bold text-black px-2">
                         <div><span className="text-blue-800">{settings?.class_name || "..."}</span> <span className="ml-2">ឆ្នាំសិក្សា <span className="text-blue-800">{settings?.academic_year || "..."}</span></span></div>
-                        <div>ឈ្មោះគ្រូ៖ <span className="text-blue-800 font-moul">{settings?.teacher_name || "..."}</span></div>
+                        <div>ឈ្មោះគ្រូ៖ <span className="text-blue-800 kh-moul">{settings?.teacher_name || "..."}</span></div>
                         <div>សិស្សសរុប៖ <span className="text-blue-800">{total}</span> នាក់</div>
                         <div>ស្រី៖ <span className="text-blue-800">{female}</span> នាក់</div>
                     </div>
@@ -384,17 +383,17 @@ export default function PrintListClient({ initialStudents, settings }: { initial
                 <div className="mt-8 flex justify-between text-[11px] font-bold text-black px-8">
                     <div className="text-center">
                         <p className="mb-1">បានឃើញ និងឯកភាព</p>
-                        <p className="font-moul mt-2">{settings?.director_name || "នាយកសាលា"}</p>
+                        <p className="kh-moul mt-2">{settings?.director_name || "នាយកសាលា"}</p>
                         <div className="h-20"></div>
                     </div>
 
                     <div className="text-center">
-                        <p className="mb-1 font-moul">ថ្ងៃ...........ខែ.........ឆ្នាំ...........ព.ស ២៥៦...</p>
-                        <p className="mb-1 font-moul">ធ្វើនៅ<span>{settings?.province_date || ".............."}</span>ថ្ងៃទី.......ខែ...........ឆ្នាំ២០២...</p>
+                        <p className="mb-1 kh-moul">ថ្ងៃ...........ខែ.........ឆ្នាំ...........ព.ស ២៥៦...</p>
+                        <p className="mb-1 kh-moul">ធ្វើនៅ<span>{settings?.province_date || ".............."}</span>ថ្ងៃទី.......ខែ...........ឆ្នាំ២០២...</p>
                         
-                        <p className="font-moul mt-3">គ្រូបន្ទុកថ្នាក់</p>
+                        <p className="kh-moul mt-3">គ្រូបន្ទុកថ្នាក់</p>
                         <div className="h-16"></div>
-                        <p className="font-moul text-blue-800" style={{ marginLeft: '2cm' }}>{settings?.teacher_name || "ឈ្មោះគ្រូ"}</p>
+                        <p className="kh-moul text-blue-800" style={{ marginLeft: '2cm' }}>{settings?.teacher_name || "ឈ្មោះគ្រូ"}</p>
                     </div>
                 </div>
             </div>

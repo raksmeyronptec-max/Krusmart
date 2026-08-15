@@ -37,7 +37,7 @@ export function BottomNav() {
               key={item.href}
               href={item.href}
               aria-current={active ? 'page' : undefined}
-              className="tap-target flex flex-1 flex-col items-center gap-1 rounded-xl py-1 outline-none transition focus-visible:ring-2 focus-visible:ring-emerald-500"
+              className="tap-target flex flex-1 flex-col items-center gap-1 rounded-xl py-1 outline-none transition focus-visible:ring-2 focus-visible:ring-[var(--pp-success)]"
               style={{ color: active ? 'var(--pp-accent)' : 'var(--pp-text-muted)' }}
             >
               <item.icon className="h-6 w-6" aria-hidden="true" />

@@ -45,7 +45,7 @@ export default function AdminShell({
   }
 
   return (
-    <div className="flex h-screen overflow-hidden w-full bg-slate-50 text-[#1e293b] font-kantumruy">
+    <div className="flex h-screen overflow-hidden w-full bg-bg-app text-[var(--text-heading)] font-kantumruy">
       
       {/* Mobile Sidebar Overlay */}
       {isMobileSidebarOpen && (
@@ -57,20 +57,20 @@ export default function AdminShell({
 
       {/* Sidebar */}
       <aside className={`
-        fixed md:relative z-50 w-[260px] h-full flex-col bg-white border border-[#e2e8f0] shadow-sm 
-        md:m-4 md:rounded-2xl transition-transform duration-300 ease-in-out flex
+        fixed md:relative z-50 w-[260px] h-full flex-col bg-white border border-[var(--divider)] shadow-sm 
+        md:m-4 md:rounded-xl transition-transform duration-300 ease-in-out flex
         ${isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
       `}>
-        <div className="p-6 flex items-center gap-3 border-b border-gray-100">
-          <div className="bg-blue-600 p-2 rounded-lg text-white">
+        <div className="p-6 flex items-center gap-3 border-b border-divider">
+          <div className="bg-brand p-2 rounded-lg text-white">
             <GraduationCap className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="kh-moul text-lg text-blue-900 leading-tight">PTEC Admin</h1>
-            <p className="text-xs text-gray-500 mt-0.5 font-bold">ប្រព័ន្ធគ្រប់គ្រងសាលា</p>
+            <h1 className="kh-moul text-lg text-brand leading-tight">PTEC Admin</h1>
+            <p className="text-xs text-text-muted mt-0.5 font-bold">ប្រព័ន្ធគ្រប់គ្រងសាលា</p>
           </div>
           <button 
-            className="md:hidden ml-auto text-gray-500 hover:text-gray-700"
+            className="md:hidden ml-auto text-text-muted hover:text-text-heading"
             onClick={() => setIsMobileSidebarOpen(false)}
           >
             <X className="w-6 h-6" />
@@ -88,8 +88,8 @@ export default function AdminShell({
                 className={`
                   flex items-center px-4 py-3 mb-2 rounded-xl transition-all duration-200 font-bold
                   ${isActive 
-                    ? "bg-[#f1f5f9] text-[#1e3a8a]" 
-                    : "text-[#64748b] hover:bg-[#f1f5f9] hover:text-[#1e3a8a]"
+                    ? "bg-[var(--surface-muted)] text-[var(--brand)]" 
+                    : "text-[var(--text-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--brand)]"
                   }
                 `}
               >
@@ -100,10 +100,10 @@ export default function AdminShell({
           })}
         </nav>
 
-        <div className="p-4 border-t border-gray-100">
+        <div className="p-4 border-t border-divider">
           <button 
             onClick={handleLogout}
-            className="flex items-center w-full p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm font-bold"
+            className="flex items-center w-full p-2 text-danger hover:bg-danger/5 rounded-lg transition-colors text-sm font-bold"
           >
             <LogOut className="w-5 h-5 mr-3" /> ចាកចេញ
           </button>
@@ -112,19 +112,19 @@ export default function AdminShell({
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden z-10 p-4 md:pl-0">
-        <div className="md:hidden flex items-center justify-between mb-4 bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+        <div className="md:hidden flex items-center justify-between mb-4 bg-white p-4 rounded-xl shadow-sm border border-divider">
           <div className="flex items-center gap-2">
-            <div className="bg-blue-600 p-1.5 rounded-md text-white">
+            <div className="bg-brand p-1.5 rounded-md text-white">
               <GraduationCap className="w-5 h-5" />
             </div>
-            <span className="kh-moul text-blue-900">PTEC Admin</span>
+            <span className="kh-moul text-brand">PTEC Admin</span>
           </div>
-          <button onClick={() => setIsMobileSidebarOpen(true)} className="text-gray-600">
+          <button onClick={() => setIsMobileSidebarOpen(true)} className="text-text-body">
             <Menu className="w-6 h-6" />
           </button>
         </div>
 
-        <div className="bg-white border border-[#e2e8f0] shadow-sm rounded-2xl flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-6 relative">
+        <div className="bg-white border border-[var(--divider)] shadow-sm rounded-xl flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-6 relative">
           {children}
         </div>
       </main>
