@@ -1,0 +1,131 @@
+import { getAdminScope, getGradingSchemes, getAssessments, getClassSubjectOptions } from '../queries'
+import { AdminPage, EmptyState, NoSchool } from '../AdminPage'
+import { AdminCreateForm, Field, SelectField } from '../AdminForm'
+import { createAssessment } from '../actions'
+import { toKhmerNumber } from '@/lib/utils/khmer-num'
+
+/** Assessment types offered by the creation form. */
+const ASSESSMENT_TYPES = [
+  { value: 'quiz', label: 'សំណួរខ្លី' },
+  { value: 'assignment', label: 'កិច្ចការ' },
+  { value: 'midterm', label: 'ប្រឡងពាក់កណ្តាលឆមាស' },
+  { value: 'final', label: 'ប្រឡងបញ្ចប់' },
+  { value: 'project', label: 'គម្រោង' },
+  { value: 'monthly', label: 'ប្រចាំខែ' },
+  { value: 'semester', label: 'ប្រចាំឆមាស' },
+  { value: 'yearly', label: 'ប្រចាំឆ្នាំ' },
+]
+
+export default async function AdminGradingPage() {
+  const scope = await getAdminScope()
+  if (!scope) return <NoSchool />
+
+  const [schemes, assessments, classSubjects] = await Promise.all([
+    getGradingSchemes(scope),
+    getAssessments(scope),
+    getClassSubjectOptions(scope),
+  ])
+
+  return (
+    <AdminPage
+      title="ការវាយតម្លៃ និងនិទ្ទេស"
+      description="កំណត់មាត្រដ្ឋាននិទ្ទេសតាមកម្រិតសិក្សា និងគ្រប់គ្រងការវាយតម្លៃ"
+    >
+      <section className="space-y-4">
+        <h2 className="font-bold text-gray-800">មាត្រដ្ឋាននិទ្ទេស</h2>
+        {schemes.length === 0 ? (
+          <EmptyState message="មិនទាន់មានមាត្រដ្ឋាននិទ្ទេសទេ" />
+        ) : (
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            {schemes.map((s) => (
+              <div key={s.id} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                <div className="mb-3 flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-bold text-gray-800">{s.levelName}</p>
+                    <p className="text-xs text-gray-500">{s.name}</p>
+                  </div>
+                  {s.isDefault && (
+                    <span className="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700">
+                      លំនាំដើម
+                    </span>
+                  )}
+                </div>
+
+                <p className="mb-3 text-xs text-gray-500">
+                  ពិន្ទុពេញ {toKhmerNumber(s.config.maxScore)} · ជាប់ពី {toKhmerNumber(s.config.passMark)}
+                </p>
+
+                <ul className="space-y-1">
+                  {s.config.bands.map((b) => (
+                    <li key={b.letter} className="flex items-center justify-between text-sm">
+                      <span className="flex items-center gap-2">
+                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-slate-100 text-xs font-bold text-slate-700">
+                          {b.letter}
+                        </span>
+                        <span className="text-gray-600">{b.label}</span>
+                      </span>
+                      <span className="font-mono text-xs text-gray-400">
+                        {toKhmerNumber(b.min)}–{toKhmerNumber(b.max)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="font-bold text-gray-800">ការវាយតម្លៃ</h2>
+
+        <AdminCreateForm title="បង្កើតការវាយតម្លៃថ្មី" action={createAssessment}>
+          <Field label="ឈ្មោះការវាយតម្លៃ" name="name" required placeholder="ឧ. ប្រឡងឆមាសទី១" />
+          <SelectField
+            label="ថ្នាក់ និងមុខវិជ្ជា"
+            name="class_subject_id"
+            required
+            options={classSubjects.map((cs) => ({ value: cs.id, label: cs.label }))}
+          />
+          <SelectField label="ប្រភេទ" name="type" required options={ASSESSMENT_TYPES} />
+          <Field label="ពិន្ទុអតិបរមា" name="max_score" type="number" placeholder="10" />
+          <Field label="ទម្ងន់" name="weight" type="number" placeholder="1" />
+          <Field label="ថ្ងៃប្រឡង" name="date" type="date" />
+        </AdminCreateForm>
+
+        {assessments.length === 0 ? (
+          <EmptyState message="មិនទាន់មានការវាយតម្លៃក្នុងឆ្នាំសិក្សានេះទេ" />
+        ) : (
+          <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 text-left">
+                <tr>
+                  <th className="p-4 font-bold text-gray-700">ឈ្មោះ</th>
+                  <th className="p-4 font-bold text-gray-700">ថ្នាក់ / មុខវិជ្ជា</th>
+                  <th className="p-4 font-bold text-gray-700">ប្រភេទ</th>
+                  <th className="p-4 text-right font-bold text-gray-700">ពិន្ទុពេញ</th>
+                  <th className="p-4 text-right font-bold text-gray-700">ទម្ងន់</th>
+                  <th className="p-4 font-bold text-gray-700">ថ្ងៃ</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {assessments.map((a) => (
+                  <tr key={a.id} className="hover:bg-slate-50">
+                    <td className="p-4 font-bold text-gray-800">{a.name}</td>
+                    <td className="p-4 text-gray-600">{a.className} › {a.subjectName}</td>
+                    <td className="p-4 text-gray-600">
+                      {ASSESSMENT_TYPES.find((t) => t.value === a.type)?.label ?? a.type}
+                    </td>
+                    <td className="p-4 text-right text-gray-800">{toKhmerNumber(a.maxScore)}</td>
+                    <td className="p-4 text-right text-gray-800">{toKhmerNumber(a.weight)}</td>
+                    <td className="p-4 text-xs text-gray-500">{a.date ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </AdminPage>
+  )
+}

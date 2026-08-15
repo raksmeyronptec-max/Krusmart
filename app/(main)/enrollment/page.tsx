@@ -7,7 +7,6 @@ import {
     FileText, Save, Download, FileSpreadsheet, Image as ImageIcon, Smile
 } from 'lucide-react'
 import * as XLSX from 'xlsx-js-style'
-import { TopNav } from "@/components/TopNav"
 import { createStudent } from './actions'
 import Select from '@/components/ui/forms/Select'
 import SearchableSelect from '@/components/ui/forms/SearchableSelect'
@@ -274,7 +273,6 @@ export default function EnrollmentPage() {
 
     return (
         <div className="min-h-screen bg-[#f4f7fb] dark:bg-gray-900 pb-24 transition-colors">
-            <TopNav />
 
             <div className="container mx-auto p-4 md:p-6 max-w-5xl mt-4">
                 <form ref={formRef} onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden relative transition-colors">
@@ -538,7 +536,7 @@ export default function EnrollmentPage() {
 
             {/* Avatar Modal */}
             {showAvatarModal && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4">
+                <div className="fixed inset-0 bg-black/50 z-50 flex justify-center items-end sm:items-center p-0 sm:p-4">
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-2xl w-full max-w-2xl mx-4">
                         <div className="flex justify-between items-center border-b dark:border-gray-700 pb-4 mb-4">
                             <h3 className="kh-moul text-indigo-800 dark:text-indigo-300 text-sm flex items-center gap-2">
@@ -564,7 +562,7 @@ export default function EnrollmentPage() {
 
             {/* URL Modal */}
             {showUrlModal && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4">
+                <div className="fixed inset-0 bg-black/50 z-50 flex justify-center items-end sm:items-center p-0 sm:p-4">
                     <div className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-2xl w-96 mx-4">
                         <h3 className="kh-moul text-sm text-indigo-800 dark:text-indigo-300 mb-3">បញ្ចូល Link រូបភាព</h3>
                         <input id="urlInput" type="text" className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2 text-sm mb-4 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="https://drive.google.com/..." />

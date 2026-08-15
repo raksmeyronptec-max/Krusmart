@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { ActionResult, HomeworkAssignment, HomeworkAssignmentInput } from '@/lib/types'
 import { logger } from '@/lib/utils/logger'
+import { auditLog } from '@/lib/audit/log'
 
 export async function getAssignments(): Promise<HomeworkAssignment[]> {
     const supabase = await createClient()
@@ -31,17 +32,24 @@ export async function addAssignment(payload: HomeworkAssignmentInput): Promise<A
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'Unauthorized' }
 
-    const { error } = await supabase
+    const { data, error } = await supabase
         .from('homework_assignments')
         .insert({
             ...payload,
             teacher_id: user.id
         })
+        .select('id')
+        .single()
 
     if (error) {
         logger.error(error)
         return { error: error.message }
     }
+
+    await auditLog({
+        action: 'homework.created', entityType: 'homework_assignment', entityId: data?.id ?? null,
+        actorId: user.id, newValue: { subject: payload.subject, title: payload.title, due_date: payload.due_date },
+    })
 
     revalidatePath('/homework/send')
     return { success: true }
@@ -63,6 +71,10 @@ export async function deleteAssignment(id: string): Promise<ActionResult> {
         logger.error(error)
         return { error: error.message }
     }
+
+    await auditLog({
+        action: 'homework.deleted', entityType: 'homework_assignment', entityId: id, actorId: user.id,
+    })
 
     revalidatePath('/homework/send')
     return { success: true }

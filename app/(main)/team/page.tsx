@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from "react"
-import { TopNav } from "@/components/TopNav"
 import { Maximize2, Minimize2 } from "lucide-react"
 
 const teamMembers = [
@@ -28,7 +27,6 @@ export default function TeamPage() {
 
     return (
         <div className="min-h-screen bg-[#f4f7fb] dark:bg-gray-950 pb-24 transition-colors duration-500 font-sans">
-            <TopNav />
             
             <main className="pt-8 md:pt-16 pb-20 px-4 md:px-8 max-w-4xl mx-auto">
                 

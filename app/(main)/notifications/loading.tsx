@@ -1,10 +1,8 @@
-import { TopNav } from '@/components/TopNav'
 import { SkeletonPage, SkeletonTable, Skeleton } from '@/components/ui/feedback/Skeleton'
 
 export default function Loading() {
   return (
     <>
-      <TopNav />
       <SkeletonPage>
         <div className="mb-6 flex items-center justify-between gap-4">
           <Skeleton className="h-7 w-56" />

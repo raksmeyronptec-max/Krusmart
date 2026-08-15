@@ -8,7 +8,10 @@ import { saveScores } from '../enter/actions'
 import Select from '@/components/ui/forms/Select'
 import type { Score, ScoreInput, Student } from '@/lib/types'
 import { MONTHS_BY_ACADEMIC_YEAR } from '@/lib/constants/months'
-import { appliesTo, readCustomSubjects } from '@/lib/storage/custom-subjects'
+import { appliesTo } from '@/lib/storage/custom-subjects'
+import { useCustomSubjects } from '@/lib/hooks/useCustomSubjects'
+import { letterFor } from '@/lib/grading/scheme'
+import { scoreCellValue } from '@/lib/utils/score-value'
 
 /**
  * A student decorated with the per-period scores and every derived total the
@@ -124,9 +127,11 @@ export default function ScoreTotalClient({ initialStudents}: { initialStudents: 
     // To keep it simple in this mock, we just fetch for the current mode/period.
     // In a real scenario, semester needs monthly averages too.
 
+    // Supabase-backed since migration 00012 (was localStorage `custom_subjects`).
+    const { subjects: customSubjects } = useCustomSubjects()
+
     useEffect(() => {
-        // Load custom subjects if any
-        const stored = readCustomSubjects()
+        const stored = customSubjects
         if (stored.length > 0) {
             const monthlyCustomCols: { key: string; label: string; color: string }[] = []
             const semesterCustomCols: { key: string; label: string; color: string }[] = []
@@ -157,7 +162,7 @@ export default function ScoreTotalClient({ initialStudents}: { initialStudents: 
                 else config.semester.groups.push({ name: 'មុខវិជ្ជាបន្ថែម', cols: semesterCustomCols.length, color: 'bg-purple-800' })
             }
         }
-    }, [])
+    }, [customSubjects])
 
     // Derived from `currentMode`; it was mirrored into state and re-synced by an effect.
     const currentConfig = config[currentMode]
@@ -202,7 +207,7 @@ export default function ScoreTotalClient({ initialStudents}: { initialStudents: 
         const processedStudents: TotalledStudent[] = initialStudents.map(stu => {
             const studentScores: Record<string, number | string | null> = {}
             records.filter(r => r.student_id === stu.id).forEach(r => {
-                studentScores[r.subject] = r.score_value
+                studentScores[r.subject] = scoreCellValue(r)
             })
 
             // The derived fields are all overwritten by the calculation pass below.
@@ -284,13 +289,7 @@ export default function ScoreTotalClient({ initialStudents}: { initialStudents: 
                 stu.average = stu.semesterAverage
             }
 
-            const avgForGrade = stu.finalAverageForRank
-            if (avgForGrade >= 9.0) stu.grade = 'A'
-            else if (avgForGrade >= 8.0) stu.grade = 'B'
-            else if (avgForGrade >= 7.0) stu.grade = 'C'
-            else if (avgForGrade >= 6.0) stu.grade = 'D'
-            else if (avgForGrade >= 5.0) stu.grade = 'E'
-            else stu.grade = 'F'
+            stu.grade = letterFor(stu.finalAverageForRank)
         })
 
         // Rank
@@ -340,7 +339,9 @@ export default function ScoreTotalClient({ initialStudents}: { initialStudents: 
                 payload.push({
                     student_id: stu.id,
                     subject: col.key,
-                    score_value: stu.scores[col.key] || null
+                    // `?? null`, not `|| null`: a mark of 0 is falsy, and `||`
+                    // silently turned it into "no mark entered".
+                    score_value: stu.scores[col.key] ?? null
                 })
             })
         })
@@ -618,8 +619,8 @@ export default function ScoreTotalClient({ initialStudents}: { initialStudents: 
 
             {/* Month Selection Modal */}
             {isMonthModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setIsMonthModalOpen(false)}>
-                    <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm" onClick={() => setIsMonthModalOpen(false)}>
+                    <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-h-[90vh] sm:max-h-[85vh] overflow-y-auto max-w-md shadow-2xl overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
                         <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                             <h3 className="font-bold text-gray-800 flex items-center gap-2">
                                 <Settings2 className="w-5 h-5 text-blue-600" />

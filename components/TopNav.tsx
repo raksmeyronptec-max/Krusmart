@@ -10,6 +10,7 @@ import { calculateDistanceInMeters } from "@/lib/utils/distance"
 import toast from "react-hot-toast"
 import { getErrorMessageOr } from '@/lib/utils/errors'
 import { logger } from '@/lib/utils/logger'
+import { ClassContextSwitcher } from './ClassContextSwitcher'
 
 const navItems = [
   { name: "ផ្ទាំងដើម", path: "/dashboard", icon: Home },
@@ -30,7 +31,10 @@ export function TopNav() {
 
   useEffect(() => {
     const fetchProfileData = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+      // Local JWT read rather than a getUser() round-trip — see the note in
+      // lib/supabase/middleware.ts about free-tier rate limiting.
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user
       if (user) {
         setUserId(user.id)
         const { data, error } = await supabase.from('settings').select('photo_url').eq('teacher_id', user.id).single()
@@ -145,7 +149,12 @@ export function TopNav() {
   }
 
   return (
-    <header className="sticky top-0 z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur-lg border-b border-gray-200 dark:border-gray-800 shadow-sm relative transition-colors duration-300">
+    // `no-print` / `print:hidden`: this bar is rendered by the (main) layout, so
+    // it sits above every printable view. Without suppression it would appear on
+    // each printed certificate, ID card, report and attendance sheet. `no-print`
+    // matches the class the feature pages' own @media print blocks already use;
+    // `print:hidden` covers pages that define no print CSS of their own.
+    <header className="no-print print:hidden sticky top-0 z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur-lg border-b border-gray-200 dark:border-gray-800 shadow-sm relative transition-colors duration-300">
       <nav className="max-w-7xl mx-auto px-4 md:px-8 py-3 flex justify-between items-center" aria-label="Main Navigation">
         <div className="flex items-center gap-6">
           <Link href="/dashboard" className="focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0054a6] rounded-md flex items-center gap-2">
@@ -156,7 +165,10 @@ export function TopNav() {
             <span className="kh-moul text-xl animate-gradient-text hidden sm:block">KruSmart</span>
           </Link>
 
-          {/* Desktop Navigation Links (Removed based on user request) */}
+          {/* Active class / subject. Renders nothing for a pre-V2 account. */}
+          <div className="hidden md:block">
+            <ClassContextSwitcher />
+          </div>
         </div>
         
         {/* Right side buttons - Matching legacy code strictly */}
@@ -172,7 +184,7 @@ export function TopNav() {
             </button>
 
             <div className="relative group">
-                <button className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-gray-800 text-blue-800 dark:text-blue-300 rounded-full border border-blue-100 dark:border-gray-700 transition-colors focus:outline-none hover:bg-blue-100 dark:hover:bg-gray-700" aria-haspopup="true" aria-expanded="false">
+                <button className="tap-target flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-gray-800 text-blue-800 dark:text-blue-300 rounded-full border border-blue-100 dark:border-gray-700 transition-colors focus:outline-none hover:bg-blue-100 dark:hover:bg-gray-700" aria-haspopup="true" aria-expanded="false">
                     {photoUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture
                         <img src={photoUrl} alt="Profile" className="w-5 h-5 rounded-full object-cover border border-blue-200" />
@@ -237,10 +249,20 @@ export function TopNav() {
       </nav>
 
       {/* Mobile Menu */}
+      {/*
+        Mobile: the switcher gets its own always-visible row rather than living
+        inside the menu sheet. Which class you are editing is context, not an
+        action — a teacher should never have to open a menu to check it, and it
+        sits within thumb reach at the top of the content area.
+      */}
+      <div className="border-t border-gray-100 px-4 py-2 dark:border-gray-800 md:hidden">
+        <ClassContextSwitcher compact />
+      </div>
+
       {isMobileMenuOpen && (
         <div className="lg:hidden flex-col gap-2 mt-1 pt-4 border-t border-gray-100 dark:border-gray-800 text-sm font-bold text-[#0054a6] dark:text-blue-300 bg-white dark:bg-gray-900 absolute left-0 right-0 px-4 pb-6 shadow-xl rounded-b-2xl z-50 transition-all flex">
-          
-          <button 
+
+          <button
             onClick={handleCheckIn}
             disabled={isCheckingIn}
             className={`w-full flex justify-center items-center gap-2 px-4 py-3.5 ${isCheckingIn ? 'bg-green-100 dark:bg-green-900/50' : 'bg-green-50 dark:bg-green-900/30 hover:bg-green-100 dark:hover:bg-green-900/50'} text-green-700 dark:text-green-400 rounded-xl border border-green-200 dark:border-green-800 mb-1 transition font-bold shadow-sm`}

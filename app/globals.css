@@ -94,6 +94,35 @@ body {
 
 /* Custom Utilities from Legacy App */
 @layer utilities {
+  /*
+   * Horizontal scroll container for the A4 print previews.
+   *
+   * Those sheets are fixed at 21cm / 297mm (~794px / ~1122px). Without a
+   * scroll container around them the *page body* scrolls sideways on a phone,
+   * dragging the nav and every control off-screen with it. Wrapping confines
+   * the overflow to the sheet. Neutralised in print so pagination is unaffected.
+   */
+  .preview-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /*
+   * Minimum comfortable touch target. The WCAG 2.2 target-size floor is 24px;
+   * 44px is the platform convention on both iOS and Android and is what this
+   * app's teacher workflows are built to.
+   */
+  .tap-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  @media print {
+    .preview-scroll {
+      overflow: visible !important;
+    }
+  }
+
   .animate-gradient-text {
     background: linear-gradient(-45deg, #0054a6, #4ca6f5, #ff2d75, #0054a6);
     background-size: 300%;
@@ -157,4 +186,58 @@ body {
     -webkit-appearance: none; 
     margin: 0; 
   }
+}
+
+/* =============================================================================
+   Parent portal
+   -----------------------------------------------------------------------------
+   Tokens copied from the legacy portal's stylesheet so the Next.js pages render
+   identically. Scoped to `.parent-portal` rather than :root, because the portal
+   is dark-first while the teacher app is light-first — sharing a palette would
+   force one of them to fight the other.
+   ========================================================================== */
+.parent-portal {
+  --pp-bg-app: #1c1c1e;
+  --pp-bg-card: #2c2c2e;
+  --pp-card-border: rgba(255, 255, 255, 0.1);
+  --pp-text: #ffffff;
+  --pp-text-muted: #9ca3af;
+  --pp-accent: #10b981;
+  --pp-danger: #ef4444;
+  --pp-header-gradient: linear-gradient(135deg, #0f766e 0%, #059669 100%);
+
+  background-color: var(--pp-bg-app);
+  color: var(--pp-text);
+}
+
+.parent-portal.pp-light {
+  --pp-bg-app: #f9fafb;
+  --pp-bg-card: #ffffff;
+  --pp-card-border: #e5e7eb;
+  --pp-text: #111827;
+  --pp-text-muted: #4b5563;
+  --pp-accent: #059669;
+  --pp-danger: #dc2626;
+  --pp-header-gradient: linear-gradient(135deg, #0d9488 0%, #047857 100%);
+}
+
+@layer utilities {
+  .bg-header-green { background: var(--pp-header-gradient); }
+  .bg-card-dark {
+    background-color: var(--pp-bg-card);
+    border-color: var(--pp-card-border);
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px 0 rgb(0 0 0 / 0.06);
+  }
+  .text-pp        { color: var(--pp-text); }
+  .text-pp-muted  { color: var(--pp-text-muted); }
+
+  /* iOS notch / home-indicator insets, as in the legacy portal. */
+  .pb-safe { padding-bottom: max(env(safe-area-inset-bottom), 1rem); }
+  .pt-safe { padding-top: max(env(safe-area-inset-top), 1rem); }
+
+  .feature-card {
+    transition: transform 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+    touch-action: manipulation;
+  }
+  .feature-card:active { transform: scale(0.97); }
 }

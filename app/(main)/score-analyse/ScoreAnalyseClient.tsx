@@ -10,6 +10,7 @@ import { ArrowLeft, Users, Award, CheckSquare, AlertTriangle, TrendingUp, Filter
 import Link from 'next/link'
 import Select from '@/components/ui/forms/Select'
 import { MONTHS_BY_ACADEMIC_YEAR } from '@/lib/constants/months'
+import { letterFor } from '@/lib/grading/scheme'
 
 /** Per-student roll-up built by the analytics pass below. */
 interface StudentAnalytics {
@@ -98,12 +99,10 @@ export default function ScoreAnalyseClient({ initialStudents, attendanceData, sc
             const overallAvg = monthCount > 0 ? monthAvgSum / monthCount : null
             if (overallAvg !== null) {
                 sumAllAvg += overallAvg; validStudents++
-                if (overallAvg >= 9) gradesCount.A++
-                else if (overallAvg >= 8) gradesCount.B++
-                else if (overallAvg >= 7) gradesCount.C++
-                else if (overallAvg >= 6) gradesCount.D++
-                else if (overallAvg >= 5) gradesCount.E++
-                else gradesCount.F++
+                // Bucket via the shared engine so the histogram cannot drift
+                // from the letter shown on reports and certificates.
+                const letter = letterFor(overallAvg)
+                if (letter in gradesCount) gradesCount[letter as keyof typeof gradesCount]++
             }
 
             // Simple risk metrics

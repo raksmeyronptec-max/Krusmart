@@ -485,7 +485,7 @@ export default function MonthlyAttendanceClient({ initialStudents}: { initialStu
                 <button onClick={() => window.print()} className="bg-[#1a73e8] text-white px-5 py-2.5 rounded-md font-bold hover:opacity-90 transition flex items-center gap-2">បោះពុម្ព</button>
             </div>
 
-            <div id="printArea" className="w-full max-w-[297mm] mx-auto">
+            <div id="printArea" className="preview-scroll w-full max-w-[297mm] mx-auto">
                 {renderPages()}
             </div>
         </div>

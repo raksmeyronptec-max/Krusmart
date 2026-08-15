@@ -6,6 +6,7 @@ import Link from 'next/link'
 import Select from '@/components/ui/forms/Select'
 import type { Score, Settings, Student } from '@/lib/types'
 import { MONTH_OPTIONS_BY_NUM } from '@/lib/constants/months'
+import { letterFor } from '@/lib/grading/scheme'
 
 export default function StudentTrackingClient({ initialStudents, scoresData, settings, academicYear }: { 
     initialStudents: Student[], scoresData: Score[], settings: Settings | null, academicYear: string 
@@ -15,15 +16,8 @@ export default function StudentTrackingClient({ initialStudents, scoresData, set
     const [reportType, setReportType] = useState('monthly')
     const [selectedMonth, setSelectedMonth] = useState('01')
 
-    const getGrade = (avg: number | null) => {
-        if (avg === null) return '-'
-        if (avg >= 9) return 'A'
-        if (avg >= 8) return 'B'
-        if (avg >= 7) return 'C'
-        if (avg >= 6) return 'D'
-        if (avg >= 5) return 'E'
-        return 'F'
-    }
+    // Shared grading engine; NaN and null both render '-'.
+    const getGrade = (avg: number | null) => letterFor(avg)
 
     const filteredStudents = initialStudents.filter(s => 
         (s.name_kh || s.full_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||

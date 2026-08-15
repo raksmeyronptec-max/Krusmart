@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
+import { useUserRole } from '@/lib/rbac/useUserRole'
 import Link from 'next/link'
-import { 
+import { Printer, Scissors, 
     Megaphone, Sparkles, Rocket, Search, ArrowRight,
     UserPlus, Users, LayoutGrid, CalendarCheck, BookMarked, Send, 
     Edit3, Table2, BarChart3, LineChart, Target, CalendarDays, 
@@ -10,7 +11,6 @@ import {
     BookOpenCheck, Key, Package, Contact2, Bell, Palette, UserCog,
     SearchX
 } from 'lucide-react'
-import { TopNav } from "@/components/TopNav"
 
 const apps = [
     { name: 'បញ្ចូលព័ត៌មានសិស្ស', icon: UserPlus, url: '/enrollment', color: 'from-blue-500 to-blue-600' },
@@ -21,11 +21,13 @@ const apps = [
     { name: 'បញ្ជូនកិច្ចការផ្ទះទៅអាណាព្យាបាល', icon: Send, url: '/homework/send', color: 'from-fuchsia-500 to-fuchsia-600' },
     { name: 'បញ្ចូលពិន្ទុ', icon: Edit3, url: '/score/enter', color: 'from-green-500 to-emerald-600' },
     { name: 'តារាងពិន្ទុសរុប', icon: Table2, url: '/score/total', color: 'from-teal-500 to-teal-600' },
+    { name: 'តារាងពិន្ទុ (ទម្រង់ក្រសួង)', icon: Printer, url: '/score/print', color: 'from-teal-600 to-cyan-700' },
     { name: 'តារាងចំណាត់ថ្នាក់', icon: BarChart3, url: '/ranking', color: 'from-purple-600 to-purple-800' },
     { name: 'វិភាគទិន្នន័យសរុប', icon: LineChart, url: '/score-analyse', color: 'from-rose-600 to-pink-700'},
     { name: 'វិភាគតាមមុខវិជ្ជា', icon: Target, url: '/score-analysis/subject', color: 'from-blue-600 to-indigo-700' },
     { name: 'វិភាគអាយុ និងកម្ពស់', icon: CalendarDays, url: '/print-student-age', color: 'from-emerald-500 to-teal-600' },
-    { name: 'រដ្ឋបាលថ្នាក់រៀន', icon: FolderOpen, url: '/administration', color: 'from-blue-700 to-indigo-800' },
+    { name: 'រដ្ឋបាលថ្នាក់រៀន (១៣ សៀវភៅ)', icon: FolderOpen, url: '/class-admin', color: 'from-blue-700 to-indigo-800' },
+    { name: 'ផ្ទាំងវិភាគសាលា (នាយក)', icon: LineChart, url: '/administration', color: 'from-slate-600 to-slate-800', adminOnly: true },
     { name: 'តារាងកិត្តិយស', icon: Award, url: '/honor-roll', color: 'from-rose-500 to-rose-600' },
     { name: 'បញ្ជីបូកសរុបលទ្ធផលប្រចាំឆ្នាំ', icon: PieChart, url: '/yearly-report', color: 'from-cyan-500 to-cyan-600' },
     { name: 'សៀវភៅតាមដាន', icon: BookOpen, url: '/student-tracking', color: 'from-sky-500 to-sky-600' },
@@ -38,19 +40,24 @@ const apps = [
     { name: 'បោះពុម្ពកាតសិស្ស', icon: Contact2, url: '/id-student', color: 'from-indigo-600 to-blue-700' },
     { name: 'ផ្ញើសារទៅអាណាព្យាបាល', icon: Bell, url: '/notifications', color: 'from-red-600 to-blue-700' },
     { name: 'សម្ភារៈតុបតែងថ្នាក់', icon: Palette, url: '/decorations', color: 'from-violet-500 to-fuchsia-600' },
+    { name: 'បំបែកសន្លឹក Poster', icon: Scissors, url: '/poster-splitter', color: 'from-purple-500 to-violet-700' },
     { name: 'ព័ត៌មានគណនី', icon: UserCog, url: '/profile', color: 'from-slate-500 to-slate-600' }
 ]
 
 export default function DashboardPage() {
     const [searchTerm, setSearchTerm] = useState('')
 
-    const filteredApps = apps.filter(app => 
-        app.name.toLowerCase().includes(searchTerm.toLowerCase())
+    // The principal's analytics page redirects a plain teacher, so offering the
+    // tile would be a dead end.
+    const { isAdmin } = useUserRole()
+
+    const filteredApps = apps.filter(app =>
+        app.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        (!('adminOnly' in app && app.adminOnly) || isAdmin)
     )
 
     return (
         <div className="min-h-screen bg-[#f4f7fb] dark:bg-gray-900 pb-24 transition-colors duration-300">
-            <TopNav />
             <section className="pt-8 pb-4 text-center px-6 outline-none">
                 {/* Marquee Banner */}
                 <div className="max-w-2xl mx-auto mb-8 bg-blue-50 dark:bg-gray-800 border border-blue-200 dark:border-gray-700 overflow-hidden relative rounded-md text-[#0054a6] dark:text-[#4facfe] shadow-sm transition-colors flex">

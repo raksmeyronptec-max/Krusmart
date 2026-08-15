@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { getScores, saveScores } from './actions'
 import Select from '@/components/ui/forms/Select'
 import SearchableSelect from '@/components/ui/forms/SearchableSelect'
+import { scoreCellValue } from '@/lib/utils/score-value'
 import type { Score, ScoreInput, Student } from '@/lib/types'
 
 const behaviorOptions = ['ល្អ', 'ល្អបង្គួរ', 'មធ្យម', 'ខ្សោយ']
@@ -116,7 +117,7 @@ const subjectConfigs: Record<string, SubjectColumn[]> = {
 }
 
 export default function ScoreEnterClient({ initialStudents}: { initialStudents: Student[] }) {
-    const [scoreType, setScoreType] = useState('monthly')
+    const [scoreType, setScoreType] = useState<'monthly' | 'semester'>('monthly')
     const [academicYear, setAcademicYear] = useState('2025-2026')
     const [semester, setSemester] = useState('sem1')
     const [month, setMonth] = useState('nov')
@@ -126,7 +127,9 @@ export default function ScoreEnterClient({ initialStudents}: { initialStudents: 
     const [loading, setLoading] = useState(false)
     const [saving, setSaving] = useState(false)
 
-    const [customSubjects, setCustomSubjects] = useState<CustomSubject[]>([])
+    // Supabase-backed since migration 00012; the hook imports a browser's old
+    // localStorage copy once, then reads from the database.
+    const { subjects: customSubjects, reload: reloadCustomSubjects } = useCustomSubjects()
 
     // Computed
     const scorePeriod = scoreType === 'monthly' ? `${month}-${academicYear}` : `${semester}-${academicYear}`
@@ -162,20 +165,18 @@ export default function ScoreEnterClient({ initialStudents}: { initialStudents: 
             ]
 
         const custom = customSubjects
-            .filter(s => s.type === scoreType || s.type === 'both')
+            .filter(s => appliesTo(s, scoreType))
             .map(s => ({ value: s.id, label: s.name, group: 'មុខវិជ្ជាបន្ថែម' }))
 
         return [...base, ...custom]
     }, [scoreType, customSubjects])
 
+    // `subjectConfigs` is the grid's column lookup, keyed by picker value.
     useEffect(() => {
-        const stored = readCustomSubjects()
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage is unavailable during SSR, so custom subjects load after mount
-        setCustomSubjects(stored)
-        stored.forEach(s => {
+        customSubjects.forEach(s => {
             subjectConfigs[s.id] = s.columns
         })
-    }, [])
+    }, [customSubjects])
 
     const loadData = useCallback(async () => {
         setLoading(true)
@@ -188,7 +189,9 @@ export default function ScoreEnterClient({ initialStudents}: { initialStudents: 
 
         records.forEach((r: Score) => {
             if (!newScoresData[r.student_id]) newScoresData[r.student_id] = {}
-            newScoresData[r.student_id][r.subject] = r.score_value
+            // Behavioural ratings live in `score_text`, numeric marks in
+            // `score_value`; the grid renders one cell either way.
+            newScoresData[r.student_id][r.subject] = scoreCellValue(r)
         })
         
         setScoresData(newScoresData)
@@ -240,14 +243,14 @@ export default function ScoreEnterClient({ initialStudents}: { initialStudents: 
     const [newSubType, setNewSubType] = useState<CustomSubjectScope>('both')
     const [newSubCols, setNewSubCols] = useState('')
 
-    const submitNewSubject = () => {
+    const submitNewSubject = async () => {
         if (!newSubName.trim()) {
-            alert('សូមបញ្ចូលឈ្មោះមុខវិជ្ជា')
+            toast.error('សូមបញ្ចូលឈ្មោះមុខវិជ្ជា')
             return
         }
         
         const id = 'custom_' + Date.now()
-        let cols = []
+        let cols: { id: string; label: string; width: string }[] = []
         if (newSubCols.trim()) {
             const colNames = newSubCols.split(',').map(s => s.trim()).filter(s => s)
             cols = colNames.map((n, i) => ({ id: `${id}_${i}`, label: n, width: '120px' }))
@@ -255,14 +258,20 @@ export default function ScoreEnterClient({ initialStudents}: { initialStudents: 
             cols = [{ id: `${id}_0`, label: newSubName.trim(), width: '120px' }]
         }
 
-        const newSub = { id, name: newSubName.trim(), type: newSubType, columns: cols }
-        const updated = [...customSubjects, newSub]
-        setCustomSubjects(updated)
-        subjectConfigs[id] = cols
-        writeCustomSubjects(updated)
-        
+        const res = await createCustomSubject(newSubName.trim(), newSubType, cols)
+        if (res.error || !res.data) {
+            toast.error(res.error ?? 'រក្សាទុកមុខវិជ្ជាមិនបានសម្រេច')
+            return
+        }
+
+        // Key the column lookup by the row's real id — the local `id` above only
+        // ever seeded the column ids, which the server stored verbatim.
+        subjectConfigs[res.data.id] = res.data.columns
+        await reloadCustomSubjects()
+
         setIsAddModalOpen(false)
-        setSubject(id)
+        setSubject(res.data.id)
+        toast.success('បានបន្ថែមមុខវិជ្ជាថ្មី')
     }
 
     return (
@@ -358,7 +367,7 @@ export default function ScoreEnterClient({ initialStudents}: { initialStudents: 
                                     label="ខែ"
                                     value={month}
                                     onChange={setMonth}
-                                    options={MONTHS_BY_ACADEMIC_YEAR.map(m => ({ value: m.id, label: m.label }))}
+                                    options={ACADEMIC_MONTH_OPTIONS_BY_ID}
                                     leadingIcon={<Clock />}
                                 />
                             )}
@@ -451,7 +460,7 @@ export default function ScoreEnterClient({ initialStudents}: { initialStudents: 
                                                         <input 
                                                             type="number"
                                                             step="0.01"
-                                                            className="w-full max-w-[80px] text-center p-1.5 rounded-[0.375rem] border border-slate-200 outline-none text-indigo-600 bg-slate-50 font-bold text-[13px] focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/10"
+                                                            className="w-full max-w-[80px] min-h-[44px] sm:min-h-0 text-center p-1.5 rounded-[0.375rem] border border-slate-200 outline-none text-indigo-600 bg-slate-50 font-bold text-[16px] sm:text-[13px] focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/10"
                                                             placeholder="-"
                                                             value={scoresData[stu.id]?.[col.id] || ''}
                                                             onChange={e => handleScoreChange(stu.id, col.id, e.target.value)}
@@ -480,7 +489,7 @@ export default function ScoreEnterClient({ initialStudents}: { initialStudents: 
 
             {/* Add Subject Modal */}
             {isAddModalOpen && (
-                <div className="fixed inset-0 bg-black/50 z-[1000] flex justify-center items-center p-4">
+                <div className="fixed inset-0 bg-black/50 z-[1000] flex justify-center items-end sm:items-center p-0 sm:p-4">
                     <div className="bg-white p-6 rounded-xl shadow-2xl max-w-md w-full">
                         <div className="flex justify-between items-center mb-4 border-b border-gray-100 pb-3">
                             <h3 className="font-moul text-[#322a83] text-lg flex items-center gap-2">
@@ -531,5 +540,9 @@ export default function ScoreEnterClient({ initialStudents}: { initialStudents: 
 }
 // Add ArrowLeft icon to lucide-react import
 import { ArrowLeft } from 'lucide-react'
-import { MONTHS_BY_ACADEMIC_YEAR } from '@/lib/constants/months'
-import { readCustomSubjects, writeCustomSubjects, type CustomSubject, type CustomSubjectScope } from '@/lib/storage/custom-subjects'
+import { ACADEMIC_MONTH_OPTIONS_BY_ID } from '@/lib/constants/months'
+import toast from 'react-hot-toast'
+import { useCustomSubjects } from '@/lib/hooks/useCustomSubjects'
+import { createCustomSubject } from '@/app/(main)/score/custom-subjects/actions'
+import { appliesTo } from '@/lib/storage/custom-subjects'
+import type { CustomSubjectScope } from '@/lib/types'

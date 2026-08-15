@@ -7,6 +7,7 @@ import { getAllScoresByPeriod } from '../score/total/actions'
 import Select from '@/components/ui/forms/Select'
 import type { Score, Settings, Student } from '@/lib/types'
 import { MONTHS_BY_ACADEMIC_YEAR } from '@/lib/constants/months'
+import { letterFor } from '@/lib/grading/scheme'
 
 /** A student decorated with the scores and ranking fields the certificate prints. */
 type ProcessedStudent = Student & {
@@ -102,13 +103,7 @@ export default function CertificateClient({ initialStudents, settings }: { initi
                 stu.finalAverageForRank = parseFloat(stu.average)
             }
 
-            const avgForGrade = stu.finalAverageForRank
-            if (avgForGrade >= 9.0) stu.grade = 'A'
-            else if (avgForGrade >= 8.0) stu.grade = 'B'
-            else if (avgForGrade >= 7.0) stu.grade = 'C'
-            else if (avgForGrade >= 6.0) stu.grade = 'D'
-            else if (avgForGrade >= 5.0) stu.grade = 'E'
-            else stu.grade = 'F'
+            stu.grade = letterFor(stu.finalAverageForRank)
         })
 
         processedStudents.sort((a, b) => (b.finalAverageForRank || 0) - (a.finalAverageForRank || 0))

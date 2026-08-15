@@ -1,14 +1,14 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { UserPlus, Printer, Trash2, Save, FolderSearch, Trash } from 'lucide-react'
 import Link from 'next/link'
 import { deleteStudent, deleteAllStudents, saveStudentsOrder } from './actions'
-import { TopNav } from "@/components/TopNav"
 import Pagination from "@/components/ui/navigation/Pagination"
 import type { Student } from "@/lib/types"
 import { fromKhmerNumber } from '@/lib/utils/khmer-num'
 import { calculateAge } from '@/lib/utils/date'
+import { useActiveClass } from '@/lib/hooks/useActiveClass'
 
 const getDriveImageUrl = (url: string | null | undefined) => {
     if (!url) return '';
@@ -32,6 +32,11 @@ const getDriveImageUrl = (url: string | null | undefined) => {
 }
 
 export default function StudentTableClient({ initialStudents }: { initialStudents: Student[] }) {
+    // Which class the roster belongs to. Null on a pre-V2 account, in which case
+    // the server action falls back to the legacy teacher-wide behaviour.
+    const { classId, className } = useActiveClass()
+    // The page remounts this component (via `key`) when ?class= changes, so the
+    // initialiser re-runs with the new roster — no syncing effect needed.
     const [students, setStudents] = useState<Student[]>(initialStudents)
     const [sortKey, setSortKey] = useState('default')
     const [currentPage, setCurrentPage] = useState(1)
@@ -121,8 +126,15 @@ export default function StudentTableClient({ initialStudents }: { initialStudent
     }
 
     const handleDeleteAll = async () => {
-        if (confirm('ការព្រមាន៖ តើអ្នកពិតជាចង់លុបទិន្នន័យសិស្សទាំងអស់មែនទេ? សកម្មភាពនេះមិនអាចត្រឡប់វិញបានទេ!')) {
-            await deleteAllStudents()
+        // Name the class in the prompt: with several classes per teacher, a bare
+        // "delete all students" is ambiguous about how much is about to go.
+        const scopeLabel = className ? `ថ្នាក់ ${className}` : 'ថ្នាក់នេះ'
+        if (confirm(`ការព្រមាន៖ តើអ្នកពិតជាចង់លុបទិន្នន័យសិស្សទាំងអស់ក្នុង${scopeLabel}មែនទេ? សកម្មភាពនេះមិនអាចត្រឡប់វិញបានទេ!`)) {
+            const res = await deleteAllStudents(classId ?? undefined)
+            if (res.error) {
+                alert(res.error)
+                return
+            }
             setStudents([])
         }
     }
@@ -142,7 +154,6 @@ export default function StudentTableClient({ initialStudents }: { initialStudent
 
     return (
         <div className="min-h-screen bg-[#f9fafb] dark:bg-gray-900 pb-20 transition-colors">
-            <TopNav />
 
             <div className="container mx-auto p-4 md:p-6 mt-4 pb-20 max-w-[100%]">
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden relative">
@@ -317,7 +328,7 @@ export default function StudentTableClient({ initialStudents }: { initialStudent
 
             {/* Photo Modal */}
             {showPhotoModal && (
-                <div className="fixed inset-0 bg-black/50 z-[100] flex justify-center items-center p-4" onClick={() => setShowPhotoModal(false)}>
+                <div className="fixed inset-0 bg-black/50 z-[100] flex justify-center items-end sm:items-center p-0 sm:p-4" onClick={() => setShowPhotoModal(false)}>
                     <div className="bg-white dark:bg-gray-800 p-2 rounded-xl shadow-2xl max-w-sm w-full mx-4" onClick={e => e.stopPropagation()}>
                         {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture */}
                         <img src={photoUrl} referrerPolicy="no-referrer" className="w-full h-auto rounded-lg" alt="Student Photo" />

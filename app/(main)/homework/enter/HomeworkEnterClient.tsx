@@ -7,7 +7,6 @@ import {
     CalendarCheck, TableProperties, Loader2, Users, Check, Zap
 } from 'lucide-react'
 import { getScores, saveScores } from '../../score/enter/actions'
-import { TopNav } from "@/components/TopNav"
 import Select from '@/components/ui/forms/Select'
 import type { ScoreInput, Student } from '@/lib/types'
 import { logger } from '@/lib/utils/logger'
@@ -317,7 +316,6 @@ export default function HomeworkEnterClient({ initialStudents}: { initialStudent
 
     return (
         <div className="min-h-screen bg-[#f0f4f8] text-slate-800 flex flex-col">
-            <TopNav />
             <div className="bg-animate fixed inset-0 z-[-1] opacity-60 bg-[radial-gradient(circle_at_10%_20%,#e0e7ff_0%,transparent_40%),radial-gradient(circle_at_90%_80%,#dcfce7_0%,transparent_40%),radial-gradient(circle_at_50%_50%,#fef3c7_0%,transparent_40%)]"></div>
 
             <div className="max-w-[1400px] mx-auto px-4 py-6 w-full flex flex-col gap-5 flex-1 overflow-hidden h-[calc(100vh-64px)]">

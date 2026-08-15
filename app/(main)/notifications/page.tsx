@@ -1,9 +1,17 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import NotificationsClient from './NotificationsClient'
-import { logger } from '@/lib/utils/logger'
+import {
+  classIdFromSearchParams,
+  fetchStudentsForScope,
+  resolveServerScope,
+} from '@/lib/utils/serverScope'
 
-export default async function NotificationsPage() {
+export default async function NotificationsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>
+}) {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -11,18 +19,13 @@ export default async function NotificationsPage() {
     redirect('/login')
   }
 
-  // Fetch students for dropdown
-  const { data, error } = await supabase
-    .from('students')
-    .select('id, name_kh')
-    .eq('teacher_id', user.id)
-    .order('name_kh', { ascending: true })
-
-  if (error) {
-    logger.error(error)
-  }
-
-  const students = data ?? []
+  // Students for the recipient dropdown, scoped to the active class.
+  // fetchStudentsForScope returns full rows; this page only reads id/name_kh.
+  const requestedClassId = await classIdFromSearchParams(searchParams)
+  const scope = await resolveServerScope(user.id, requestedClassId)
+  const students = (await fetchStudentsForScope(scope))
+    .slice()
+    .sort((a, b) => (a.name_kh || '').localeCompare(b.name_kh || '', 'km'))
 
   return (
     <NotificationsClient initialStudents={students || []} />

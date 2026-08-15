@@ -38,7 +38,12 @@ export async function updateSession(request: NextRequest) {
 
   const user = session?.user
 
-  const isPublicRoute = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname === '/'
+  // `/parent/login` is the portal's own entry point and must be reachable
+  // without a session, exactly like `/login` is for teachers.
+  const isPublicRoute =
+    request.nextUrl.pathname.startsWith('/login') ||
+    request.nextUrl.pathname === '/parent/login' ||
+    request.nextUrl.pathname === '/'
   
   if (!user && !isPublicRoute) {
     // no user, potentially respond by redirecting the user to the login page

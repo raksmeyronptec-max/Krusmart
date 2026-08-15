@@ -10,6 +10,7 @@ import type { Settings, Student } from '@/lib/types'
 import { MONTHS_BY_CALENDAR } from '@/lib/constants/months'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import type { SheetRow } from '@/lib/utils/xlsx'
+import { gradeFor } from '@/lib/grading/scheme'
 
 /** A student decorated with the per-period scores and the derived ranking fields. */
 type RankedStudent = Student & {
@@ -97,13 +98,10 @@ export default function RankingClient({ initialStudents, settings}: { initialStu
                 stu.finalAverageForRank = parseFloat(stu.average)
             }
 
-            const avg = stu.finalAverageForRank
-            if (avg >= 9.0) { stu.grade = 'A'; stu.desc = 'ល្អណាស់' }
-            else if (avg >= 8.0) { stu.grade = 'B'; stu.desc = 'ល្អ' }
-            else if (avg >= 7.0) { stu.grade = 'C'; stu.desc = 'ល្អបង្គួរ' }
-            else if (avg >= 6.0) { stu.grade = 'D'; stu.desc = 'មធ្យម' }
-            else if (avg >= 5.0) { stu.grade = 'E'; stu.desc = 'ខ្សោយ' }
-            else { stu.grade = 'F'; stu.desc = 'ធ្លាក់' }
+            // Shared grading engine — same A-F ladder this block used inline.
+            const result = gradeFor(stu.finalAverageForRank)
+            stu.grade = result?.letter ?? '-'
+            stu.desc = result?.label ?? '-'
         })
 
         // Rank
@@ -275,7 +273,10 @@ export default function RankingClient({ initialStudents, settings}: { initialStu
                     </div>
                 </div>
             ) : (
-                <div className="print-container bg-white w-[21cm] min-h-[29.7cm] mx-auto my-8 p-[0.8cm] shadow-xl border border-slate-200 relative text-blue-900">
+                // preview-scroll: the sheet is a fixed 21cm (~794px); without a
+                // scroll container the whole page drags sideways on a phone.
+                <div className="preview-scroll">
+                <div className="print-container bg-white w-[21cm] shrink-0 min-h-[29.7cm] mx-auto my-8 p-[0.8cm] shadow-xl border border-slate-200 relative text-blue-900">
                     <div className="no-print fixed top-6 right-6 flex flex-col gap-3 z-50">
                         <button onClick={exportExcel} className="bg-emerald-600 text-white p-3.5 rounded-full shadow-lg shadow-emerald-200 hover:bg-emerald-700 hover:scale-110 transition-all flex items-center justify-center group" title="ទាញយក Excel">
                             <FileSpreadsheet className="w-6 h-6" />
@@ -380,6 +381,7 @@ export default function RankingClient({ initialStudents, settings}: { initialStu
                             <p className="font-moul font-bold text-[13px] text-blue-900" style={{ marginLeft: '1.5cm' }}>{settings?.teacher_name || ".........."}</p>
                         </div>
                     </div>
+                </div>
                 </div>
             )}
         </div>

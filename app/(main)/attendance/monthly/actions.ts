@@ -14,9 +14,12 @@ export async function getMonthlyAttendance(year: number, month: number): Promise
     const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`
     const endDate = new Date(year, month + 1, 0).toISOString().split('T')[0] // last day of month
 
+    // Scope by teacher on top of RLS — this read was previously unscoped and
+    // returned every school's attendance for the month. See AUDIT.md G-1.
     const { data, error } = await supabase
         .from('attendance')
         .select('*')
+        .eq('teacher_id', user.id)
         .gte('date', startDate)
         .lte('date', endDate)
 

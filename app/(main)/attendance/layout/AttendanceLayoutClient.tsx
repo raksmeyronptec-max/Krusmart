@@ -166,7 +166,7 @@ export default function AttendanceLayoutClient({ initialStudents}: { initialStud
 
             return (
                 <div key={seatId} onClick={() => handleSeatClick(seatId)} 
-                     className={`seat filled ${extraClasses} border-2 rounded-xl p-1 flex flex-col items-center justify-center text-center cursor-pointer transition-transform hover:scale-105 ${statusColors[status]} ${isEditMode ? 'hover:shadow-lg z-10' : ''}`}>
+                     className={`seat filled ${extraClasses} min-h-[44px] border-2 rounded-xl p-1 flex flex-col items-center justify-center text-center cursor-pointer transition-transform hover:scale-105 ${statusColors[status]} ${isEditMode ? 'hover:shadow-lg z-10' : ''}`}>
                     
                     {isEditMode && (
                         <div onClick={(e) => removeStudentFromSeat(e, seatId)} 
@@ -411,8 +411,8 @@ export default function AttendanceLayoutClient({ initialStudents}: { initialStud
 
             {/* Student Select Modal */}
             {showModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setShowModal(false)}>
-                    <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}>
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-sm" onClick={() => setShowModal(false)}>
+                    <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-h-[90vh] sm:max-h-[85vh] overflow-y-auto max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}>
                         <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                             <h3 className="font-bold text-gray-800 flex items-center gap-2">
                                 <Users className="w-5 h-5 text-blue-600" />

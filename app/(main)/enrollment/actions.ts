@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { logger } from '@/lib/utils/logger'
 import type { StudentImportRow } from '@/lib/types'
+import { auditLog, auditLogBatch } from '@/lib/audit/log'
 
 export async function createStudent(formData: FormData) {
   const supabase = await createClient()
@@ -97,6 +98,14 @@ export async function createStudent(formData: FormData) {
     return { error: 'មានបញ្ហាក្នុងការរក្សាទុកទិន្នន័យ៖ ' + error.message }
   }
 
+  // Identity fields only. The trail records that a student was enrolled and by
+  // whom — copying the full demographic record (parents, address, poverty
+  // status) into an admin-readable log would be a needless second store of it.
+  await auditLog({
+    action: 'student.created', entityType: 'student', entityId: null, actorId: user.id,
+    newValue: { student_id, name_kh, grade },
+  })
+
   revalidatePath('/student-list')
   return { success: true }
 }
@@ -155,6 +164,8 @@ export async function importStudents(students: StudentImportRow[]) {
     logger.error(error)
     return { error: 'មានបញ្ហាក្នុងការរក្សាទុកទិន្នន័យ៖ ' + error.message }
   }
+
+  await auditLogBatch('student.imported', 'student', studentsToInsert.length, undefined, user.id)
 
   revalidatePath('/student-list')
   return { success: true }

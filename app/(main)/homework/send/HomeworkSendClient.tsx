@@ -7,7 +7,6 @@ import {
     History, Inbox, CalendarClock, ZoomIn, Trash2, Loader2,
     CheckCircle, XCircle
 } from 'lucide-react'
-import { TopNav } from "@/components/TopNav"
 import { getAssignments, addAssignment, deleteAssignment } from './actions'
 import SearchableSelect from '@/components/ui/forms/SearchableSelect'
 import { getErrorMessageOr } from '@/lib/utils/errors'
@@ -176,7 +175,6 @@ export default function HomeworkSendClient({ userId }: { userId: string }) {
 
     return (
         <div className="min-h-screen bg-[#f0f4f8] text-slate-800 flex flex-col">
-            <TopNav />
             
             {/* Toast Notification */}
             {toast && (
@@ -190,7 +188,7 @@ export default function HomeworkSendClient({ userId }: { userId: string }) {
 
             {/* Modals */}
             {photoModalSrc && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[1000] flex items-center justify-center p-4" onClick={() => setPhotoModalSrc(null)}>
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[1000] flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setPhotoModalSrc(null)}>
                     <div className="bg-white p-2 rounded-2xl shadow-2xl max-w-2xl w-full" onClick={e => e.stopPropagation()}>
                         {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture */}
                         <img src={photoModalSrc} className="w-full h-auto rounded-xl max-h-[80vh] object-contain bg-gray-50" alt="Homework Photo" />
@@ -200,7 +198,7 @@ export default function HomeworkSendClient({ userId }: { userId: string }) {
             )}
 
             {deleteModalId && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[1000] flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[1000] flex items-end sm:items-center justify-center p-0 sm:p-4">
                     <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full mx-4">
                         <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-100 mb-4 mx-auto">
                             <AlertTriangle className="w-6 h-6 text-red-600" />

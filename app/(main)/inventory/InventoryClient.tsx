@@ -1,67 +1,133 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { ArrowLeft, Package, PlusCircle, Save, X, List, Printer, Edit, Trash2 } from 'lucide-react'
 import Link from 'next/link'
-import type { Settings } from '@/lib/types'
+import toast from 'react-hot-toast'
+import type { InventoryItemRow, Settings } from '@/lib/types'
 import { STORAGE_KEYS } from '@/lib/constants/storage'
+import {
+    createInventoryItem,
+    deleteInventoryItem,
+    importInventoryItems,
+    listInventoryItems,
+    updateInventoryItem,
+} from './actions'
+import { logger } from '@/lib/utils/logger'
 
-interface InventoryItem {
+/** The shape older builds wrote to `localStorage`, kept for the one-time import. */
+interface LegacyInventoryItem {
     id: number
     name: string
     qty: number
     note: string
 }
 
-export default function InventoryClient({ settings }: { settings: Settings | null }) {
-    const [items, setItems] = useState<InventoryItem[]>([])
-    const [editId, setEditId] = useState<number | null>(null)
+/**
+ * Read the browser's old inventory. Returns `[]` when nothing is stored or the
+ * value is corrupt, so a bad entry cannot break the page on load.
+ */
+function readLegacyItems(): LegacyInventoryItem[] {
+    if (typeof window === 'undefined') return []
+    const raw = window.localStorage.getItem(STORAGE_KEYS.inventoryItems)
+    if (!raw) return []
+    try {
+        const parsed: unknown = JSON.parse(raw)
+        return Array.isArray(parsed) ? (parsed as LegacyInventoryItem[]) : []
+    } catch {
+        return []
+    }
+}
+
+export default function InventoryClient({
+    settings,
+    initialItems,
+}: {
+    settings: Settings | null
+    initialItems: InventoryItemRow[]
+}) {
+    const [items, setItems] = useState<InventoryItemRow[]>(initialItems)
+    const [editId, setEditId] = useState<string | null>(null)
     const [name, setName] = useState('')
     const [qty, setQty] = useState('')
     const [note, setNote] = useState('')
+    const [pending, startTransition] = useTransition()
 
+    /**
+     * Import the browser's old localStorage list once.
+     *
+     * Runs only when the server returned nothing *and* localStorage has
+     * something, so it fires at most once per account. The localStorage copy is
+     * left in place: an import that fails can be retried, and nothing is
+     * destroyed if the insert half-succeeds.
+     */
     useEffect(() => {
-        const stored = localStorage.getItem(STORAGE_KEYS.inventoryItems)
-        if (stored) {
-            try {
-                // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage is unavailable during SSR; a lazy initialiser would desync hydration
-                setItems(JSON.parse(stored))
-            } catch {}
-        }
-    }, [])
+        if (initialItems.length > 0) return
 
-    const saveItems = (newItems: InventoryItem[]) => {
-        setItems(newItems)
-        localStorage.setItem(STORAGE_KEYS.inventoryItems, JSON.stringify(newItems))
-    }
+        const legacy = readLegacyItems()
+        if (legacy.length === 0) return
+
+        let cancelled = false
+        const run = async () => {
+            const res = await importInventoryItems(
+                legacy.map((i) => ({ name: i.name, qty: i.qty, note: i.note })),
+            )
+            if (res.error) {
+                logger.error(res.error)
+                return
+            }
+            const rows = await listInventoryItems()
+            if (!cancelled) {
+                setItems(rows)
+                if (res.imported) toast.success(`បាននាំចូលសម្ភារៈ ${res.imported} មុខ`)
+            }
+        }
+        run()
+        return () => { cancelled = true }
+    }, [initialItems.length])
+
+    const refresh = async () => setItems(await listInventoryItems())
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
-        if (!name || !qty) return
+        if (!name.trim() || !qty) return
 
-        if (editId) {
-            saveItems(items.map(item => item.id === editId ? { id: editId, name, qty: parseInt(qty), note } : item))
-        } else {
-            // Derive the next id from the list rather than the clock: it stays pure,
-            // and two items added in the same millisecond can't collide.
-            const nextId = items.reduce((max, item) => Math.max(max, item.id), 0) + 1
-            saveItems([...items, { id: nextId, name, qty: parseInt(qty), note }])
-        }
+        const payload = { name: name.trim(), qty: Number(qty), note: note.trim() || null }
 
-        resetForm()
+        startTransition(async () => {
+            const res = editId
+                ? await updateInventoryItem(editId, payload)
+                : await createInventoryItem(payload)
+
+            if (res.error) {
+                toast.error(res.error)
+                return
+            }
+            await refresh()
+            resetForm()
+            toast.success(editId ? 'បានកែប្រែសម្ភារៈ' : 'បានបញ្ចូលសម្ភារៈថ្មី')
+        })
     }
 
-    const editItem = (item: InventoryItem) => {
+    const editItem = (item: InventoryItemRow) => {
         setEditId(item.id)
         setName(item.name)
-        setQty(item.qty.toString())
-        setNote(item.note)
+        setQty(String(item.qty))
+        setNote(item.note ?? '')
     }
 
-    const deleteItem = (id: number) => {
-        if (confirm('តើអ្នកពិតជាចង់លុបសម្ភារៈនេះមែនទេ?')) {
-            saveItems(items.filter(item => item.id !== id))
-        }
+    const deleteItem = (id: string) => {
+        if (!confirm('តើអ្នកពិតជាចង់លុបសម្ភារៈនេះមែនទេ?')) return
+        startTransition(async () => {
+            const res = await deleteInventoryItem(id)
+            if (res.error) {
+                toast.error(res.error)
+                return
+            }
+            await refresh()
+            if (editId === id) resetForm()
+            toast.success('បានលុបសម្ភារៈ')
+        })
     }
 
     const resetForm = () => {
@@ -80,6 +146,7 @@ export default function InventoryClient({ settings }: { settings: Settings | nul
             <style jsx global>{`
                 .print-container { display: none; }
                 @media print {
+                    @page { size: A4 portrait; margin: 0; }
                     .no-print { display: none !important; }
                     body { background: white !important; margin: 0; padding: 0; }
                     .print-container { 
@@ -131,7 +198,7 @@ export default function InventoryClient({ settings }: { settings: Settings | nul
                                 <input type="text" value={note} onChange={e => setNote(e.target.value)} placeholder="ស្ថានភាព (ល្អ, ខូច...)" className="w-full padding-3 rounded-xl border border-gray-200 outline-none bg-white p-2 focus:border-[#0054a6]" />
                             </div>
                             <div className="md:col-span-2 flex gap-2">
-                                <button type="submit" className={`w-full text-white font-bold py-2.5 rounded-xl transition shadow flex justify-center items-center gap-2 ${editId ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-[#0054a6] hover:bg-blue-700'}`}>
+                                <button type="submit" disabled={pending} className={`w-full text-white font-bold py-2.5 rounded-xl transition shadow flex justify-center items-center gap-2 disabled:opacity-60 ${editId ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-[#0054a6] hover:bg-blue-700'}`}>
                                     <Save className="w-4 h-4" /> យល់ព្រម
                                 </button>
                                 {editId && (

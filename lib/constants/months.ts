@@ -100,3 +100,15 @@ export const ACADEMIC_MONTH_OPTIONS_BY_NUM = MONTHS_BY_ACADEMIC_YEAR.map((m) => 
   value: m.num,
   label: m.label,
 }))
+
+/**
+ * Academic-year-ordered options keyed by month id (`nov`, `dec`, ...).
+ *
+ * This is the ordering the score grids need — they key periods by month id and
+ * present Nov → Oct — and several clients were building it inline with
+ * `MONTHS_BY_ACADEMIC_YEAR.map(...)`.
+ */
+export const ACADEMIC_MONTH_OPTIONS_BY_ID = MONTHS_BY_ACADEMIC_YEAR.map((m) => ({
+  value: m.id,
+  label: m.label,
+}))

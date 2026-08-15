@@ -155,6 +155,14 @@ export interface Score {
    */
   score_period: string
   score_value: number | null
+  /**
+   * Non-numeric mark — the behavioural ratings (ល្អ / ល្អបង្គួរ / មធ្យម / ខ្សោយ)
+   * on the `sem_eval_*` columns. `score_value` is NUMERIC, so these used to be
+   * coerced with `parseFloat`, turn into NaN, serialise as `null`, and vanish
+   * without an error. Added in migration 00012; a row carries this or
+   * `score_value`, never both. Read with `scoreCellValue()`.
+   */
+  score_text?: string | null
   created_at?: string
   updated_at?: string
 }
@@ -238,6 +246,11 @@ export interface CleaningMember {
   id: string
   name: string
   image?: string | null
+  /**
+   * `ប្រធាន` / `អនុប្រធាន` / `សមាជិក`, set by the automatic assignment in
+   * `lib/utils/cleaning-random.ts`. Absent on members added by hand.
+   */
+  role?: string | null
 }
 
 /** `cleaning_schedules.leaders` JSONB. */
@@ -268,3 +281,344 @@ export type SeatingAssignments = Record<string, string>
  * optional instead of forming a discriminated union.
  */
 export type ActionResult = { success?: true; error?: string }
+
+// =============================================================================
+// Enterprise V2
+// =============================================================================
+// Rows introduced by migrations 00002-00003. The single-teacher types above are
+// unchanged and still authoritative for the legacy query paths — see
+// `lib/utils/queryFilter.ts` for how the two coexist during the migration.
+
+/** `schools` row. `location` drives the GPS check-in radius in `TopNav`. */
+export interface School {
+  id: string
+  name: string
+  code?: string | null
+  logo_url?: string | null
+  phone?: string | null
+  email?: string | null
+  address?: string | null
+  /** `{ latitude, longitude, radius }` — radius is in metres. */
+  location?: SchoolLocation | null
+  /** Free-form per-school config (EmailJS credentials, notification prefs). */
+  settings?: Record<string, unknown> | null
+  created_at?: string
+  updated_at?: string
+}
+
+export interface SchoolLocation {
+  latitude: number
+  longitude: number
+  /** Metres from the school within which a check-in is accepted. */
+  radius: number
+}
+
+/** `academic_years` row. Cambodian school years run November → October. */
+export interface AcademicYear {
+  id: string
+  school_id: string
+  /** e.g. `'2025-2026'`. */
+  name: string
+  start_date?: string | null
+  end_date?: string | null
+  is_active: boolean
+  created_at?: string
+}
+
+/** `education_levels` row — បឋមសិក្សា / មធ្យមសិក្សាបឋមភូមិ / មធ្យមសិក្សាទុតិយភូមិ. */
+export interface EducationLevel {
+  id: string
+  school_id: string
+  name: string
+  name_en?: string | null
+  sort_order: number
+}
+
+/** `grades` row — ថ្នាក់ទី១ … ថ្នាក់ទី១២. `sort_order` is the grade number. */
+export interface Grade {
+  id: string
+  education_level_id: string
+  name: string
+  name_en?: string | null
+  sort_order: number
+}
+
+/** `classes` row, e.g. `១ក`. Unique per (grade, academic year, name). */
+export interface Class {
+  id: string
+  grade_id: string
+  academic_year_id: string
+  name: string
+  capacity?: number | null
+  created_at?: string
+}
+
+/** `subjects` row, scoped to a school. */
+export interface Subject {
+  id: string
+  school_id: string
+  name: string
+  name_en?: string | null
+  code?: string | null
+  is_active: boolean
+}
+
+/** `class_subjects` row — per-class scoring bounds for one subject. */
+export interface ClassSubject {
+  id: string
+  class_id: string
+  subject_id: string
+  max_score: number
+  passing_score: number
+  is_active: boolean
+}
+
+/**
+ * `teacher_assignments` row.
+ *
+ * `subject_id` is null for a homeroom assignment. Uniqueness is enforced by two
+ * partial indexes rather than one constraint, because `NULL <> NULL` would
+ * otherwise let duplicate homeroom rows accumulate.
+ */
+export interface TeacherAssignment {
+  id: string
+  teacher_id: string
+  class_id: string
+  subject_id?: string | null
+  academic_year_id: string
+  is_homeroom: boolean
+  status: string
+  created_at?: string
+}
+
+/** A teacher assignment joined to the names needed to render the context switcher. */
+export interface TeacherAssignmentDetail extends TeacherAssignment {
+  class_name: string
+  subject_name?: string | null
+  academic_year_name: string
+  school_id: string
+  school_name: string
+}
+
+/** Where a student sits for one academic year. History is append-only. */
+export type EnrollmentStatus = 'active' | 'promoted' | 'transferred' | 'withdrawn'
+
+/** `student_enrollments` row. */
+export interface StudentEnrollment {
+  id: string
+  student_id: string
+  class_id: string
+  academic_year_id: string
+  status: EnrollmentStatus | string
+  enrolled_at: string
+  left_at?: string | null
+}
+
+/** The seven seeded role names. */
+export type RoleName =
+  | 'owner'
+  | 'principal'
+  | 'school_admin'
+  | 'teacher'
+  // Present in the `roles` table since 00003; the union omitted them, which is
+  // why a parent could not be told apart from a role-less legacy teacher.
+  | 'staff'
+  | 'parent'
+  | 'student'
+  | 'staff'
+  | 'parent'
+  | 'student'
+
+/** `roles` row. `display_name` is the Khmer label shown in the UI. */
+export interface Role {
+  id: string
+  name: RoleName | string
+  display_name?: string | null
+  sort_order: number
+}
+
+/** `user_roles` row. A null `school_id` denotes a global (platform owner) grant. */
+export interface UserRole {
+  id: string
+  user_id: string
+  role_id: string
+  school_id?: string | null
+  created_at?: string
+}
+
+/** `permissions` row — one (resource, action) pair granted to a role. */
+export interface Permission {
+  id: string
+  role_id: string
+  resource: string
+  action: string
+}
+
+/** `grading_schemes` row. `config` holds score ranges, letters and weights. */
+export interface GradingScheme {
+  id: string
+  school_id: string
+  education_level_id?: string | null
+  name: string
+  config: Record<string, unknown>
+  is_default: boolean
+  created_at?: string
+}
+
+/** `assessments` row. */
+export interface Assessment {
+  id: string
+  class_subject_id: string
+  academic_year_id: string
+  name: string
+  type: string
+  max_score: number
+  weight: number
+  term?: string | null
+  date?: string | null
+  status: string
+  created_at?: string
+}
+
+/** `report_cards` row. */
+export interface ReportCard {
+  id: string
+  enrollment_id: string
+  academic_year_id: string
+  term?: string | null
+  data: Record<string, unknown>
+  status: 'draft' | 'published' | 'approved' | string
+  created_at?: string
+  updated_at?: string
+}
+
+/** `attendance_locks` row — a class-day closed to further edits. */
+export interface AttendanceLock {
+  id: string
+  class_id: string
+  date: string
+  locked_by?: string | null
+  locked_at: string
+}
+
+/** `audit_logs` row. Append-only: there is no UPDATE or DELETE policy. */
+export interface AuditLogEntry {
+  id: string
+  school_id?: string | null
+  actor_id: string
+  action: string
+  entity_type: string
+  entity_id?: string | null
+  old_value?: Record<string, unknown> | null
+  new_value?: Record<string, unknown> | null
+  metadata?: Record<string, unknown> | null
+  created_at: string
+}
+
+/** `announcements` row. */
+export interface Announcement {
+  id: string
+  school_id: string
+  author_id: string
+  title: string
+  content?: string | null
+  audience: 'all' | 'teachers' | 'parents' | 'students' | string
+  status: string
+  created_at?: string
+}
+
+/** `premium_requests` row — carries the Firestore subscription workflow. */
+export interface PremiumRequest {
+  id: string
+  user_id: string
+  plan: string
+  status: 'pending' | 'approved' | 'rejected' | string
+  requested_at: string
+  reviewed_at?: string | null
+  reviewed_by?: string | null
+  metadata?: Record<string, unknown> | null
+  notes?: string | null
+}
+
+/** `profiles` row. Subscription fields carry over from Firestore `users/{uid}`. */
+export interface Profile {
+  id: string
+  school_id?: string | null
+  full_name?: string | null
+  phone?: string | null
+  avatar_url?: string | null
+  role?: string | null
+  subscription_plan?: string | null
+  subscription_status?: string | null
+  trial_ends_at?: string | null
+  created_at?: string
+  updated_at?: string
+}
+
+// =============================================================================
+// Phase 11.5 — legacy features moved off localStorage (migration 00012)
+// =============================================================================
+
+/** Which score grid a custom subject appears in. */
+export type CustomSubjectScope = 'monthly' | 'semester' | 'both'
+
+/** One column inside a custom subject. `id` is what `scores.subject` stores. */
+export interface CustomSubjectColumn {
+  id: string
+  label: string
+  width?: string
+}
+
+/**
+ * `custom_subjects` row — a teacher-defined subject group.
+ *
+ * Replaces the `custom_subjects` localStorage key. `columns` keeps the legacy
+ * JSON shape so an existing browser's value imports verbatim; rewriting a
+ * column id would orphan every score already recorded against it.
+ */
+export interface CustomSubjectRow {
+  id: string
+  teacher_id: string
+  class_id?: string | null
+  name: string
+  scope: CustomSubjectScope
+  columns: CustomSubjectColumn[]
+  order_index: number
+  created_at?: string
+  updated_at?: string
+}
+
+/** `inventory_items` row — classroom equipment, previously `inventoryItems`. */
+export interface InventoryItemRow {
+  id: string
+  teacher_id: string
+  class_id?: string | null
+  name: string
+  qty: number
+  unit?: string | null
+  note?: string | null
+  order_index: number
+  created_at?: string
+  updated_at?: string
+}
+
+/**
+ * `class_admin_entries` row — one record in one of the 13 administration books.
+ *
+ * Row-list books (recommendations, demo classes, ...) use one row per record
+ * ordered by `seq`; single-document books (class committee, teacher plan, ...)
+ * use one row with `seq = 0` and everything in `data`. The per-book shape of
+ * `data` is described in `lib/class-admin/books.ts`.
+ */
+export interface ClassAdminEntry {
+  id: string
+  teacher_id: string
+  class_id?: string | null
+  academic_year_id?: string | null
+  book: string
+  entry_date?: string | null
+  seq: number
+  data: Record<string, unknown>
+  created_at?: string
+  updated_at?: string
+}

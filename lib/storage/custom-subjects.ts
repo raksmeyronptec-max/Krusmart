@@ -1,41 +1,38 @@
 import { STORAGE_KEYS } from '@/lib/constants/storage'
+import type { CustomSubjectColumn, CustomSubjectScope } from '@/lib/types'
 
 /**
- * User-defined subjects, persisted in `localStorage` rather than Supabase and
- * shared by `score/enter` and `score/total`.
+ * The **legacy** `localStorage` store for teacher-defined subjects.
  *
- * Both clients previously declared their own `CustomSubject` type that did not
- * match what they read: the type said columns carried `name`, but `score/total`
- * reads `col.label`, and neither type declared the `type` discriminator both
- * files branch on. The shape below follows the actual reads.
+ * Since migration 00012 the subjects live in Supabase (`custom_subjects`,
+ * server actions in `app/(main)/score/custom-subjects/actions.ts`). This module
+ * survives for one job: reading what an existing browser already has, so it can
+ * be imported once into the database.
+ *
+ * Nothing writes here any more. The stored value is deliberately left in place
+ * after an import rather than cleared — an import that fails can be retried,
+ * and a tab still running an older build keeps working.
  */
 
-export interface CustomSubjectColumn {
-  id: string
-  label: string
-  /** Present on rows written by older builds of the subject editor. */
-  name?: string
-  width?: string
-  mode?: string
-}
+export type { CustomSubjectColumn, CustomSubjectScope } from '@/lib/types'
 
-/** Which score grid a custom subject appears in. */
-export type CustomSubjectScope = 'monthly' | 'semester' | 'both'
-
-export interface CustomSubject {
+/** The shape older builds wrote. `type` is this store's name for `scope`. */
+export interface LegacyCustomSubject {
   id: string
   name: string
-  /** Absent on legacy rows, which both grids treat as `'both'`. */
+  /** Absent on the oldest rows, which both grids treated as `'both'`. */
   type?: CustomSubjectScope
   columns: CustomSubjectColumn[]
 }
 
 /**
- * Read the stored subjects. Returns `[]` on the server, when nothing is stored,
- * or when the stored value is corrupt — callers previously let a malformed
- * value throw out of `JSON.parse` inside a `useEffect`.
+ * Read the browser's stored subjects.
+ *
+ * Returns `[]` on the server, when nothing is stored, or when the value is
+ * corrupt — callers used to let a malformed value throw out of `JSON.parse`
+ * inside a `useEffect`.
  */
-export function readCustomSubjects(): CustomSubject[] {
+export function readLegacyCustomSubjects(): LegacyCustomSubject[] {
   if (typeof window === 'undefined') return []
 
   const raw = window.localStorage.getItem(STORAGE_KEYS.customSubjects)
@@ -43,19 +40,30 @@ export function readCustomSubjects(): CustomSubject[] {
 
   try {
     const parsed: unknown = JSON.parse(raw)
-    return Array.isArray(parsed) ? (parsed as CustomSubject[]) : []
+    return Array.isArray(parsed) ? (parsed as LegacyCustomSubject[]) : []
   } catch {
     return []
   }
 }
 
-/** Persist the subject list. */
-export function writeCustomSubjects(subjects: CustomSubject[]): void {
-  if (typeof window === 'undefined') return
-  window.localStorage.setItem(STORAGE_KEYS.customSubjects, JSON.stringify(subjects))
+/** Normalise a legacy row into the payload `importCustomSubjects` accepts. */
+export function toImportPayload(s: LegacyCustomSubject): {
+  name: string
+  scope: CustomSubjectScope
+  columns: CustomSubjectColumn[]
+} {
+  return {
+    name: s.name,
+    scope: s.type ?? 'both',
+    columns: Array.isArray(s.columns) ? s.columns : [],
+  }
 }
 
 /** True when `subject` should appear in the given grid. */
-export function appliesTo(subject: CustomSubject, scope: Exclude<CustomSubjectScope, 'both'>): boolean {
-  return !subject.type || subject.type === 'both' || subject.type === scope
+export function appliesTo(
+  subject: { scope?: CustomSubjectScope; type?: CustomSubjectScope },
+  scope: Exclude<CustomSubjectScope, 'both'>,
+): boolean {
+  const value = subject.scope ?? subject.type
+  return !value || value === 'both' || value === scope
 }

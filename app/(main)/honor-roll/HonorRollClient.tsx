@@ -8,6 +8,7 @@ import Select from '@/components/ui/forms/Select'
 import type { Settings, Student } from '@/lib/types'
 import { MONTHS_BY_CALENDAR } from '@/lib/constants/months'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
+import { letterFor } from '@/lib/grading/scheme'
 
 /** A student decorated with the per-period scores and the derived ranking fields. */
 type RankedStudent = Student & {
@@ -93,13 +94,7 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
                 stu.finalAverageForRank = parseFloat(stu.average)
             }
 
-            const avg = stu.finalAverageForRank
-            if (avg >= 9.0) { stu.grade = 'A' }
-            else if (avg >= 8.0) { stu.grade = 'B' }
-            else if (avg >= 7.0) { stu.grade = 'C' }
-            else if (avg >= 6.0) { stu.grade = 'D' }
-            else if (avg >= 5.0) { stu.grade = 'E' }
-            else { stu.grade = 'F' }
+            stu.grade = letterFor(stu.finalAverageForRank)
         })
 
         // Sort & Rank

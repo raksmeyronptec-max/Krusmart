@@ -1,10 +1,18 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import ScoreAnalyseClient from './ScoreAnalyseClient'
-import { logger } from '@/lib/utils/logger'
 import { FALLBACK_ACADEMIC_YEAR } from '@/lib/constants/academic'
+import {
+  classIdFromSearchParams,
+  fetchStudentsForScope,
+  resolveServerScope,
+} from '@/lib/utils/serverScope'
 
-export default async function ScoreAnalysePage() {
+export default async function ScoreAnalysePage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>
+}) {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -22,18 +30,11 @@ export default async function ScoreAnalysePage() {
   const academicYear = settings?.academic_year || FALLBACK_ACADEMIC_YEAR
 
   // Fetch students
-  const { data, error } = await supabase
-    .from('students')
-    .select('*')
-    .eq('teacher_id', user.id)
-    .order('order_index', { ascending: true, nullsFirst: false })
-    .order('created_at', { ascending: true })
-
-  if (error) {
-    logger.error(error)
-  }
-
-  const students = data ?? []
+  // Phase 5: roster scoped to the active class via student_enrollments,
+  // falling back to legacy teacher_id scoping for pre-V2 accounts.
+  const requestedClassId = await classIdFromSearchParams(searchParams)
+  const scope = await resolveServerScope(user.id, requestedClassId)
+  const students = await fetchStudentsForScope(scope)
 
   // Fetch attendance
   const { data: attendanceData } = await supabase

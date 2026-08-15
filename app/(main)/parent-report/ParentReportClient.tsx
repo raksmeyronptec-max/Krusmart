@@ -11,6 +11,7 @@ import SearchableSelect from '@/components/ui/forms/SearchableSelect'
 import type { AttendanceRecord, Score, Settings, Student } from '@/lib/types'
 import { ACADEMIC_MONTH_IDS, MONTHS_BY_CALENDAR, MONTH_LABEL_BY_ID, MONTH_NUM_BY_ID, isMonthId } from '@/lib/constants/months'
 import { calculateAge } from '@/lib/utils/date'
+import { letterFor } from '@/lib/grading/scheme'
 
 const subjectsConfig = [
     { key: 'kh_listen', label: 'ភាសាខ្មែរ (ស្តាប់)' }, { key: 'kh_speak', label: 'ភាសាខ្មែរ (និយាយ)' },
@@ -145,12 +146,9 @@ export default function ParentReportClient({ initialStudents, settings }: { init
 
         const stAvg = stCount > 0 ? stTotal / stCount : 0
         
-        let grade = 'F'
-        if (stAvg >= 9.0) grade = 'A'
-        else if (stAvg >= 8.0) grade = 'B'
-        else if (stAvg >= 7.0) grade = 'C'
-        else if (stAvg >= 6.0) grade = 'D'
-        else if (stAvg >= 5.0) grade = 'E'
+        // `stAvg` is 0 when nothing is marked, which the ladder grades as F —
+        // preserved here because the remark text below depends on it.
+        const grade = letterFor(stAvg)
 
         let remark = ""
         if (stAvg <= 0) remark = "គ្មាន"

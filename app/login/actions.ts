@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { resolveActor, homeRouteFor } from '@/lib/rbac/actor'
 
 export async function loginWithEmail(email: string, password?: string) {
   const supabase = await createClient()
@@ -19,7 +20,10 @@ export async function loginWithEmail(email: string, password?: string) {
     return { error: error.message }
   }
 
-  redirect('/dashboard')
+  // A parent signing in through the teacher login form still belongs in the
+  // portal, not on the teacher dashboard.
+  const actor = await resolveActor()
+  redirect(homeRouteFor(actor?.kind ?? 'teacher'))
 }
 
 export async function registerWithEmail(email: string, password?: string) {
@@ -59,9 +63,9 @@ export async function verifySignupOtp(email: string, token: string) {
     return { error: error.message }
   }
 
-  // Once verified, typically Supabase signs the user in.
-  // We can redirect them to the dashboard.
-  redirect('/dashboard')
+  // Once verified, Supabase signs the user in; send them to their own app.
+  const actor = await resolveActor()
+  redirect(homeRouteFor(actor?.kind ?? 'teacher'))
 }
 
 export async function resendOtp(email: string) {

@@ -261,7 +261,8 @@ export default function PrintListClient({ initialStudents, settings }: { initial
                 </div>
             </div>
 
-            <div className="max-w-[297mm] mx-auto bg-white min-h-[210mm] mt-6 shadow-xl border border-slate-200 p-[8mm] print-container mb-10">
+            <div className="preview-scroll">
+            <div className="w-[297mm] max-w-none mx-auto bg-white min-h-[210mm] mt-6 shrink-0 shadow-xl border border-slate-200 p-[8mm] print-container mb-10">
                 
                 <div className="relative mb-[15px]">
                     <div className="text-[11px] font-moul text-black leading-relaxed max-w-[50%]">
@@ -396,6 +397,7 @@ export default function PrintListClient({ initialStudents, settings }: { initial
                         <p className="font-moul text-blue-800" style={{ marginLeft: '2cm' }}>{settings?.teacher_name || "ឈ្មោះគ្រូ"}</p>
                     </div>
                 </div>
+            </div>
             </div>
         </div>
     )
