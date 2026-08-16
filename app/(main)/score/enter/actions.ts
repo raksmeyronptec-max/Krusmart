@@ -8,7 +8,17 @@ import { resolveServerScope, rosterIdsForScope } from '@/lib/utils/serverScope'
 import { auditLogBatch } from '@/lib/audit/log'
 import { splitScoreCell } from '@/lib/utils/score-value'
 
-export async function getScores(scoreType: string, scorePeriod: string): Promise<Score[]> {
+/**
+ * `classId` is optional and mirrors `saveScores` below: omitted, the scope
+ * resolver falls back to the teacher's homeroom assignment, which is what every
+ * single-class account wants. Passing it matters once a teacher holds several
+ * classes — without it the roster came from the requested `?class=` while the
+ * marks came from the homeroom, so a subject class showed an empty grid.
+ *
+ * It cannot widen access: `resolveServerScope` only honours a class the caller
+ * actually holds an active assignment for, and RLS is the boundary regardless.
+ */
+export async function getScores(scoreType: string, scorePeriod: string, classId?: string): Promise<Score[]> {
     const supabase = await createClient()
 
     const { data: { user } } = await supabase.auth.getUser()
@@ -16,7 +26,7 @@ export async function getScores(scoreType: string, scorePeriod: string): Promise
 
     // 00007: an assigned teacher reads all subjects for the class, so the
     // roster — not ownership — is the boundary. Legacy accounts keep teacher_id.
-    const scope = await resolveServerScope(user.id)
+    const scope = await resolveServerScope(user.id, classId)
     const rosterIds = await rosterIdsForScope(scope)
 
     let query = supabase

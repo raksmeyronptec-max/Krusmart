@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import ScoreTotalClient from './ScoreTotalClient'
@@ -6,6 +7,7 @@ import {
   fetchStudentsForScope,
   resolveServerScope,
 } from '@/lib/utils/serverScope'
+import type { Settings } from '@/lib/types'
 
 export default async function ScoreTotalPage({
   searchParams,
@@ -26,7 +28,22 @@ export default async function ScoreTotalPage({
   const scope = await resolveServerScope(user.id, requestedClassId)
   const students = await fetchStudentsForScope(scope)
 
+  // The print preview carries the school letterhead and the two signature
+  // blocks; both come from `settings`, which is a teacher-owned row.
+  const { data: settings } = await supabase
+    .from('settings')
+    .select('*')
+    .eq('teacher_id', user.id)
+    .maybeSingle()
+
+  // `ScoreTotalClient` reads the period out of `useSearchParams`; the boundary
+  // keeps that legal regardless of how this route is rendered.
   return (
-    <ScoreTotalClient initialStudents={students || []} />
+    <Suspense>
+      <ScoreTotalClient
+        initialStudents={students || []}
+        settings={(settings as Settings) ?? null}
+      />
+    </Suspense>
   )
 }

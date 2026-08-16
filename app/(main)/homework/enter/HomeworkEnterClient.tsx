@@ -1,639 +1,771 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
-import { 
-    BookMarked, Calendar, Clock, CalendarDays, Save, Info,
-    CalendarCheck, TableProperties, Loader2, Users, Check, Zap, Printer
-} from 'lucide-react'
-import { getScores, saveScores } from '../../score/enter/actions'
-import Select from '@/components/ui/forms/Select'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import Link from 'next/link'
+import { Printer, Search, Send, Sparkles, Sun, Users, X } from 'lucide-react'
+
+import { Button } from '@/components/ui/actions/Button'
+import { EmptyState } from '@/components/ui/feedback/EmptyState'
+import { Skeleton } from '@/components/ui/feedback/Skeleton'
 import { notify } from '@/components/ui/feedback/notify'
 import { useConfirm } from '@/components/ui/overlay/ConfirmDialog'
-import type { ScoreInput, Settings, Student } from '@/lib/types'
-import { logger } from '@/lib/utils/logger'
-import { MONTHS_BY_ACADEMIC_YEAR } from '@/lib/constants/months'
-import { getCurrentAcademicYear } from '@/lib/constants/academic'
-import { toKhmerNumber } from '@/lib/utils/khmer-num'
+import { PageContainer } from '@/components/shell/PageContainer'
+import { controlClass } from '@/components/ui/forms/fieldStyles'
 
-const monthIndexMapping: Record<string, number> = {
-    'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'may': 4, 'jun': 5,
-    'jul': 6, 'aug': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dec': 11
+import { getScores, saveScores } from '../../score/enter/actions'
+import { useActiveClass } from '@/lib/hooks/useActiveClass'
+import { DEFAULT_SCHEME_CONFIG } from '@/lib/grading/scheme'
+import { MONTH_LABEL_BY_ID } from '@/lib/constants/months'
+import { getCurrentAcademicYear } from '@/lib/constants/academic'
+import { khmerWeekday } from '@/lib/constants/weekdays'
+import { toKhmerNumber } from '@/lib/utils/khmer-num'
+import { getErrorMessageOr } from '@/lib/utils/errors'
+import { logger } from '@/lib/utils/logger'
+
+import { HomeworkEntryHeader } from './HomeworkEntryHeader'
+import { HomeworkModeToggle, type HomeworkMode } from './HomeworkModeToggle'
+import { HomeworkPeriodControls } from './HomeworkPeriodControls'
+import { HomeworkBulkFill } from './HomeworkBulkFill'
+import { HomeworkDailyRoster } from './HomeworkDailyRoster'
+import { HomeworkMonthlyGrid } from './HomeworkMonthlyGrid'
+import { HomeworkSaveBar, type SaveState } from './HomeworkSaveBar'
+import { HomeworkPrintSheet } from './HomeworkPrintSheet'
+import {
+  defaultHomeworkSelection,
+  homeworkCellSubject,
+  homeworkCycleDays,
+  homeworkPeriodKey,
+  parseHomeworkCellDay,
+} from './period'
+import {
+  cellKey,
+  cycleProgress,
+  dayProgress as dayProgressOf,
+  markIssue,
+  type HomeworkScores,
+} from './scores'
+import type { ScoreInput, Settings, Student } from '@/lib/types'
+
+/**
+ * បញ្ចូលពិន្ទុកិច្ចការផ្ទះ — the homework mark book.
+ *
+ * The screen is a *view* over the `scores` table, not a store of its own. Every
+ * mark is written through the shared score actions with the conventions
+ * `score_type = 'homework'`, `score_period = '<academicYear>_<monthId>'` and
+ * `subject = 'hw_<dayOfMonth>'`, which `students/[id]` reads back — see
+ * `period.ts`, where all three live.
+ *
+ * Three things drive the layout:
+ *
+ *  - Daily entry is the default because it is the daily job. One day, one
+ *    column, one row per pupil, and Arrow/Enter walking down it.
+ *  - Monthly review is a second mode over the *same loaded period*, so moving
+ *    between them costs nothing and discards nothing.
+ *  - Everything the teacher needs to trust the screen — which class, which
+ *    cycle, how many marks are unsaved — is on screen at all times. The page
+ *    this replaces displayed a permanent "cloud ready" badge and nothing else.
+ *
+ * Saving sends only the cells that changed. The previous version walked the
+ * whole grid and re-upserted every mark already in the period, so correcting
+ * one score in a fully-marked month rewrote around seven hundred rows and
+ * logged all of them as a single audit entry of that size. `saveScores` upserts
+ * exactly what it is given, so a two-mark correction is now a two-row write —
+ * with the same conflict target and the same V2 `class_id` /
+ * `academic_year_id` stamping as before.
+ */
+
+/** Marks are typed against the app's default ten-point scheme. */
+const MAX_SCORE = DEFAULT_SCHEME_CONFIG.maxScore
+
+export interface HomeworkEnterClientProps {
+  initialStudents: Student[]
+  settings: Settings | null
+  /**
+   * The class the server resolved from `?class=`, already validated against
+   * this teacher's assignments. `null` for a pre-V2 account, which scopes by
+   * `teacher_id` instead.
+   */
+  scopeClassId: string | null
 }
 
-/** The grid only needs the id, the Khmer name and the gender. */
-type StudentRow = Pick<Student, 'id' | 'name_kh' | 'gender'>
+export default function HomeworkEnterClient({
+  initialStudents,
+  settings,
+  scopeClassId,
+}: HomeworkEnterClientProps) {
+  const [mode, setMode] = useState<HomeworkMode>('daily')
 
-export default function HomeworkEnterClient({ initialStudents, settings }: {
-    initialStudents: StudentRow[]
-    settings: Settings | null
-}) {
-    const [students] = useState<StudentRow[]>(initialStudents)
-    const [currentTab, setCurrentTab] = useState<'daily' | 'monthly'>('daily')
-    const [isLoading, setIsLoading] = useState(true)
-    const [isSaving, setIsSaving] = useState(false)
-    const [showSuccess, setShowSuccess] = useState(false)
-    const [bulkScore, setBulkScore] = useState<string>('')
-    const [showBulkSuccess, setShowBulkSuccess] = useState(false)
+  // The clock cannot be read during render without risking a hydration
+  // mismatch, so the real selection lands in an effect and `ready` holds the
+  // first fetch back until it does — otherwise the screen would load November
+  // and then immediately load the correct month.
+  const [ready, setReady] = useState(false)
+  const [academicYear, setAcademicYear] = useState(getCurrentAcademicYear)
+  const [monthId, setMonthId] = useState('nov')
+  const [selectedDay, setSelectedDay] = useState(1)
 
-    /**
-     * Marks typed but not yet saved.
-     *
-     * Changing the month or the academic year re-runs the loader, which
-     * replaces `scores` wholesale — the same silent data loss the score-entry
-     * grid had. `switchTo` asks before discarding.
-     */
-    const [dirty, setDirty] = useState(false)
-    const { confirm, dialog } = useConfirm()
+  const [scores, setScores] = useState<HomeworkScores>({})
+  const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading')
+  const [saveState, setSaveState] = useState<SaveState>('idle')
+  const [saveError, setSaveError] = useState<string | null>(null)
 
-    // Selection States
-    const [yearSelect, setYearSelect] = useState(getCurrentAcademicYear)
-    const [monthSelect, setMonthSelect] = useState('nov')
-    const [daySelect, setDaySelect] = useState<number>(1)
+  const [dirtyCells, setDirtyCells] = useState<Set<string>>(new Set())
+  const [savedCells, setSavedCells] = useState<Set<string>>(new Set())
+  const [liveMessage, setLiveMessage] = useState('')
 
-    // Scores State: { student_id: { day: score_value } }
-    const [scores, setScores] = useState<Record<string, Record<number, string>>>({})
+  const [query, setQuery] = useState('')
+  const [bulkOpen, setBulkOpen] = useState(false)
+  /** Grid + dirty set as they were before the last bulk fill, for one undo. */
+  const [undoSnapshot, setUndoSnapshot] = useState<{
+    scores: HomeworkScores
+    dirty: Set<string>
+  } | null>(null)
 
-    // Initialize Default Dates
-    useEffect(() => {
-        const d = new Date()
-        const dDay = d.getDate()
-        let dMonth = d.getMonth()
-        let dYear = d.getFullYear()
+  const { confirm, dialog } = useConfirm()
+  const { assignments, assignment } = useActiveClass()
 
-        if (dDay >= 26) {
-            dMonth += 1
-            if (dMonth > 11) {
-                dMonth = 0
-                dYear += 1
-            }
-        }
+  // Mirrors of state that effects and timers must read *after* a render has
+  // been scheduled but before it commits.
+  const scoresRef = useRef<HomeworkScores>({})
+  const dirtyRef = useRef<Set<string>>(new Set())
+  const periodRef = useRef('')
 
-        const academicStartYear = (dMonth === 10 || dMonth === 11) ? dYear : dYear - 1
-        const academicYearStr = `${academicStartYear}-${academicStartYear + 1}`
-        
-        const monthIds = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
-        const targetMonthId = monthIds[dMonth]
+  const period = homeworkPeriodKey(academicYear, monthId)
 
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- default derives from the current date, which is impure and cannot run during render
-        setYearSelect(academicYearStr)
-        setMonthSelect(targetMonthId)
-        setDaySelect(dDay)
-    }, [])
+  // Mirrored rather than assigned during render: the class-change effect below
+  // reads it, and writing a ref while rendering is not safe under concurrent
+  // rendering. The period never changes in the same commit as the class, so the
+  // mirror is always current by the time that effect runs.
+  useEffect(() => {
+    periodRef.current = period
+  }, [period])
 
-    // The current year plus two either side, replacing a hard-coded run of six
-    // that started in 2024 and would have expired.
-    const academicYearOptions = useMemo(() => {
-        const start = parseInt(getCurrentAcademicYear().split('-')[0], 10)
-        return [-2, -1, 0, 1, 2].map((d) => {
-            const y = start + d
-            return { value: `${y}-${y + 1}`, label: `${toKhmerNumber(y)}-${toKhmerNumber(y + 1)}` }
-        })
-    }, [])
+  // ------------------------------------------------------------ selection
 
-    const switchTo = async (apply: () => void) => {
-        if (dirty && !(await confirm({
-            title: 'ពិន្ទុមិនទាន់រក្សាទុក',
-            message: 'អ្នកបានបញ្ចូលពិន្ទុដែលមិនទាន់រក្សាទុក។ ប្តូរទៅខែ ឬឆ្នាំផ្សេងនឹងបាត់បង់ពិន្ទុទាំងនោះ។',
-            tone: 'warning',
-            confirmLabel: 'បន្ត​ដោយមិនរក្សាទុក',
-        }))) return
-        setDirty(false)
-        apply()
+  useEffect(() => {
+    const start = defaultHomeworkSelection()
+    /* eslint-disable react-hooks/set-state-in-effect -- derives from the current date, which is impure and cannot run during render */
+    setAcademicYear(start.academicYear)
+    setMonthId(start.monthId)
+    setSelectedDay(start.dayNum)
+    setReady(true)
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [])
+
+  const academicYearOptions = useMemo(() => {
+    const start = parseInt(getCurrentAcademicYear().split('-')[0], 10)
+    return [-2, -1, 0, 1, 2].map((delta) => {
+      const y = start + delta
+      return { value: `${y}-${y + 1}`, label: `${toKhmerNumber(y)}-${toKhmerNumber(y + 1)}` }
+    })
+  }, [])
+
+  const days = useMemo(() => homeworkCycleDays(academicYear, monthId), [academicYear, monthId])
+
+  // A day carried over from the previous month may not exist in this cycle —
+  // February has no 30th. Fall back to the first day rather than rendering an
+  // empty column.
+  const activeDay = useMemo(
+    () => days.find((d) => d.dayNum === selectedDay) ?? days[0],
+    [days, selectedDay],
+  )
+
+  useEffect(() => {
+    if (days.length > 0 && !days.some((d) => d.dayNum === selectedDay)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- repairs an out-of-range selection after the cycle changes shape
+      setSelectedDay(days[0].dayNum)
     }
+  }, [days, selectedDay])
 
-    // Generate Date Columns (Memoized)
-    const dateColumns = useMemo(() => {
-        if (!yearSelect.includes('-')) return []
-        const selectedMonth = monthIndexMapping[monthSelect]
-        const [startYear, endYear] = yearSelect.split('-')
-        
-        let currentYear = parseInt(endYear)
-        if (monthSelect === 'nov' || monthSelect === 'dec') {
-            currentYear = parseInt(startYear)
-        }
+  // --------------------------------------------------------------- loading
 
-        let prevMonth = selectedMonth - 1
-        let prevYear = currentYear
-        if (prevMonth < 0) {
-            prevMonth = 11
-            prevYear--
-        }
+  const loadScores = useCallback(async () => {
+    setLoadState('loading')
+    try {
+      const rows = await getScores('homework', period, scopeClassId ?? undefined)
 
-        const daysInPrevMonth = new Date(prevYear, prevMonth + 1, 0).getDate()
-        const columns = []
-        
-        for (let d = 26; d <= daysInPrevMonth; d++) {
-            const date = new Date(prevYear, prevMonth, d)
-            columns.push({ dayNum: d, isSunday: date.getDay() === 0, fullDate: date })
-        }
-        
-        for (let d = 1; d <= 25; d++) {
-            const date = new Date(currentYear, selectedMonth, d)
-            columns.push({ dayNum: d, isSunday: date.getDay() === 0, fullDate: date })
-        }
-        
-        return columns
-    }, [yearSelect, monthSelect])
+      const next: HomeworkScores = {}
+      for (const row of rows) {
+        const day = parseHomeworkCellDay(row.subject)
+        if (day === null) continue
+        if (!next[row.student_id]) next[row.student_id] = {}
+        next[row.student_id][day] =
+          row.score_value === null || row.score_value === undefined ? '' : String(row.score_value)
+      }
 
-    // Load Scores from Supabase
-    useEffect(() => {
-        const loadScores = async () => {
-            setIsLoading(true)
-            const scorePeriod = `${yearSelect}_${monthSelect}`
-            
-            try {
-                const data = await getScores('homework', scorePeriod)
-                
-                const loadedScores: Record<string, Record<number, string>> = {}
-                
-                data.forEach(s => {
-                    const sid = s.student_id
-                    const dayNum = parseInt(s.subject.replace('hw_', ''))
-                    const val = s.score_value?.toString() || ''
-                    
-                    if (!isNaN(dayNum)) {
-                        if (!loadedScores[sid]) loadedScores[sid] = {}
-                        loadedScores[sid][dayNum] = val
-                    }
-                })
-                
-                setScores(loadedScores)
-            } catch (error) {
-                logger.error("Failed to load scores", error)
-            } finally {
-                setIsLoading(false)
-            }
-        }
-        
-        if (yearSelect && monthSelect) {
-            loadScores()
-        }
-    }, [yearSelect, monthSelect])
-
-    const handleScoreChange = (studentId: string, dayNum: number, val: string) => {
-        setDirty(true)
-        setScores(prev => ({
-            ...prev,
-            [studentId]: {
-                ...(prev[studentId] || {}),
-                [dayNum]: val
-            }
-        }))
+      scoresRef.current = next
+      dirtyRef.current = new Set()
+      setScores(next)
+      setDirtyCells(new Set())
+      setSavedCells(new Set())
+      setUndoSnapshot(null)
+      setSaveState('idle')
+      setSaveError(null)
+      setLoadState('ready')
+    } catch (error) {
+      logger.error('Failed to load homework scores', error)
+      setLoadState('error')
     }
+  }, [period, scopeClassId])
 
-    const fillAllScores = () => {
-        if (!bulkScore || currentTab !== 'daily') return
+  /**
+   * Switching class in the top navigation replaces the roster underneath us.
+   *
+   * This effect is declared *before* the loader so it runs first in the same
+   * commit and can still read the outgoing class's marks off the refs. They are
+   * written against the class they were typed for — the id the server had
+   * already validated — rather than being silently dropped or, worse, stamped
+   * with the new class.
+   */
+  const previousScopeRef = useRef(scopeClassId)
+  useEffect(() => {
+    const previous = previousScopeRef.current
+    if (previous === scopeClassId) return
+    previousScopeRef.current = scopeClassId
 
-        const dayCol = dateColumns.find(c => c.dayNum === daySelect)
-        if (dayCol?.isSunday) return
+    const pending = [...dirtyRef.current]
+    if (pending.length === 0) return
 
-        const newScores = { ...scores }
-        students.forEach(s => {
-            if (!newScores[s.id]) newScores[s.id] = {}
-            newScores[s.id][daySelect] = bulkScore
-        })
-        setScores(newScores)
-        setDirty(true)
+    const payload = buildPayload(pending, scoresRef.current)
+    dirtyRef.current = new Set()
+    setDirtyCells(new Set())
 
-        setShowBulkSuccess(true)
-        setTimeout(() => setShowBulkSuccess(false), 1500)
-    }
-
-    const handleSave = async () => {
-        setIsSaving(true)
-        
-        const scorePeriod = `${yearSelect}_${monthSelect}`
-        const upsertPayload: ScoreInput[] = []
-
-        students.forEach(s => {
-            const studentScores = scores[s.id] || {}
-            dateColumns.forEach(col => {
-                if (!col.isSunday) {
-                    const val = studentScores[col.dayNum]
-                    if (val !== undefined && val !== '') {
-                        upsertPayload.push({
-                            student_id: s.id,
-                            subject: `hw_${col.dayNum}`,
-                            score_value: val
-                        })
-                    } else if (val === '') {
-                        // Include null to delete if existed
-                         upsertPayload.push({
-                            student_id: s.id,
-                            subject: `hw_${col.dayNum}`,
-                            score_value: null
-                        })
-                    }
-                }
-            })
-        })
-
-        try {
-            await saveScores('homework', scorePeriod, upsertPayload)
-            setDirty(false)
-            setShowSuccess(true)
-            setTimeout(() => setShowSuccess(false), 3000)
-        } catch (error) {
-            logger.error("Save failed", error)
-            notify.error('បរាជ័យក្នុងការរក្សាទុកពិន្ទុកិច្ចការផ្ទះ')
-        } finally {
-            setIsSaving(false)
+    saveScores('homework', periodRef.current, payload, previous ?? undefined)
+      .then((res) => {
+        if (res.error) {
+          notify.error(`ពិន្ទុថ្នាក់មុនរក្សាទុកមិនបានសម្រេច៖ ${res.error}`)
+          return
         }
-    }
-
-    const getStudentTotals = (studentId: string) => {
-        const studentScores = scores[studentId] || {}
-        let total = 0
-        let count = 0
-        let hasValue = false
-        
-        for (const val of Object.values(studentScores)) {
-            const num = parseFloat(val)
-            if (!isNaN(num)) {
-                total += num
-                count++
-                hasValue = true
-            }
-        }
-        
-        return {
-            total: hasValue ? total : '',
-            average: hasValue && count > 0 ? (total / count).toFixed(2) : ''
-        }
-    }
-
-    const femaleCount = students.filter(s => s.gender === 'ស្រី' || s.gender === 'F').length
-    
-    // Split for daily view
-    const half = Math.ceil(students.length / 2)
-    const leftStudents = students.slice(0, half)
-    const rightStudents = students.slice(half)
-
-    const renderTbody = (stuList: StudentRow[], startIndex: number, mode: 'daily' | 'monthly') => {
-        return stuList.map((s, index) => {
-            const { total, average } = getStudentTotals(s.id)
-            const genderColor = (s.gender === 'ស្រី' || s.gender === 'F') ? 'text-brand' : 'text-brand'
-            
-            return (
-                <tr key={s.id} className="group transition-colors border-b border-divider last:border-0 hover:bg-brand-100/50">
-                    <td className="p-2 text-center font-bold text-text-muted bg-bg-surface group-hover:bg-brand-100/50 sticky left-0 z-20 shadow-[2px_0_5px_rgba(0,0,0,0.05)] border-r border-divider">
-                        {startIndex + index + 1}
-                    </td>
-                    <td className="p-2 bg-bg-surface group-hover:bg-brand-100/50 font-bold text-text-heading text-[13px] whitespace-nowrap sticky left-[40px] z-20 shadow-[2px_0_5px_rgba(0,0,0,0.05)] border-r border-divider min-w-[150px]">
-                        {s.name_kh || '-'}
-                    </td>
-                    <td className={`p-2 text-center font-bold text-[13px] ${genderColor} border-r border-divider bg-bg-surface group-hover:bg-brand-100/50`}>
-                        {s.gender || '-'}
-                    </td>
-                    
-                    {(mode === 'daily' ? dateColumns.filter(c => c.dayNum === daySelect) : dateColumns).map(col => {
-                        const val = scores[s.id]?.[col.dayNum] ?? ''
-                        const bgClass = col.isSunday ? 'bg-danger/10' : 'bg-transparent'
-                        const inputSize = mode === 'daily' ? 'py-2.5 text-[15px]' : 'py-1.5 text-[13px]'
-                        
-                        return (
-                            <td key={col.dayNum} className={`p-0.5 border-r border-divider ${bgClass}`}>
-                                {col.isSunday ? (
-                                    <input type="text" disabled readOnly
-                                        className={`w-full text-center ${inputSize} px-0.5 border border-transparent rounded outline-none font-bold text-danger bg-transparent cursor-not-allowed select-none`}
-                                        value="-" title="ថ្ងៃអាទិត្យ មិនអនុញ្ញាតអោយបញ្ចូលទេ" />
-                                ) : (
-                                    <input type="number" 
-                                        className={`w-full text-center ${inputSize} px-0.5 border border-transparent hover:border-divider rounded outline-none focus:border-brand focus:ring-1 focus:ring-focus-ring/30 font-bold text-text-body bg-transparent transition-all`}
-                                        value={val}
-                                        onChange={(e) => handleScoreChange(s.id, col.dayNum, e.target.value)}
-                                        min="0" step="0.5" />
-                                )}
-                            </td>
-                        )
-                    })}
-                    
-                    <td className="p-2 text-center font-bold text-success text-base group-hover:bg-success/10 sticky right-[80px] z-20 shadow-[-2px_0_5px_rgba(0,0,0,0.05)] border-l border-success/30 bg-success/10">
-                        {total}
-                    </td>
-                    
-                    {mode === 'monthly' && (
-                        <td className="p-2 text-center font-bold text-brand-500 text-[15px] group-hover:bg-brand-100 sticky right-0 z-20 shadow-[-2px_0_5px_rgba(0,0,0,0.05)] border-l border-divider bg-brand-100/30">
-                            {average}
-                        </td>
-                    )}
-                </tr>
-            )
-        })
-    }
-
-    const renderThead = (mode: 'daily' | 'monthly') => {
-        const displayCols = mode === 'daily' ? dateColumns.filter(c => c.dayNum === daySelect) : dateColumns
-        const dateLabel = mode === 'daily' ? 'កាលបរិច្ឆេទប្រចាំថ្ងៃ' : 'កាលបរិច្ឆេទ (២៦ ដល់ ២៥)'
-
-        return (
-            <>
-                <tr>
-                    <th rowSpan={2} className="p-2 border-b border-r border-divider bg-brand-900 text-white w-10 text-center font-bold text-sm sticky left-0 z-30 shadow-[2px_0_5px_rgba(0,0,0,0.05)]">ល.រ</th>
-                    <th rowSpan={2} className="p-2 border-b border-r border-divider bg-brand-900 text-white text-left font-bold text-sm min-w-[150px] sticky left-[40px] z-30 shadow-[2px_0_5px_rgba(0,0,0,0.05)]">ឈ្មោះសិស្ស</th>
-                    <th rowSpan={2} className="p-2 border-b border-r border-divider bg-brand-800 text-white w-14 text-center font-bold text-sm">ភេទ</th>
-                    <th colSpan={displayCols.length} className="p-1.5 border-b border-r border-divider bg-brand-700 text-white text-center font-bold text-sm">{dateLabel}</th>
-                    <th rowSpan={2} className="p-2 border-b border-success/40 bg-success text-white w-[80px] min-w-[80px] text-center font-bold text-sm sticky right-[80px] z-30 shadow-[-2px_0_5px_rgba(0,0,0,0.05)]">សរុប</th>
-                    {mode === 'monthly' && (
-                        <th rowSpan={2} className="p-2 border-b border-brand-400 bg-brand-500 text-white w-[80px] min-w-[80px] text-center font-bold text-sm sticky right-0 z-30 shadow-[-2px_0_5px_rgba(0,0,0,0.05)]">មធ្យមភាគ</th>
-                    )}
-                </tr>
-                <tr>
-                    {displayCols.map(col => {
-                        const bg = col.isSunday ? 'bg-danger/80 text-white' : 'bg-brand text-brand-100'
-                        const minW = mode === 'daily' ? 'min-w-[80px]' : 'min-w-[34px]'
-                        const textSize = mode === 'daily' ? 'text-[14px]' : 'text-[11px]'
-                        return (
-                            <th key={col.dayNum} className={`py-1.5 px-0.5 border-b border-r border-divider/30 ${bg} text-center font-bold ${textSize} ${minW}`}>
-                                {col.dayNum}
-                            </th>
-                        )
-                    })}
-                </tr>
-            </>
+        notify.success(
+          `បានរក្សាទុកពិន្ទុ ${toKhmerNumber(payload.length)} ប្រអប់ របស់ថ្នាក់មុនដោយស្វ័យប្រវត្តិ`,
         )
+      })
+      .catch((error) => {
+        logger.error('Failed to flush homework marks on class change', error)
+        notify.error('ពិន្ទុថ្នាក់មុនរក្សាទុកមិនបានសម្រេច')
+      })
+  }, [scopeClassId])
+
+  useEffect(() => {
+    if (!ready) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch: state is set after await, not synchronously
+    loadScores()
+  }, [ready, loadScores])
+
+  // A reload or a closed tab is the one navigation the browser lets us guard.
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (dirtyRef.current.size === 0) return
+      e.preventDefault()
+      e.returnValue = ''
     }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [])
 
-    const monthLabel = MONTHS_BY_ACADEMIC_YEAR.find(m => m.id === monthSelect)?.label ?? ''
-    const femaleTotal = students.filter(s => s.gender === 'ស្រី' || s.gender === 'F').length
+  // ---------------------------------------------------------------- editing
 
-    return (
-        <div className="relative flex flex-col text-text-heading">
-            <div data-hw-chrome className="bg-animate pointer-events-none absolute inset-0 z-[-1] opacity-60 bg-[radial-gradient(circle_at_10%_20%,var(--brand-100)_0%,transparent_40%),radial-gradient(circle_at_90%_80%,var(--color-success)_0%,transparent_40%),radial-gradient(circle_at_50%_50%,var(--color-gold)_0%,transparent_40%)]"></div>
+  const handleChange = useCallback((studentId: string, dayNum: number, value: string) => {
+    const key = cellKey(studentId, dayNum)
 
-            {/* Printable monthly score sheet — `homework/print-score.html` restored. */}
-            <div className="hidden print:block">
-                <div className="mb-4 flex items-start justify-between">
-                    <div className="kh-moul text-[10pt] leading-relaxed" style={{ marginTop: '24pt' }}>
-                        <p>{settings?.management_unit_1 || 'មន្ទីរអប់រំ យុវជន និងកីឡា...'}</p>
-                        <p>{settings?.management_unit_2 || 'ការិយាល័យអប់រំ យុវជន និងកីឡា...'}</p>
-                        <p>{settings?.school_name || 'សាលា...'}</p>
-                    </div>
-                    <div className="text-center">
-                        <h3 className="kh-moul mb-1 text-[12pt]">ព្រះរាជាណាចក្រកម្ពុជា</h3>
-                        <h3 className="kh-moul mb-1 text-[12pt]">ជាតិ សាសនា ព្រះមហាក្សត្រ</h3>
-                    </div>
-                </div>
+    dirtyRef.current.add(key)
+    setDirtyCells(new Set(dirtyRef.current))
+    setSavedCells((prev) => {
+      if (!prev.has(key)) return prev
+      const next = new Set(prev)
+      next.delete(key)
+      return next
+    })
+    // A hand edit ends the bulk fill's undo window: restoring the snapshot from
+    // here would also throw away the mark just typed.
+    setUndoSnapshot(null)
+    setSaveState((prev) => (prev === 'error' ? 'idle' : prev))
 
-                <h2 className="kh-moul mb-1 text-center text-[13pt] uppercase">
-                    របាយការណ៍ពិន្ទុកិច្ចការផ្ទះប្រចាំខែ{monthLabel}
-                </h2>
-                <p className="mb-3 text-center text-[10pt]">កាលបរិច្ឆេទ ២៦ ដល់ ២៥ · ឆ្នាំសិក្សា {yearSelect}</p>
+    setScores((prev) => {
+      const next = { ...prev, [studentId]: { ...(prev[studentId] ?? {}), [dayNum]: value } }
+      scoresRef.current = next
+      return next
+    })
+  }, [])
 
-                <div className="mb-2 flex justify-between text-[10pt] font-bold">
-                    <p>សិស្សសរុប {toKhmerNumber(students.length)} នាក់ · ស្រី {toKhmerNumber(femaleTotal)} នាក់</p>
-                    <p>ថ្នាក់ទី៖ {settings?.class_name || '..........'}</p>
-                </div>
+  /**
+   * Run something that will replace the loaded period.
+   *
+   * Only year and month go through here. Day and mode are views over marks that
+   * are already in memory, so they never discard anything and never ask.
+   */
+  const switchPeriod = useCallback(
+    async (apply: () => void) => {
+      if (
+        dirtyRef.current.size > 0 &&
+        !(await confirm({
+          title: 'ពិន្ទុមិនទាន់រក្សាទុក',
+          message: `អ្នកបានបញ្ចូលពិន្ទុ ${toKhmerNumber(dirtyRef.current.size)} ប្រអប់ដែលមិនទាន់រក្សាទុក។ ប្តូរខែ ឬឆ្នាំសិក្សានឹងបាត់បង់ពិន្ទុទាំងនោះ។`,
+          tone: 'warning',
+          confirmLabel: 'បន្តដោយមិនរក្សាទុក',
+        }))
+      ) {
+        return
+      }
+      dirtyRef.current = new Set()
+      setDirtyCells(new Set())
+      apply()
+    },
+    [confirm],
+  )
 
-                <table className="hw-print-table">
-                    <thead>
-                        <tr>
-                            <th rowSpan={2} className="w-7">ល.រ</th>
-                            <th rowSpan={2} className="min-w-[130px] text-left">គោត្តនាម និងនាម</th>
-                            <th rowSpan={2} className="w-9">ភេទ</th>
-                            <th colSpan={dateColumns.length}>កាលបរិច្ឆេទ (២៦ ដល់ ២៥)</th>
-                            <th rowSpan={2} className="w-12">សរុប</th>
-                            <th rowSpan={2} className="w-14">មធ្យមភាគ</th>
-                        </tr>
-                        <tr>
-                            {dateColumns.map(col => (
-                                <th key={col.dayNum} className={col.isSunday ? 'sun' : ''}>{col.dayNum}</th>
-                            ))}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {students.map((s, i) => {
-                            const { total, average } = getStudentTotals(s.id)
-                            return (
-                                <tr key={s.id}>
-                                    <td>{toKhmerNumber(i + 1)}</td>
-                                    <td className="text-left font-bold">{s.name_kh}</td>
-                                    <td>{s.gender}</td>
-                                    {dateColumns.map(col => (
-                                        <td key={col.dayNum} className={col.isSunday ? 'sun' : ''}>
-                                            {scores[s.id]?.[col.dayNum] ?? ''}
-                                        </td>
-                                    ))}
-                                    <td className="font-bold">{total}</td>
-                                    <td className="font-bold">{average}</td>
-                                </tr>
-                            )
-                        })}
-                    </tbody>
-                </table>
+  // ----------------------------------------------------------------- saving
 
-                <div className="mt-8 flex justify-between text-[10pt]">
-                    <div className="text-center">
-                        <p className="kh-moul uppercase">{settings?.manager_role || 'នាយកសាលា'}</p>
-                        <p className="mt-14">{settings?.manager_name || settings?.director_name || ''}</p>
-                    </div>
-                    <div className="text-center">
-                        <p className="mb-1">
-                            ធ្វើនៅ {settings?.province_date || settings?.province_for_date || '..............'}, ថ្ងៃទី....... ខែ........... ឆ្នាំ២០២...
-                        </p>
-                        <p className="kh-moul">គ្រូបន្ទុកថ្នាក់</p>
-                        <p className="mt-10">{settings?.homeroom_teacher || settings?.teacher_name || ''}</p>
-                    </div>
-                </div>
-            </div>
+  const handleSave = useCallback(async () => {
+    const pending = [...dirtyRef.current]
+    if (pending.length === 0) return
 
-            <div data-hw-chrome className="mx-auto flex w-full max-w-[1400px] flex-col gap-5 px-4 py-6">
-                
-                {/* Header Section */}
-                <div className="bg-bg-surface/80 backdrop-blur-md p-4 md:p-5 rounded-xl shadow-sm border border-divider flex flex-col gap-4 shrink-0">
-                    <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                        {/* Title & Back */}
-                        <div className="flex items-center gap-4 w-full md:w-auto">
-                            <div className="rounded-xl bg-brand p-3 text-brand-contrast shadow-lg">
-                                <BookMarked className="w-6 h-6" />
-                            </div>
-                            <div>
-                                <h1 className="text-xl md:text-2xl kh-moul text-text-heading">បញ្ចូលពិន្ទុកិច្ចការផ្ទះ</h1>
-                                <p className="text-text-muted font-medium text-xs md:text-sm">បញ្ចូលពិន្ទុកិច្ចការផ្ទះ ធ្វើសមកាលកម្មដោយស្វ័យប្រវត្តិ</p>
-                            </div>
-                        </div>
+    setSaveState('saving')
+    setSaveError(null)
 
-                        {/* Filters & Action */}
-                        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-start md:justify-end">
-                            
-                            {/* Daily Controls */}
-                            {currentTab === 'daily' && (
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <Select
-                                        ariaLabel="ថ្ងៃ"
-                                        value={String(daySelect)}
-                                        onChange={(v) => setDaySelect(Number(v))}
-                                        options={dateColumns.map(c => ({
-                                            value: String(c.dayNum),
-                                            label: `ថ្ងៃទី ${c.dayNum}${c.fullDate.getDate() === new Date().getDate() ? ' (ថ្ងៃនេះ)' : ''}`,
-                                        }))}
-                                        leadingIcon={<Calendar />}
-                                        wrapperClassName="min-w-[130px]"
-                                    />
-                                    
-                                    <div className="flex items-center bg-bg-surface border border-divider rounded-xl overflow-hidden shadow-sm h-[38px]">
-                                        <input 
-                                            type="number" 
-                                            value={bulkScore}
-                                            onChange={(e) => setBulkScore(e.target.value)}
-                                            className="w-16 h-full px-2 text-center text-sm font-bold text-text-body outline-none" 
-                                            placeholder="ពិន្ទុ" min="0" step="0.5" 
-                                        />
-                                        <button 
-                                            onClick={fillAllScores}
-                                            className={`h-full px-3 font-bold text-[13px] flex items-center gap-1 transition-colors whitespace-nowrap border-l border-divider ${showBulkSuccess ? 'bg-success/10 text-success' : 'bg-brand-100 text-brand hover:bg-brand-100'}`}
-                                        >
-                                            {showBulkSuccess ? <Check className="w-4 h-4" /> : <Zap className="w-4 h-4" />}
-                                            {showBulkSuccess ? 'រួចរាល់' : 'ទាំងអស់'}
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
+    try {
+      const payload = buildPayload(pending, scoresRef.current)
+      const res = await saveScores('homework', period, payload, scopeClassId ?? undefined)
 
-                            {/* Month Select */}
-                            <Select
-                                ariaLabel="ខែ"
-                                value={monthSelect}
-                                onChange={(v) => switchTo(() => setMonthSelect(v))}
-                                options={MONTHS_BY_ACADEMIC_YEAR.map(m => ({
-                                    value: m.id,
-                                    label: `ខែ${m.label} ឆ្នាំ ${m.isNextYear ? yearSelect.split('-')[1] : yearSelect.split('-')[0]}`,
-                                }))}
-                                leadingIcon={<Clock />}
-                            />
+      if (res.error) {
+        setSaveState('error')
+        setSaveError(res.error)
+        notify.error(`រក្សាទុកមិនបានសម្រេច៖ ${res.error}`)
+        return
+      }
 
-                            {/* Year Select */}
-                            <Select
-                                ariaLabel="ឆ្នាំសិក្សា"
-                                value={yearSelect}
-                                onChange={(v) => switchTo(() => setYearSelect(v))}
-                                options={academicYearOptions}
-                                leadingIcon={<CalendarDays />}
-                            />
+      // Only the keys just written leave the pending set; anything typed while
+      // the request was in flight stays queued for the next save.
+      dirtyRef.current = new Set([...dirtyRef.current].filter((k) => !pending.includes(k)))
+      setDirtyCells(new Set(dirtyRef.current))
+      setSavedCells(new Set(pending))
+      setUndoSnapshot(null)
+      setSaveState('idle')
+      notify.success(`បានរក្សាទុកពិន្ទុ ${toKhmerNumber(pending.length)} ប្រអប់`)
+      setLiveMessage(`បានរក្សាទុកពិន្ទុ ${toKhmerNumber(pending.length)} ប្រអប់`)
+    } catch (error) {
+      logger.error('Failed to save homework scores', error)
+      const message = getErrorMessageOr(error, 'មិនអាចភ្ជាប់ទៅម៉ាស៊ីនមេបានទេ')
+      setSaveState('error')
+      setSaveError(message)
+      notify.error(`រក្សាទុកមិនបានសម្រេច៖ ${message}`)
+    }
+  }, [period, scopeClassId])
 
-                            <div className="w-px h-8 bg-divider mx-1 hidden sm:block"></div>
+  // Ctrl/Cmd+S — the one shortcut a teacher mid-entry already knows.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault()
+        handleSave()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [handleSave])
 
-                            {/* Save Button */}
-                            <button 
-                                onClick={handleSave} 
-                                disabled={isSaving}
-                                className={`flex min-h-11 items-center gap-2 rounded-xl px-5 py-2.5 font-bold shadow-lg transition-all hover:scale-105 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:opacity-60 ${showSuccess ? 'bg-success text-white' : 'bg-brand text-brand-contrast hover:bg-brand-hover'}`}
-                            >
-                                {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : (showSuccess ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />)}
-                                <span>{showSuccess ? 'ជោគជ័យ' : 'រក្សាទុក'}</span>
-                            </button>
+  const handleDiscard = useCallback(async () => {
+    if (
+      !(await confirm({
+        title: 'បោះបង់ការកែប្រែ',
+        message: `ពិន្ទុ ${toKhmerNumber(dirtyRef.current.size)} ប្រអប់ដែលមិនទាន់រក្សាទុកនឹងបាត់បង់ ហើយតារាងនឹងផ្ទុកឡើងវិញ។`,
+        tone: 'warning',
+        confirmLabel: 'បោះបង់ការកែប្រែ',
+      }))
+    ) {
+      return
+    }
+    dirtyRef.current = new Set()
+    setDirtyCells(new Set())
+    loadScores()
+  }, [confirm, loadScores])
 
-                            {/*
-                              Printing always renders the full month, whichever tab
-                              is on screen: a one-day sheet is not a report anyone
-                              files, and the ministry form is the 26th-to-25th grid.
-                            */}
-                            <button
-                                onClick={() => window.print()}
-                                className="tap-target flex items-center gap-2 rounded-xl border border-divider bg-bg-surface px-5 py-2.5 font-bold text-text-heading shadow-sm transition-all hover:bg-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-                            >
-                                <Printer className="w-4 h-4" />
-                                <span>បោះពុម្ព</span>
-                            </button>
-                        </div>
-                    </div>
+  // ------------------------------------------------------------- bulk fill
 
-                    <div className="bg-warning/10 border border-warning/30 text-warning px-4 py-3 rounded-xl text-sm flex items-start gap-3">
-                        <Info className="w-5 h-5 min-w-[20px] text-warning mt-0.5" />
-                        <div>
-                            <span className="font-bold">បញ្ជាក់៖</span> ពិន្ទុកិច្ចការផ្ទះត្រូវបូកសរុបចាប់ពី <b>ថ្ងៃទី ២៦ នៃខែចាស់</b> រហូតដល់ <b>ថ្ងៃទី ២៥ នៃខែបច្ចុប្បន្ន</b>។
-                        </div>
-                    </div>
-                </div>
-
-                {/* Section Tabs */}
-                <div className="flex items-center justify-between gap-4 shrink-0 -mb-2 z-10">
-                    <div className="flex p-1 bg-bg-surface/80 backdrop-blur-md rounded-xl shadow-sm border border-divider/60 w-full sm:w-auto">
-                        <button 
-                            onClick={() => setCurrentTab('daily')} 
-                            className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm shadow-md transition-all ${currentTab === 'daily' ? 'bg-brand text-white' : 'text-text-body hover:text-brand hover:bg-paper shadow-none'}`}
-                        >
-                            <CalendarCheck className="w-4 h-4" /> បញ្ចូលប្រចាំថ្ងៃ
-                        </button>
-                        <button 
-                            onClick={() => setCurrentTab('monthly')} 
-                            className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm transition-all ${currentTab === 'monthly' ? 'bg-brand text-white shadow-md' : 'text-text-body hover:text-brand hover:bg-paper'}`}
-                        >
-                            <TableProperties className="w-4 h-4" /> ពិនិត្យប្រចាំខែ
-                        </button>
-                    </div>
-                </div>
-
-                {/* Table Container */}
-                <div className="flex-1 bg-bg-surface/95 backdrop-blur-xl rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-divider overflow-hidden flex flex-col relative min-h-0">
-                    <div className="flex-1 overflow-auto custom-scrollbar relative">
-                        {isLoading ? (
-                            <div className="flex-1 flex flex-col items-center justify-center p-8 text-brand-500 h-full gap-3 mt-10">
-                                <Loader2 className="w-10 h-10 animate-spin opacity-80" />
-                                <p className="font-bold">កំពុងទាញយកទិន្នន័យ...</p>
-                            </div>
-                        ) : students.length === 0 ? (
-                            <div className="p-8 mt-10 text-center text-text-muted flex flex-col items-center justify-center gap-2">
-                                <Users className="w-10 h-10 opacity-50 mb-2" />
-                                <p>មិនមានទិន្នន័យសិស្សទេ។ សូមទៅកាន់បញ្ជីឈ្មោះសិស្សដើម្បីបញ្ចូលជាមុនសិន។</p>
-                            </div>
-                        ) : currentTab === 'daily' ? (
-                            <div className="grid grid-cols-1 xl:grid-cols-2 bg-paper min-h-full">
-                                <div className="border-b xl:border-b-0 xl:border-r border-divider">
-                                    <table className="w-full border-collapse">
-                                        <thead>{renderThead('daily')}</thead>
-                                        <tbody className="bg-bg-surface text-sm">{renderTbody(leftStudents, 0, 'daily')}</tbody>
-                                    </table>
-                                </div>
-                                <div>
-                                    <table className="w-full border-collapse">
-                                        <thead>{renderThead('daily')}</thead>
-                                        <tbody className="bg-bg-surface text-sm">{renderTbody(rightStudents, half, 'daily')}</tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        ) : (
-                            <table className="w-full border-collapse">
-                                <thead>{renderThead('monthly')}</thead>
-                                <tbody className="bg-bg-surface text-sm">{renderTbody(students, 0, 'monthly')}</tbody>
-                            </table>
-                        )}
-                    </div>
-                    
-                    {/* Footer Stats */}
-                    <div className="p-3 bg-bg-surface border-t border-divider flex justify-between items-center text-sm text-text-muted shrink-0">
-                        <span className="font-bold text-brand">សិស្សសរុប៖ {students.length} នាក់ (ស្រី {femaleCount})</span>
-                        <span className="italic text-xs bg-paper px-2 py-1 rounded flex items-center gap-1">
-                            <Check className="w-3 h-3 text-brand-500" /> រួចរាល់សម្រាប់ធ្វើសមកាលកម្ម
-                        </span>
-                    </div>
-                </div>
-            </div>
-            
-            <style jsx global>{`
-                @media print {
-                    @page { size: A4 landscape; margin: 8mm; }
-                    body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                    /* The entry grid is a screen tool: it scrolls sideways and
-                       carries sticky columns that print as overlapping ink. */
-                    [data-hw-chrome] { display: none !important; }
-                }
-                .hw-print-table { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
-                .hw-print-table th, .hw-print-table td { border: 1px solid #444; padding: 1px 2px; text-align: center; }
-                .hw-print-table th { background-color: #f1f5f9; font-weight: 700; }
-                .hw-print-table .sun { background-color: #fff1f1; }
-
-                input[type="number"]::-webkit-inner-spin-button,
-                input[type="number"]::-webkit-outer-spin-button {
-                    -webkit-appearance: none; margin: 0;
-                }
-                .custom-scrollbar::-webkit-scrollbar { height: 10px; width: 10px; }
-                .custom-scrollbar::-webkit-scrollbar-track { background: var(--paper); }
-                .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--divider); border-radius: 5px; }
-                .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
-            `}</style>
-
-            {dialog}
-        </div>
+  const visibleStudents = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return initialStudents
+    return initialStudents.filter((s) =>
+      [s.name_kh, s.name_en, s.student_id].some((f) => String(f ?? '').toLowerCase().includes(q)),
     )
+  }, [initialStudents, query])
+
+  const applyBulk = useCallback(
+    (value: string, onlyEmpty: boolean) => {
+      if (!activeDay || activeDay.isSunday) return
+
+      setUndoSnapshot({ scores: scoresRef.current, dirty: new Set(dirtyRef.current) })
+
+      const next: HomeworkScores = { ...scoresRef.current }
+      let applied = 0
+
+      for (const stu of visibleStudents) {
+        const row = { ...(next[stu.id] ?? {}) }
+        const current = row[activeDay.dayNum]
+        if (onlyEmpty && current !== undefined && current !== '') continue
+        row[activeDay.dayNum] = value
+        next[stu.id] = row
+        dirtyRef.current.add(cellKey(stu.id, activeDay.dayNum))
+        applied += 1
+      }
+
+      scoresRef.current = next
+      setScores(next)
+      setDirtyCells(new Set(dirtyRef.current))
+      setBulkOpen(false)
+
+      if (applied === 0) {
+        notify.info('សិស្សទាំងអស់មានពិន្ទុរួចហើយ — គ្មានអ្វីត្រូវផ្លាស់ប្តូរទេ')
+        setUndoSnapshot(null)
+        return
+      }
+
+      notify.success(
+        `បានផ្តល់ពិន្ទុ ${value} ដល់សិស្ស ${toKhmerNumber(applied)} នាក់ — មិនទាន់រក្សាទុកទេ`,
+      )
+      setLiveMessage(`បានផ្តល់ពិន្ទុដល់សិស្ស ${toKhmerNumber(applied)} នាក់`)
+    },
+    [activeDay, visibleStudents],
+  )
+
+  const undoBulk = useCallback(() => {
+    if (!undoSnapshot) return
+    scoresRef.current = undoSnapshot.scores
+    dirtyRef.current = new Set(undoSnapshot.dirty)
+    setScores(undoSnapshot.scores)
+    setDirtyCells(new Set(undoSnapshot.dirty))
+    setUndoSnapshot(null)
+    notify.success('បានត្រឡប់ការផ្តល់ពិន្ទុជាក្រុមវិញ')
+  }, [undoSnapshot])
+
+  // ------------------------------------------------------------ statistics
+
+  const rowNumbers = useMemo(
+    () => new Map(initialStudents.map((s, i) => [s.id, i + 1])),
+    [initialStudents],
+  )
+
+  const studentIds = useMemo(() => initialStudents.map((s) => s.id), [initialStudents])
+
+  const dayStats = useMemo(
+    () => dayProgressOf(studentIds, scores, activeDay?.dayNum ?? -1),
+    [studentIds, scores, activeDay],
+  )
+
+  const monthStats = useMemo(
+    () => cycleProgress(studentIds, scores, days),
+    [studentIds, scores, days],
+  )
+
+  /** Cells the teacher must fix, and cells that merely look unusual. */
+  const issues = useMemo(() => {
+    let errors = 0
+    let warnings = 0
+    for (const key of dirtyCells) {
+      const sep = key.indexOf(':')
+      const studentId = key.slice(0, sep)
+      const dayNum = Number(key.slice(sep + 1))
+      const issue = markIssue(scores[studentId]?.[dayNum], MAX_SCORE)
+      if (issue?.level === 'error') errors += 1
+      if (issue?.level === 'warning') warnings += 1
+    }
+    return { errors, warnings }
+  }, [dirtyCells, scores])
+
+  const femaleCount = initialStudents.filter(
+    (s) => s.gender === 'ស្រី' || s.gender === 'F',
+  ).length
+
+  const monthLabel = MONTH_LABEL_BY_ID[monthId] ?? monthId
+  const activeAssignment =
+    assignments.find((a) => a.class_id === scopeClassId) ?? (scopeClassId ? null : assignment)
+
+  // ---------------------------------------------------------------- render
+
+  const hasStudents = initialStudents.length > 0
+  const sundayBlocked = mode === 'daily' && activeDay?.isSunday === true
+
+  return (
+    <PageContainer>
+      <style jsx global>{`
+        /* The spin buttons steal the width a two-digit mark needs, and a
+           teacher never nudges a homework score one unit at a time. */
+        input[type='number']::-webkit-inner-spin-button,
+        input[type='number']::-webkit-outer-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+        input[type='number'] {
+          -moz-appearance: textfield;
+        }
+
+        @media print {
+          @page {
+            size: A4 landscape;
+            margin: 8mm;
+          }
+          body {
+            background: white !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+        }
+        .hw-print-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 8.5pt;
+        }
+        .hw-print-table th,
+        .hw-print-table td {
+          border: 1px solid #444;
+          padding: 1px 2px;
+          text-align: center;
+        }
+        .hw-print-table th {
+          background-color: #f1f5f9;
+          font-weight: 700;
+        }
+        .hw-print-table .sun {
+          background-color: #fff1f1;
+        }
+      `}</style>
+
+      {/*
+        The screen tool is `data-app-chrome`, which `globals.css` removes when
+        printing — the entry grid scrolls sideways and carries sticky columns
+        that print as overlapping ink. The A4 sheet below is what reaches paper,
+        and it always shows the full month whichever mode is on screen.
+      */}
+      <div data-app-chrome>
+        <HomeworkEntryHeader
+          className={activeAssignment?.class_name ?? ''}
+          academicYearName={activeAssignment?.academic_year_name ?? ''}
+          academicYear={academicYear}
+          monthLabel={monthLabel}
+          days={days}
+          dayProgress={dayStats}
+          monthProgress={monthStats}
+          studentCount={initialStudents.length}
+          femaleCount={femaleCount}
+        />
+
+        {/* --------------------------------------------------- task toolbar */}
+        <div className="mb-4 flex flex-col gap-3 rounded-xl border border-divider bg-bg-surface p-3 shadow-sm md:p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <HomeworkModeToggle mode={mode} onChange={setMode} />
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                href="/homework/send"
+                className="flex min-h-11 items-center gap-2 rounded-lg border border-divider bg-bg-surface px-4 text-[13px] font-bold text-text-body transition hover:border-brand-400 hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+              >
+                <Send className="h-4 w-4" aria-hidden="true" /> បញ្ជូនកិច្ចការ
+              </Link>
+              <Button variant="secondary" printHidden={false} onClick={() => window.print()}>
+                <Printer className="h-4 w-4" aria-hidden="true" /> បោះពុម្ព
+              </Button>
+            </div>
+          </div>
+
+          <HomeworkPeriodControls
+            academicYear={academicYear}
+            onAcademicYearChange={(v) => switchPeriod(() => setAcademicYear(v))}
+            academicYearOptions={academicYearOptions}
+            monthId={monthId}
+            onMonthChange={(v) => switchPeriod(() => setMonthId(v))}
+            showDayPicker={mode === 'daily'}
+            days={days}
+            selectedDay={activeDay?.dayNum ?? selectedDay}
+            onDayChange={setSelectedDay}
+          />
+
+          <div className="flex flex-wrap items-center gap-2">
+            {mode === 'daily' && (
+              <Button
+                size="sm"
+                variant="secondary"
+                printHidden={false}
+                disabled={!hasStudents || sundayBlocked || loadState !== 'ready'}
+                onClick={() => setBulkOpen(true)}
+                title={
+                  sundayBlocked
+                    ? 'ថ្ងៃអាទិត្យមិនអនុញ្ញាតឱ្យបញ្ចូលពិន្ទុ'
+                    : 'ផ្តល់ពិន្ទុតែមួយដល់សិស្សក្នុងបញ្ជី'
+                }
+              >
+                <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> ផ្តល់ពិន្ទុដូចគ្នា
+              </Button>
+            )}
+
+            <div className="relative min-w-[180px] flex-1">
+              <Search
+                className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-text-muted"
+                aria-hidden="true"
+              />
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="ស្វែងរកឈ្មោះសិស្ស"
+                aria-label="ស្វែងរកសិស្ស"
+                className={controlClass(false, 'pl-9')}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* ------------------------------------------------- Sunday notice */}
+        {sundayBlocked && activeDay && (
+          <p
+            role="status"
+            className="mb-4 flex items-start gap-3 rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger"
+          >
+            <Sun className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+            <span>
+              <strong>{khmerWeekday(activeDay.date)} ទី {toKhmerNumber(activeDay.dayNum)}</strong> ជាថ្ងៃឈប់សម្រាក។
+              ពិន្ទុកិច្ចការផ្ទះមិនត្រូវបានបញ្ចូលទេ។ សូមជ្រើសរើសថ្ងៃធ្វើការផ្សេង។
+            </span>
+          </p>
+        )}
+
+        {/* -------------------------------------------------------- content */}
+        {loadState === 'loading' ? (
+          <div className="flex flex-col gap-2.5" role="status" aria-busy="true">
+            <span className="sr-only">កំពុងទាញយកពិន្ទុកិច្ចការផ្ទះ...</span>
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Skeleton key={i} className="h-14 w-full rounded-xl" />
+            ))}
+          </div>
+        ) : loadState === 'error' ? (
+          <div className="rounded-xl border border-divider bg-bg-surface">
+            <EmptyState
+              kind="error"
+              title="ទាញយកពិន្ទុមិនបានសម្រេច"
+              description="ការតភ្ជាប់មានបញ្ហា។ ពិន្ទុដែលមានស្រាប់នៅតែសុវត្ថិភាព — សូមព្យាយាមម្តងទៀត។"
+              action={
+                <Button printHidden={false} onClick={loadScores}>
+                  ព្យាយាមម្តងទៀត
+                </Button>
+              }
+            />
+          </div>
+        ) : !hasStudents ? (
+          <div className="rounded-xl border border-divider bg-bg-surface">
+            <EmptyState
+              title="មិនទាន់មានសិស្សក្នុងថ្នាក់នេះ"
+              description="ចុះឈ្មោះសិស្សជាមុនសិន រួចត្រឡប់មកបញ្ចូលពិន្ទុកិច្ចការផ្ទះ។"
+              action={
+                <Link
+                  href="/student-list"
+                  className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand px-4 text-sm font-bold text-brand-contrast transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                >
+                  <Users className="h-4 w-4" aria-hidden="true" /> ចុះឈ្មោះសិស្ស
+                </Link>
+              }
+            />
+          </div>
+        ) : visibleStudents.length === 0 ? (
+          <div className="rounded-xl border border-divider bg-bg-surface">
+            <EmptyState
+              kind="filtered"
+              title="រកមិនឃើញសិស្ស"
+              description="គ្មានសិស្សត្រូវនឹងពាក្យស្វែងរកនេះទេ។"
+              action={
+                <Button variant="secondary" printHidden={false} onClick={() => setQuery('')}>
+                  <X className="h-4 w-4" aria-hidden="true" /> សម្អាតការស្វែងរក
+                </Button>
+              }
+            />
+          </div>
+        ) : mode === 'daily' && activeDay ? (
+          <HomeworkDailyRoster
+            students={visibleStudents}
+            day={activeDay}
+            scores={scores}
+            onChange={handleChange}
+            savedCells={savedCells}
+            rowNumbers={rowNumbers}
+            maxScore={MAX_SCORE}
+          />
+        ) : (
+          <HomeworkMonthlyGrid
+            students={visibleStudents}
+            days={days}
+            scores={scores}
+            onChange={handleChange}
+            savedCells={savedCells}
+            rowNumbers={rowNumbers}
+            maxScore={MAX_SCORE}
+            onPickDay={(day) => {
+              setSelectedDay(day)
+              setMode('daily')
+            }}
+          />
+        )}
+
+        {hasStudents && loadState === 'ready' && (
+          <HomeworkSaveBar
+            state={saveState}
+            dirtyCount={dirtyCells.size}
+            errorCount={issues.errors}
+            warningCount={issues.warnings}
+            errorMessage={saveError}
+            progress={mode === 'daily' ? dayStats : monthStats}
+            progressLabel={mode === 'daily' ? 'បានបញ្ចូលថ្ងៃនេះ' : 'បំពេញពេញវដ្ត'}
+            canUndo={undoSnapshot !== null}
+            onUndo={undoBulk}
+            onDiscard={handleDiscard}
+            onSave={handleSave}
+          />
+        )}
+
+        {/* Saves are announced without a toast per cell, for screen readers. */}
+        <p className="sr-only" role="status" aria-live="polite">
+          {liveMessage}
+        </p>
+      </div>
+
+      <HomeworkPrintSheet
+        students={initialStudents}
+        days={days}
+        scores={scores}
+        settings={settings}
+        academicYear={academicYear}
+        monthLabel={monthLabel}
+      />
+
+      <HomeworkBulkFill
+        open={bulkOpen}
+        onClose={() => setBulkOpen(false)}
+        day={activeDay}
+        studentCount={visibleStudents.length}
+        maxScore={MAX_SCORE}
+        onApply={applyBulk}
+      />
+
+      {dialog}
+    </PageContainer>
+  )
+}
+
+/**
+ * Turn a set of `studentId:day` keys into the upsert payload.
+ *
+ * A blank cell is sent as `null` on purpose: that is how a mark is *removed*,
+ * and it only happens for a cell the teacher actually cleared, because only
+ * touched cells reach the pending set.
+ */
+function buildPayload(keys: string[], scores: HomeworkScores): ScoreInput[] {
+  return keys.map((key) => {
+    const sep = key.indexOf(':')
+    const studentId = key.slice(0, sep)
+    const dayNum = Number(key.slice(sep + 1))
+    const raw = scores[studentId]?.[dayNum]
+
+    return {
+      student_id: studentId,
+      subject: homeworkCellSubject(dayNum),
+      score_value: raw === undefined || raw === '' ? null : raw,
+    }
+  })
 }

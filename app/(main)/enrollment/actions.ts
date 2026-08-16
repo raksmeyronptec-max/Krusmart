@@ -6,6 +6,31 @@ import { logger } from '@/lib/utils/logger'
 import type { StudentImportRow } from '@/lib/types'
 import { auditLog, auditLogBatch } from '@/lib/audit/log'
 
+/**
+ * Turn a Postgres failure into something a teacher can act on.
+ *
+ * The raw `message` was previously concatenated into the page, so a duplicate
+ * student id surfaced as `duplicate key value violates unique constraint
+ * "students_teacher_id_student_id_key"` — English, and no indication that the
+ * fix is to change the id. Anything unrecognised still carries the original
+ * text, because a vague "something went wrong" is worse than an untranslated
+ * clue.
+ */
+function friendlyDbError(error: { code?: string; message: string }, context: 'single' | 'import'): string {
+  if (error.code === '23505') {
+    return context === 'single'
+      ? 'អត្តលេខនេះមានក្នុងបញ្ជីរួចហើយ។ សូមប្តូរអត្តលេខសិស្ស។'
+      : 'មានអត្តលេខស្ទួនក្នុងឯកសារ ឬមានក្នុងបញ្ជីរួចហើយ។ គ្មានសិស្សណាត្រូវបានបញ្ចូលទេ។'
+  }
+  if (error.code === '23514' || error.code === '22007' || error.code === '22008') {
+    return 'ទិន្នន័យមួយចំនួនមិនត្រឹមត្រូវ (ជាពិសេសថ្ងៃខែឆ្នាំកំណើត)។ សូមពិនិត្យឡើងវិញ។'
+  }
+  if (error.code === '42501') {
+    return 'អ្នកមិនមានសិទ្ធិបញ្ចូលសិស្សក្នុងថ្នាក់នេះទេ។'
+  }
+  return `មានបញ្ហាក្នុងការរក្សាទុកទិន្នន័យ៖ ${error.message}`
+}
+
 export async function createStudent(formData: FormData) {
   const supabase = await createClient()
 
@@ -95,7 +120,7 @@ export async function createStudent(formData: FormData) {
 
   if (error) {
     logger.error(error)
-    return { error: 'មានបញ្ហាក្នុងការរក្សាទុកទិន្នន័យ៖ ' + error.message }
+    return { error: friendlyDbError(error, 'single') }
   }
 
   // Identity fields only. The trail records that a student was enrolled and by
@@ -162,7 +187,7 @@ export async function importStudents(students: StudentImportRow[]) {
 
   if (error) {
     logger.error(error)
-    return { error: 'មានបញ្ហាក្នុងការរក្សាទុកទិន្នន័យ៖ ' + error.message }
+    return { error: friendlyDbError(error, 'import') }
   }
 
   await auditLogBatch('student.imported', 'student', studentsToInsert.length, undefined, user.id)

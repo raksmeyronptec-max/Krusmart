@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import ScoreEnterClient from './ScoreEnterClient'
@@ -26,7 +27,11 @@ export default async function ScoreEnterPage({
   const scope = await resolveServerScope(user.id, requestedClassId)
   const students = await fetchStudentsForScope(scope)
 
+  // `ScoreEnterClient` seeds its month/subject from `useSearchParams`; the
+  // boundary keeps that legal regardless of how this route is rendered.
   return (
-    <ScoreEnterClient initialStudents={students || []} />
+    <Suspense>
+      <ScoreEnterClient initialStudents={students || []} />
+    </Suspense>
   )
 }

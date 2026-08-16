@@ -34,6 +34,14 @@ export default async function HomeworkEnterPage({
     .maybeSingle()
 
   return (
-    <HomeworkEnterClient initialStudents={students || []} settings={settings || null} />
+    <HomeworkEnterClient
+      initialStudents={students || []}
+      settings={settings || null}
+      // Already validated against this teacher's own assignments above, so the
+      // client can hand it straight back to `getScores`/`saveScores` — which
+      // validate it again — and the marks are read from the same class the
+      // roster came from. `null` means the legacy `teacher_id` path.
+      scopeClassId={scope.mode === 'v2' ? scope.classId : null}
+    />
   )
 }

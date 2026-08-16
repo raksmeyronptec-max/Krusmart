@@ -18,6 +18,12 @@ export const STORAGE_KEYS = {
   lastTutorialPage: 'ptec_last_tutorial_page',
   /** Offline-friendly copy of the roster. */
   studentsCache: 'krusmart_students_cache',
+  /**
+   * Unsaved `/enrollment` form. A teacher fills this in over several minutes,
+   * often on a phone that backgrounds the tab; losing the typing to a reload
+   * means re-reading the whole paper form.
+   */
+  enrollmentDraft: 'krusmart_enrollment_draft',
 } as const
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS]
