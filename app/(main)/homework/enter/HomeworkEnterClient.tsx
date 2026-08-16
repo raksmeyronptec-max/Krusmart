@@ -449,7 +449,7 @@ export default function HomeworkEnterClient({ initialStudents, settings }: {
                             </div>
                             <div>
                                 <h1 className="text-xl md:text-2xl kh-moul text-text-heading">បញ្ចូលពិន្ទុកិច្ចការផ្ទះ</h1>
-                                <p className="text-text-muted font-medium text-xs md:text-sm">Homework Score Entry (Cloud Sync)</p>
+                                <p className="text-text-muted font-medium text-xs md:text-sm">បញ្ចូលពិន្ទុកិច្ចការផ្ទះ ធ្វើសមកាលកម្មដោយស្វ័យប្រវត្តិ</p>
                             </div>
                         </div>
 
@@ -604,7 +604,7 @@ export default function HomeworkEnterClient({ initialStudents, settings }: {
                     <div className="p-3 bg-bg-surface border-t border-divider flex justify-between items-center text-sm text-text-muted shrink-0">
                         <span className="font-bold text-brand">សិស្សសរុប៖ {students.length} នាក់ (ស្រី {femaleCount})</span>
                         <span className="italic text-xs bg-paper px-2 py-1 rounded flex items-center gap-1">
-                            <Check className="w-3 h-3 text-brand-500" /> Cloud Sync Ready
+                            <Check className="w-3 h-3 text-brand-500" /> រួចរាល់សម្រាប់ធ្វើសមកាលកម្ម
                         </span>
                     </div>
                 </div>

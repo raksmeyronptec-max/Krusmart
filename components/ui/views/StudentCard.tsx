@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef } from 'react'
 import Link from 'next/link'
-import { Eye, Edit3, CalendarCheck, TrendingUp, Trash2, MoreHorizontal } from 'lucide-react'
+import { Eye, Edit3, CalendarCheck, TrendingUp, Trash2 } from 'lucide-react'
 import type { Student } from '@/lib/types'
 import { getDriveImageUrl } from '@/lib/utils/drive-image'
 import { calculateAge } from '@/lib/utils/date'
@@ -43,16 +43,16 @@ export function StudentCard({ student, isSelected, onToggleSelect, onDelete, cla
   if (student.is_new_student) badges.push({ label: 'សិស្សថ្មី', color: 'bg-brand/10 text-brand' })
   if (student.poor_status && student.poor_status !== 'គ្មាន') badges.push({ label: student.poor_status, color: 'bg-danger/10 text-danger' })
   if (student.orphan_status && student.orphan_status !== 'ទេ') badges.push({ label: student.orphan_status, color: 'bg-warning/10 text-warning' })
-  if (student.is_disabled) badges.push({ label: 'ពិការ', color: 'bg-gray-100 text-gray-700' })
+  if (student.is_disabled) badges.push({ label: 'ពិការ', color: 'bg-paper text-text-body' })
   if (student.is_equity) badges.push({ label: 'សមធម៌', color: 'bg-success/10 text-success' })
-  if (student.is_scholarship) badges.push({ label: 'អាហារូបករណ៍', color: 'bg-purple-100 text-purple-700' })
+  if (student.is_scholarship) badges.push({ label: 'អាហារូបករណ៍', color: 'bg-brand-100 text-brand-800 dark:bg-brand-900/60 dark:text-brand-300' })
 
   const visibleBadges = badges.slice(0, 3)
   const hiddenBadgesCount = badges.length - 3
 
   return (
     <div 
-      className={`relative overflow-hidden rounded-2xl border ${isSelected ? 'border-brand/40 ring-1 ring-brand/20 bg-brand/5' : 'border-divider bg-paper'} shadow-sm transition-all animate-in fade-in slide-in-from-bottom-2 ${className}`}
+      className={`relative overflow-hidden rounded-2xl border ${isSelected ? 'border-brand/40 ring-1 ring-brand/20 bg-brand/5' : 'border-divider bg-paper'} shadow-sm transition-all dialog-enter ${className}`}
       style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'both' }}
     >
       {/* Background Actions (revealed on swipe) */}
@@ -128,10 +128,10 @@ export function StudentCard({ student, isSelected, onToggleSelect, onDelete, cla
               </span>
             ))}
             {hiddenBadgesCount > 0 && (
-              <span className="group relative inline-flex items-center rounded-md bg-bg-surface px-2 py-0.5 text-[11px] font-medium text-text-muted hover:bg-gray-200">
+              <span className="group relative inline-flex items-center rounded-md bg-bg-surface px-2 py-0.5 text-[11px] font-medium text-text-muted hover:bg-paper">
                 +{toKhmerNumber(hiddenBadgesCount)}
                 {/* Tooltip for extra badges on hover */}
-                <div className="absolute bottom-full left-1/2 z-10 mb-1 hidden -translate-x-1/2 flex-col gap-1 whitespace-nowrap rounded-md bg-gray-800 p-2 text-xs text-white group-hover:flex">
+                <div className="absolute bottom-full left-1/2 z-10 mb-1 hidden -translate-x-1/2 flex-col gap-1 whitespace-nowrap rounded-md bg-text-heading p-2 text-xs text-bg-surface group-hover:flex">
                   {badges.slice(3).map((b, i) => (
                     <span key={i}>{b.label}</span>
                   ))}
@@ -160,8 +160,8 @@ export function StudentCard({ student, isSelected, onToggleSelect, onDelete, cla
             </div>
             <span className="text-[10px] font-medium">វត្តមាន</span>
           </Link>
-          <Link href={`/score?student=${student.id}`} className="flex flex-col items-center gap-1 text-text-muted transition-colors hover:text-purple-600" aria-label="មើលពិន្ទុ">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-bg-surface group-hover:bg-purple-100">
+          <Link href={`/score?student=${student.id}`} className="flex flex-col items-center gap-1 text-text-muted transition-colors hover:text-brand" aria-label="មើលពិន្ទុ">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-bg-surface group-hover:bg-brand-100 dark:group-hover:bg-brand-900/60">
               <TrendingUp className="h-4 w-4" />
             </div>
             <span className="text-[10px] font-medium">ពិន្ទុ</span>

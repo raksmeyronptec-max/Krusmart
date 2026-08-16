@@ -409,7 +409,7 @@ export default function ScoreTotalClient({ initialStudents}: { initialStudents: 
                             </div>
                             <div>
                                 <h1 className="text-lg sm:text-xl md:text-2xl kh-moul text-brand leading-tight">តារាងពិន្ទុសិស្សសរុប</h1>
-                                <p className="text-text-muted font-medium text-[10px] sm:text-xs md:text-sm">Score Master Sheet</p>
+                                <p className="text-text-muted font-medium text-[10px] sm:text-xs md:text-sm">តារាងពិន្ទុរួមរបស់ថ្នាក់</p>
                             </div>
                         </div>
                         <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="lg:hidden p-2 bg-paper text-text-body rounded-xl hover:bg-divider transition shrink-0 border border-divider">
@@ -631,7 +631,7 @@ export default function ScoreTotalClient({ initialStudents}: { initialStudents: 
                                 <Settings2 className="w-5 h-5 text-brand" />
                                 ជ្រើសរើសខែបូកបញ្ចូល
                             </h3>
-                            <button onClick={() => setIsMonthModalOpen(false)} className="p-1 hover:bg-divider rounded-full"><X className="w-5 h-5 text-text-muted" /></button>
+                            <button aria-label="បិទ" onClick={() => setIsMonthModalOpen(false)} className="p-1 hover:bg-divider rounded-full"><X className="w-5 h-5 text-text-muted" /></button>
                         </div>
                         <div className="p-4 space-y-2">
                             <p className="text-sm text-text-muted mb-4">សូមជ្រើសរើសខែដែលត្រូវយកមកគណនាមធ្យមភាគប្រចាំខែ (ដើម្បីបូកជាមួយពិន្ទុប្រឡងឆមាស)</p>

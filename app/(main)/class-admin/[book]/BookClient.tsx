@@ -112,7 +112,7 @@ export default function BookClient({
 
   const renderInput = (f: BookField) => {
     const base =
-      'w-full min-h-11 rounded-xl border border-divider bg-white p-2.5 outline-none transition focus:border-brand dark:border-divider dark:bg-bg-app'
+      'w-full min-h-11 rounded-xl border border-divider bg-bg-surface p-2.5 text-text-heading outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/30'
 
     if (f.type === 'textarea') {
       return (
@@ -155,7 +155,7 @@ export default function BookClient({
   }
 
   return (
-    <div className="min-h-screen font-battambang print:bg-white">
+    <div className="font-battambang print:bg-white">
       <style jsx global>{`
         .print-container { display: none; }
         @media print {
@@ -183,7 +183,7 @@ export default function BookClient({
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <Link
             href="/class-admin"
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-white/60 px-4 py-2 font-bold text-brand shadow-sm backdrop-blur-sm transition hover:text-brand-800"
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-divider bg-bg-surface px-4 py-2 font-bold text-brand shadow-sm transition hover:border-brand-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
           >
             <ArrowLeft className="h-5 w-5" aria-hidden="true" /> ត្រឡប់ទៅបញ្ជីសៀវភៅ
           </Link>

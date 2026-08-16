@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { resolveAllAvailableRoles, homeRouteFor, resolveActor } from '@/lib/rbac/actor'
-import { type LoginRole } from '@/lib/auth/role-config'
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
@@ -9,8 +8,10 @@ export async function GET(request: Request) {
   
   // 'next' could be for password reset or a specific deep link.
   const next = searchParams.get('next')
-  // 'role' could be passed from the OAuth login button
-  const targetRole = searchParams.get('role') as LoginRole | null
+  // `?role=` may be present on the callback URL, and is deliberately not read.
+  // Which workspace a user lands in is resolved from their data by
+  // `resolveActor`, never from the button they happened to click — see the
+  // note on `targetRole` in `app/login/actions.ts`.
 
   if (code) {
     const supabase = await createClient()

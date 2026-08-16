@@ -2,9 +2,20 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { resolveActor, resolveAllAvailableRoles, homeRouteFor, type ActorKind } from '@/lib/rbac/actor'
+import { resolveActor, resolveAllAvailableRoles, homeRouteFor } from '@/lib/rbac/actor'
 import { type LoginRole } from '@/lib/auth/role-config'
 
+/**
+ * Where to send someone once they are signed in.
+ *
+ * `targetRole` is threaded in from the per-role login screens and then
+ * deliberately ignored: those screens are presentation only — same credentials,
+ * same roles — and the destination is resolved from the account's actual data
+ * by `resolveActor`. Honouring the parameter would let the choice of login page
+ * decide which workspace you reach, which is exactly the bug that let a parent
+ * land on the teacher dashboard.
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept in the signature so call sites stay honest about what they pass; see above
 async function routeAfterLogin(targetRole?: LoginRole): Promise<string> {
   const actor = await resolveActor()
   if (!actor) return '/login'
@@ -54,6 +65,7 @@ export async function loginWithEmail(email: string, password?: string, targetRol
   redirect(targetRoute)
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- `targetRole` is accepted for call-site symmetry and ignored; see routeAfterLogin
 export async function registerWithEmail(email: string, password?: string, targetRole?: LoginRole) {
   const supabase = await createClient()
   

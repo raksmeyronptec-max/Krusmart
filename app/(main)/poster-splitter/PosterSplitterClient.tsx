@@ -2,9 +2,8 @@
 
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/actions/Button'
-import Link from 'next/link'
-import toast from 'react-hot-toast'
-import { ArrowLeft, Download, Grid3x3, ImageUp, Loader2, Scissors } from 'lucide-react'
+import { notify } from '@/components/ui/feedback/notify'
+import { Download, Grid3x3, ImageUp, Loader2, Scissors } from 'lucide-react'
 import Select from '@/components/ui/forms/Select'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import { logger } from '@/lib/utils/logger'
@@ -49,7 +48,7 @@ export default function PosterSplitterClient() {
   const handleFile = useCallback((file: File | undefined) => {
     if (!file) return
     if (!file.type.startsWith('image/')) {
-      toast.error('សូមជ្រើសរើសឯកសាររូបភាព')
+      notify.error('សូមជ្រើសរើសឯកសាររូបភាព')
       return
     }
 
@@ -65,7 +64,7 @@ export default function PosterSplitterClient() {
     }
     img.onerror = () => {
       URL.revokeObjectURL(url)
-      toast.error('មិនអាចបើករូបភាពនេះបានទេ')
+      notify.error('មិនអាចបើករូបភាពនេះបានទេ')
     }
     img.src = url
   }, [totalW])
@@ -176,10 +175,10 @@ export default function PosterSplitterClient() {
       }
 
       doc.save(`Poster_${totalW}x${totalH}cm.pdf`)
-      toast.success(`បានបង្កើត PDF ចំនួន ${toKhmerNumber(plan.sheets)} សន្លឹក`)
+      notify.success(`បានបង្កើត PDF ចំនួន ${toKhmerNumber(plan.sheets)} សន្លឹក`)
     } catch (e) {
       logger.error(e)
-      toast.error('បង្កើត PDF មិនបានសម្រេច')
+      notify.error('បង្កើត PDF មិនបានសម្រេច')
     } finally {
       setBusy(false)
       setProgress(0)
@@ -204,21 +203,14 @@ export default function PosterSplitterClient() {
         min={min}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="min-h-11 w-full rounded-xl border border-divider bg-white p-2.5 text-center font-bold outline-none transition focus:border-brand dark:border-divider dark:bg-bg-app"
+        className="min-h-11 w-full rounded-xl border border-divider bg-bg-surface p-2.5 text-center font-bold text-text-heading outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/30"
       />
     </div>
   )
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 md:py-8">
-      <Link
-        href="/decorations"
-        className="mb-6 inline-flex min-h-11 items-center gap-2 rounded-xl bg-white/60 px-4 py-2 font-bold text-brand shadow-sm backdrop-blur-sm transition hover:text-brand-800"
-      >
-        <ArrowLeft className="h-5 w-5" aria-hidden="true" /> ត្រឡប់ទៅសម្ភារៈតុបតែង
-      </Link>
-
-      <div className="rounded-xl border border-divider bg-bg-surface p-6 shadow-lg md:p-8">
+<div className="rounded-xl border border-divider bg-bg-surface p-6 shadow-lg md:p-8">
         <div className="mb-6 flex items-center gap-3 border-b border-divider pb-4">
           <div className="rounded-full bg-brand-100 p-3 text-brand dark:bg-brand-900 dark:text-brand-300">
             <Scissors className="h-6 w-6" aria-hidden="true" />

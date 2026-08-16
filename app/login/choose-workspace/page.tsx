@@ -2,7 +2,6 @@ import { redirect } from 'next/navigation'
 import { resolveAllAvailableRoles } from '@/lib/rbac/actor'
 import WorkspaceChooser from '../_components/WorkspaceChooser'
 import { LogOut } from 'lucide-react'
-import Link from 'next/link'
 
 export const metadata = {
   title: 'Choose Workspace | KruSmart',

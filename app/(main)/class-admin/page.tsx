@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { ArrowLeft, BookOpen } from 'lucide-react'
+import { BookOpen } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { BOOKS } from '@/lib/class-admin/books'
 import { countBookEntries } from './actions'
@@ -27,14 +27,7 @@ export default async function ClassAdminPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 md:py-8">
-      <Link
-        href="/dashboard"
-        className="mb-6 inline-flex min-h-11 items-center gap-2 rounded-xl bg-white/60 px-4 py-2 font-bold text-brand shadow-sm backdrop-blur-sm transition hover:text-brand-800"
-      >
-        <ArrowLeft className="h-5 w-5" aria-hidden="true" /> ត្រឡប់ទៅទំព័រដើម
-      </Link>
-
-      <header className="mb-8 flex items-center gap-4 rounded-xl border border-divider bg-bg-surface p-6 shadow-sm">
+<header className="mb-8 flex items-center gap-4 rounded-xl border border-divider bg-bg-surface p-6 shadow-sm">
         <div className="rounded-xl bg-brand-100 p-3.5 text-brand dark:bg-brand-900">
           <BookOpen className="h-7 w-7" aria-hidden="true" />
         </div>

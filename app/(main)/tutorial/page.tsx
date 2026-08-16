@@ -80,7 +80,7 @@ export default function TutorialPage() {
 
     return (
         <div className="min-h-screen flex flex-col bg-paper dark:bg-bg-app transition-colors duration-300 relative">
-            <header className="flex-none bg-white dark:bg-bg-app border-b border-divider dark:border-divider shadow-sm relative z-50 w-full transition-colors duration-300">
+            <header className="flex-none bg-bg-surface border-b border-divider shadow-sm relative z-50 w-full transition-colors duration-300">
                 <div className="max-w-7xl mx-auto px-3 md:px-6 lg:px-8 py-2 md:py-3 flex justify-between items-center relative">
                     
                     <div className="flex items-center gap-2 md:gap-3">
@@ -102,7 +102,7 @@ export default function TutorialPage() {
 
                         {/* Dropdown Menu */}
                         <div 
-                            className={`absolute right-3 md:right-6 lg:right-8 top-[110%] w-[calc(100%-1.5rem)] sm:w-80 md:w-96 bg-white dark:bg-bg-app border border-divider dark:border-divider shadow-lg rounded-xl overflow-hidden origin-top-right transition-all duration-300 ${isMenuOpen ? 'opacity-100 scale-100 visible' : 'opacity-0 scale-95 invisible'}`}
+                            className={`absolute right-3 md:right-6 lg:right-8 top-[110%] w-[calc(100%-1.5rem)] sm:w-80 md:w-96 bg-bg-surface border border-divider shadow-lg rounded-xl overflow-hidden origin-top-right transition-all duration-300 ${isMenuOpen ? 'opacity-100 scale-100 visible' : 'opacity-0 scale-95 invisible'}`}
                         >
                             <div className="bg-paper dark:bg-bg-surface px-4 py-3 border-b border-divider dark:border-divider flex flex-col gap-3 sticky top-0 z-10 transition-colors">
                                 <div className="flex justify-between items-center font-bold text-text-body dark:text-text-body">
@@ -118,7 +118,7 @@ export default function TutorialPage() {
                                         placeholder="ស្វែងរកទំព័រ..." 
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="w-full pl-9 pr-3 py-2 bg-white dark:bg-bg-app border border-divider dark:border-divider rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-focus-ring text-text-heading dark:text-text-body placeholder:text-text-muted"
+                                        className="w-full pl-9 pr-3 py-2 bg-bg-surface border border-divider rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-focus-ring text-text-heading dark:text-text-body placeholder:text-text-muted"
                                     />
                                 </div>
                             </div>
@@ -155,7 +155,7 @@ export default function TutorialPage() {
             </header>
 
             <main className="flex-1 w-full max-w-7xl mx-auto p-3 md:p-4 lg:p-6 flex flex-col relative z-0">
-                <div className="bg-white dark:bg-bg-surface border border-divider dark:border-divider shadow-sm w-full flex-1 rounded-xl overflow-hidden relative flex flex-col">
+                <div className="bg-bg-surface border border-divider shadow-sm w-full flex-1 rounded-xl overflow-hidden relative flex flex-col">
                     {/* We removed the full-screen loading spinner to make the page feel instantly responsive */}
                     {isLoading && (
                         <div className="absolute top-0 left-0 w-full h-1 bg-paper z-50">

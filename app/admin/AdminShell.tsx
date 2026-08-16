@@ -70,6 +70,7 @@ export default function AdminShell({
             <p className="text-xs text-text-muted mt-0.5 font-bold">ប្រព័ន្ធគ្រប់គ្រងសាលា</p>
           </div>
           <button 
+            aria-label="បិទបញ្ជីមឺនុយ"
             className="md:hidden ml-auto text-text-muted hover:text-text-heading"
             onClick={() => setIsMobileSidebarOpen(false)}
           >
@@ -119,7 +120,7 @@ export default function AdminShell({
             </div>
             <span className="kh-moul text-brand">PTEC Admin</span>
           </div>
-          <button onClick={() => setIsMobileSidebarOpen(true)} className="text-text-body">
+          <button aria-label="បើកបញ្ជីមឺនុយ" onClick={() => setIsMobileSidebarOpen(true)} className="text-text-body">
             <Menu className="w-6 h-6" />
           </button>
         </div>

@@ -32,7 +32,7 @@ export default function TeamPage() {
             <main className="pt-8 md:pt-16 pb-20 px-4 md:px-8 max-w-4xl mx-auto">
                 
                 {/* Brand Logo & Header */}
-                <section className="flex flex-col items-center justify-center mb-16 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                <section className="flex flex-col items-center justify-center mb-16">
                     <div className="w-24 h-24 md:w-28 md:h-28 rounded-xl flex items-center justify-center shadow-lg mb-6 rotate-3 hover:rotate-0 transition-transform duration-500 overflow-hidden bg-white p-1">
                         {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture */}
                         <img src="/logo.png" alt="KruSmart Logo" className="w-full h-full object-cover rounded-xl" />
@@ -47,7 +47,7 @@ export default function TeamPage() {
                     {teamMembers.map((member, index) => (
                         <article 
                             key={index}
-                            className="bg-white dark:bg-bg-app border border-divider dark:border-divider rounded-xl p-6 md:p-8 shadow-sm hover:-translate-y-1 hover:shadow-md transition-all duration-300 flex flex-col md:flex-row items-start gap-6 md:gap-10 text-center md:text-left group animate-in zoom-in-95 duration-700"
+                            className="bg-bg-surface border border-divider rounded-xl p-6 md:p-8 shadow-sm hover:-translate-y-1 hover:shadow-md transition-all duration-300 flex flex-col md:flex-row items-start gap-6 md:gap-10 text-center md:text-left group"
                             style={{ animationDelay: `${index * 150}ms` }}
                         >
                             {/* Image with Pulsing Gradient Background */}
@@ -99,7 +99,7 @@ export default function TeamPage() {
 
                 {/* Fullscreen Iframe Modal */}
                 {openIframeIndex !== null && (
-                    <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex flex-col animate-in fade-in duration-300">
+                    <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex flex-col overlay-enter">
                         <div className="flex justify-end p-4">
                             <button 
                                 onClick={() => setOpenIframeIndex(null)}
@@ -109,7 +109,7 @@ export default function TeamPage() {
                             </button>
                         </div>
                         <div className="flex-1 w-full h-full pb-4 px-4">
-                            <div className="w-full h-full bg-white dark:bg-bg-app rounded-xl overflow-hidden shadow-lg">
+                            <div className="w-full h-full bg-bg-surface rounded-xl overflow-hidden shadow-lg">
                                 <iframe 
                                     src={teamMembers[openIframeIndex].portfolio} 
                                     className="w-full h-full border-none" 

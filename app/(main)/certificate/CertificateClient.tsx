@@ -2,8 +2,8 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import { Button } from '@/components/ui/actions/Button'
-import { ArrowLeft, Award, RefreshCw, Image as ImageIcon, Camera, Printer, ListOrdered } from 'lucide-react'
-import Link from 'next/link'
+import { Award, RefreshCw, Image as ImageIcon, Camera, Printer, ListOrdered } from 'lucide-react'
+import { notify } from '@/components/ui/feedback/notify'
 import { getAllScoresByPeriod } from '../score/total/actions'
 import Select from '@/components/ui/forms/Select'
 import type { Score, Settings, Student } from '@/lib/types'
@@ -149,11 +149,11 @@ export default function CertificateClient({ initialStudents, settings }: { initi
 
     const handlePrint = () => {
         if (selectedStudentIds.length === 0) {
-            alert('សូមជ្រើសរើសសិស្សយ៉ាងហោចណាស់ម្នាក់!')
+            notify.error('សូមជ្រើសរើសសិស្សយ៉ាងហោចណាស់ម្នាក់')
             return
         }
         if (!templateUrl) {
-            alert('សូមជ្រើសរើសរូបភាពស៊ុម!')
+            notify.error('សូមជ្រើសរើសរូបភាពស៊ុម')
             return
         }
         window.print()
@@ -162,21 +162,32 @@ export default function CertificateClient({ initialStudents, settings }: { initi
     const selectedStudentsData = studentsData.filter(s => selectedStudentIds.includes(s.id))
 
     return (
-        <div className="bg-paper min-h-screen text-text-heading pb-20 print:bg-white print:m-0 print:p-0">
+        <div className="text-text-heading pb-20 print:bg-white print:m-0 print:p-0">
             <style jsx global>{`
                 .font-battambang { font-family: 'Battambang', cursive; }
 
+                /*
+                  Screen-only: .input-field is never used inside
+                  #printContainer, so it follows the theme. The @media print
+                  block below keeps its literal white — paper has no theme.
+                */
                 .input-field {
                     width: 100%;
+                    min-height: 44px;
                     padding: 0.75rem 1rem;
                     border-radius: 0.75rem;
-                    border: 1px solid #e5e7eb;
-                    background: #f9fafb;
+                    border: 1px solid var(--divider);
+                    background: var(--paper);
+                    color: var(--text-heading);
                     font-family: 'Battambang', cursive;
                     outline: none;
                     transition: all 0.2s;
                 }
-                .input-field:focus { border-color: #0054a6; background: white; box-shadow: 0 0 0 3px rgba(0,84,166,0.1); }
+                .input-field:focus {
+                    border-color: var(--brand);
+                    background: var(--bg-surface);
+                    box-shadow: 0 0 0 3px var(--focus-ring);
+                }
 
                 @media print {
                     @page { size: A4 landscape; margin: 0; }
@@ -221,9 +232,6 @@ export default function CertificateClient({ initialStudents, settings }: { initi
 
             <div className="no-print max-w-[1200px] mx-auto px-4 py-6">
                 <div className="flex items-center gap-4 mb-6">
-                    <Link href="/dashboard" className="p-3 bg-white rounded-xl shadow-sm hover:shadow-md text-brand transition-all border border-divider">
-                        <ArrowLeft className="w-6 h-6" />
-                    </Link>
                     <div>
                         <h1 className="text-2xl kh-moul text-brand flex items-center gap-3">
                             <Award className="w-8 h-8 text-gold" /> បោះពុម្ពបណ្ណសរសើរ (Certificates)
@@ -234,7 +242,7 @@ export default function CertificateClient({ initialStudents, settings }: { initi
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div className="flex flex-col gap-6">
-                        <div className="bg-white p-6 rounded-xl shadow-sm border border-divider">
+                        <div className="bg-bg-surface p-6 rounded-xl shadow-sm border border-divider">
                             <h2 className="font-bold text-lg mb-4 flex items-center gap-2 text-text-body">
                                 <span className="bg-brand-100 text-brand w-6 h-6 rounded-full flex items-center justify-center text-sm">1</span> ជ្រើសរើសទិន្នន័យ
                             </h2>
@@ -243,9 +251,9 @@ export default function CertificateClient({ initialStudents, settings }: { initi
                                 <div>
                                     <label className="block text-sm font-bold text-text-body mb-2">ប្រភេទពិន្ទុ</label>
                                     <div className="flex bg-paper p-1 rounded-xl">
-                                        <button onClick={() => setScoreType('monthly')} className={`flex-1 py-2 rounded-lg font-bold transition text-sm ${scoreType === 'monthly' ? 'bg-white shadow text-brand' : 'text-text-muted hover:bg-white/50'}`}>ប្រចាំខែ</button>
-                                        <button onClick={() => setScoreType('semester')} className={`flex-1 py-2 rounded-lg font-bold transition text-sm ${scoreType === 'semester' ? 'bg-white shadow text-brand' : 'text-text-muted hover:bg-white/50'}`}>ប្រចាំឆមាស</button>
-                                        <button onClick={() => setScoreType('yearly')} className={`flex-1 py-2 rounded-lg font-bold transition text-sm ${scoreType === 'yearly' ? 'bg-white shadow text-brand' : 'text-text-muted hover:bg-white/50'}`}>ប្រចាំឆ្នាំ</button>
+                                        <button onClick={() => setScoreType('monthly')} className={`flex-1 py-2 rounded-lg font-bold transition text-sm ${scoreType === 'monthly' ? 'bg-bg-surface shadow text-brand' : 'text-text-muted hover:bg-paper'}`}>ប្រចាំខែ</button>
+                                        <button onClick={() => setScoreType('semester')} className={`flex-1 py-2 rounded-lg font-bold transition text-sm ${scoreType === 'semester' ? 'bg-bg-surface shadow text-brand' : 'text-text-muted hover:bg-paper'}`}>ប្រចាំឆមាស</button>
+                                        <button onClick={() => setScoreType('yearly')} className={`flex-1 py-2 rounded-lg font-bold transition text-sm ${scoreType === 'yearly' ? 'bg-bg-surface shadow text-brand' : 'text-text-muted hover:bg-paper'}`}>ប្រចាំឆ្នាំ</button>
                                     </div>
                                 </div>
 
@@ -292,7 +300,7 @@ export default function CertificateClient({ initialStudents, settings }: { initi
                             </div>
                         </div>
 
-                        <div className="bg-white p-6 rounded-xl shadow-sm border border-divider">
+                        <div className="bg-bg-surface p-6 rounded-xl shadow-sm border border-divider">
                             <h2 className="font-bold text-lg mb-4 flex items-center gap-2 text-text-body">
                                 <span className="bg-brand-100 text-brand w-6 h-6 rounded-full flex items-center justify-center text-sm">2</span> រូបភាពស៊ុម & ព័ត៌មាន
                             </h2>
@@ -312,7 +320,7 @@ export default function CertificateClient({ initialStudents, settings }: { initi
                                         wrapperClassName="mb-3"
                                     />
 
-                                    <div className="relative w-full h-32 bg-white rounded-lg border border-divider flex flex-col items-center justify-center overflow-hidden shadow-inner">
+                                    <div className="relative w-full h-32 bg-bg-surface rounded-lg border border-divider flex flex-col items-center justify-center overflow-hidden shadow-inner">
                                         {templateUrl ? (
                                             // eslint-disable-next-line @next/next/no-img-element
                                             <img src={templateUrl} className="absolute inset-0 w-full h-full object-cover z-0" alt="Preview" />
@@ -362,13 +370,13 @@ export default function CertificateClient({ initialStudents, settings }: { initi
                         </div>
                     </div>
 
-                    <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-divider flex flex-col overflow-hidden h-full min-h-[500px]">
+                    <div className="lg:col-span-2 bg-bg-surface rounded-xl shadow-sm border border-divider flex flex-col overflow-hidden h-full min-h-[500px]">
                         <div className="p-4 border-b border-divider bg-paper flex flex-col gap-4">
                             <div className="flex flex-wrap justify-between items-center gap-3">
                                 <h2 className="font-bold text-lg flex items-center gap-2 text-text-body">
                                     <span className="bg-brand-100 text-brand w-6 h-6 rounded-full flex items-center justify-center text-sm">3</span> បញ្ជីសិស្សទទួលបានចំណាត់ថ្នាក់
                                 </h2>
-                                <div className="flex items-center gap-3 bg-white p-1.5 rounded-xl border border-divider shadow-sm w-full sm:w-auto justify-between">
+                                <div className="flex items-center gap-3 bg-bg-surface p-1.5 rounded-xl border border-divider shadow-sm w-full sm:w-auto justify-between">
                                     <span className="text-sm text-text-muted font-bold px-3">បានជ្រើសរើស: {selectedStudentIds.length} នាក់</span>
                                     <Button variant="success" printHidden={false} onClick={handlePrint} disabled={selectedStudentIds.length === 0}>
                                         <Printer className="w-4 h-4" /> បោះពុម្ពបណ្ណសរសើរ

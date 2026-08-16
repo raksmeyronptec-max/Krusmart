@@ -1,6 +1,5 @@
-import React, { useState } from 'react'
-import Link from 'next/link'
-import { MoreVertical, Eye, Edit3, CalendarCheck, TrendingUp, Trash2, ArrowUp, ArrowDown, Printer } from 'lucide-react'
+import React from 'react'
+import { Eye, Edit3, Trash2, ArrowUp, ArrowDown } from 'lucide-react'
 import type { Student } from '@/lib/types'
 import { getDriveImageUrl } from '@/lib/utils/drive-image'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
@@ -48,18 +47,18 @@ export function StudentCompactTable({
                 aria-label="ជ្រើសរើសទាំងអស់"
               />
             </th>
-            <th scope="col" className="sticky left-12 z-10 min-w-[200px] cursor-pointer bg-bg-surface px-4 py-3 font-semibold border-r border-divider transition-colors hover:bg-gray-100" onClick={() => onSort('name')}>
+            <th scope="col" className="sticky left-12 z-10 min-w-[200px] cursor-pointer bg-bg-surface px-4 py-3 font-semibold border-r border-divider transition-colors hover:bg-paper" onClick={() => onSort('name')}>
               <div className="flex items-center">សិស្ស {renderSortIcon('name')}</div>
             </th>
-            <th scope="col" className="cursor-pointer px-4 py-3 font-semibold transition-colors hover:bg-gray-100" onClick={() => onSort('id')}>
+            <th scope="col" className="cursor-pointer px-4 py-3 font-semibold transition-colors hover:bg-paper" onClick={() => onSort('id')}>
               <div className="flex items-center">អត្តលេខ {renderSortIcon('id')}</div>
             </th>
             <th scope="col" className="px-4 py-3 font-semibold">ភេទ</th>
             <th scope="col" className="px-4 py-3 font-semibold">ថ្នាក់</th>
-            <th scope="col" className="cursor-pointer px-4 py-3 font-semibold transition-colors hover:bg-gray-100" onClick={() => onSort('attendance')}>
+            <th scope="col" className="cursor-pointer px-4 py-3 font-semibold transition-colors hover:bg-paper" onClick={() => onSort('attendance')}>
               <div className="flex items-center">វត្តមាន {renderSortIcon('attendance')}</div>
             </th>
-            <th scope="col" className="cursor-pointer px-4 py-3 font-semibold transition-colors hover:bg-gray-100" onClick={() => onSort('score')}>
+            <th scope="col" className="cursor-pointer px-4 py-3 font-semibold transition-colors hover:bg-paper" onClick={() => onSort('score')}>
               <div className="flex items-center">មធ្យមភាគ {renderSortIcon('score')}</div>
             </th>
             <th scope="col" className="px-4 py-3 font-semibold">ស្ថានភាព</th>
@@ -137,7 +136,7 @@ export function StudentCompactTable({
                     <div className="flex items-center gap-2">
                       <span className={attColor}>{toKhmerNumber(student.attendance_rate)}%</span>
                       {/* Simple sparkline simulation bar */}
-                      <div className="h-1.5 w-12 overflow-hidden rounded-full bg-gray-100">
+                      <div className="h-1.5 w-12 overflow-hidden rounded-full bg-paper">
                         <div className={`h-full ${attColor.split(' ')[0].replace('text-', 'bg-')}`} style={{ width: `${student.attendance_rate}%` }} />
                       </div>
                     </div>
@@ -164,8 +163,8 @@ export function StudentCompactTable({
                 <td className="px-4 py-2">
                   <div className="flex flex-wrap items-center gap-1">
                     {student.is_new_student && <span title="សិស្សថ្មី" className="flex h-5 w-5 items-center justify-center rounded bg-brand/10 text-[10px] text-brand">ថ្មី</span>}
-                    {student.is_disabled && <span title="ពិការ" className="flex h-5 w-5 items-center justify-center rounded bg-gray-100 text-[10px] text-gray-700">♿</span>}
-                    {student.is_scholarship && <span title="អាហារូបករណ៍" className="flex h-5 w-5 items-center justify-center rounded bg-purple-100 text-[10px] text-purple-700">⭐</span>}
+                    {student.is_disabled && <span title="ពិការ" className="flex h-5 w-5 items-center justify-center rounded bg-paper text-[10px] text-text-body">♿</span>}
+                    {student.is_scholarship && <span title="អាហារូបករណ៍" className="flex h-5 w-5 items-center justify-center rounded bg-brand-100 text-[10px] text-brand-800 dark:bg-brand-900/60 dark:text-brand-300">⭐</span>}
                     {student.poor_status && student.poor_status !== 'គ្មាន' && <span title={`ប័ណ្ណ${student.poor_status}`} className="flex h-5 w-5 items-center justify-center rounded bg-danger/10 text-[10px] font-bold text-danger">{student.poor_status.replace('ក្រ', 'ក')}</span>}
                   </div>
                 </td>
@@ -173,10 +172,10 @@ export function StudentCompactTable({
                 <td className="px-4 py-2 text-right" onClick={(e) => e.stopPropagation()}>
                   {/* Dropdown triggers could be a separate component, keeping it simple here with native or custom generic logic. Using standard inline buttons to avoid complex dropdown positioning logic if not available, or a simple hover group */}
                   <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                    <button onClick={() => onAction('view', student)} className="rounded p-1.5 text-text-muted hover:bg-gray-100 hover:text-brand" aria-label="មើល">
+                    <button onClick={() => onAction('view', student)} className="rounded p-1.5 text-text-muted hover:bg-paper hover:text-brand" aria-label="មើល">
                       <Eye className="h-4 w-4" />
                     </button>
-                    <button onClick={() => onAction('edit', student)} className="rounded p-1.5 text-text-muted hover:bg-gray-100 hover:text-brand" aria-label="កែ">
+                    <button onClick={() => onAction('edit', student)} className="rounded p-1.5 text-text-muted hover:bg-paper hover:text-brand" aria-label="កែ">
                       <Edit3 className="h-4 w-4" />
                     </button>
                     <button onClick={() => onAction('delete', student)} className="rounded p-1.5 text-text-muted hover:bg-danger/10 hover:text-danger" aria-label="លុប">

@@ -5,15 +5,16 @@ import { Button } from '@/components/ui/actions/Button'
 import Link from 'next/link'
 import type { Student } from '@/lib/types'
 import { logger } from '@/lib/utils/logger'
+import { notify } from '@/components/ui/feedback/notify'
 
 export default function PrintStudentCodesClient({ initialStudents, teacherUid }: { initialStudents: Student[], teacherUid: string }) {
 
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text).then(() => {
-            alert(`✅ បានចម្លងអត្តលេខសិស្ស៖ ${text}`)
+            notify.success(`បានចម្លងអត្តលេខសិស្ស៖ ${text}`)
         }).catch(err => {
             logger.error('Failed to copy text: ', err)
-            alert('បរាជ័យក្នុងការ Copy។ សូម Copy លេខកូដដោយផ្ទាល់។')
+            notify.error('បរាជ័យក្នុងការចម្លង សូមចម្លងលេខកូដដោយផ្ទាល់')
         })
     }
 

@@ -55,7 +55,7 @@ export default function DecorationsClient() {
               placeholder="ស្វែងរកសម្ភារៈតុបតែង..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-11 pr-4 py-3 rounded-xl border border-divider bg-white text-text-heading focus:ring-2 focus:ring-focus-ring outline-none shadow-sm transition-all"
+              className="w-full pl-11 pr-4 py-3 rounded-xl border border-divider bg-bg-surface text-text-heading focus:ring-2 focus:ring-focus-ring outline-none shadow-sm transition-all"
             />
           </div>
           <div className="w-full md:w-1/3 relative">
@@ -79,7 +79,7 @@ export default function DecorationsClient() {
           <div 
             key={material.id}
             onClick={() => setSelectedMaterial(material)}
-            className="group bg-white rounded-xl border border-divider shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden cursor-pointer flex flex-col transform hover:-translate-y-1"
+            className="group bg-bg-surface rounded-xl border border-divider shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden cursor-pointer flex flex-col transform hover:-translate-y-1"
           >
             <div className="relative h-48 w-full bg-brand-100/50 flex items-center justify-center p-4 border-b border-divider overflow-hidden">
               {material.preview.startsWith('http') || material.preview.startsWith('preview') || material.preview.startsWith('/') ? (
@@ -95,7 +95,7 @@ export default function DecorationsClient() {
               ) : (
                 <ImageIcon className="w-12 h-12 text-brand-300" />
               )}
-              <div className="absolute top-2 right-2 bg-white/90 backdrop-blur text-[10px] font-black px-2.5 py-1 rounded-full text-brand shadow-sm border border-divider">
+              <div className="absolute top-2 right-2 bg-bg-surface/90 backdrop-blur text-[10px] font-black px-2.5 py-1 rounded-full text-brand shadow-sm border border-divider">
                 {material.size}
               </div>
             </div>
@@ -130,8 +130,9 @@ export default function DecorationsClient() {
       {/* Modal */}
       {selectedMaterial && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
-          <div className="bg-white rounded-xl shadow-lg w-full max-w-4xl max-h-[90vh] flex flex-col md:flex-row overflow-hidden relative animate-in fade-in zoom-in duration-200">
+          <div className="dialog-enter bg-bg-surface rounded-xl shadow-lg w-full max-w-4xl max-h-[90vh] flex flex-col md:flex-row overflow-hidden relative">
             <button 
+              aria-label="បិទ"
               onClick={() => setSelectedMaterial(null)}
               className="absolute top-4 right-4 z-10 bg-paper/80 hover:bg-divider text-text-body rounded-full p-2 backdrop-blur-sm transition-colors"
             >
@@ -171,7 +172,7 @@ export default function DecorationsClient() {
                       href={size.file}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="group relative overflow-hidden bg-white hover:bg-brand-hover border border-divider hover:border-brand p-4 rounded-xl flex items-center justify-between transition-all duration-300 shadow-sm hover:shadow-md"
+                      className="group relative overflow-hidden bg-bg-surface hover:bg-brand-hover border border-divider hover:border-brand p-4 rounded-xl flex items-center justify-between transition-all duration-300 shadow-sm hover:shadow-md"
                     >
                       <div className="flex items-center gap-4 relative z-10 group-hover:text-white transition-colors">
                         <div className="p-2 bg-brand-100 group-hover:bg-brand/30 rounded-lg text-brand group-hover:text-white transition-colors">

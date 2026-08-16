@@ -22,7 +22,7 @@ export function BulkActionBar({
   if (selectedCount === 0) return null
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 mx-auto max-w-5xl p-4 animate-in slide-in-from-bottom-4">
+    <div className="fixed bottom-0 left-0 right-0 z-40 mx-auto max-w-5xl p-4 sheet-enter">
       <div className="flex items-center justify-between rounded-xl border border-divider bg-gray-900 px-4 py-3 text-white shadow-2xl backdrop-blur-md dark:bg-white dark:text-gray-900 flex-wrap gap-4">
         
         <div className="flex items-center gap-4 font-kh-moul text-sm font-bold">

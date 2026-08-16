@@ -1,6 +1,7 @@
 import { useState, useRef, type ReactNode, type InputHTMLAttributes } from 'react'
-import { AlertCircle, Camera, CheckCircle2, Image as ImageIcon, Smile, User, Bot, UploadCloud, X, Trash2, type LucideIcon } from 'lucide-react'
+import { AlertCircle, Smile, User, Bot, UploadCloud, X, Trash2, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/actions/Button'
+import { notify } from '@/components/ui/feedback/notify'
 
 export const inputClassName = [
   'min-h-11 w-full rounded-xl border border-divider bg-bg-surface px-3.5 py-2.5 text-[16px] text-text-heading',
@@ -119,7 +120,7 @@ export function PhotoUploader({
     if (!file) return
 
     if (file.size > 5 * 1024 * 1024) {
-      alert('ទំហំរូបថតធំពេក។ សូមជ្រើសរើសរូបដែលតូចជាង 5MB។') // using alert temporarily
+      notify.error('ទំហំរូបថតធំពេក សូមជ្រើសរើសរូបដែលតូចជាង ៥MB')
       return
     }
 
@@ -162,10 +163,12 @@ export function PhotoUploader({
       >
         {photoUrl ? (
           <>
+            {/* eslint-disable-next-line @next/next/no-img-element -- user-pasted remote photo; next/image needs an allow-listed host and adds nothing at avatar size */}
             <img src={photoUrl} alt="Student" className="h-full w-full object-cover" />
             <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
               <button
                 type="button"
+                aria-label="លុបរូបថត"
                 onClick={(e) => {
                   e.stopPropagation()
                   onPhotoChange('')
@@ -242,7 +245,7 @@ export function AvatarPickerModal({
       <div role="dialog" className="w-full max-w-2xl overflow-hidden rounded-2xl bg-bg-surface shadow-2xl">
         <div className="flex items-center justify-between border-b border-divider p-4">
           <h2 className="font-extrabold text-text-heading">ជ្រើសរើសរូបតំណាង</h2>
-          <button type="button" onClick={onClose} className="rounded-xl p-2 text-text-muted hover:bg-paper hover:text-danger">
+          <button type="button" aria-label="បិទ" onClick={onClose} className="rounded-xl p-2 text-text-muted hover:bg-paper hover:text-danger">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -266,12 +269,14 @@ export function AvatarPickerModal({
             <button
               key={`${activeTab}-${seed}`}
               type="button"
+              aria-label={`ជ្រើសរើសរូបតំណាង ${seed}`}
               onClick={() => {
                 onSelect(`https://api.dicebear.com/7.x/${activeTab}/svg?seed=${seed}`)
                 onClose()
               }}
               className="overflow-hidden rounded-xl border-2 border-transparent bg-paper p-2 transition hover:border-brand focus:border-brand focus:outline-none"
             >
+              {/* eslint-disable-next-line @next/next/no-img-element -- user-pasted remote photo; next/image needs an allow-listed host and adds nothing at avatar size */}
               <img src={`https://api.dicebear.com/7.x/${activeTab}/svg?seed=${seed}`} alt={`រូបលេខ ${seed}`} />
             </button>
           ))}

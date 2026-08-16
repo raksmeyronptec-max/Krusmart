@@ -8,6 +8,7 @@ import Select from '@/components/ui/forms/Select'
 import type { Settings, Student } from '@/lib/types'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import { formatKhmerDate } from '@/lib/utils/date'
+import { notify } from '@/components/ui/feedback/notify'
 
 /**
  * The student's place of birth, with the administrative-unit prefix stripped
@@ -57,7 +58,7 @@ export default function IdStudentClient({ initialStudents, settings }: { initial
     const handleBgChange = (val: string) => {
         setCurrentBgImage(`/id-templates/${val}`)
         if (val === '3_id_student.png' && !settings?.school_logo) {
-            alert('⚠️ មិនទាន់មាន Logo សាលាទេ!\n\nសូមចូលទៅទំព័រ "ព័ត៌មានគណនី" (Profile) ដើម្បី Upload រូបសញ្ញាសាលា (Logo) ជាមុនសិន។')
+            notify.error('មិនទាន់មានរូបសញ្ញាសាលា — សូមបញ្ចូលវានៅទំព័រព័ត៌មានគណនីជាមុនសិន')
         }
     }
 

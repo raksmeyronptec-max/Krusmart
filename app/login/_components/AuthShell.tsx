@@ -1,6 +1,5 @@
 import { type ReactNode } from 'react'
 import { ROLE_CONFIGS, type LoginRole } from '@/lib/auth/role-config'
-import Image from 'next/image'
 
 interface AuthShellProps {
   role?: LoginRole

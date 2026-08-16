@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/actions/Button'
 import { Search, Loader2, Save, Printer, Crown, Users, X, CalendarDays, Shuffle, Check } from "lucide-react";
 import { createClient } from '../../../lib/supabase/client'
 import { getErrorMessage } from '@/lib/utils/errors'
+import { notify } from '@/components/ui/feedback/notify'
 import { logger } from '@/lib/utils/logger'
 import type { CleaningGroups, CleaningLeaders, Student } from '@/lib/types'
 import { randomiseCleaningGroups } from '@/lib/utils/cleaning-random'
@@ -46,7 +47,7 @@ export default function CleaningSchedulePage() {
 
       if (studentsRes.error) {
         logger.error(studentsRes.error);
-        alert('មានបញ្ហាក្នុងការទាញបញ្ជីសិស្ស');
+        notify.error('មានបញ្ហាក្នុងការទាញបញ្ជីសិស្ស')
       } else if (studentsRes.data) {
         setStudents(studentsRes.data);
       }
@@ -60,7 +61,7 @@ export default function CleaningSchedulePage() {
       }
     } catch (e) {
       logger.error(e);
-      alert('មានបញ្ហាក្នុងការទាញទិន្នន័យ');
+      notify.error('មានបញ្ហាក្នុងការទាញទិន្នន័យ')
     } finally {
     }
   }, [supabase])
@@ -86,10 +87,10 @@ export default function CleaningSchedulePage() {
 
       const { error } = await supabase.from('cleaning_schedules').upsert(payload, { onConflict: 'teacher_id' });
       if (error) throw error;
-      alert('រក្សាទុករួចរាល់!');
+      notify.success('រក្សាទុករួចរាល់')
     } catch (e: unknown) {
       logger.error(e);
-      alert('មានបញ្ហាក្នុងការរក្សាទុក: ' + getErrorMessage(e));
+      notify.error('មានបញ្ហាក្នុងការរក្សាទុក៖ ' + getErrorMessage(e))
     } finally {
       setSaving(false);
     }
@@ -105,11 +106,11 @@ export default function CleaningSchedulePage() {
 
   const handleRandomise = () => {
     if (randomDays.length === 0) {
-      alert('សូមជ្រើសរើសយ៉ាងហោចណាស់មួយថ្ងៃ!');
+      notify.error('សូមជ្រើសរើសយ៉ាងហោចណាស់មួយថ្ងៃ')
       return;
     }
     if (students.length === 0) {
-      alert('មិនទាន់មានបញ្ជីសិស្សនៅឡើយទេ');
+      notify.error('មិនទាន់មានបញ្ជីសិស្សនៅឡើយទេ')
       return;
     }
     // Only the ticked days are rebuilt; any day the teacher arranged by hand and
@@ -137,7 +138,7 @@ export default function CleaningSchedulePage() {
   };
 
   return (
-    <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6 animate-fade-in relative pb-20">
+    <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6 relative pb-20">
       {/* The toolbar's print button had no print stylesheet, so it printed the
           whole app chrome. A4 portrait, one table of the week's rota. */}
       <style jsx global>{`
@@ -156,7 +157,7 @@ export default function CleaningSchedulePage() {
       `}</style>
       
       {/* Top Header Section */}
-      <div className="no-print bg-white/60 backdrop-blur-md p-6 md:p-8 rounded-xl shadow-sm border border-white/50 mb-8">
+      <div className="no-print bg-bg-surface/60 backdrop-blur-md p-6 md:p-8 rounded-xl shadow-sm border border-divider mb-8">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between pb-6 border-b border-divider gap-4">
               <div className="flex items-center gap-4">
                   <div className="p-3.5 bg-gradient-to-br from-brand-100 to-brand-100 rounded-xl shadow-sm border border-white">
@@ -194,7 +195,7 @@ export default function CleaningSchedulePage() {
                           </label>
                           
                           {leaders[role] ? (
-                              <div className="flex items-center justify-between bg-white border border-divider p-2.5 rounded-xl shadow-sm">
+                              <div className="flex items-center justify-between bg-bg-surface border border-divider p-2.5 rounded-xl shadow-sm">
                                   <div className="flex items-center gap-2">
                                       {leaders[role].image ? (
                                         // eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture
@@ -219,7 +220,7 @@ export default function CleaningSchedulePage() {
                                     onChange={(e) => setSearchKeys({...searchKeys, [role]: e.target.value})}
                                   />
                                   {searchKeys[role] && (
-                                     <div className="absolute top-full left-0 z-50 w-full mt-1 bg-white border border-divider rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                                     <div className="absolute top-full left-0 z-50 w-full mt-1 bg-bg-surface border border-divider rounded-xl shadow-lg max-h-48 overflow-y-auto">
                                         {students.filter(s => s.name_kh.includes(searchKeys[role])).map(s => (
                                           <div key={s.id} onClick={() => handleSelect(role, s)} className="p-2 hover:bg-brand-100 cursor-pointer flex items-center gap-2 border-b border-divider last:border-0 text-sm">
                                             {s.name_kh}
@@ -247,14 +248,14 @@ export default function CleaningSchedulePage() {
                               <h4 className={`font-bold ${day.text} flex items-center gap-2`}>
                                   <CalendarDays className="w-4 h-4" /> {day.name}
                               </h4>
-                              <span className="text-xs font-bold bg-white/50 px-2 py-1 rounded-full text-text-body">
+                              <span className="text-xs font-bold bg-bg-surface/50 px-2 py-1 rounded-full text-text-body">
                                   {groups[day.id]?.length || 0} នាក់
                               </span>
                           </div>
                           
                           <div className="flex-1 space-y-2 mb-4">
                              {groups[day.id]?.map(member => (
-                                <div key={member.id} className="bg-white/80 backdrop-blur-sm border border-white p-2 rounded-xl flex items-center justify-between shadow-sm">
+                                <div key={member.id} className="bg-bg-surface/80 backdrop-blur-sm border border-divider p-2 rounded-xl flex items-center justify-between shadow-sm">
                                     <div className="flex items-center gap-2">
                                         {member.image ? (
                                           // eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture
@@ -267,7 +268,7 @@ export default function CleaningSchedulePage() {
                                           <span className="rounded-full bg-brand-100 px-2 py-0.5 text-[10px] font-bold text-brand">{member.role}</span>
                                         )}
                                     </div>
-                                    <button onClick={() => handleRemove('group', day.id, member.id)} className="text-danger hover:text-danger">
+                                    <button aria-label={`ដកចេញ ${member.name}`} onClick={() => handleRemove('group', day.id, member.id)} className="text-danger hover:text-danger">
                                       <X className="w-4 h-4" />
                                     </button>
                                 </div>
@@ -279,12 +280,12 @@ export default function CleaningSchedulePage() {
                               <input 
                                 type="text" 
                                 placeholder="បន្ថែមសិស្ស..." 
-                                className="w-full pl-9 pr-3 py-2 border border-white/60 bg-white/60 rounded-xl text-sm focus:ring-2 focus:ring-focus-ring outline-none placeholder:text-text-muted"
+                                className="w-full pl-9 pr-3 py-2 border border-divider bg-bg-surface/60 rounded-xl text-sm focus:ring-2 focus:ring-focus-ring outline-none placeholder:text-text-muted"
                                 value={searchKeys[day.id] || ""}
                                 onChange={(e) => setSearchKeys({...searchKeys, [day.id]: e.target.value})}
                               />
                               {searchKeys[day.id] && (
-                                 <div className="absolute bottom-full left-0 z-50 w-full mb-1 bg-white border border-divider rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                                 <div className="absolute bottom-full left-0 z-50 w-full mb-1 bg-bg-surface border border-divider rounded-xl shadow-lg max-h-48 overflow-y-auto">
                                     {students.filter(s => s.name_kh.includes(searchKeys[day.id])).map(s => (
                                       <div key={s.id} onClick={() => handleSelect('group', s, day.id)} className="p-2 hover:bg-brand-100 cursor-pointer flex items-center gap-2 border-b border-divider last:border-0 text-sm">
                                         {s.name_kh}
@@ -300,7 +301,7 @@ export default function CleaningSchedulePage() {
       </div>
 
       {/* Printable roster */}
-      <div className="cleaning-print bg-white text-black">
+      <div className="cleaning-print bg-bg-surface text-black">
         <div className="mb-5 text-center">
           <h3 className="kh-moul text-[13pt]">ព្រះរាជាណាចក្រកម្ពុជា</h3>
           <h3 className="kh-moul text-[13pt]">ជាតិ សាសនា ព្រះមហាក្សត្រ</h3>
@@ -362,7 +363,7 @@ export default function CleaningSchedulePage() {
       {/* Automatic assignment */}
       {isRandomOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="random-title">
-          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-lg">
+          <div className="w-full max-w-lg rounded-xl bg-bg-surface p-6 shadow-lg">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <h3 id="random-title" className="kh-moul text-lg text-brand">ចាត់តាំងវេនសម្អាតដោយស្វ័យប្រវត្តិ</h3>
@@ -385,7 +386,7 @@ export default function CleaningSchedulePage() {
                     type="button"
                     onClick={() => toggleRandomDay(day.id)}
                     aria-pressed={on}
-                    className={`flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-sm font-bold transition ${on ? 'border-divider bg-brand-100 text-brand' : 'border-divider bg-white text-text-muted hover:border-divider'}`}
+                    className={`flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-sm font-bold transition ${on ? 'border-divider bg-brand-100 text-brand' : 'border-divider bg-bg-surface text-text-muted hover:border-divider'}`}
                   >
                     {on && <Check className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
                     {day.name}

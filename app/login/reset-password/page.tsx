@@ -52,7 +52,7 @@ export default function ResetPasswordPage() {
         </div>
 
         {success ? (
-          <div className="text-center animate-in fade-in zoom-in duration-300">
+          <div className="text-center dialog-enter">
             <div className="bg-success/10 text-success p-6 rounded-2xl border border-success/30 mb-6">
                 <p className="font-medium text-sm">
                     តំណភ្ជាប់សម្រាប់កំណត់ពាក្យសម្ងាត់ថ្មីត្រូវបានបញ្ជូនទៅ<br/><b className="mt-2 inline-block">{email}</b>
@@ -66,7 +66,7 @@ export default function ResetPasswordPage() {
             </Link>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4 animate-in fade-in zoom-in duration-300">
+          <form onSubmit={handleSubmit} className="space-y-4 dialog-enter">
             <div>
                 <label htmlFor="email" className="block text-sm font-semibold text-text-body dark:text-text-body mb-1">អុីមែល (Email)</label>
                 <div className="relative">

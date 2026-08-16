@@ -166,7 +166,7 @@ export default function LoginForm({ role = 'universal', hideRegister = false }: 
 
   if (mode === 'verify') {
     return (
-      <div className="flex flex-col items-center animate-in fade-in zoom-in duration-300">
+      <div className="flex flex-col items-center dialog-enter">
         <div className="w-16 h-16 bg-brand-100 dark:bg-brand-800/50 rounded-full flex items-center justify-center mx-auto mb-4 text-brand dark:text-brand-400 shadow-inner">
             <ShieldCheck className="w-8 h-8" />
         </div>

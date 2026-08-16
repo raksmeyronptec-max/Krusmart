@@ -6,6 +6,7 @@ import Link from 'next/link'
 import * as XLSX from 'xlsx-js-style'
 import type { Settings, Student } from '@/lib/types'
 import { ALIGN_CENTER, ALIGN_LEFT, emptyCell, khmerFont, moulFont, THIN_BORDER, type SheetMerge, type SheetRow } from '@/lib/utils/xlsx'
+import { notify } from '@/components/ui/feedback/notify'
 
 export default function PrintListClient({ initialStudents, settings }: { initialStudents: Student[], settings: Settings | null }) {
 
@@ -40,7 +41,7 @@ export default function PrintListClient({ initialStudents, settings }: { initial
 
     const exportExcel = () => {
         if (initialStudents.length === 0) {
-            alert("មិនមានទិន្នន័យដើម្បីទាញយកទេ!")
+            notify.error('មិនមានទិន្នន័យដើម្បីទាញយកទេ')
             return
         }
 

@@ -3,11 +3,9 @@
 import { useState, useEffect } from 'react'
 import { useConfirm } from '@/components/ui/overlay/ConfirmDialog'
 import { Button } from '@/components/ui/actions/Button'
-import Link from 'next/link'
-import { 
-    ArrowLeft, BellRing, Send, Info, AlertTriangle, Award, Paperclip, 
-    History, Clock, Trash2, Loader2, MailX
-} from 'lucide-react'
+import { notify } from '@/components/ui/feedback/notify'
+import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
+import { Send, Info, AlertTriangle, Award, Paperclip, History, Clock, Trash2, Loader2, MailX } from 'lucide-react'
 import { getNotifications, addNotification, deleteNotification } from './actions'
 import SearchableSelect from '@/components/ui/forms/SearchableSelect'
 import type { Notification, Student } from '@/lib/types'
@@ -60,11 +58,11 @@ export default function NotificationsClient({ initialStudents}: { initialStudent
             setType('info')
             setTarget('all')
             
-            alert('✅ បានផ្ញើសារជូនដំណឹងដោយជោគជ័យ!')
+            notify.success('បានផ្ញើសារជូនដំណឹងដោយជោគជ័យ')
             loadData()
         } catch (error: unknown) {
             logger.error(error)
-            alert("បរាជ័យក្នុងការផ្ញើសារ។ សូមសាកល្បងម្តងទៀត។")
+            notify.error('បរាជ័យក្នុងការផ្ញើសារ សូមសាកល្បងម្តងទៀត')
         } finally {
             setIsSubmitting(false)
         }
@@ -84,27 +82,17 @@ export default function NotificationsClient({ initialStudents}: { initialStudent
             loadData()
         } catch (error) {
             logger.error(error)
-            alert("មិនអាចលុបបានទេ!")
+            notify.error('មិនអាចលុបបានទេ')
             setIsLoading(false)
         }
     }
 
     return (
-        <div className="min-h-screen bg-paper text-text-heading pb-10">
-            {/* Navbar */}
-            <nav className="bg-brand text-white p-4 shadow-lg sticky top-0 z-50">
-                <div className="container mx-auto max-w-6xl flex justify-between items-center">
-                    <div className="flex items-center gap-4">
-                        <Link href="/dashboard" className="flex items-center gap-2 hover:text-gold transition font-bold text-sm bg-white/10 px-3 py-1.5 rounded-lg">
-                            <ArrowLeft className="w-4 h-4" /> ទំព័រដើម
-                        </Link>
-                        <h1 className="kh-moul text-lg hidden sm:block">ប្រព័ន្ធផ្ញើការជូនដំណឹង (Notifications)</h1>
-                    </div>
-                    <div className="bg-white/20 p-2 rounded-full">
-                        <BellRing className="w-5 h-5 text-gold animate-pulse" />
-                    </div>
-                </div>
-            </nav>
+        <PageContainer>
+            <PageHeader
+                title="ប្រព័ន្ធផ្ញើការជូនដំណឹង"
+                description="ផ្ញើសារជូនដំណឹងទៅអាណាព្យាបាល និងគ្រប់គ្រងសារដែលបានផ្ញើ"
+            />
 
             <div className="container mx-auto max-w-6xl px-4 mt-8">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -219,7 +207,7 @@ export default function NotificationsClient({ initialStudents}: { initialStudent
                                         const dateStr = `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`
 
                                         return (
-                                            <div key={n.id} className="bg-white p-4 rounded-xl shadow-sm border border-divider hover:shadow-md transition relative group">
+                                            <div key={n.id} className="bg-bg-surface p-4 rounded-xl shadow-sm border border-divider hover:shadow-md transition relative group">
                                                 <div className="flex gap-4">
                                                     <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${colorClass}`}>
                                                         {icon}
@@ -251,10 +239,10 @@ export default function NotificationsClient({ initialStudents}: { initialStudent
             
             <style jsx global>{`
                 .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-                .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
-                .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+                .custom-scrollbar::-webkit-scrollbar-track { background: var(--paper); border-radius: 10px; }
+                .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--divider); border-radius: 10px; }
             `}</style>
             {dialog}
-        </div>
+        </PageContainer>
     )
 }

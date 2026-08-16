@@ -26,7 +26,7 @@ export default function WorkspaceChooser({ availableRoles }: WorkspaceChooserPro
   }
 
   return (
-    <div className="flex flex-col animate-in fade-in zoom-in duration-300">
+    <div className="flex flex-col dialog-enter">
       <h3 className="text-xl font-bold text-text-heading dark:text-white mb-2 kh-moul">ជ្រើសរើសទម្រង់</h3>
       <p className="text-text-muted dark:text-text-muted text-sm mb-6">
         គណនីរបស់អ្នកមានសិទ្ធិលើសពីមួយ។ សូមជ្រើសរើសទម្រង់ដែលអ្នកចង់ចូលប្រើ៖

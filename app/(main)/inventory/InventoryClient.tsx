@@ -6,9 +6,8 @@ import { EmptyState } from '@/components/ui/feedback/EmptyState'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import { useConfirm } from '@/components/ui/overlay/ConfirmDialog'
 import { Button } from '@/components/ui/actions/Button'
-import { ArrowLeft, Package, PlusCircle, Save, X, List, Printer, Edit, Trash2 } from 'lucide-react'
-import Link from 'next/link'
-import toast from 'react-hot-toast'
+import { Package, PlusCircle, Save, X, List, Printer, Edit, Trash2 } from 'lucide-react'
+import { notify } from '@/components/ui/feedback/notify'
 import type { InventoryItemRow, Settings } from '@/lib/types'
 import { STORAGE_KEYS } from '@/lib/constants/storage'
 import {
@@ -85,7 +84,7 @@ export default function InventoryClient({
             const rows = await listInventoryItems()
             if (!cancelled) {
                 setItems(rows)
-                if (res.imported) toast.success(`បាននាំចូលសម្ភារៈ ${res.imported} មុខ`)
+                if (res.imported) notify.success(`បាននាំចូលសម្ភារៈ ${res.imported} មុខ`)
             }
         }
         run()
@@ -106,12 +105,12 @@ export default function InventoryClient({
                 : await createInventoryItem(payload)
 
             if (res.error) {
-                toast.error(res.error)
+                notify.error(res.error)
                 return
             }
             await refresh()
             resetForm()
-            toast.success(editId ? 'បានកែប្រែសម្ភារៈ' : 'បានបញ្ចូលសម្ភារៈថ្មី')
+            notify.success(editId ? 'បានកែប្រែសម្ភារៈ' : 'បានបញ្ចូលសម្ភារៈថ្មី')
         })
     }
 
@@ -130,12 +129,12 @@ export default function InventoryClient({
         startTransition(async () => {
             const res = await deleteInventoryItem(id)
             if (res.error) {
-                toast.error(res.error)
+                notify.error(res.error)
                 return
             }
             await refresh()
             if (editId === id) resetForm()
-            toast.success('បានលុបសម្ភារៈ')
+            notify.success('បានលុបសម្ភារៈ')
         })
     }
 
@@ -151,7 +150,7 @@ export default function InventoryClient({
     }
 
     return (
-        <div className="min-h-screen bg-paper text-text-heading font-battambang print:bg-white print:m-0 print:p-0">
+        <div className="text-text-heading font-battambang print:bg-bg-surface print:m-0 print:p-0">
             <style jsx global>{`
                 .print-container { display: none; }
                 @media print {
@@ -174,13 +173,8 @@ export default function InventoryClient({
             `}</style>
 
             <div className="no-print max-w-5xl mx-auto px-4 mt-8 pb-10">
-                <div className="flex justify-between items-center mb-6">
-                    <Link href="/dashboard" className="inline-flex items-center gap-2 text-brand hover:text-brand-800 font-bold transition bg-white/50 px-4 py-2 rounded-xl backdrop-blur-sm shadow-sm w-fit">
-                        <ArrowLeft className="w-5 h-5" /> ត្រឡប់ទៅទំព័រដើម
-                    </Link>
-                </div>
 
-                <div className="bg-white/95 backdrop-blur border border-white/50 rounded-xl p-6 md:p-8 shadow-lg mb-8">
+                <div className="bg-bg-surface/95 backdrop-blur border border-divider rounded-xl p-6 md:p-8 shadow-lg mb-8">
                     <div className="flex items-center gap-3 mb-6 border-b pb-4">
                         <div className="p-3 bg-brand-100 rounded-full text-brand">
                             <Package className="w-6 h-6" />
@@ -196,22 +190,22 @@ export default function InventoryClient({
                         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                             <div className="md:col-span-5">
                                 <label className="block text-sm font-bold text-text-body mb-1">ឈ្មោះសម្ភារៈ <span className="text-danger">*</span></label>
-                                <input type="text" value={name} onChange={e => setName(e.target.value)} required placeholder="-- ជ្រើសរើស ឬវាយបញ្ចូល --" className="w-full padding-3 rounded-xl border border-divider outline-none bg-white p-2 font-bold focus:border-brand" />
+                                <input type="text" value={name} onChange={e => setName(e.target.value)} required placeholder="-- ជ្រើសរើស ឬវាយបញ្ចូល --" className="w-full padding-3 rounded-xl border border-divider outline-none bg-bg-surface p-2 font-bold focus:border-brand" />
                             </div>
                             <div className="md:col-span-2">
                                 <label className="block text-sm font-bold text-text-body mb-1">ចំនួន <span className="text-danger">*</span></label>
-                                <input type="number" value={qty} onChange={e => setQty(e.target.value)} required min="1" placeholder="ឧ. 20" className="w-full padding-3 rounded-xl border border-divider outline-none bg-white p-2 text-center font-bold focus:border-brand" />
+                                <input type="number" value={qty} onChange={e => setQty(e.target.value)} required min="1" placeholder="ឧ. 20" className="w-full padding-3 rounded-xl border border-divider outline-none bg-bg-surface p-2 text-center font-bold focus:border-brand" />
                             </div>
                             <div className="md:col-span-3">
                                 <label className="block text-sm font-bold text-text-body mb-1">ផ្សេងៗ (ចំណាំ)</label>
-                                <input type="text" value={note} onChange={e => setNote(e.target.value)} placeholder="ស្ថានភាព (ល្អ, ខូច...)" className="w-full padding-3 rounded-xl border border-divider outline-none bg-white p-2 focus:border-brand" />
+                                <input type="text" value={note} onChange={e => setNote(e.target.value)} placeholder="ស្ថានភាព (ល្អ, ខូច...)" className="w-full padding-3 rounded-xl border border-divider outline-none bg-bg-surface p-2 focus:border-brand" />
                             </div>
                             <div className="md:col-span-2 flex gap-2">
                                 <button type="submit" disabled={pending} className={`w-full text-white font-bold py-2.5 rounded-xl transition shadow flex justify-center items-center gap-2 disabled:opacity-60 ${editId ? 'bg-warning hover:bg-warning' : 'bg-brand hover:bg-brand-hover'}`}>
                                     <Save className="w-4 h-4" /> យល់ព្រម
                                 </button>
                                 {editId && (
-                                    <button type="button" onClick={resetForm} className="bg-divider hover:bg-text-muted text-white font-bold py-2.5 px-3 rounded-xl transition shadow">
+                                    <button type="button" aria-label="បោះបង់ការកែប្រែ" onClick={resetForm} className="bg-divider hover:bg-text-muted text-white font-bold py-2.5 px-3 rounded-xl transition shadow">
                                         <X className="w-4 h-4" />
                                     </button>
                                 )}
@@ -280,7 +274,7 @@ export default function InventoryClient({
             </div>
 
             {/* Print Area */}
-            <div className="print-container bg-white w-[210mm] min-h-[297mm] mx-auto relative p-[15mm] text-black">
+            <div className="print-container bg-bg-surface w-[210mm] min-h-[297mm] mx-auto relative p-[15mm] text-black">
                 <div className="text-center w-full mb-6">
                     <h3 className="kh-moul text-[13pt] mb-1">ព្រះរាជាណាចក្រកម្ពុជា</h3>
                     <h3 className="kh-moul text-[13pt] mb-1">ជាតិ សាសនា ព្រះមហាក្សត្រ</h3>

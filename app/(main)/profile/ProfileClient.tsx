@@ -1,8 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, User, Building2, ShieldCheck, Save, Camera, Eye, EyeOff, MapPin, Image as ImageIcon, Info, Trash2 } from 'lucide-react'
-import Link from 'next/link'
+import { User, Building2, ShieldCheck, Save, Camera, Eye, EyeOff, MapPin, Image as ImageIcon, Info, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import SearchableSelect from '@/components/ui/forms/SearchableSelect'
 import Select from '@/components/ui/forms/Select'
@@ -216,15 +215,12 @@ export default function ProfileClient({ initialSettings }: { initialSettings: Se
     }
 
     return (
-        <div className="min-h-screen bg-bg-app text-text-heading relative overflow-hidden">
+        <div className="relative overflow-hidden text-text-heading">
             <div className="absolute top-0 left-0 right-0 h-[220px] bg-gradient-to-br from-[var(--brand)] to-[var(--brand-500)] z-0"></div>
 
             <div className="relative z-10 max-w-5xl mx-auto px-4 py-8">
-                <div className="flex justify-between items-center mb-8 text-white">
-                    <Link href="/dashboard" className="inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg backdrop-blur-sm font-medium transition text-sm shadow-sm">
-                        <ArrowLeft className="w-4 h-4" /> ត្រឡប់ទៅទំព័រដើម
-                    </Link>
-                    <h1 className="kh-moul text-xl tracking-wide text-white/90 hidden sm:block">គណនីរបស់អ្នកប្រើប្រាស់</h1>
+                <div className="mb-8 flex items-center justify-between text-white">
+                    <h1 className="kh-moul text-xl tracking-wide text-white/90">គណនីរបស់អ្នកប្រើប្រាស់</h1>
                 </div>
 
                 <form onSubmit={handleSave} className="space-y-6">

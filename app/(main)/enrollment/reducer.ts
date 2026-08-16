@@ -1,4 +1,4 @@
-import { useReducer, useEffect } from 'react'
+import { useEffect } from 'react'
 
 export interface EnrollmentState {
   photoUrl: string

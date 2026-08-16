@@ -271,7 +271,7 @@ export default function AdministrationClient() {
             <p className="font-bold">សូមជ្រើសរើសឈ្មោះគ្រូខាងលើ ដើម្បីមើលទិន្នន័យវិភាគលម្អិត។</p>
           </div>
         ) : (
-          <div className="flex flex-col animate-in fade-in zoom-in duration-300">
+          <div className="flex flex-col dialog-enter">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <div className="bg-brand-100/50 p-4 rounded-xl border border-divider text-center shadow-sm">
                 <span className="text-[10px] text-text-muted font-bold uppercase mb-1 block">ចំនួនសិស្សក្នុងថ្នាក់</span>

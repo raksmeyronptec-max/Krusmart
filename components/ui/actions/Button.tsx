@@ -49,8 +49,8 @@ const VARIANTS: Record<ButtonVariant, string> = {
   primary: "bg-brand text-brand-contrast hover:bg-brand-hover",
   secondary: "border border-divider bg-bg-surface text-text-heading hover:bg-paper",
   success: "bg-success text-white hover:opacity-90",
-  // Consequential but not destructive — a bulk promotion, an override. `danger`
-  // would overstate it; `primary` would understate it.
+  // Consequential but not destructive — bulk imports and overrides should not
+  // resemble either a routine primary action or an irreversible deletion.
   warning: "bg-warning text-white hover:opacity-90",
   danger: "bg-danger text-white hover:opacity-90",
   ghost: "bg-transparent text-text-body hover:bg-paper",

@@ -55,7 +55,7 @@ export default function UpdatePasswordPage() {
             </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4 animate-in fade-in zoom-in duration-300">
+        <form onSubmit={handleSubmit} className="space-y-4 dialog-enter">
             <div>
                 <label htmlFor="password" className="block text-sm font-semibold text-text-body dark:text-text-body mb-1">ពាក្យសម្ងាត់ថ្មី (New Password)</label>
                 <div className="relative">

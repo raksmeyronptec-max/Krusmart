@@ -50,14 +50,14 @@ export function AdvancedFilterSidebar({
   return (
     <>
       <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm lg:hidden" onClick={onClose} aria-hidden="true" />
-      <div 
-        role="search"
-        aria-expanded={isOpen}
-        className="fixed inset-y-0 right-0 z-50 w-full max-w-sm flex-col border-l border-divider bg-paper shadow-2xl transition-transform duration-300 lg:sticky lg:top-0 lg:h-screen lg:w-80 lg:shadow-none animate-in slide-in-from-right"
+      <div
+        role="region"
+        aria-label="តម្រងស្វែងរក"
+        className="fixed inset-y-0 right-0 z-50 w-full max-w-sm flex-col border-l border-divider bg-paper shadow-2xl transition-transform duration-300 lg:sticky lg:top-0 lg:h-screen lg:w-80 lg:shadow-none drawer-enter"
       >
         <div className="flex items-center justify-between border-b border-divider px-4 py-3">
           <h2 className="text-lg font-bold text-text-heading">តម្រងស្វែងរក</h2>
-          <button onClick={onClose} className="rounded-md p-2 text-text-muted hover:bg-gray-100 lg:hidden" aria-label="បិទ">
+          <button onClick={onClose} className="rounded-md p-2 text-text-muted hover:bg-paper lg:hidden" aria-label="បិទ">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -118,7 +118,7 @@ export function AdvancedFilterSidebar({
                       type="checkbox" 
                       checked={!!filters[key as keyof FilterState]}
                       onChange={() => handleToggle(key as keyof FilterState)}
-                      className="h-4 w-8 rounded-full border-2 border-transparent bg-gray-200 transition-colors checked:bg-brand checked:focus:bg-brand focus:ring-brand focus:ring-offset-1 appearance-none relative before:absolute before:inset-y-0 before:left-0 before:h-3 before:w-3 before:rounded-full before:bg-white before:transition-transform checked:before:translate-x-4 cursor-pointer"
+                      className="h-4 w-8 rounded-full border-2 border-transparent bg-divider transition-colors checked:bg-brand checked:focus:bg-brand focus:ring-brand focus:ring-offset-1 appearance-none relative before:absolute before:inset-y-0 before:left-0 before:h-3 before:w-3 before:rounded-full before:bg-white before:transition-transform checked:before:translate-x-4 cursor-pointer"
                       role="switch"
                       aria-checked={!!filters[key as keyof FilterState]}
                     />

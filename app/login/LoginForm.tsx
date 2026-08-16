@@ -185,7 +185,7 @@ export default function LoginForm() {
         <div className="w-full md:w-1/2 order-2 bg-paper dark:bg-brand-950/50 p-5 md:p-6 lg:p-8 rounded-2xl border border-divider dark:border-divider shadow-inner relative">
           
           {mode === 'verify' ? (
-              <div className="flex flex-col items-center animate-in fade-in zoom-in duration-300">
+              <div className="flex flex-col items-center dialog-enter">
                   <div className="w-16 h-16 bg-brand-100 dark:bg-brand-800/50 rounded-full flex items-center justify-center mx-auto mb-4 text-brand dark:text-brand-400 shadow-inner">
                       <ShieldCheck className="w-8 h-8" />
                   </div>

@@ -16,7 +16,7 @@ export function ThemeToggle() {
 
   if (!mounted) {
     return (
-      <button className="p-2 text-text-muted dark:text-text-muted bg-brand-100 dark:bg-bg-surface rounded-lg transition-colors">
+      <button aria-hidden="true" tabIndex={-1} className="p-2 text-text-muted dark:text-text-muted bg-brand-100 dark:bg-bg-surface rounded-lg transition-colors">
         <Sun className="w-5 h-5 opacity-0" />
       </button>
     )

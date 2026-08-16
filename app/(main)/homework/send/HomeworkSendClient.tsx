@@ -10,7 +10,7 @@ import { Dialog } from '@/components/ui/overlay/Dialog'
 import { useConfirm } from '@/components/ui/overlay/ConfirmDialog'
 import { notify } from '@/components/ui/feedback/notify'
 import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
-import { getAssignments, addAssignment, deleteAssignment } from './actions'
+import { getAssignments, addAssignment, deleteAssignment, uploadHomeworkPhoto } from './actions'
 import SearchableSelect from '@/components/ui/forms/SearchableSelect'
 import { getErrorMessageOr } from '@/lib/utils/errors'
 import { logger } from '@/lib/utils/logger'
@@ -101,26 +101,15 @@ export default function HomeworkSendClient({ userId }: { userId: string }) {
             let finalPhotoUrl = null
 
             if (imageBase64 && imageBase64.startsWith('data:image')) {
-                const base64Data = imageBase64.split(',')[1]
-                const formData = new FormData()
-                formData.append('key', 'ccb0cd39984dae5017f41fdd627f4bb4')
-                formData.append('image', base64Data)
-                
+                // The upload runs on the server: the imgbb key used to be
+                // appended here, which put it in the browser bundle.
                 const customImageName = `HW_${userId.substring(0, 5)}_${subject.substring(0, 10)}`
-                formData.append('name', customImageName)
+                const upload = await uploadHomeworkPhoto(imageBase64, customImageName)
 
-                const uploadResponse = await fetch('https://api.imgbb.com/1/upload', {
-                    method: 'POST',
-                    body: formData
-                })
-                
-                const uploadResult = await uploadResponse.json()
-                
-                if (uploadResult.success) {
-                    finalPhotoUrl = uploadResult.data.url
-                } else {
-                    throw new Error("មានបញ្ហាក្នុងការ Upload រូបភាព។")
+                if (upload.error || !upload.url) {
+                    throw new Error(upload.error ?? 'មានបញ្ហាក្នុងការផ្ទុករូបភាព')
                 }
+                finalPhotoUrl = upload.url
             }
 
             const res = await addAssignment({
