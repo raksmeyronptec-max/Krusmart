@@ -1,9 +1,14 @@
-import LoginForm from './LoginForm'
+import AuthShell from './_components/AuthShell'
+import LoginForm from './_components/LoginForm'
 
-export default function LoginPage() {
+export const metadata = {
+  title: 'ចូលគណនី | KruSmart',
+}
+
+export default function UniversalLoginPage() {
   return (
-    <main className="min-h-screen flex items-center justify-center p-4 bg-animate">
-      <LoginForm />
-    </main>
+    <AuthShell role="universal">
+      <LoginForm role="universal" />
+    </AuthShell>
   )
 }
