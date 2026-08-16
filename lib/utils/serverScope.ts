@@ -3,7 +3,14 @@ import 'server-only'
 import { createClient } from '@/lib/supabase/server'
 import type { QueryScope } from '@/lib/utils/queryFilter'
 import { CLASS_PARAM } from './scopeParam'
-import type { Student, TeacherAssignment } from '@/lib/types'
+import { logger } from '@/lib/utils/logger'
+import {
+  resolveTemplate,
+  SYSTEM_PRIMARY_TEMPLATE,
+  type EffectiveSubject,
+  type TemplateScoreType,
+} from '@/lib/scores/template'
+import type { ScoreTemplateSubjectRow, Student, TeacherAssignment } from '@/lib/types'
 
 /**
  * Server-side counterpart to `lib/utils/queryFilter`.
@@ -153,4 +160,84 @@ export async function rosterIdsForScope(scope: QueryScope): Promise<string[] | n
 
   const { data } = await q
   return (data ?? []).map((r) => r.student_id)
+}
+
+/**
+ * Only hex and dashes reach a PostgREST `or=` string.
+ *
+ * The ids below come from `profiles` and from an assignment this teacher was
+ * already proven to hold, so neither is user input — but `.or()` takes a
+ * *string* filter expression, and the one place in this codebase that builds
+ * one should not be the place that trusts its inputs.
+ */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * Every score-template row that applies to a scope: the national default, the
+ * caller's school, and their active class.
+ *
+ * Three layers in one request rather than three: `resolveTemplate()` needs them
+ * together to decide which one wins per subject, and a classroom connection
+ * should not pay for that three times.
+ *
+ * RLS already restricts what comes back; the explicit `school_id` / `class_id`
+ * filters are the project's usual second guard, and they also keep the payload
+ * to the rows this screen can actually use.
+ */
+export async function fetchScoreTemplateRows(
+  scope: QueryScope,
+): Promise<ScoreTemplateSubjectRow[]> {
+  const supabase = await createClient()
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('school_id')
+    .eq('id', scope.teacherId)
+    .maybeSingle()
+
+  const filters = ['scope.eq.system']
+  const schoolId = profile?.school_id
+  if (typeof schoolId === 'string' && UUID.test(schoolId)) {
+    filters.push(`school_id.eq.${schoolId}`)
+  }
+  if (scope.mode === 'v2' && UUID.test(scope.classId)) {
+    filters.push(`class_id.eq.${scope.classId}`)
+  }
+
+  const { data, error } = await supabase
+    .from('score_template_subjects')
+    .select('*')
+    .or(filters.join(','))
+    .order('sort_order', { ascending: true })
+
+  if (error) {
+    // A missing table (migration 00016 not yet applied) lands here too. The
+    // caller falls back to the seeded default rather than rendering an empty
+    // subject picker, which to a teacher looks like losing their subjects.
+    logger.error(error)
+    return []
+  }
+
+  return (data ?? []) as ScoreTemplateSubjectRow[]
+}
+
+/**
+ * The subjects a server-rendered screen should offer, for one score type.
+ *
+ * Built on `resolveServerScope`, deliberately: the class selection travels in
+ * `?class=` and is validated there, and this must not become a second way of
+ * deciding which class a request is about.
+ *
+ * Falls back to `SYSTEM_PRIMARY_TEMPLATE` when the query returns nothing — a
+ * legacy account, a database where 00016 has not run, or a failed request all
+ * end up showing exactly the list the app shipped with.
+ */
+export async function resolveServerTemplate(
+  userId: string,
+  requestedClassId: string | undefined,
+  scoreType: TemplateScoreType,
+): Promise<EffectiveSubject[]> {
+  const scope = await resolveServerScope(userId, requestedClassId)
+  const rows = await fetchScoreTemplateRows(scope)
+  return resolveTemplate(rows.length > 0 ? rows : SYSTEM_PRIMARY_TEMPLATE, scoreType)
 }

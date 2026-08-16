@@ -34,7 +34,9 @@ import {
     ACADEMIC_MONTH_OPTIONS_BY_ID, MONTHS_BY_ACADEMIC_YEAR, MONTH_LABEL_BY_ID,
 } from '@/lib/constants/months'
 import { getCurrentAcademicYear } from '@/lib/constants/academic'
-import { allColumnsFor, subjectConfigs, subjectTitle, type SubjectColumn } from './subjectConfigs'
+import { allColumnsFor, subjectConfigs, subjectTitle } from './subjectConfigs'
+import { useScoreTemplate } from '@/lib/hooks/useScoreTemplate'
+import { columnsFor, toSubjectOptions, type SubjectColumn } from '@/lib/scores/template'
 import type { CustomSubjectScope, Score, ScoreInput, Student } from '@/lib/types'
 
 /**
@@ -128,6 +130,12 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
     // localStorage copy once, then reads from the database.
     const { subjects: customSubjects, reload: reloadCustomSubjects } = useCustomSubjects()
 
+    // The subject list for the active class, resolved system < school < class
+    // from `score_template_subjects` (migration 00016). Falls back to the
+    // seeded national default while the class context resolves, so the picker
+    // is never momentarily empty.
+    const { subjects: templateSubjects } = useScoreTemplate(scoreType)
+
     const scorePeriod = scoreType === 'monthly' ? `${month}-${academicYear}` : `${semester}-${academicYear}`
 
     useEffect(() => { scoresRef.current = scoresData }, [scoresData])
@@ -169,12 +177,22 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
         customSubjects.forEach(s => { subjectConfigs[s.id] = s.columns })
     }, [customSubjects])
 
+    /**
+     * Columns for the picked subject.
+     *
+     * The template is authoritative — that is what lets a school change a
+     * subject's columns without a deploy. `subjectConfigs` still answers for
+     * the keys the template does not carry: the group members the picker never
+     * offered directly, the teacher's own custom subjects, and any database
+     * where 00016 has not run. For the fourteen keys both define, the two are
+     * identical by construction (see `scripts/verify-score-template.mts`).
+     */
     const subjectCols: SubjectColumn[] = useMemo(
-        () => subjectConfigs[subject] ?? [],
+        () => columnsFor(templateSubjects, subject) ?? subjectConfigs[subject] ?? [],
         // `subjectConfigs` is mutated by the effect above, so the custom-subject
         // list is the signal that a new key may now resolve.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [subject, customSubjects],
+        [subject, customSubjects, templateSubjects],
     )
 
     const customCols = useMemo(
@@ -188,35 +206,26 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
         return subjectCols
     }, [view, gridScope, scoreType, customCols, subjectCols])
 
-    // Subject list for the picker — built per score type, with the teacher's
-    // own subjects appended under their own heading.
+    /**
+     * Subject list for the picker.
+     *
+     * Was a literal array here — the Cambodian primary curriculum compiled into
+     * the product, which a lower-secondary school had no way to change. It now
+     * comes from `score_template_subjects` via `useScoreTemplate`.
+     *
+     * The teacher's own subjects are still appended under `មុខវិជ្ជាបន្ថែម`
+     * from `custom_subjects`; folding those into the template table is a later
+     * phase, and doing it here would mean two sources writing the same list.
+     */
     const subjectOptions = useMemo(() => {
-        const base = scoreType === 'monthly'
-            ? [
-                { value: 'khmer_all', label: 'ភាសាខ្មែរ (គ្រប់បំណិន)', group: 'ភាសាខ្មែរ' },
-                { value: 'kh_listen', label: 'សមត្ថភាពស្តាប់', group: 'ភាសាខ្មែរ' },
-                { value: 'kh_write', label: 'សមត្ថភាពសរសេរ', group: 'ភាសាខ្មែរ' },
-                { value: 'kh_read', label: 'សមត្ថភាពអាន', group: 'ភាសាខ្មែរ' },
-                { value: 'kh_speak', label: 'សមត្ថភាពនិយាយ', group: 'ភាសាខ្មែរ' },
-                { value: 'math_general', label: 'គណិតវិទ្យា (គ្រប់ផ្នែក)', group: 'គណិតវិទ្យា' },
-                { value: 'ex_oral', label: 'សំណួរផ្ទាល់មាត់', group: 'ការបំពេញបន្ថែម' },
-                { value: 'ex_att', label: 'វត្តមាន', group: 'ការបំពេញបន្ថែម' },
-                { value: 'ex_book', label: 'សៀវភៅ', group: 'ការបំពេញបន្ថែម' },
-                { value: 'ex_hw', label: 'កិច្ចការផ្ទះ', group: 'ការបំពេញបន្ថែម' },
-            ]
-            : [
-                { value: 'sem_math', label: 'គណិតវិទ្យា', group: 'មុខវិជ្ជាសិក្សា' },
-                { value: 'sem_kh_reading', label: 'អំណាន', group: 'មុខវិជ្ជាសិក្សា' },
-                { value: 'sem_behavior_all', label: 'វាយតម្លៃរួមទាំង៤', group: 'ការវាយតម្លៃអាកប្បកិរិយា' },
-                { value: 'sem_eval_knowledge', label: 'ចំណេះដឹង', group: 'ការវាយតម្លៃអាកប្បកិរិយា' },
-            ]
+        const base = toSubjectOptions(templateSubjects)
 
         const custom = customSubjects
             .filter(s => appliesTo(s, scoreType))
             .map(s => ({ value: s.id, label: s.name, group: 'មុខវិជ្ជាបន្ថែម' }))
 
         return [...base, ...custom]
-    }, [scoreType, customSubjects])
+    }, [templateSubjects, scoreType, customSubjects])
 
     // ---------------------------------------------------------------- loading
 

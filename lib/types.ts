@@ -6,6 +6,14 @@
  * Where the two disagree the divergence is called out inline.
  */
 
+// Type-only, so it is erased at compile time and creates no runtime cycle:
+// `lib/scores/template.ts` owns the column shape because both score clients and
+// the template rows describe the same thing, and it imports this file back for
+// `ScoreTemplateSubjectRow`.
+import type { SubjectColumn } from '@/lib/scores/template'
+
+export type { SubjectColumn }
+
 /** `students` row. */
 export interface Student {
   id: string
@@ -702,6 +710,53 @@ export interface ClassAdminEntry {
   entry_date?: string | null
   seq: number
   data: Record<string, unknown>
+  created_at?: string
+  updated_at?: string
+}
+
+// =============================================================================
+// Score templates (migration 00016)
+// =============================================================================
+
+/**
+ * `score_template_subjects` row — one subject offered by one layer.
+ *
+ * The subject list used to be a literal array in `ScoreEnterClient`. Rows here
+ * replace it, stacked system < school < class and merged by
+ * `resolveTemplate()` in `lib/scores/template.ts`.
+ *
+ * `subject_key` and the `id` of each entry in `columns` are what
+ * `scores.subject` stores, so both are schema: renaming one orphans every mark
+ * already recorded against it. Nothing about `scores` itself changed.
+ *
+ * There is no `coefficient` — it is derived from `max_score`, and storing it
+ * would let the two drift.
+ */
+export interface ScoreTemplateSubjectRow {
+  id: string
+  scope: 'system' | 'school' | 'class'
+
+  /** Narrowing within a layer. All NULL on the seeded national default. */
+  education_level_id?: string | null
+  grade_id?: string | null
+  school_id?: string | null
+  class_id?: string | null
+
+  subject_key: string
+  label_km: string
+  /** Heading in the picker, e.g. `ភាសាខ្មែរ`. */
+  group_label?: string | null
+  columns: SubjectColumn[]
+  /** Full mark. 10 across the primary curriculum; secondary subjects differ. */
+  max_score: number
+  /** `text` for the behavioural dropdowns, which write `scores.score_text`. */
+  value_kind: 'numeric' | 'text'
+  /** Which `scores.score_type` values this subject appears under. */
+  score_types: string[]
+  sort_order: number
+  /** Set on a lower layer to suppress a subject inherited from a higher one. */
+  hidden: boolean
+
   created_at?: string
   updated_at?: string
 }

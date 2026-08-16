@@ -1,22 +1,18 @@
 /**
  * The column layout of every subject the entry grid can show.
  *
- * Lifted out of `ScoreEnterClient` unchanged so the list view, the grid view
- * and the client can all name the same `SubjectColumn` type without importing
- * each other. The keys are picker values and the ids are `scores.subject`
- * values — both are persisted, so treat them as schema.
+ * Lifted out of `ScoreEnterClient` unchanged, and now a *fallback*: since
+ * migration 00016 the column layout for a subject comes from
+ * `score_template_subjects`, and this map covers the keys the template does not
+ * define — the ~37 group members the picker never offered directly, and any
+ * database where 00016 has not been applied yet. The keys are picker values and
+ * the ids are `scores.subject` values; both are persisted, so treat them as
+ * schema.
  */
 
-export const behaviorOptions = ['ល្អ', 'ល្អបង្គួរ', 'មធ្យម', 'ខ្សោយ']
+import type { SubjectColumn } from '@/lib/scores/template'
 
-/** One editable column of the score grid. */
-export interface SubjectColumn {
-    id: string
-    label: string
-    width?: string
-    type?: string
-    options?: string[]
-}
+export const behaviorOptions = ['ល្អ', 'ល្អបង្គួរ', 'មធ្យម', 'ខ្សោយ']
 
 export const subjectConfigs: Record<string, SubjectColumn[]> = {
     'khmer_all': [

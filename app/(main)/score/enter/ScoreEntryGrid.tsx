@@ -6,7 +6,7 @@ import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import { simpleAverage } from '@/lib/grading/scheme'
 import { formatMark, letterOrDash, numericCell, styleFor } from '@/lib/utils/score-band'
 import { cellAttrs, handleCellKeyDown } from './cellNav'
-import type { SubjectColumn } from './subjectConfigs'
+import type { SubjectColumn } from '@/lib/scores/template'
 import type { Student } from '@/lib/types'
 
 /**
