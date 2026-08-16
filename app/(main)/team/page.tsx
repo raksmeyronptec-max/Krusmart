@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from "react"
+import { Button } from '@/components/ui/actions/Button'
 import { Maximize2, Minimize2 } from "lucide-react"
 
 const teamMembers = [
@@ -86,12 +87,9 @@ export default function TeamPage() {
                                 {/* Action Button */}
                                 <div className="pt-4 w-full">
                                     {member.portfolio !== '#' && (
-                                        <button 
-                                            onClick={() => setOpenIframeIndex(index)}
-                                            className="inline-flex items-center gap-2 text-brand dark:text-brand-400 font-semibold hover:text-brand-800 dark:hover:text-brand-300 transition-all group/btn self-center md:self-start bg-brand-100 dark:bg-brand-900/40 px-5 py-2.5 rounded-lg shadow-sm hover:shadow"
-                                        >
+                                        <Button printHidden={false} onClick={() => setOpenIframeIndex(index)}>
                                             មើលស្នាដៃពេញ (View Fullscreen) <Maximize2 className="w-4 h-4 group-hover/btn:scale-110 transition-transform" />
-                                        </button>
+                                        </Button>
                                     )}
                                 </div>
                             </div>

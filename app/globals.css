@@ -17,6 +17,7 @@
   --color-brand-500: #18A5CC;
   --color-brand-400: #43C1D8;
   --color-brand-300: #8ADCE6;
+  --color-brand-200: #C0EEF3;
   --color-brand-100: #EAF8FB;
 
   /* Semantic status colours. Deliberately separate from the brand ramp: a
@@ -75,6 +76,21 @@
     0% { transform: translateX(0%); }
     100% { transform: translateX(-100%); }
   }
+
+  @keyframes overlayIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  @keyframes dialogIn {
+    from { opacity: 0; transform: translateY(8px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  @keyframes sheetIn {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+  }
 }
 
 @custom-variant dark (&:is(.dark, .dark *));
@@ -84,18 +100,31 @@
   --foreground: #14213D;
 
   --surface: #FFFFFF;
-  --surface-muted: #F0F4F8;
+  /* The brief calls this `--surface-soft`. The name stays `--surface-muted`
+     because 51 files already consume it through `bg-paper`; only the value
+     moves to the brief's #F0F5FA. */
+  --surface-muted: #F0F5FA;
   --divider: #DCE5EF;
   --text-heading: #14213D;
   --text-body: #46566B;
   --text-muted: #7A899A;
 
-  /* Navy carries structure; cyan carries focus. Keeping them distinct is what
-     stops every interactive element reading as the same weight. */
-  --brand: #1D3E73;
-  --brand-hover: #245A9B;
+  /* Primary action sits at brand-700, one rung brighter than the structural
+     navy, so a CTA reads as louder than the chrome around it. Hover deepens to
+     brand-900 rather than lightening — the button gets more committed on press,
+     not less. */
+  --brand: #245A9B;
+  --brand-hover: #172B57;
   --brand-contrast: #FFFFFF;
-  --focus-ring: #18A5CC;
+  /*
+   * The brief specifies #43C1D8 for the focus ring. On these light surfaces it
+   * measures 2.02:1 against the app background — WCAG 2.1 SC 1.4.11 requires
+   * 3:1 for a non-text indicator, so a keyboard user would struggle to see
+   * where focus is. brand-500 also fails (2.73:1); brand-600 is the first rung
+   * that clears it, at 5.03:1, and still reads as the same cyan-blue accent.
+   * Dark mode keeps the specified #43C1D8, which measures 7.89:1 there.
+   */
+  --focus-ring: #1B6FB0;
 
   --elevation-sm: 0 1px 2px 0 rgba(15, 27, 61, 0.05);
   --elevation-md: 0 4px 6px -1px rgba(15, 27, 61, 0.07), 0 2px 4px -2px rgba(15, 27, 61, 0.05);
@@ -103,21 +132,26 @@
 }
 
 .dark {
-  --background: #0F1B3D;
-  --foreground: #EAF8FB;
+  /* Deep navy-black ground with two lifted surfaces above it. Note the
+     inversion against light mode: there `--surface-muted` is a *recessed* tone
+     one step below the card, here it is one step *above* — which is how depth
+     reads on a dark ground. Anything using `bg-paper` for a hover or a table
+     header therefore still separates from the card in both themes. */
+  --background: #081225;
+  --foreground: #F3F7FC;
 
-  --surface: #172B57;
-  --surface-muted: #0F1B3D;
-  --divider: rgba(36, 90, 155, 0.4);
-  --text-heading: #EAF8FB;
-  --text-body: #8ADCE6;
-  --text-muted: #7A899A;
+  --surface: #101D35;
+  --surface-muted: #172744;
+  --divider: #263B5D;
+  --text-heading: #F3F7FC;
+  --text-body: #D4DEEA;
+  --text-muted: #98A9BE;
 
   /* Navy disappears against a navy ground, so the accent moves up the ramp to
      cyan and the contrast colour flips to the darkest navy. */
   --brand: #43C1D8;
   --brand-hover: #8ADCE6;
-  --brand-contrast: #0F1B3D;
+  --brand-contrast: #081225;
   --focus-ring: #43C1D8;
 
   --elevation-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
@@ -176,6 +210,34 @@ body {
     .preview-scroll {
       overflow: visible !important;
     }
+
+    /*
+     * Application chrome must not reach the paper.
+     *
+     * Fifteen views print A4 sheets at exact millimetre dimensions. Today each
+     * sits directly under `(main)/layout.tsx`, so nothing between the sheet and
+     * `<body>` contributes padding, width or overflow. The CMS shell coming in
+     * Phase 3 changes that: a sidebar, a top bar and a centred content
+     * container would all become ancestors of every certificate and report.
+     *
+     * Two attributes, honoured here in advance so the shell cannot regress
+     * printing when it lands:
+     *
+     *   data-app-chrome — sidebar, top bar, bottom nav, drawers. Removed.
+     *   data-app-frame  — layout wrappers. `display: contents` drops the box
+     *                     from layout while keeping its children, so padding,
+     *                     max-width, grid placement and overflow stop applying
+     *                     but the sheet itself still renders.
+     *
+     * Both are inert until Phase 3 tags the shell — no element carries them yet.
+     */
+    [data-app-chrome] {
+      display: none !important;
+    }
+
+    [data-app-frame] {
+      display: contents !important;
+    }
   }
 
   /* Navy → cyan → gold: the three notes of the identity, in order. */
@@ -195,6 +257,25 @@ body {
 
   .animate-marquee {
     animation: marquee 20s linear infinite;
+  }
+
+  /*
+   * Overlay entrances.
+   *
+   * These exist because `animate-in` / `fade-in` / `zoom-in-95` come from the
+   * `tailwindcss-animate` plugin, which this project does not install — the two
+   * places already using those class names render with no animation at all.
+   * Rather than take on the dependency for three transitions, the overlays get
+   * named utilities here. Durations sit in the brief's 150–250ms band.
+   */
+  .overlay-enter { animation: overlayIn 150ms ease-out; }
+  .dialog-enter  { animation: dialogIn 200ms cubic-bezier(0.16, 1, 0.3, 1); }
+  .sheet-enter   { animation: sheetIn 240ms cubic-bezier(0.16, 1, 0.3, 1); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .overlay-enter, .dialog-enter, .sheet-enter {
+      animation: none !important;
+    }
   }
 
   .btn-pulse {

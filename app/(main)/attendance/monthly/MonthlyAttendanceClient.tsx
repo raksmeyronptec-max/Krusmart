@@ -1,10 +1,23 @@
 'use client'
 
 import React, { useState, useCallback, useEffect } from 'react'
+import { Button } from '@/components/ui/actions/Button'
 import { getMonthlyAttendance, getTeacherSettings } from './actions'
-import Link from 'next/link'
+import { FileDown, FileSpreadsheet, Printer } from 'lucide-react'
+import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
+import { controlClass, fieldLabel } from '@/components/ui/forms/fieldStyles'
 import * as XLSX from 'xlsx-js-style'
-import html2pdf from 'html2pdf.js'
+/*
+ * `html2pdf.js` reads `self` while its module body runs, and `self` does not
+ * exist in Node. Importing it at the top of a Client Component therefore threw
+ * during server rendering — the whole page bailed out of SSR with
+ * `ReferenceError: self is not defined` and arrived at the browser as an empty
+ * shell, so the register preview only appeared after hydration.
+ *
+ * The import is deferred into `downloadPDF` instead. It is needed only when the
+ * teacher presses the button, so nothing is lost by loading it then, and the
+ * page server-renders again.
+ */
 import { toKhmerLunarDate } from 'khmer-chhankitek-calendar'
 import Select from '@/components/ui/forms/Select'
 import type { AttendanceRecord, Settings, Student } from '@/lib/types'
@@ -14,24 +27,43 @@ import { KHMER_MONTH_LABELS } from '@/lib/constants/months'
 import { ALIGN_CENTER, ALIGN_LEFT, ALIGN_RIGHT, emptyCell, khmerFont, moulFont, THIN_BORDER, type SheetMerge, type SheetRow, type SheetRowMeta } from '@/lib/utils/xlsx'
 
 const days = ["អាទិត្យ", "ច័ន្ទ", "អង្គារ", "ពុធ", "ព្រហស្បតិ៍", "សុក្រ", "សៅរ៍"]
-export default function MonthlyAttendanceClient({ initialStudents}: { initialStudents: Student[] }) {
+/** `date` → `studentId` → the mark. The shape the A4 sheet indexes by. */
+type AttendanceByDate = Record<string, Record<string, AttendanceRecord>>
+
+function indexByDate(records: AttendanceRecord[]): AttendanceByDate {
+    const out: AttendanceByDate = {}
+    for (const r of records) {
+        if (!out[r.date]) out[r.date] = {}
+        out[r.date][r.student_id] = r
+    }
+    return out
+}
+
+export default function MonthlyAttendanceClient({
+    initialStudents,
+    initialYear,
+    initialMonth,
+    initialRecords,
+    initialSettings,
+}: {
+    initialStudents: Student[]
+    /** The month on display, chosen server-side so the seeded marks match it. */
+    initialYear: number
+    initialMonth: number
+    initialRecords: AttendanceRecord[]
+    initialSettings: Settings | null
+}) {
     const today = new Date()
-    const [month, setMonth] = useState(today.getMonth())
-    const [year, setYear] = useState(today.getFullYear())
+    const [month, setMonth] = useState(initialMonth)
+    const [year, setYear] = useState(initialYear)
     const [studentCount, setStudentCount] = useState(initialStudents.length)
-    const [attendance, setAttendance] = useState<Record<string, Record<string, AttendanceRecord>>>({})
-    const [settings, setSettings] = useState<Settings | null>(null)
+    const [attendance, setAttendance] = useState<AttendanceByDate>(() => indexByDate(initialRecords))
+    const [settings, setSettings] = useState<Settings | null>(initialSettings)
     const [isDownloading, setIsDownloading] = useState(false)
 
     const loadData = useCallback(async () => {
         const records = await getMonthlyAttendance(year, month)
-        const newAttendance: Record<string, Record<string, AttendanceRecord>> = {}
-        
-        records.forEach((r: AttendanceRecord) => {
-            if (!newAttendance[r.date]) newAttendance[r.date] = {}
-            newAttendance[r.date][r.student_id] = r
-        })
-        setAttendance(newAttendance)
+        setAttendance(indexByDate(records))
 
         const teacherSettings = await getTeacherSettings()
         if (teacherSettings) {
@@ -40,9 +72,13 @@ export default function MonthlyAttendanceClient({ initialStudents}: { initialStu
     }, [month, year])
 
     useEffect(() => {
+        // The server already fetched the month it rendered, so re-fetching it on
+        // mount would be a round trip that changes nothing. Only a month or year
+        // the teacher picked needs loading.
+        if (year === initialYear && month === initialMonth) return
         // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch: state is set after await, not synchronously during the effect
         loadData()
-    }, [loadData])
+    }, [loadData, year, month, initialYear, initialMonth])
 
 
     const exportExcel = () => {
@@ -235,6 +271,7 @@ export default function MonthlyAttendanceClient({ initialStudents}: { initialStu
         }
 
         try {
+            const { default: html2pdf } = await import('html2pdf.js')
             await html2pdf().set(opt).from(printArea).save()
         } catch(e) {
             logger.error(e)
@@ -367,7 +404,13 @@ export default function MonthlyAttendanceClient({ initialStudents}: { initialStu
                                             
                                             if (stuId && attendance[dateStr]?.[stuId]) {
                                                 const status = attendance[dateStr][stuId].status
-                                                if (status === 'L' || status === 'P') { lNum = 1; lCount++ }
+                                                // Both columns on this sheet are kinds of absence — អ is
+                                                // unexcused, ច្ប is ច្បាប់ (excused). A present day belongs
+                                                // in neither. `P` used to fall into the ច្ប branch, so a
+                                                // pupil with perfect attendance printed ច្ប = ២០ for a
+                                                // 20-day month. The Excel export at `exportExcel` has
+                                                // always had this right; only the printed sheet diverged.
+                                                if (status === 'L') { lNum = 1; lCount++ }
                                                 else if (status === 'A') { aNum = 1; aCount++ }
                                             }
                                             
@@ -421,7 +464,13 @@ export default function MonthlyAttendanceClient({ initialStudents}: { initialStu
     }
 
     return (
-        <div className="min-h-screen bg-[#f0f2f5] font-hanuman">
+        <PageContainer className="font-hanuman">
+            {/*
+              Unchanged. The A4 landscape page box, the white background and the
+              `.print-hide` switch are what make the printed sheet correct, and
+              the sheet's millimetre geometry below depends on all three. The
+              screen restyling around it deliberately stops at this boundary.
+            */}
             <style jsx global>{`
                 .font-hanuman { font-family: 'Hanuman', serif; }
                 @media print {
@@ -431,62 +480,69 @@ export default function MonthlyAttendanceClient({ initialStudents}: { initialStu
                 }
             `}</style>
 
-            {/* Top Navigation Matches Original */}
-            <nav className="bg-brand text-white p-3 md:p-4 shadow-lg sticky top-0 z-50 print-hide mb-5">
-                <div className="container mx-auto flex flex-col md:flex-row justify-between items-center gap-3">
-                    <div className="flex items-center justify-between w-full md:w-auto gap-4">
-                        <div className="flex items-center gap-2">
-                            <Link href="/dashboard" className="flex items-center gap-1 md:gap-2 hover:text-gold transition font-bold text-xs md:text-sm bg-white/10 px-2 py-1.5 rounded-lg">
-                                <span className="hidden sm:inline">ទំព័រដើម</span>
-                            </Link>
-                            <h1 className="kh-moul text-sm md:text-lg hidden lg:block">ប្រព័ន្ធគ្រប់គ្រងវត្តមាន</h1>
-                        </div>
-                        
-                        <div className="flex items-center bg-white/10 rounded px-2 py-1 border border-white/20 shrink-0">
-                            <span className="text-xs md:text-sm font-bold text-white px-2">ថ្នាក់ទី ១២ក</span>
-                        </div>
-                    </div>
+            <PageHeader
+                title="បញ្ជីវត្តមានប្រចាំខែ"
+                description="សម្រង់អវត្តមានប្រចាំខែ សម្រាប់បោះពុម្ព និងទាញយក"
+                className="print-hide"
+            />
 
-                    <div className="flex gap-2 md:gap-4 text-xs md:text-sm font-bold items-center w-full md:w-auto overflow-x-auto no-scrollbar pb-1 md:pb-0 justify-start md:justify-end whitespace-nowrap">
-                        <Link href="/attendance/monthly" className="text-gold flex items-center gap-1 px-2 py-1 bg-white/10 rounded transition">វត្តមានបញ្ជី</Link>
-                        <Link href="/attendance/layout" className="hover:text-gold flex items-center gap-1 px-2 py-1 bg-white/5 rounded md:bg-transparent transition">វត្តមានប្លង់តុ</Link>
-                    </div>
-                </div>
-            </nav>
+            <div className="print-hide mb-5 flex flex-wrap items-end gap-3 rounded-xl border border-divider bg-bg-surface p-4 shadow-sm">
+                <Select
+                    id="monthly-attendance-month"
+                    label="ខែ"
+                    value={String(month)}
+                    onChange={v => setMonth(parseInt(v))}
+                    options={KHMER_MONTH_LABELS.map((m, i) => ({ value: String(i), label: m }))}
+                    wrapperClassName="w-36"
+                />
 
-            <div className="bg-white p-4 rounded-lg shadow-[0_4px_15px_rgba(0,0,0,0.1)] max-w-[1300px] mx-auto mb-5 print-hide flex gap-4 items-center justify-center flex-wrap border border-divider">
-                <Link href="/dashboard" className="bg-[#475569] text-white px-5 py-2.5 rounded-md font-bold hover:opacity-90 transition">ត្រឡប់ក្រោយ</Link>
-                
-                <div className="flex items-center gap-2">
-                    <label className="font-bold text-text-body" htmlFor="monthly-attendance-month">ខែ៖</label>
-                    <Select
-                        id="monthly-attendance-month"
-                        value={String(month)}
-                        onChange={v => setMonth(parseInt(v))}
-                        options={KHMER_MONTH_LABELS.map((m, i) => ({ value: String(i), label: m }))}
+                <div className="w-28">
+                    <label className={fieldLabel} htmlFor="monthly-attendance-year">ឆ្នាំ</label>
+                    <input
+                        id="monthly-attendance-year"
+                        type="number"
+                        value={year}
+                        onChange={e => setYear(parseInt(e.target.value))}
+                        className={controlClass()}
                     />
                 </div>
-                
-                <div className="flex items-center gap-2">
-                    <label className="font-bold text-text-body">ឆ្នាំ៖</label>
-                    <input type="number" value={year} onChange={e => setYear(parseInt(e.target.value))} className="border border-divider rounded p-2 outline-none focus:border-[#1a73e8] w-[80px]" />
+
+                <div className="w-28">
+                    <label className={fieldLabel} htmlFor="monthly-attendance-count">ចំនួនសិស្ស</label>
+                    <input
+                        id="monthly-attendance-count"
+                        type="number"
+                        value={studentCount}
+                        onChange={e => setStudentCount(parseInt(e.target.value))}
+                        max={100}
+                        min={1}
+                        className={controlClass()}
+                    />
                 </div>
-                
-                <div className="flex items-center gap-2">
-                    <label className="font-bold text-text-body">ចំនួនសិស្ស៖</label>
-                    <input type="number" value={studentCount} onChange={e => setStudentCount(parseInt(e.target.value))} max={100} min={1} className="border border-divider rounded p-2 outline-none focus:border-[#1a73e8] w-[70px]" />
+
+                <div className="flex flex-wrap items-center gap-2">
+                    <Button variant="success" printHidden={false} onClick={exportExcel} icon={<FileSpreadsheet className="h-4 w-4" />}>
+                        ទាញយក Excel
+                    </Button>
+                    <Button variant="danger" printHidden={false} onClick={downloadPDF} loading={isDownloading} icon={<FileDown className="h-4 w-4" />}>
+                        ទាញយក PDF
+                    </Button>
+                    <Button printHidden={false} onClick={() => window.print()} icon={<Printer className="h-4 w-4" />}>
+                        បោះពុម្ព
+                    </Button>
                 </div>
-                
-                <button onClick={exportExcel} className="bg-success text-white px-5 py-2.5 rounded-md font-bold hover:opacity-90 transition flex items-center gap-2">ទាញយក Excel</button>
-                <button onClick={downloadPDF} disabled={isDownloading} className="bg-danger text-white px-5 py-2.5 rounded-md font-bold hover:opacity-90 transition flex items-center gap-2">
-                    {isDownloading ? 'កំពុងទាញយក...' : 'ទាញយក PDF'}
-                </button>
-                <button onClick={() => window.print()} className="bg-brand text-white px-5 py-2.5 rounded-md font-bold hover:opacity-90 transition flex items-center gap-2">បោះពុម្ព</button>
             </div>
 
-            <div id="printArea" className="preview-scroll w-full max-w-[297mm] mx-auto">
-                {renderPages()}
+            {/*
+              The preview is 297mm wide — wider than a phone — so it scrolls
+              inside its own box rather than pushing the page sideways. The
+              overflow is dropped when printing, where the sheet is the page.
+            */}
+            <div className="overflow-x-auto print:overflow-visible">
+                <div id="printArea" className="preview-scroll mx-auto w-full max-w-[297mm]">
+                    {renderPages()}
+                </div>
             </div>
-        </div>
+        </PageContainer>
     )
 }

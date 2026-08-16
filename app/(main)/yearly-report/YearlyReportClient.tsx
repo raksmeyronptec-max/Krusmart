@@ -65,7 +65,7 @@ export default function YearlyReportClient() {
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white border border-divider p-5 rounded-xl flex items-center gap-4 shadow-sm">
+        <div className="bg-bg-surface border border-divider p-5 rounded-xl flex items-center gap-4 shadow-sm">
           <div className="w-12 h-12 rounded-lg bg-brand-100 text-brand flex items-center justify-center">
             <Users className="w-6 h-6" />
           </div>
@@ -76,7 +76,7 @@ export default function YearlyReportClient() {
             </p>
           </div>
         </div>
-        <div className="bg-white border border-divider p-5 rounded-xl flex items-center gap-4 shadow-sm">
+        <div className="bg-bg-surface border border-divider p-5 rounded-xl flex items-center gap-4 shadow-sm">
           <div className="w-12 h-12 rounded-lg bg-brand-100 text-brand flex items-center justify-center">
             <UserRoundCheck className="w-6 h-6" />
           </div>
@@ -87,7 +87,7 @@ export default function YearlyReportClient() {
             </p>
           </div>
         </div>
-        <div className="bg-white border border-divider p-5 rounded-xl flex items-center gap-4 shadow-sm">
+        <div className="bg-bg-surface border border-divider p-5 rounded-xl flex items-center gap-4 shadow-sm">
           <div className="w-12 h-12 rounded-lg bg-success/10 text-success flex items-center justify-center">
             <BookOpen className="w-6 h-6" />
           </div>
@@ -96,7 +96,7 @@ export default function YearlyReportClient() {
             <p className="text-2xl font-bold text-text-heading">១៣ <span className="text-sm font-normal text-text-muted">មុខ</span></p>
           </div>
         </div>
-        <div className="bg-white border border-divider p-5 rounded-xl flex items-center gap-4 shadow-sm">
+        <div className="bg-bg-surface border border-divider p-5 rounded-xl flex items-center gap-4 shadow-sm">
           <div className="w-12 h-12 rounded-lg bg-warning/10 text-warning flex items-center justify-center">
             <Award className="w-6 h-6" />
           </div>
@@ -114,7 +114,7 @@ export default function YearlyReportClient() {
       
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         
-        <Link href="/score/total" className="bg-white rounded-xl p-6 border border-divider group block relative overflow-hidden transition-all hover:-translate-y-1 hover:shadow-lg hover:border-divider">
+        <Link href="/score/total" className="bg-bg-surface rounded-xl p-6 border border-divider group block relative overflow-hidden transition-all hover:-translate-y-1 hover:shadow-lg hover:border-divider">
           <div className="absolute top-0 right-0 w-2 h-full bg-brand"></div>
           <div className="w-12 h-12 rounded-full bg-brand-100 text-brand flex items-center justify-center mb-4 group-hover:bg-brand-hover group-hover:text-white transition-colors">
             <CalendarDays className="w-6 h-6" />
@@ -126,7 +126,7 @@ export default function YearlyReportClient() {
           </div>
         </Link>
 
-        <Link href="/ranking" className="bg-white rounded-xl p-6 border border-divider group block relative overflow-hidden transition-all hover:-translate-y-1 hover:shadow-lg hover:border-danger/40">
+        <Link href="/ranking" className="bg-bg-surface rounded-xl p-6 border border-divider group block relative overflow-hidden transition-all hover:-translate-y-1 hover:shadow-lg hover:border-danger/40">
           <div className="absolute top-0 right-0 w-2 h-full bg-danger"></div>
           <div className="w-12 h-12 rounded-full bg-danger/10 text-danger flex items-center justify-center mb-4 group-hover:opacity-90 group-hover:text-white transition-colors">
             <BarChart3 className="w-6 h-6" />
@@ -138,7 +138,7 @@ export default function YearlyReportClient() {
           </div>
         </Link>
 
-        <Link href="/score-analyse" className="bg-white rounded-xl p-6 border border-divider group block relative overflow-hidden transition-all hover:-translate-y-1 hover:shadow-lg hover:border-success/40">
+        <Link href="/score-analyse" className="bg-bg-surface rounded-xl p-6 border border-divider group block relative overflow-hidden transition-all hover:-translate-y-1 hover:shadow-lg hover:border-success/40">
           <div className="absolute top-0 right-0 w-2 h-full bg-success"></div>
           <div className="w-12 h-12 rounded-full bg-success/10 text-success flex items-center justify-center mb-4 group-hover:bg-success group-hover:text-white transition-colors">
             <LineChart className="w-6 h-6" />
@@ -150,7 +150,7 @@ export default function YearlyReportClient() {
           </div>
         </Link>
 
-        <Link href="/score-analysis/subject" className="bg-white rounded-xl p-6 border border-divider group block relative overflow-hidden transition-all hover:-translate-y-1 hover:shadow-lg hover:border-divider">
+        <Link href="/score-analysis/subject" className="bg-bg-surface rounded-xl p-6 border border-divider group block relative overflow-hidden transition-all hover:-translate-y-1 hover:shadow-lg hover:border-divider">
           <div className="absolute top-0 right-0 w-2 h-full bg-brand-600"></div>
           <div className="w-12 h-12 rounded-full bg-brand-100 text-brand flex items-center justify-center mb-4 group-hover:bg-brand group-hover:text-white transition-colors">
             <Files className="w-6 h-6" />
@@ -162,7 +162,7 @@ export default function YearlyReportClient() {
           </div>
         </Link>
 
-        <Link href="/yearly-report/subject-results" className="bg-white rounded-xl p-6 border border-divider group block relative overflow-hidden transition-all hover:-translate-y-1 hover:shadow-lg hover:border-divider">
+        <Link href="/yearly-report/subject-results" className="bg-bg-surface rounded-xl p-6 border border-divider group block relative overflow-hidden transition-all hover:-translate-y-1 hover:shadow-lg hover:border-divider">
           <div className="absolute top-0 right-0 w-2 h-full bg-brand-400"></div>
           <div className="w-12 h-12 rounded-full bg-brand-100 text-brand-500 flex items-center justify-center mb-4 group-hover:bg-brand-500 group-hover:text-white transition-colors">
             <PieChart className="w-6 h-6" />
@@ -174,7 +174,7 @@ export default function YearlyReportClient() {
           </div>
         </Link>
 
-        <Link href="/yearly-report/promoted" className="bg-white rounded-xl p-6 border border-divider group block relative overflow-hidden transition-all hover:-translate-y-1 hover:shadow-lg hover:border-divider">
+        <Link href="/yearly-report/promoted" className="bg-bg-surface rounded-xl p-6 border border-divider group block relative overflow-hidden transition-all hover:-translate-y-1 hover:shadow-lg hover:border-divider">
           <div className="absolute top-0 right-0 w-2 h-full bg-brand-500"></div>
           <div className="w-12 h-12 rounded-full bg-brand-100 text-brand-500 flex items-center justify-center mb-4 group-hover:bg-brand-500 group-hover:text-white transition-colors">
             <TrendingUp className="w-6 h-6" />
@@ -186,7 +186,7 @@ export default function YearlyReportClient() {
           </div>
         </Link>
 
-        <Link href="/yearly-report/repeated" className="bg-white rounded-xl p-6 border border-divider group block relative overflow-hidden transition-all hover:-translate-y-1 hover:shadow-lg hover:border-warning/40">
+        <Link href="/yearly-report/repeated" className="bg-bg-surface rounded-xl p-6 border border-divider group block relative overflow-hidden transition-all hover:-translate-y-1 hover:shadow-lg hover:border-warning/40">
           <div className="absolute top-0 right-0 w-2 h-full bg-warning"></div>
           <div className="w-12 h-12 rounded-full bg-warning/10 text-warning flex items-center justify-center mb-4 group-hover:opacity-90 group-hover:text-white transition-colors">
             <AlertCircle className="w-6 h-6" />
@@ -211,7 +211,7 @@ export default function YearlyReportClient() {
           </div>
         </div>
         <div className="flex gap-3">
-          <Link href="/profile" className="px-4 py-2 bg-white border border-divider text-text-body font-bold rounded-lg shadow-sm hover:bg-paper transition">
+          <Link href="/profile" className="px-4 py-2 bg-bg-surface border border-divider text-text-body font-bold rounded-lg shadow-sm hover:bg-paper transition">
             ប្រវត្តិរូប
           </Link>
           <Link href="/student-list" className="px-4 py-2 bg-brand-900 text-white font-bold rounded-lg shadow-sm hover:bg-brand-950 transition">

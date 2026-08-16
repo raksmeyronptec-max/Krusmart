@@ -1,6 +1,7 @@
 'use client'
 
 import { ArrowLeft, Key, Printer, Info, Copy, Users } from 'lucide-react'
+import { Button } from '@/components/ui/actions/Button'
 import Link from 'next/link'
 import type { Student } from '@/lib/types'
 import { logger } from '@/lib/utils/logger'
@@ -71,9 +72,9 @@ export default function PrintStudentCodesClient({ initialStudents, teacherUid }:
                     </h1>
                 </div>
                 
-                <button onClick={printPage} className="bg-brand hover:bg-brand-hover text-white px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-md transition transform hover:scale-105">
+                <Button printHidden={false} onClick={printPage}>
                     <Printer className="w-4 h-4" /> <span className="hidden sm:inline">បោះពុម្ពកាត</span>
-                </button>
+                </Button>
             </div>
 
             <div className="no-print max-w-5xl mx-auto w-full p-4 sm:p-6 flex-1 flex flex-col">
@@ -107,9 +108,9 @@ export default function PrintStudentCodesClient({ initialStudents, teacherUid }:
                                         <div className="flex items-center gap-3">
                                             {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture */}
                                             <img src={qrCodeUrl} alt="QR" className="w-12 h-12 border border-divider rounded-lg shadow-sm" title="QR Code សម្រាប់ស្កេនចូល" />
-                                            <button onClick={() => copyToClipboard(s.id)} className="text-brand bg-bg-surface hover:bg-brand-100 p-2.5 rounded-xl transition border border-divider shadow-sm shrink-0" title="ចម្លងអត្តលេខសិស្ស">
+                                            <Button printHidden={false} onClick={() => copyToClipboard(s.id)} title="ចម្លងអត្តលេខសិស្ស">
                                                 <Copy className="w-5 h-5" />
-                                            </button>
+                                            </Button>
                                         </div>
                                     </div>
                                 )

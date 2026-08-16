@@ -1,5 +1,6 @@
 import { getAdminScope, getTeachers, getClasses, getSubjects, getStaffOptions } from '../queries'
-import { AdminPage, EmptyState, NoSchool } from '../AdminPage'
+import { AdminPage, NoSchool } from '../AdminPage'
+import { TeachersTable } from './TeachersTable'
 import { AdminCreateForm, SelectField } from '../AdminForm'
 import { assignTeacher } from '../actions'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
@@ -42,36 +43,7 @@ export default async function AdminTeachersPage() {
         </label>
       </AdminCreateForm>
 
-      {teachers.length === 0 ? (
-        <EmptyState message="មិនទាន់មានគ្រូបង្រៀនត្រូវបានចាត់តាំងក្នុងឆ្នាំសិក្សានេះទេ" />
-      ) : (
-        <div className="overflow-x-auto rounded-xl border border-divider bg-white shadow-sm">
-          <table className="w-full text-sm">
-            <thead className="bg-paper text-left">
-              <tr>
-                <th className="p-4 font-bold text-text-body">ឈ្មោះគ្រូ</th>
-                <th className="p-4 font-bold text-text-body">ថ្នាក់ទទួលបន្ទុក</th>
-                <th className="p-4 font-bold text-text-body">គ្រូបន្ទុកថ្នាក់</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-divider">
-              {teachers.map((t) => (
-                <tr key={t.teacherId} className="hover:bg-paper">
-                  <td className="p-4 font-medium text-text-heading">
-                    {t.fullName || <span className="text-text-muted">(មិនទាន់មានឈ្មោះ)</span>}
-                  </td>
-                  <td className="p-4 text-text-body">{t.classes.join(', ') || '—'}</td>
-                  <td className="p-4">
-                    {t.isHomeroom
-                      ? <span className="rounded-full bg-success/10 px-3 py-1 text-xs font-bold text-success">បាទ/ចាស</span>
-                      : <span className="text-text-muted">ទេ</span>}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <TeachersTable teachers={teachers} />
     </AdminPage>
   )
 }

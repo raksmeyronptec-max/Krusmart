@@ -17,11 +17,19 @@
 export type CardVariant = "default" | "elevated" | "flat" | "outlined"
 export type CardPadding = "none" | "sm" | "md" | "lg"
 
-export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
+export interface CardProps extends React.HTMLAttributes<HTMLElement> {
   variant?: CardVariant
   padding?: CardPadding
-  /** Render as a `<section>`/`<article>` when the card is a landmark. */
-  as?: "div" | "section" | "article"
+  /**
+   * The element to render.
+   *
+   * `form` is included because the admin panels *are* forms — the card is the
+   * form, not a wrapper around one — and splitting them would put the server
+   * action on an inner element with the border on an outer one.
+   */
+  as?: "div" | "section" | "article" | "form"
+  /** Server action, when rendered `as="form"`. */
+  action?: string | ((formData: FormData) => void | Promise<void>)
   className?: string
   children: React.ReactNode
 }

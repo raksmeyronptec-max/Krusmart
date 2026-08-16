@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { Button } from '@/components/ui/actions/Button'
 import type { AttendanceRecord, Score, Student } from '@/lib/types'
 import { 
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -203,9 +204,9 @@ export default function ScoreAnalyseClient({ initialStudents, attendanceData, sc
                                 className="text-sm text-white [&>option]:text-text-heading"
                             />
                         </div>
-                        <button className="bg-warning hover:opacity-90 text-white p-2 rounded-lg transition" title="Refresh Data">
+                        <Button variant="warning" printHidden={false} title="Refresh Data">
                             <RefreshCw className="w-4 h-4" />
-                        </button>
+                        </Button>
                     </div>
                 </div>
             </nav>

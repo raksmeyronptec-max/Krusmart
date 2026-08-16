@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useConfirm } from '@/components/ui/overlay/ConfirmDialog'
+import { Button } from '@/components/ui/actions/Button'
 import Link from 'next/link'
 import { 
     ArrowLeft, BellRing, Send, Info, AlertTriangle, Award, Paperclip, 
@@ -17,6 +19,7 @@ type StudentOption = Pick<Student, 'id' | 'name_kh'>
 export default function NotificationsClient({ initialStudents}: { initialStudents: StudentOption[] }) {
     const [notifications, setNotifications] = useState<Notification[]>([])
     const [isLoading, setIsLoading] = useState(true)
+    const { confirm, dialog } = useConfirm()
     const [isSubmitting, setIsSubmitting] = useState(false)
     
     // Form state
@@ -68,7 +71,10 @@ export default function NotificationsClient({ initialStudents}: { initialStudent
     }
 
     const handleDelete = async (id: string) => {
-        if (!confirm('តើអ្នកពិតជាចង់លុបសារជូនដំណឹងនេះមែនទេ? (មាតាបិតានឹងលែងឃើញវានៅក្នុង Portal ទៀតហើយ)')) return
+        if (!(await confirm({
+            title: 'លុបសារជូនដំណឹង',
+            message: 'សារនេះនឹងត្រូវលុបចេញ ហើយអាណាព្យាបាលនឹងលែងឃើញវាទៀត។',
+        }))) return
         
         setIsLoading(true) // Use loading state to show spinner in list
         try {
@@ -165,10 +171,10 @@ export default function NotificationsClient({ initialStudents}: { initialStudent
                                     <textarea required rows={4} placeholder="សូមសរសេរខ្លឹមសារសារនៅទីនេះ..." className="w-full p-3 rounded-xl border border-divider outline-none focus:border-brand focus:ring-4 focus:ring-focus-ring/20 bg-paper font-bold text-text-heading transition-all text-sm resize-none custom-scrollbar" value={message} onChange={e => setMessage(e.target.value)}></textarea>
                                 </div>
 
-                                <button type="submit" disabled={isSubmitting} className="w-full bg-brand hover:bg-brand-800 text-white font-bold py-3.5 rounded-xl shadow-lg transition flex items-center justify-center gap-2 mt-4 disabled:opacity-70">
+                                <Button size="lg" printHidden={false} type="submit" disabled={isSubmitting}>
                                     {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Paperclip className="w-5 h-5" />}
                                     {isSubmitting ? 'កំពុងផ្ញើ...' : 'ផ្ញើការជូនដំណឹងឥឡូវនេះ'}
-                                </button>
+                                </Button>
                             </form>
                         </div>
                     </div>
@@ -229,9 +235,9 @@ export default function NotificationsClient({ initialStudents}: { initialStudent
                                                         </span>
                                                     </div>
                                                 </div>
-                                                <button onClick={() => handleDelete(n.id)} className="absolute top-4 right-4 p-2 text-text-muted hover:text-danger hover:bg-danger/5 rounded-full transition opacity-0 group-hover:opacity-100" title="លុបសារនេះ">
+                                                <Button variant="danger" printHidden={false} onClick={() => handleDelete(n.id)} title="លុបសារនេះ">
                                                     <Trash2 className="w-4 h-4" />
-                                                </button>
+                                                </Button>
                                             </div>
                                         )
                                     })
@@ -248,6 +254,7 @@ export default function NotificationsClient({ initialStudents}: { initialStudent
                 .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
                 .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
             `}</style>
+            {dialog}
         </div>
     )
 }

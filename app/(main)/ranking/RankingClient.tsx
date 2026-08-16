@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { ArrowLeft, Printer, FileSpreadsheet, CalendarDays, CalendarRange, Layers, Award } from 'lucide-react'
-import Link from 'next/link'
 import * as XLSX from 'xlsx-js-style'
 import { getAllScoresByPeriod } from '../score/total/actions'
 import Select from '@/components/ui/forms/Select'
@@ -168,31 +167,36 @@ export default function RankingClient({ initialStudents, settings}: { initialStu
                     .no-print { display: none !important; }
                     .print-container { box-shadow: none !important; margin: 0 !important; width: 100% !important; }
                 }
+                /*
+                  Screen-only chrome, so it takes design tokens rather than the
+                  literal white/slate/blue it was written with — those are
+                  invisible in dark mode. The @media print block above keeps its
+                  literal colours on purpose: paper has no theme.
+                */
                 .select-btn {
                     display: flex; flex-direction: column; align-items: center; justify-content: center;
-                    padding: 16px; background-color: white; border: 1px solid #e2e8f0; border-radius: 16px;
-                    transition: all 0.2s; cursor: pointer; color: #64748b;
+                    padding: 16px; background-color: var(--bg-surface); border: 1px solid var(--divider);
+                    border-radius: 16px; transition: all 0.2s; cursor: pointer; color: var(--text-muted);
+                    min-height: 44px;
                 }
-                .select-btn:hover { border-color: #3b82f6; color: #3b82f6; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1); }
+                .select-btn:hover { border-color: var(--brand); color: var(--brand); transform: translateY(-2px); box-shadow: 0 4px 12px rgb(0 0 0 / 0.08); }
+                .select-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
             `}</style>
 
             {!showPreview ? (
                 <div className="max-w-6xl mx-auto py-8 px-4 no-print">
                     {loading && (
-                        <div className="fixed inset-0 bg-white/80 z-50 flex flex-col items-center justify-center backdrop-blur-sm">
-                            <div className="w-16 h-16 border-4 border-divider border-t-blue-600 rounded-full animate-spin"></div>
+                        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-bg-surface/80 backdrop-blur-sm">
+                            <div className="h-16 w-16 animate-spin rounded-full border-4 border-divider border-t-brand"></div>
                             <p className="mt-4 kh-moul text-brand animate-pulse">កំពុងរៀបចំទិន្នន័យ...</p>
                         </div>
                     )}
                     
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 bg-white p-6 rounded-xl shadow-sm border border-divider">
+                    <div className="mb-8 flex flex-col items-start justify-between gap-4 rounded-xl border border-divider bg-bg-surface p-6 shadow-sm md:flex-row md:items-center">
                         <div className="flex items-center gap-4">
-                            <Link href="/dashboard" className="p-3 bg-paper text-text-muted hover:bg-brand-100 hover:text-brand rounded-xl transition-all shadow-sm">
-                                <ArrowLeft className="w-6 h-6" />
-                            </Link>
                             <div>
                                 <h1 className="text-2xl sm:text-3xl kh-moul text-text-heading flex items-center gap-3">
-                                    <span className="bg-brand text-white p-2 rounded-xl shadow-lg shadow-blue-200">
+                                    <span className="bg-brand text-brand-contrast p-2 rounded-xl shadow-lg">
                                         <Award className="w-6 h-6" />
                                     </span>
                                     តារាងចំណាត់ថ្នាក់
@@ -280,7 +284,7 @@ export default function RankingClient({ initialStudents, settings}: { initialStu
                         <button onClick={exportExcel} className="bg-emerald-600 text-white p-3.5 rounded-full shadow-lg shadow-emerald-200 hover:bg-emerald-700 hover:scale-110 transition-all flex items-center justify-center group" title="ទាញយក Excel">
                             <FileSpreadsheet className="w-6 h-6" />
                         </button>
-                        <button onClick={() => window.print()} className="bg-blue-600 text-white p-3.5 rounded-full shadow-lg shadow-blue-200 hover:bg-blue-700 hover:scale-110 transition-all flex items-center justify-center group" title="បោះពុម្ភ">
+                        <button onClick={() => window.print()} className="group flex min-h-11 min-w-11 items-center justify-center rounded-full bg-brand p-3.5 text-brand-contrast shadow-lg transition-all hover:scale-110 hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring" title="បោះពុម្ភ" aria-label="បោះពុម្ភតារាងចំណាត់ថ្នាក់">
                             <Printer className="w-6 h-6" />
                         </button>
                         <button onClick={() => setShowPreview(false)} className="bg-slate-700 text-white p-3.5 rounded-full shadow-lg hover:bg-slate-800 hover:scale-110 transition-all flex items-center justify-center group" title="បិទ">

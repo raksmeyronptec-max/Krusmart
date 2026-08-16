@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { TopNav } from '@/components/TopNav'
+import { AppShell } from '@/components/shell/AppShell'
 import { resolveActor } from '@/lib/rbac/actor'
 import { SchoolContextProvider } from '@/lib/context/SchoolContext'
 import { TeacherContextProvider } from '@/lib/context/TeacherContext'
@@ -39,12 +39,7 @@ export default async function MainLayout({
   return (
     <SchoolContextProvider>
       <TeacherContextProvider>
-        <div className="min-h-screen bg-bg-app transition-colors">
-          <TopNav />
-          <main>
-            {children}
-          </main>
-        </div>
+        <AppShell>{children}</AppShell>
       </TeacherContextProvider>
     </SchoolContextProvider>
   )

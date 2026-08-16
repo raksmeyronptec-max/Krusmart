@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
+import { Button } from '@/components/ui/actions/Button'
 import { ArrowLeft, Award, RefreshCw, Image as ImageIcon, Camera, Printer, ListOrdered } from 'lucide-react'
 import Link from 'next/link'
 import { getAllScoresByPeriod } from '../score/total/actions'
@@ -285,9 +286,9 @@ export default function CertificateClient({ initialStudents, settings }: { initi
                                     )}
                                 </div>
 
-                                <button onClick={loadData} className="w-full bg-brand text-white py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-brand-800 transition-colors shadow-lg shadow-blue-200 mt-2">
+                                <Button printHidden={false} onClick={loadData}>
                                     <RefreshCw className="w-4 h-4" /> ទាញយកចំណាត់ថ្នាក់សិស្ស
-                                </button>
+                                </Button>
                             </div>
                         </div>
 
@@ -369,14 +370,14 @@ export default function CertificateClient({ initialStudents, settings }: { initi
                                 </h2>
                                 <div className="flex items-center gap-3 bg-white p-1.5 rounded-xl border border-divider shadow-sm w-full sm:w-auto justify-between">
                                     <span className="text-sm text-text-muted font-bold px-3">បានជ្រើសរើស: {selectedStudentIds.length} នាក់</span>
-                                    <button onClick={handlePrint} disabled={selectedStudentIds.length === 0} className="bg-success text-white px-5 py-2 rounded-lg font-bold flex items-center gap-2 hover:opacity-90 transition-colors shadow-md shadow-green-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm whitespace-nowrap">
+                                    <Button variant="success" printHidden={false} onClick={handlePrint} disabled={selectedStudentIds.length === 0}>
                                         <Printer className="w-4 h-4" /> បោះពុម្ពបណ្ណសរសើរ
-                                    </button>
+                                    </Button>
                                 </div>
                             </div>
                             <div className="flex gap-2">
-                                <button onClick={() => selectTop(3)} className="px-3 py-1.5 bg-gold/10 text-gold rounded-lg text-sm font-bold hover:bg-gold/20 transition">រើស Top 3</button>
-                                <button onClick={() => selectTop(5)} className="px-3 py-1.5 bg-gold/10 text-gold rounded-lg text-sm font-bold hover:bg-gold/20 transition">រើស Top 5</button>
+                                <Button variant="gold" size="sm" printHidden={false} onClick={() => selectTop(3)}>រើស Top 3</Button>
+                                <Button variant="gold" size="sm" printHidden={false} onClick={() => selectTop(5)}>រើស Top 5</Button>
                             </div>
                         </div>
 

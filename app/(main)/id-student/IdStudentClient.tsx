@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Button } from '@/components/ui/actions/Button'
 import { ArrowLeft, Image as ImageIcon, PenTool, ZoomIn, ZoomOut, Printer, Inbox } from 'lucide-react'
 import Link from 'next/link'
 import Select from '@/components/ui/forms/Select'
@@ -192,9 +193,9 @@ export default function IdStudentClient({ initialStudents, settings }: { initial
                             </button>
                         </div>
 
-                        <button onClick={() => window.print()} className="bg-brand hover:bg-brand-hover px-5 py-2 rounded font-bold shadow-md flex items-center gap-2 transition-colors ml-auto text-white">
+                        <Button printHidden={false} onClick={() => window.print()}>
                             <Printer className="w-4 h-4" /> បោះពុម្ព
-                        </button>
+                        </Button>
                     </div>
                 </div>
             </nav>

@@ -1,12 +1,15 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Link from 'next/link'
 import { 
-    ArrowLeft, Send, Smartphone, FilePlus2, X, AlertTriangle, 
+    Send, Smartphone, FilePlus2, X,
     History, Inbox, CalendarClock, ZoomIn, Trash2, Loader2,
-    CheckCircle, XCircle
 } from 'lucide-react'
+import { Button } from '@/components/ui/actions/Button'
+import { Dialog } from '@/components/ui/overlay/Dialog'
+import { useConfirm } from '@/components/ui/overlay/ConfirmDialog'
+import { notify } from '@/components/ui/feedback/notify'
+import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
 import { getAssignments, addAssignment, deleteAssignment } from './actions'
 import SearchableSelect from '@/components/ui/forms/SearchableSelect'
 import { getErrorMessageOr } from '@/lib/utils/errors'
@@ -26,7 +29,6 @@ export default function HomeworkSendClient({ userId }: { userId: string }) {
     const [assignments, setAssignments] = useState<HomeworkAssignment[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [isSubmitting, setIsSubmitting] = useState(false)
-    const [toast, setToast] = useState<{message: string, type: 'success'|'error'} | null>(null)
     
     // Form state
     const [subject, setSubject] = useState('')
@@ -40,8 +42,8 @@ export default function HomeworkSendClient({ userId }: { userId: string }) {
 
     // Modal state
     const [photoModalSrc, setPhotoModalSrc] = useState<string | null>(null)
-    const [deleteModalId, setDeleteModalId] = useState<string | null>(null)
     const [isDeleting, setIsDeleting] = useState(false)
+    const { confirm, dialog } = useConfirm()
 
     useEffect(() => {
         const tomorrow = new Date()
@@ -59,16 +61,21 @@ export default function HomeworkSendClient({ userId }: { userId: string }) {
         setIsLoading(false)
     }
 
-    const showToast = (message: string, type: 'success'|'error' = 'success') => {
-        setToast({ message, type })
-        setTimeout(() => setToast(null), 3000)
-    }
+    /**
+     * Kept as a thin alias so the twelve call sites below read unchanged, but
+     * routed through the app's one notification channel. The page previously
+     * rendered its own toast stack, which could not be dismissed, stacked
+     * behind dialogs, and used `animate-in` classes that resolve to nothing
+     * (`tailwindcss-animate` is not installed).
+     */
+    const showToast = (message: string, type: 'success' | 'error' = 'success') =>
+        type === 'error' ? notify.error(message) : notify.success(message)
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (file) {
              if (file.size > 10 * 1024 * 1024) {
-                alert('សូមអភ័យទោស ទំហំរូបថតធំពេក (លើសពី 10MB)។ សូមជ្រើសរើសរូបថតដែលមានទំហំតូចជាងនេះ។')
+                notify.error('ទំហំរូបថតធំពេក (លើសពី ១០MB)។ សូមជ្រើសរើសរូបថតតូចជាងនេះ។')
                 setFileInputKey(k => k + 1)
                 return
             }
@@ -146,14 +153,21 @@ export default function HomeworkSendClient({ userId }: { userId: string }) {
         }
     }
 
-    const handleDelete = async () => {
-        if (!deleteModalId) return
-        
+    const handleDelete = async (assignment: HomeworkAssignment) => {
+        // Name the assignment in the prompt. The old dialog asked only "តើអ្នក
+        // ពិតជាចង់លុបមែនទេ?", which on a list of similar rows does not tell a
+        // teacher which one they are about to remove.
+        if (!(await confirm({
+            title: 'លុបកិច្ចការផ្ទះ',
+            message: `កិច្ចការ «${assignment.title}» នឹងត្រូវលុបចេញ ហើយអាណាព្យាបាលនឹងលែងឃើញវាទៀត។`,
+            confirmLabel: 'លុប',
+        }))) return
+
         setIsDeleting(true)
         try {
-            const res = await deleteAssignment(deleteModalId)
+            const res = await deleteAssignment(assignment.id)
             if (res.error) throw new Error(res.error)
-            
+
             showToast("លុបបានជោគជ័យ!")
             loadData()
         } catch (error) {
@@ -161,7 +175,6 @@ export default function HomeworkSendClient({ userId }: { userId: string }) {
             showToast("មិនអាចលុបបានទេ។ សូមសាកល្បងម្តងទៀត!", "error")
         } finally {
             setIsDeleting(false)
-            setDeleteModalId(null)
         }
     }
 
@@ -180,68 +193,28 @@ export default function HomeworkSendClient({ userId }: { userId: string }) {
     }
 
     return (
-        <div className="min-h-screen bg-paper text-text-heading flex flex-col">
+        <PageContainer>
             
-            {/* Toast Notification */}
-            {toast && (
-                <div className="fixed bottom-5 right-5 z-[9999] flex flex-col gap-2 pointer-events-none animate-in slide-in-from-right">
-                    <div className={`bg-white border-l-4 shadow-md px-5 py-3 rounded-md flex items-center gap-3 ${toast.type === 'success' ? 'border-success' : 'border-danger'}`}>
-                        {toast.type === 'success' ? <CheckCircle className="w-5 h-5 text-success" /> : <XCircle className="w-5 h-5 text-danger" />}
-                        <span className="font-bold text-sm text-text-body">{toast.message}</span>
-                    </div>
-                </div>
-            )}
+            <PageHeader
+                title="ផ្ញើកិច្ចការទៅអាណាព្យាបាល"
+                description="កិច្ចការដែលបញ្ជូននឹងបង្ហាញនៅក្នុងកម្មវិធីអាណាព្យាបាល"
+                actions={
+                    <a
+                        href="https://portal-parent-v2.vercel.app/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex min-h-11 items-center gap-2 rounded-lg border border-divider bg-brand-100 px-3 text-sm font-bold text-brand transition hover:border-brand-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring dark:bg-brand-900/60 dark:text-brand-300"
+                    >
+                        <Smartphone className="h-4 w-4" aria-hidden="true" /> Parent App
+                    </a>
+                }
+            />
 
-            {/* Modals */}
-            {photoModalSrc && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[1000] flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setPhotoModalSrc(null)}>
-                    <div className="bg-white p-2 rounded-xl shadow-lg max-w-2xl w-full" onClick={e => e.stopPropagation()}>
-                        {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture */}
-                        <img src={photoModalSrc} className="w-full h-auto rounded-xl max-h-[80vh] object-contain bg-paper" alt="Homework Photo" />
-                        <button onClick={() => setPhotoModalSrc(null)} className="mt-4 w-full bg-paper hover:bg-divider text-text-heading font-bold py-3 rounded-xl transition-colors">បិទរូបភាព</button>
-                    </div>
-                </div>
-            )}
-
-            {deleteModalId && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[1000] flex items-end sm:items-center justify-center p-0 sm:p-4">
-                    <div className="bg-white p-6 rounded-xl shadow-lg max-w-sm w-full mx-4">
-                        <div className="flex items-center justify-center w-12 h-12 rounded-full bg-danger/10 mb-4 mx-auto">
-                            <AlertTriangle className="w-6 h-6 text-danger" />
-                        </div>
-                        <h3 className="text-center font-bold text-lg mb-2">បញ្ជាក់ការលុប</h3>
-                        <p className="text-center text-text-muted text-sm mb-6">តើអ្នកពិតជាចង់លុបមែនទេ?</p>
-                        <div className="flex gap-3">
-                            <button onClick={() => setDeleteModalId(null)} className="flex-1 py-2.5 bg-paper hover:bg-divider text-text-body rounded-xl font-bold transition">បោះបង់</button>
-                            <button onClick={handleDelete} disabled={isDeleting} className="flex-1 py-2.5 bg-danger hover:opacity-90 text-white rounded-xl font-bold transition disabled:opacity-50 flex justify-center items-center">
-                                {isDeleting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'លុប'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            <div className="bg-white border-b border-divider shadow-sm sticky top-16 z-40">
-                <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <Link href="/dashboard" className="text-text-muted hover:text-brand-hover hover:bg-brand-100 p-2 rounded-xl transition">
-                            <ArrowLeft className="w-5 h-5" />
-                        </Link>
-                        <h1 className="kh-moul text-brand text-lg sm:text-xl flex items-center gap-2">
-                            <Send className="w-5 h-5" /> ផ្ញើកិច្ចការទៅអាណាព្យាបាល
-                        </h1>
-                    </div>
-                    <div className="text-sm font-bold bg-brand-100 text-brand px-3 py-1.5 rounded-lg border border-divider flex items-center gap-2">
-                        <Smartphone className="w-4 h-4" /> Parent App <sub><a href="https://portal-parent-v2.vercel.app/" target="_blank" className="text-brand hover:underline">Open App</a></sub>
-                    </div>
-                </div>
-            </div>
-
-            <div className="max-w-7xl mx-auto px-4 py-6 w-full grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1">
+            <div className="grid w-full grid-cols-1 gap-6 lg:grid-cols-12">
                 
                 {/* Left Column */}
                 <div className="lg:col-span-5">
-                    <div className="bg-white p-5 md:p-6 rounded-xl shadow-sm border border-divider lg:sticky lg:top-36">
+                    <div className="bg-bg-surface p-5 md:p-6 rounded-xl shadow-sm border border-divider lg:sticky lg:top-36">
                         <h2 className="kh-moul text-lg text-brand mb-4 border-b border-divider pb-3 flex items-center gap-2">
                             <FilePlus2 className="w-5 h-5" /> បង្កើតកិច្ចការថ្មី
                         </h2>
@@ -279,9 +252,9 @@ export default function HomeworkSendClient({ userId }: { userId: string }) {
                                     <div className="relative mt-3 inline-block">
                                         {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture */}
                                         <img src={imageBase64} className="max-h-[200px] object-contain rounded-lg border border-divider bg-paper" alt="Preview" />
-                                        <button type="button" onClick={clearImage} className="absolute -top-2 -right-2 bg-danger text-white rounded-full p-1 shadow-md hover:scale-110 transition">
+                                        <Button variant="danger" size="sm" printHidden={false} type="button" onClick={clearImage}>
                                             <X className="w-4 h-4" />
-                                        </button>
+                                        </Button>
                                     </div>
                                 )}
                             </div>
@@ -291,17 +264,17 @@ export default function HomeworkSendClient({ userId }: { userId: string }) {
                                 <input type="date" required className="w-full p-2.5 rounded-lg border border-divider outline-none focus:border-brand-500 focus:ring-1 focus:ring-focus-ring/30 bg-paper" value={dueDate} onChange={e => setDueDate(e.target.value)} />
                             </div>
 
-                            <button type="submit" disabled={isSubmitting} className="mt-2 bg-brand hover:bg-brand-hover text-white font-bold py-3.5 rounded-xl transition shadow-lg shadow-blue-200 flex justify-center items-center gap-2 disabled:opacity-70">
+                            <Button size="lg" printHidden={false} type="submit" disabled={isSubmitting}>
                                 {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
                                 {isSubmitting ? 'កំពុងបញ្ជូន...' : 'ផ្ញើទៅកាន់អាណាព្យាបាល'}
-                            </button>
+                            </Button>
                         </form>
                     </div>
                 </div>
 
                 {/* Right Column */}
                 <div className="lg:col-span-7 flex flex-col h-[calc(100vh-140px)]">
-                    <div className="bg-white p-5 md:p-6 rounded-xl shadow-sm border border-divider flex-1 flex flex-col overflow-hidden">
+                    <div className="bg-bg-surface p-5 md:p-6 rounded-xl shadow-sm border border-divider flex-1 flex flex-col overflow-hidden">
                         <h2 className="kh-moul text-lg text-success mb-4 border-b border-divider pb-3 flex justify-between items-center">
                             <span className="flex items-center gap-2">
                                 <History className="w-5 h-5" /> ប្រវត្តិកិច្ចការផ្ទះដែលបានដាក់
@@ -330,7 +303,7 @@ export default function HomeworkSendClient({ userId }: { userId: string }) {
                                     const subjectColor = getSubjectColor(a.subject)
 
                                     return (
-                                        <div key={a.id} className="bg-white border border-divider p-4 md:p-5 rounded-xl shadow-sm hover:shadow-md transition group relative overflow-hidden">
+                                        <div key={a.id} className="bg-bg-surface border border-divider p-4 md:p-5 rounded-xl shadow-sm hover:shadow-md transition group relative overflow-hidden">
                                             <div className="absolute top-0 left-0 w-1.5 h-full bg-brand"></div>
                                             <div className="flex justify-between items-start gap-4">
                                                 <div className="flex-1">
@@ -354,9 +327,9 @@ export default function HomeworkSendClient({ userId }: { userId: string }) {
                                                     )}
                                                 </div>
                                                 
-                                                <button onClick={() => setDeleteModalId(a.id)} className="text-text-muted hover:text-danger hover:bg-danger/5 p-2.5 rounded-xl transition flex-shrink-0" title="លុបកិច្ចការនេះ">
+                                                <Button variant="danger" printHidden={false} onClick={() => handleDelete(a)} disabled={isDeleting} title="លុបកិច្ចការនេះ">
                                                     <Trash2 className="w-5 h-5" />
-                                                </button>
+                                                </Button>
                                             </div>
                                         </div>
                                     )
@@ -368,10 +341,32 @@ export default function HomeworkSendClient({ userId }: { userId: string }) {
             </div>
             <style jsx global>{`
                 .custom-scrollbar::-webkit-scrollbar { height: 8px; width: 8px; }
-                .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
-                .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-                .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+                .custom-scrollbar::-webkit-scrollbar-track { background: var(--paper); }
+                .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--divider); border-radius: 4px; }
+                .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
             `}</style>
-        </div>
+
+            {/*
+              The photo, full size. Replaces a hand-rolled overlay with no focus
+              trap and no Escape handler.
+            */}
+            <Dialog
+                open={photoModalSrc !== null}
+                onClose={() => setPhotoModalSrc(null)}
+                title="រូបភាពកិច្ចការផ្ទះ"
+                size="lg"
+            >
+                {photoModalSrc && (
+                    // eslint-disable-next-line @next/next/no-img-element -- user-uploaded remote image; next/image needs an allow-listed host
+                    <img
+                        src={photoModalSrc}
+                        className="h-auto max-h-[70vh] w-full rounded-xl bg-paper object-contain"
+                        alt="រូបភាពកិច្ចការផ្ទះ"
+                    />
+                )}
+            </Dialog>
+
+            {dialog}
+        </PageContainer>
     )
 }

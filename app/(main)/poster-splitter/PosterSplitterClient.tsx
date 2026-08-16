@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useMemo, useRef, useState } from 'react'
+import { Button } from '@/components/ui/actions/Button'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
 import { ArrowLeft, Download, Grid3x3, ImageUp, Loader2, Scissors } from 'lucide-react'
@@ -240,11 +241,8 @@ export default function PosterSplitterClient() {
             className="sr-only"
             onChange={(e) => handleFile(e.target.files?.[0])}
           />
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            className="flex min-h-11 w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-divider bg-brand-100/50 px-4 py-8 text-center transition hover:border-brand-400 hover:bg-brand-100 dark:border-divider dark:bg-bg-surface/50"
-          >
+          <Button printHidden={false} type="button"
+            onClick={() => inputRef.current?.click()}>
             <ImageUp className="h-8 w-8 text-brand" aria-hidden="true" />
             <span className="font-bold text-brand dark:text-brand-300">
               {fileName || 'ជ្រើសរើសរូបភាព Poster'}
@@ -252,7 +250,7 @@ export default function PosterSplitterClient() {
             <span className="text-xs text-text-muted">
               រូបភាពមិនត្រូវបានផ្ទុកឡើងទៅម៉ាស៊ីនមេទេ — ដំណើរការក្នុងកម្មវិធីរុករកតែប៉ុណ្ណោះ
             </span>
-          </button>
+          </Button>
         </div>
 
         {preview && (
@@ -322,17 +320,14 @@ export default function PosterSplitterClient() {
           )}
         </div>
 
-        <button
-          onClick={generate}
-          disabled={!image || busy || !!plan.error}
-          className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand px-6 py-3 font-bold text-white shadow-md transition hover:bg-brand-hover disabled:opacity-50"
-        >
+        <Button size="lg" printHidden={false} onClick={generate}
+          disabled={!image || busy || !!plan.error}>
           {busy ? (
             <><Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> កំពុងបង្កើត... {toKhmerNumber(progress)}%</>
           ) : (
             <><Download className="h-5 w-5" aria-hidden="true" /> ទាញយក PDF</>
           )}
-        </button>
+        </Button>
 
         {busy && (
           <div className="mt-3 h-2 overflow-hidden rounded-full bg-divider dark:bg-paper">

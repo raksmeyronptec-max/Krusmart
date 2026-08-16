@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache'
 import type { ActionResult, AttendanceRecord } from '@/lib/types'
 import { logger } from '@/lib/utils/logger'
 import { resolveServerScope } from '@/lib/utils/serverScope'
-import { auditLog } from '@/lib/audit/log'
+import { auditLog, auditLogBatch } from '@/lib/audit/log'
 
 export async function saveAttendance(studentId: string, date: string, status: string, reason: string = '', classId?: string): Promise<ActionResult> {
     const supabase = await createClient()
@@ -50,6 +50,66 @@ export async function saveAttendance(studentId: string, date: string, status: st
         newValue: { date, status, reason: reason || null },
         metadata: scope.mode === 'v2' ? { class_id: scope.classId } : undefined,
     })
+
+    revalidatePath('/attendance/layout')
+    return { success: true }
+}
+
+/**
+ * Mark a whole roster in one round trip.
+ *
+ * "Everyone is here" is the commonest register a teacher takes, and doing it
+ * seat by seat is thirty taps and thirty requests over a classroom's phone
+ * signal. One upsert of thirty rows is one request, and — more importantly —
+ * it either all lands or none of it does, so the register cannot end up half
+ * written when the connection drops midway.
+ *
+ * Existing marks are overwritten, which is the point: this is the button a
+ * teacher presses to set a baseline before correcting the two pupils who are
+ * away. `reason` is cleared for the same reason a status change clears it —
+ * a note about an absence is meaningless against a present mark.
+ */
+export async function saveAttendanceBulk(
+    studentIds: string[],
+    date: string,
+    status: string,
+    classId?: string,
+): Promise<ActionResult> {
+    const supabase = await createClient()
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Unauthorized' }
+    if (studentIds.length === 0) return { success: true }
+
+    const scope = await resolveServerScope(user.id, classId)
+    const scopeCols = scope.mode === 'v2'
+        ? { class_id: scope.classId, academic_year_id: scope.academicYearId }
+        : {}
+
+    const { error } = await supabase
+        .from('attendance')
+        .upsert(
+            studentIds.map((studentId) => ({
+                ...scopeCols,
+                teacher_id: user.id,
+                student_id: studentId,
+                date,
+                status,
+                reason: '',
+            })),
+            { onConflict: 'student_id, date' },
+        )
+
+    if (error) {
+        logger.error(error)
+        return { error: error.message }
+    }
+
+    // One entry for the batch, not one per pupil: a principal tracing a change
+    // wants to see "the register was set for 2026-08-16", not thirty rows.
+    await auditLogBatch('attendance.updated', 'attendance', studentIds.length, {
+        date, status, class_id: scope.mode === 'v2' ? scope.classId : null,
+    }, user.id)
 
     revalidatePath('/attendance/layout')
     return { success: true }

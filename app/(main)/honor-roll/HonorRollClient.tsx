@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
+import { Button } from '@/components/ui/actions/Button'
 import { ArrowLeft, Printer, Award, Calendar, Bookmark } from 'lucide-react'
-import Link from 'next/link'
+import { notify } from '@/components/ui/feedback/notify'
 import { getAllScoresByPeriod } from '../score/total/actions'
 import Select from '@/components/ui/forms/Select'
 import type { Settings, Student } from '@/lib/types'
@@ -111,7 +112,7 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
         const top5 = processedStudents.filter(s => s.finalAverageForRank > 0).slice(0, 5)
 
         if (top5.length === 0) {
-            alert("មិនទាន់មានទិន្នន័យពិន្ទុគ្រប់គ្រាន់ទេ សូមបញ្ចូលពិន្ទុជាមុនសិន!")
+            notify.error('មិនទាន់មានទិន្នន័យពិន្ទុគ្រប់គ្រាន់ទេ សូមបញ្ចូលពិន្ទុជាមុនសិន')
             setLoading(false)
             return
         }
@@ -148,13 +149,19 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
                     .gold-border-inner { padding: 8mm 10mm 8mm 10mm !important; }
                 }
 
+                /*
+                  Screen decoration only — the printed certificate below keeps
+                  its literal gold and white, which paper needs and a theme must
+                  not touch.
+                */
                 .bg-animate { 
-                    position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; 
-                    background: radial-gradient(circle at 10% 20%, #e0e7ff 0%, transparent 40%), 
-                                radial-gradient(circle at 90% 80%, #fff7ed 0%, transparent 40%), 
-                                radial-gradient(circle at 50% 50%, #fef3c7 0%, transparent 50%); 
+                    position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: 0.5;
+                    background: radial-gradient(circle at 10% 20%, var(--brand-100) 0%, transparent 40%), 
+                                radial-gradient(circle at 90% 80%, var(--color-gold) 0%, transparent 40%), 
+                                radial-gradient(circle at 50% 50%, var(--color-warning) 0%, transparent 50%); 
                     animation: moveBg 20s infinite alternate ease-in-out; 
                 }
+                @media (prefers-reduced-motion: reduce) { .bg-animate { animation: none; } }
                 @keyframes moveBg { from { transform: scale(1); } to { transform: scale(1.1); } }
 
                 .gold-border-outer {
@@ -222,7 +229,7 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
                 .select-btn {
                     display: flex; align-items: center; justify-content: center; gap: 8px;
                     padding: 12px 24px; background-color: white; border-radius: 12px; font-weight: bold;
-                    transition: all 0.2s; cursor: pointer; color: #64748b;
+                    transition: all 0.2s; cursor: pointer; color: var(--text-muted);
                 }
                 .select-btn:hover { background-color: rgba(255,255,255,0.5); }
             `}</style>
@@ -232,17 +239,13 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
                     <div className="bg-animate"></div>
                     <div className="max-w-4xl mx-auto py-8 px-4 no-print relative z-10">
                         {loading && (
-                            <div className="fixed inset-0 bg-white/80 z-50 flex flex-col items-center justify-center backdrop-blur-sm">
+                            <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-bg-surface/80 backdrop-blur-sm">
                                 <div className="w-16 h-16 border-4 border-divider border-t-blue-600 rounded-full animate-spin"></div>
                                 <p className="mt-4 kh-moul text-brand animate-pulse">កំពុងទាញយកទិន្នន័យ...</p>
                             </div>
                         )}
                         
-                        <Link href="/dashboard" className="inline-flex items-center gap-2 text-brand hover:text-brand-hover font-bold transition mb-6 bg-white/50 px-4 py-2 rounded-xl">
-                            <ArrowLeft className="w-5 h-5" /> ត្រឡប់ទៅទំព័រដើម
-                        </Link>
-
-                        <div className="bg-white/95 backdrop-blur-md p-6 md:p-10 text-center border-t-4 border-gold rounded-[1.5rem] shadow-[0_10px_30px_rgba(0,0,0,0.05)]">
+                        <div className="rounded-[1.5rem] border-t-4 border-gold bg-bg-surface/95 p-6 text-center shadow-[0_10px_30px_rgba(0,0,0,0.05)] backdrop-blur-md md:p-10">
                             <div className="flex justify-center mb-4">
                                 <div className="p-4 bg-gold/10 rounded-full text-gold border border-gold/30">
                                     <Award className="w-8 h-8 text-gold" />
@@ -253,13 +256,13 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
 
                             <div className="mb-6 flex justify-center w-full overflow-x-auto pb-2">
                                 <div className="inline-flex bg-paper p-1 rounded-xl whitespace-nowrap">
-                                    <button onClick={() => setCurrentMode('monthly')} className={`select-btn ${currentMode === 'monthly' ? 'bg-white shadow text-brand' : 'text-text-muted hover:bg-white/50'}`}>
+                                    <button onClick={() => setCurrentMode('monthly')} className={`select-btn ${currentMode === 'monthly' ? 'bg-bg-surface shadow text-brand' : 'text-text-muted hover:bg-paper'}`}>
                                         <Calendar className="w-4 h-4" /> ប្រចាំខែ
                                     </button>
-                                    <button onClick={() => setCurrentMode('semester')} className={`select-btn ${currentMode === 'semester' ? 'bg-white shadow text-brand' : 'text-text-muted hover:bg-white/50'}`}>
+                                    <button onClick={() => setCurrentMode('semester')} className={`select-btn ${currentMode === 'semester' ? 'bg-bg-surface shadow text-brand' : 'text-text-muted hover:bg-paper'}`}>
                                         <Bookmark className="w-4 h-4" /> ប្រចាំឆមាស
                                     </button>
-                                    <button onClick={() => setCurrentMode('yearly')} className={`select-btn ${currentMode === 'yearly' ? 'bg-white shadow text-brand' : 'text-text-muted hover:bg-white/50'}`}>
+                                    <button onClick={() => setCurrentMode('yearly')} className={`select-btn ${currentMode === 'yearly' ? 'bg-bg-surface shadow text-brand' : 'text-text-muted hover:bg-paper'}`}>
                                         <Award className="w-4 h-4" /> ប្រចាំឆ្នាំ
                                     </button>
                                 </div>
@@ -295,9 +298,9 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
                             </div>
 
                             <div className="flex justify-center">
-                                <button onClick={() => loadData(currentMode, currentPeriod)} className="px-8 py-3 bg-brand hover:bg-brand-hover text-white rounded-xl font-bold transition shadow-lg flex items-center justify-center gap-2">
+                                <Button size="lg" printHidden={false} onClick={() => loadData(currentMode, currentPeriod)}>
                                     <Printer className="w-5 h-5" /> មើលគំរូ និង បោះពុម្ភ
-                                </button>
+                                </Button>
                             </div>
                         </div>
                     </div>
@@ -305,9 +308,9 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
             ) : (
                 <div className="relative pt-8 pb-8 bg-divider min-h-screen preview-mode">
                     <div className="fixed top-4 right-4 flex flex-col gap-3 z-50 no-print">
-                        <button onClick={() => window.print()} className="bg-brand text-white p-3 rounded-full shadow-lg hover:bg-brand-hover hover:scale-105 transition" title="បោះពុម្ភ">
+                        <Button printHidden={false} onClick={() => window.print()} title="បោះពុម្ភ">
                             <Printer className="w-6 h-6" />
-                        </button>
+                        </Button>
                         <button onClick={() => setShowPreview(false)} className="bg-text-muted text-white p-3 rounded-full shadow-lg hover:opacity-90 hover:scale-105 transition" title="បិទ">
                             <ArrowLeft className="w-6 h-6" />
                         </button>

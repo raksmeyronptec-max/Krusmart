@@ -20,6 +20,7 @@ export type ButtonVariant =
   | "primary"
   | "secondary"
   | "success"
+  | "warning"
   | "danger"
   | "ghost"
   | "gold"
@@ -48,6 +49,9 @@ const VARIANTS: Record<ButtonVariant, string> = {
   primary: "bg-brand text-brand-contrast hover:bg-brand-hover",
   secondary: "border border-divider bg-bg-surface text-text-heading hover:bg-paper",
   success: "bg-success text-white hover:opacity-90",
+  // Consequential but not destructive — a bulk promotion, an override. `danger`
+  // would overstate it; `primary` would understate it.
+  warning: "bg-warning text-white hover:opacity-90",
   danger: "bg-danger text-white hover:opacity-90",
   ghost: "bg-transparent text-text-body hover:bg-paper",
   gold: "bg-gold text-brand-950 hover:opacity-90",

@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState, useTransition } from 'react'
+import { Button } from '@/components/ui/actions/Button'
 import { ArrowUpCircle, ArrowLeftRight, UserMinus, History, X, Loader2 } from 'lucide-react'
 import SearchableSelect from '@/components/ui/forms/SearchableSelect'
 import { promoteStudent, transferStudent, withdrawStudent } from './actions'
@@ -125,27 +126,18 @@ export default function EnrollmentsClient({
       {selected && (
         <>
           <div className="flex flex-wrap gap-3">
-            <button
-              onClick={() => setMode('promote')}
-              disabled={!current}
-              className="flex items-center gap-2 rounded-xl bg-brand px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-40"
-            >
+            <Button printHidden={false} onClick={() => setMode('promote')}
+              disabled={!current}>
               <ArrowUpCircle className="h-4 w-4" /> ឡើងថ្នាក់
-            </button>
-            <button
-              onClick={() => setMode('transfer')}
-              disabled={!current}
-              className="flex items-center gap-2 rounded-xl bg-warning px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-warning disabled:cursor-not-allowed disabled:opacity-40"
-            >
+            </Button>
+            <Button variant="warning" printHidden={false} onClick={() => setMode('transfer')}
+              disabled={!current}>
               <ArrowLeftRight className="h-4 w-4" /> ផ្ទេរថ្នាក់
-            </button>
-            <button
-              onClick={() => setMode('withdraw')}
-              disabled={!current}
-              className="flex items-center gap-2 rounded-xl bg-danger px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-            >
+            </Button>
+            <Button variant="danger" printHidden={false} onClick={() => setMode('withdraw')}
+              disabled={!current}>
               <UserMinus className="h-4 w-4" /> ដកឈ្មោះ
-            </button>
+            </Button>
             {!current && (
               <p className="self-center text-sm text-text-muted">
                 សិស្សនេះមិនមានការចុះឈ្មោះសកម្មទេ
@@ -216,9 +208,9 @@ export default function EnrollmentsClient({
                   {current && ` · ថ្នាក់បច្ចុប្បន្ន ${current.className}`}
                 </p>
               </div>
-              <button onClick={closeModal} aria-label="បិទ" className="rounded-lg p-1 text-text-muted hover:bg-paper">
+              <Button variant="ghost" size="sm" printHidden={false} onClick={closeModal} aria-label="បិទ">
                 <X className="h-5 w-5" />
-              </button>
+              </Button>
             </div>
 
             {mode === 'withdraw' ? (
@@ -245,20 +237,14 @@ export default function EnrollmentsClient({
             )}
 
             <div className="flex gap-3">
-              <button
-                onClick={closeModal}
-                className="flex-1 rounded-xl border border-divider px-4 py-3 text-sm font-bold text-text-body transition hover:bg-paper"
-              >
+              <Button variant="ghost" size="lg" printHidden={false} onClick={closeModal}>
                 បោះបង់
-              </button>
-              <button
-                onClick={submit}
-                disabled={pending || (mode !== 'withdraw' && !targetClassId)}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3 text-sm font-bold text-white transition hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
-              >
+              </Button>
+              <Button size="lg" printHidden={false} onClick={submit}
+                disabled={pending || (mode !== 'withdraw' && !targetClassId)}>
                 {pending && <Loader2 className="h-4 w-4 animate-spin" />}
                 បញ្ជាក់
-              </button>
+              </Button>
             </div>
           </div>
         </div>

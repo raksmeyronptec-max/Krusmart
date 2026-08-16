@@ -1,8 +1,8 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import Link from 'next/link'
-import { ArrowLeft, BookUser, Printer, Users } from 'lucide-react'
+import { Button } from '@/components/ui/actions/Button'
+import { BookUser, Printer, Users } from 'lucide-react'
 import SearchableSelect from '@/components/ui/forms/SearchableSelect'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import { gradeFor } from '@/lib/grading/scheme'
@@ -149,13 +149,6 @@ export default function RecordBookClient({
 
       {/* ---------------------------------------------------------------- UI */}
       <div className="no-print mx-auto max-w-5xl px-4 py-6 md:py-8">
-        <Link
-          href="/dashboard"
-          className="mb-6 inline-flex min-h-11 items-center gap-2 rounded-xl bg-white/60 px-4 py-2 font-bold text-brand shadow-sm backdrop-blur-sm transition hover:text-brand-800"
-        >
-          <ArrowLeft className="h-5 w-5" aria-hidden="true" /> ត្រឡប់ទៅទំព័រដើម
-        </Link>
-
         <div className="rounded-xl border border-divider bg-bg-surface p-6 shadow-lg md:p-8">
           <div className="mb-6 flex items-center gap-3 border-b border-divider pb-4">
             <div className="rounded-full bg-success/10 p-3 text-success dark:bg-success/10 dark:text-success">
@@ -188,13 +181,10 @@ export default function RecordBookClient({
                 ]}
               />
             </div>
-            <button
-              onClick={() => window.print()}
-              disabled={students.length === 0}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-danger px-6 py-2.5 font-bold text-white shadow-md transition hover:opacity-90 disabled:opacity-50"
-            >
+            <Button variant="danger" printHidden={false} onClick={() => window.print()}
+              disabled={students.length === 0}>
               <Printer className="h-4 w-4" aria-hidden="true" /> បោះពុម្ព
-            </button>
+            </Button>
           </div>
 
           <div className="flex items-center gap-2 rounded-xl bg-brand-100 px-4 py-3 text-sm text-brand-800 dark:bg-brand-900/50 dark:text-brand-300">

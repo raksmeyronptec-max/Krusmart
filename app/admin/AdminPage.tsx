@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { EmptyState as SharedEmptyState } from '@/components/ui/feedback/EmptyState'
 
 /** Consistent header + empty state for every admin page. */
 export function AdminPage({
@@ -26,10 +27,17 @@ export function AdminPage({
   )
 }
 
+/**
+ * Thin shim over the shared `EmptyState`.
+ *
+ * Eight admin pages call this with a single `message`, so the signature stays
+ * as it was; the rendering now comes from `components/ui/feedback/EmptyState`
+ * so there is one empty-state look in the product rather than two.
+ */
 export function EmptyState({ message }: { message: string }) {
   return (
-    <div className="rounded-xl border border-dashed border-divider bg-white p-12 text-center text-sm font-bold text-text-muted">
-      {message}
+    <div className="rounded-xl border border-dashed border-divider bg-bg-surface">
+      <SharedEmptyState title={message} />
     </div>
   )
 }

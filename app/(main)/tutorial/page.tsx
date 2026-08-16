@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { Button } from '@/components/ui/actions/Button'
 import Link from 'next/link'
 import { 
     ArrowLeft, Menu, X, Search, 
@@ -94,13 +95,10 @@ export default function TutorialPage() {
                     <div className="flex items-center gap-2 md:gap-4" ref={menuRef}>
                         <ThemeToggle />
 
-                        <button 
-                            onClick={() => setIsMenuOpen(!isMenuOpen)}
-                            className="p-2 md:px-4 md:py-2 text-brand dark:text-brand-400 bg-brand-100 dark:bg-bg-surface rounded-lg md:rounded-xl hover:bg-brand-100 dark:hover:bg-paper transition-colors duration-200 flex items-center gap-2"
-                        >
+                        <Button printHidden={false} onClick={() => setIsMenuOpen(!isMenuOpen)}>
                             <Menu className="w-5 h-5 md:w-6 md:h-6" />
                             <span className="hidden md:inline-block font-bold text-sm">បញ្ជីម៉ឺនុយ</span>
-                        </button>
+                        </Button>
 
                         {/* Dropdown Menu */}
                         <div 
@@ -109,9 +107,9 @@ export default function TutorialPage() {
                             <div className="bg-paper dark:bg-bg-surface px-4 py-3 border-b border-divider dark:border-divider flex flex-col gap-3 sticky top-0 z-10 transition-colors">
                                 <div className="flex justify-between items-center font-bold text-text-body dark:text-text-body">
                                     <span className="text-sm md:text-base">ជ្រើសរើសទំព័រ</span>
-                                    <button onClick={() => setIsMenuOpen(false)} className="text-text-muted hover:text-danger transition-colors p-1 bg-white dark:bg-bg-surface rounded-md shadow-sm border border-divider dark:border-divider">
+                                    <Button variant="secondary" size="sm" printHidden={false} onClick={() => setIsMenuOpen(false)}>
                                         <X className="w-4 h-4 md:w-5 md:h-5" />
-                                    </button>
+                                    </Button>
                                 </div>
                                 <div className="relative w-full">
                                     <Search className="absolute left-3 top-2.5 w-4 h-4 text-text-muted" />

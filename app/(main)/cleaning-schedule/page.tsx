@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Button } from '@/components/ui/actions/Button'
 import { Search, Loader2, Save, Printer, Crown, Users, X, CalendarDays, Shuffle, Check } from "lucide-react";
 import { createClient } from '../../../lib/supabase/client'
 import { getErrorMessage } from '@/lib/utils/errors'
@@ -168,15 +169,15 @@ export default function CleaningSchedulePage() {
               </div>
               
               <div className="flex flex-wrap gap-3">
-                  <button onClick={handleSave} disabled={saving} className="bg-success hover:bg-success text-white px-5 py-2.5 rounded-xl font-bold transition shadow-sm flex items-center gap-2 disabled:opacity-50">
+                  <Button variant="success" printHidden={false} onClick={handleSave} disabled={saving}>
                       {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} រក្សាទុក
-                  </button>
-                  <button onClick={() => setIsRandomOpen(true)} className="bg-brand hover:bg-brand-hover text-white px-5 py-2.5 rounded-xl font-bold transition shadow-sm flex items-center gap-2">
+                  </Button>
+                  <Button printHidden={false} onClick={() => setIsRandomOpen(true)}>
                       <Shuffle className="w-4 h-4" /> ចាត់តាំងស្វ័យប្រវត្តិ
-                  </button>
-                  <button onClick={() => window.print()} className="bg-brand hover:bg-brand-hover text-white px-5 py-2.5 rounded-xl font-bold transition shadow-sm flex items-center gap-2">
+                  </Button>
+                  <Button printHidden={false} onClick={() => window.print()}>
                       <Printer className="w-4 h-4" /> មើលតារាងបោះពុម្ព
-                  </button>
+                  </Button>
               </div>
           </div>
 
@@ -203,9 +204,9 @@ export default function CleaningSchedulePage() {
                                       )}
                                       <span className="text-sm font-bold text-text-body">{leaders[role].name}</span>
                                   </div>
-                                  <button onClick={() => handleRemove(role)} className="text-danger hover:text-danger p-1 bg-danger/10 rounded-lg">
+                                  <Button variant="danger" size="sm" printHidden={false} onClick={() => handleRemove(role)}>
                                     <X className="w-4 h-4" />
-                                  </button>
+                                  </Button>
                               </div>
                           ) : (
                               <div className="relative">
@@ -369,9 +370,9 @@ export default function CleaningSchedulePage() {
                   បែងចែកសិស្សស្មើៗគ្នាតាមភេទ។ គណៈកម្មការថ្នាក់មិនត្រូវបានរាប់បញ្ចូលទេ។
                 </p>
               </div>
-              <button onClick={() => setIsRandomOpen(false)} aria-label="បិទ" className="rounded-lg p-1.5 text-text-muted hover:bg-paper hover:text-text-body">
+              <Button variant="ghost" size="sm" printHidden={false} onClick={() => setIsRandomOpen(false)} aria-label="បិទ">
                 <X className="h-5 w-5" />
-              </button>
+              </Button>
             </div>
 
             <p className="mb-3 text-sm font-bold text-text-body">ជ្រើសរើសថ្ងៃ</p>
@@ -404,9 +405,9 @@ export default function CleaningSchedulePage() {
               <button onClick={() => setIsRandomOpen(false)} className="flex-1 rounded-xl bg-paper px-4 py-3 font-bold text-text-body transition hover:bg-divider">
                 បោះបង់
               </button>
-              <button onClick={handleRandomise} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3 font-bold text-white shadow transition hover:bg-brand-hover">
+              <Button size="lg" printHidden={false} onClick={handleRandomise}>
                 <Shuffle className="h-4 w-4" /> ចាត់តាំង
-              </button>
+              </Button>
             </div>
 
             <p className="mt-3 text-center text-xs text-text-muted">

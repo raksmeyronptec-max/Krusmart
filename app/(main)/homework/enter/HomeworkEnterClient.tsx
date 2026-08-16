@@ -1,16 +1,19 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import Link from 'next/link'
 import { 
-    ArrowLeft, BookMarked, Calendar, Clock, CalendarDays, Save, Info,
+    BookMarked, Calendar, Clock, CalendarDays, Save, Info,
     CalendarCheck, TableProperties, Loader2, Users, Check, Zap
 } from 'lucide-react'
 import { getScores, saveScores } from '../../score/enter/actions'
 import Select from '@/components/ui/forms/Select'
+import { notify } from '@/components/ui/feedback/notify'
+import { useConfirm } from '@/components/ui/overlay/ConfirmDialog'
 import type { ScoreInput, Student } from '@/lib/types'
 import { logger } from '@/lib/utils/logger'
 import { MONTHS_BY_ACADEMIC_YEAR } from '@/lib/constants/months'
+import { getCurrentAcademicYear } from '@/lib/constants/academic'
+import { toKhmerNumber } from '@/lib/utils/khmer-num'
 
 const monthIndexMapping: Record<string, number> = {
     'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'may': 4, 'jun': 5,
@@ -29,8 +32,18 @@ export default function HomeworkEnterClient({ initialStudents}: { initialStudent
     const [bulkScore, setBulkScore] = useState<string>('')
     const [showBulkSuccess, setShowBulkSuccess] = useState(false)
 
+    /**
+     * Marks typed but not yet saved.
+     *
+     * Changing the month or the academic year re-runs the loader, which
+     * replaces `scores` wholesale — the same silent data loss the score-entry
+     * grid had. `switchTo` asks before discarding.
+     */
+    const [dirty, setDirty] = useState(false)
+    const { confirm, dialog } = useConfirm()
+
     // Selection States
-    const [yearSelect, setYearSelect] = useState('2025-2026')
+    const [yearSelect, setYearSelect] = useState(getCurrentAcademicYear)
     const [monthSelect, setMonthSelect] = useState('nov')
     const [daySelect, setDaySelect] = useState<number>(1)
 
@@ -63,6 +76,27 @@ export default function HomeworkEnterClient({ initialStudents}: { initialStudent
         setMonthSelect(targetMonthId)
         setDaySelect(dDay)
     }, [])
+
+    // The current year plus two either side, replacing a hard-coded run of six
+    // that started in 2024 and would have expired.
+    const academicYearOptions = useMemo(() => {
+        const start = parseInt(getCurrentAcademicYear().split('-')[0], 10)
+        return [-2, -1, 0, 1, 2].map((d) => {
+            const y = start + d
+            return { value: `${y}-${y + 1}`, label: `${toKhmerNumber(y)}-${toKhmerNumber(y + 1)}` }
+        })
+    }, [])
+
+    const switchTo = async (apply: () => void) => {
+        if (dirty && !(await confirm({
+            title: 'ពិន្ទុមិនទាន់រក្សាទុក',
+            message: 'អ្នកបានបញ្ចូលពិន្ទុដែលមិនទាន់រក្សាទុក។ ប្តូរទៅខែ ឬឆ្នាំផ្សេងនឹងបាត់បង់ពិន្ទុទាំងនោះ។',
+            tone: 'warning',
+            confirmLabel: 'បន្ត​ដោយមិនរក្សាទុក',
+        }))) return
+        setDirty(false)
+        apply()
+    }
 
     // Generate Date Columns (Memoized)
     const dateColumns = useMemo(() => {
@@ -134,6 +168,7 @@ export default function HomeworkEnterClient({ initialStudents}: { initialStudent
     }, [yearSelect, monthSelect])
 
     const handleScoreChange = (studentId: string, dayNum: number, val: string) => {
+        setDirty(true)
         setScores(prev => ({
             ...prev,
             [studentId]: {
@@ -155,6 +190,7 @@ export default function HomeworkEnterClient({ initialStudents}: { initialStudent
             newScores[s.id][daySelect] = bulkScore
         })
         setScores(newScores)
+        setDirty(true)
 
         setShowBulkSuccess(true)
         setTimeout(() => setShowBulkSuccess(false), 1500)
@@ -191,11 +227,12 @@ export default function HomeworkEnterClient({ initialStudents}: { initialStudent
 
         try {
             await saveScores('homework', scorePeriod, upsertPayload)
+            setDirty(false)
             setShowSuccess(true)
             setTimeout(() => setShowSuccess(false), 3000)
         } catch (error) {
             logger.error("Save failed", error)
-            alert("បរាជ័យក្នុងការរក្សាទុក!")
+            notify.error('បរាជ័យក្នុងការរក្សាទុកពិន្ទុកិច្ចការផ្ទះ')
         } finally {
             setIsSaving(false)
         }
@@ -236,13 +273,13 @@ export default function HomeworkEnterClient({ initialStudents}: { initialStudent
             
             return (
                 <tr key={s.id} className="group transition-colors border-b border-divider last:border-0 hover:bg-brand-100/50">
-                    <td className="p-2 text-center font-bold text-text-muted bg-white group-hover:bg-brand-100/50 sticky left-0 z-20 shadow-[2px_0_5px_rgba(0,0,0,0.05)] border-r border-divider">
+                    <td className="p-2 text-center font-bold text-text-muted bg-bg-surface group-hover:bg-brand-100/50 sticky left-0 z-20 shadow-[2px_0_5px_rgba(0,0,0,0.05)] border-r border-divider">
                         {startIndex + index + 1}
                     </td>
-                    <td className="p-2 bg-white group-hover:bg-brand-100/50 font-bold text-text-heading text-[13px] whitespace-nowrap sticky left-[40px] z-20 shadow-[2px_0_5px_rgba(0,0,0,0.05)] border-r border-divider min-w-[150px]">
+                    <td className="p-2 bg-bg-surface group-hover:bg-brand-100/50 font-bold text-text-heading text-[13px] whitespace-nowrap sticky left-[40px] z-20 shadow-[2px_0_5px_rgba(0,0,0,0.05)] border-r border-divider min-w-[150px]">
                         {s.name_kh || '-'}
                     </td>
-                    <td className={`p-2 text-center font-bold text-[13px] ${genderColor} border-r border-divider bg-white group-hover:bg-brand-100/50`}>
+                    <td className={`p-2 text-center font-bold text-[13px] ${genderColor} border-r border-divider bg-bg-surface group-hover:bg-brand-100/50`}>
                         {s.gender || '-'}
                     </td>
                     
@@ -315,20 +352,17 @@ export default function HomeworkEnterClient({ initialStudents}: { initialStudent
     }
 
     return (
-        <div className="min-h-screen bg-paper text-text-heading flex flex-col">
-            <div className="bg-animate fixed inset-0 z-[-1] opacity-60 bg-[radial-gradient(circle_at_10%_20%,var(--brand-100)_0%,transparent_40%),radial-gradient(circle_at_90%_80%,var(--color-success)_0%,transparent_40%),radial-gradient(circle_at_50%_50%,var(--color-gold)_0%,transparent_40%)]"></div>
+        <div className="relative flex flex-col text-text-heading">
+            <div className="bg-animate pointer-events-none absolute inset-0 z-[-1] opacity-60 bg-[radial-gradient(circle_at_10%_20%,var(--brand-100)_0%,transparent_40%),radial-gradient(circle_at_90%_80%,var(--color-success)_0%,transparent_40%),radial-gradient(circle_at_50%_50%,var(--color-gold)_0%,transparent_40%)]"></div>
 
-            <div className="max-w-[1400px] mx-auto px-4 py-6 w-full flex flex-col gap-5 flex-1 overflow-hidden h-[calc(100vh-64px)]">
+            <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-5 px-4 py-6">
                 
                 {/* Header Section */}
-                <div className="bg-white/80 backdrop-blur-md p-4 md:p-5 rounded-xl shadow-sm border border-white/50 flex flex-col gap-4 shrink-0">
+                <div className="bg-bg-surface/80 backdrop-blur-md p-4 md:p-5 rounded-xl shadow-sm border border-divider flex flex-col gap-4 shrink-0">
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                         {/* Title & Back */}
                         <div className="flex items-center gap-4 w-full md:w-auto">
-                            <Link href="/dashboard" className="bg-brand-100 p-3 rounded-xl hover:bg-brand-100 text-brand transition flex items-center gap-2">
-                                <ArrowLeft className="w-5 h-5" />
-                            </Link>
-                            <div className="bg-brand p-3 rounded-xl shadow-lg shadow-indigo-200 text-white">
+                            <div className="rounded-xl bg-brand p-3 text-brand-contrast shadow-lg">
                                 <BookMarked className="w-6 h-6" />
                             </div>
                             <div>
@@ -355,7 +389,7 @@ export default function HomeworkEnterClient({ initialStudents}: { initialStudent
                                         wrapperClassName="min-w-[130px]"
                                     />
                                     
-                                    <div className="flex items-center bg-white border border-divider rounded-xl overflow-hidden shadow-sm h-[38px]">
+                                    <div className="flex items-center bg-bg-surface border border-divider rounded-xl overflow-hidden shadow-sm h-[38px]">
                                         <input 
                                             type="number" 
                                             value={bulkScore}
@@ -378,7 +412,7 @@ export default function HomeworkEnterClient({ initialStudents}: { initialStudent
                             <Select
                                 ariaLabel="ខែ"
                                 value={monthSelect}
-                                onChange={setMonthSelect}
+                                onChange={(v) => switchTo(() => setMonthSelect(v))}
                                 options={MONTHS_BY_ACADEMIC_YEAR.map(m => ({
                                     value: m.id,
                                     label: `ខែ${m.label} ឆ្នាំ ${m.isNextYear ? yearSelect.split('-')[1] : yearSelect.split('-')[0]}`,
@@ -390,15 +424,8 @@ export default function HomeworkEnterClient({ initialStudents}: { initialStudent
                             <Select
                                 ariaLabel="ឆ្នាំសិក្សា"
                                 value={yearSelect}
-                                onChange={setYearSelect}
-                                options={[
-                                    { value: '2024-2025', label: '២០២៤-២០២៥' },
-                                    { value: '2025-2026', label: '២០២៥-២០២៦' },
-                                    { value: '2026-2027', label: '២០២៦-២០២៧' },
-                                    { value: '2027-2028', label: '២០២៧-២០២៨' },
-                                    { value: '2028-2029', label: '២០២៨-២០២៩' },
-                                    { value: '2029-2030', label: '២០២៩-២០៣0' },
-                                ]}
+                                onChange={(v) => switchTo(() => setYearSelect(v))}
+                                options={academicYearOptions}
                                 leadingIcon={<CalendarDays />}
                             />
 
@@ -408,7 +435,7 @@ export default function HomeworkEnterClient({ initialStudents}: { initialStudent
                             <button 
                                 onClick={handleSave} 
                                 disabled={isSaving}
-                                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold shadow-lg transition-all hover:scale-105 active:scale-95 ${showSuccess ? 'bg-success text-white shadow-emerald-200' : 'bg-brand text-white hover:bg-[var(--brand)] shadow-blue-200'}`}
+                                className={`flex min-h-11 items-center gap-2 rounded-xl px-5 py-2.5 font-bold shadow-lg transition-all hover:scale-105 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:opacity-60 ${showSuccess ? 'bg-success text-white' : 'bg-brand text-brand-contrast hover:bg-brand-hover'}`}
                             >
                                 {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : (showSuccess ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />)}
                                 <span>{showSuccess ? 'ជោគជ័យ' : 'រក្សាទុក'}</span>
@@ -426,7 +453,7 @@ export default function HomeworkEnterClient({ initialStudents}: { initialStudent
 
                 {/* Section Tabs */}
                 <div className="flex items-center justify-between gap-4 shrink-0 -mb-2 z-10">
-                    <div className="flex p-1 bg-white/80 backdrop-blur-md rounded-xl shadow-sm border border-divider/60 w-full sm:w-auto">
+                    <div className="flex p-1 bg-bg-surface/80 backdrop-blur-md rounded-xl shadow-sm border border-divider/60 w-full sm:w-auto">
                         <button 
                             onClick={() => setCurrentTab('daily')} 
                             className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm shadow-md transition-all ${currentTab === 'daily' ? 'bg-brand text-white' : 'text-text-body hover:text-brand hover:bg-paper shadow-none'}`}
@@ -443,7 +470,7 @@ export default function HomeworkEnterClient({ initialStudents}: { initialStudent
                 </div>
 
                 {/* Table Container */}
-                <div className="flex-1 bg-white/95 backdrop-blur-xl rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/50 overflow-hidden flex flex-col relative min-h-0">
+                <div className="flex-1 bg-bg-surface/95 backdrop-blur-xl rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-divider overflow-hidden flex flex-col relative min-h-0">
                     <div className="flex-1 overflow-auto custom-scrollbar relative">
                         {isLoading ? (
                             <div className="flex-1 flex flex-col items-center justify-center p-8 text-brand-500 h-full gap-3 mt-10">
@@ -460,26 +487,26 @@ export default function HomeworkEnterClient({ initialStudents}: { initialStudent
                                 <div className="border-b xl:border-b-0 xl:border-r border-divider">
                                     <table className="w-full border-collapse">
                                         <thead>{renderThead('daily')}</thead>
-                                        <tbody className="bg-white text-sm">{renderTbody(leftStudents, 0, 'daily')}</tbody>
+                                        <tbody className="bg-bg-surface text-sm">{renderTbody(leftStudents, 0, 'daily')}</tbody>
                                     </table>
                                 </div>
                                 <div>
                                     <table className="w-full border-collapse">
                                         <thead>{renderThead('daily')}</thead>
-                                        <tbody className="bg-white text-sm">{renderTbody(rightStudents, half, 'daily')}</tbody>
+                                        <tbody className="bg-bg-surface text-sm">{renderTbody(rightStudents, half, 'daily')}</tbody>
                                     </table>
                                 </div>
                             </div>
                         ) : (
                             <table className="w-full border-collapse">
                                 <thead>{renderThead('monthly')}</thead>
-                                <tbody className="bg-white text-sm">{renderTbody(students, 0, 'monthly')}</tbody>
+                                <tbody className="bg-bg-surface text-sm">{renderTbody(students, 0, 'monthly')}</tbody>
                             </table>
                         )}
                     </div>
                     
                     {/* Footer Stats */}
-                    <div className="p-3 bg-white border-t border-divider flex justify-between items-center text-sm text-text-muted shrink-0">
+                    <div className="p-3 bg-bg-surface border-t border-divider flex justify-between items-center text-sm text-text-muted shrink-0">
                         <span className="font-bold text-brand">សិស្សសរុប៖ {students.length} នាក់ (ស្រី {femaleCount})</span>
                         <span className="italic text-xs bg-paper px-2 py-1 rounded flex items-center gap-1">
                             <Check className="w-3 h-3 text-brand-500" /> Cloud Sync Ready
@@ -494,10 +521,12 @@ export default function HomeworkEnterClient({ initialStudents}: { initialStudent
                     -webkit-appearance: none; margin: 0; 
                 }
                 .custom-scrollbar::-webkit-scrollbar { height: 10px; width: 10px; }
-                .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
-                .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 5px; }
-                .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+                .custom-scrollbar::-webkit-scrollbar-track { background: var(--paper); }
+                .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--divider); border-radius: 5px; }
+                .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
             `}</style>
+
+            {dialog}
         </div>
     )
 }

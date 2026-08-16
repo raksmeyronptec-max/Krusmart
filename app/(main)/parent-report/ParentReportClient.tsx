@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { ArrowLeft, UserSearch, FileSpreadsheet, Printer, Loader2, Contact } from 'lucide-react'
-import Link from 'next/link'
+import { Button } from '@/components/ui/actions/Button'
+import { UserSearch, FileSpreadsheet, Printer, Loader2, Contact } from 'lucide-react'
+import { notify } from '@/components/ui/feedback/notify'
 import { getStudentDataForYear } from './actions'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import * as XLSX from 'xlsx-js-style'
@@ -227,7 +228,7 @@ export default function ParentReportClient({ initialStudents, settings }: { init
 
     const printSingle = () => {
         if (!studentId) {
-            alert("សូមជ្រើសរើសសិស្សជាមុនសិន")
+            notify.error('សូមជ្រើសរើសសិស្សជាមុនសិន')
             return
         }
         window.print()
@@ -285,16 +286,11 @@ export default function ParentReportClient({ initialStudents, settings }: { init
                 </div>
             )}
 
-            <nav className="bg-white/95 backdrop-blur-md border-b border-brand/10 sticky top-0 z-50 p-4 shadow-sm no-print">
-                <div className="container mx-auto max-w-7xl flex flex-col xl:flex-row justify-between items-center gap-4">
-                    <div className="flex items-center gap-4 w-full xl:w-auto">
-                        <Link href="/dashboard" className="flex items-center justify-center w-10 h-10 bg-brand-100 text-brand rounded-full hover:bg-brand-100 transition">
-                            <ArrowLeft className="w-5 h-5" />
-                        </Link>
-                        <div>
-                            <h1 className="kh-moul text-brand text-lg">របាយការណ៍ជូនមាតាបិតា</h1>
-                            <p className="text-xs text-text-muted font-bold">Student Progress Report</p>
-                        </div>
+            <nav className="no-print border-b border-divider bg-bg-surface/95 p-4 shadow-sm backdrop-blur-md">
+                <div className="container mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 xl:flex-row">
+                    <div className="w-full xl:w-auto">
+                        <h1 className="kh-moul text-lg text-brand">របាយការណ៍ជូនមាតាបិតា</h1>
+                        <p className="text-xs font-bold text-text-muted">ជ្រើសរើសសិស្ស និងខែ រួចបោះពុម្ព</p>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
@@ -331,12 +327,12 @@ export default function ParentReportClient({ initialStudents, settings }: { init
                         />
 
                         <div className="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0">
-                            <button onClick={exportExcel} className="flex-1 sm:flex-none bg-success hover:opacity-90 text-white px-3 py-2 rounded-xl text-sm font-bold flex justify-center items-center gap-2 shadow-md transition-transform hover:scale-105">
+                            <Button variant="success" printHidden={false} onClick={exportExcel}>
                                 <FileSpreadsheet className="w-4 h-4" /> Excel
-                            </button>
-                            <button onClick={printSingle} className="flex-1 sm:flex-none bg-brand hover:bg-brand-hover text-white px-3 py-2 rounded-xl text-sm font-bold flex justify-center items-center gap-2 shadow-md transition-transform hover:scale-105">
+                            </Button>
+                            <Button printHidden={false} onClick={printSingle}>
                                 <Printer className="w-4 h-4" /> បោះពុម្ព
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 </div>
@@ -344,7 +340,7 @@ export default function ParentReportClient({ initialStudents, settings }: { init
 
             {!reportData ? (
                 <div className="container mx-auto max-w-3xl mt-10 p-8 text-center no-print">
-                    <div className="bg-white p-10 rounded-xl shadow-sm border border-divider flex flex-col items-center">
+                    <div className="flex flex-col items-center rounded-xl border border-divider bg-bg-surface p-10 shadow-sm">
                         <div className="w-20 h-20 bg-brand-100 text-brand-500 rounded-full flex items-center justify-center mb-4">
                             <Contact className="w-10 h-10" />
                         </div>

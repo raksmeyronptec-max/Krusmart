@@ -1,6 +1,7 @@
 'use client'
 
 import { ArrowLeft, FileSpreadsheet, Printer } from 'lucide-react'
+import { Button } from '@/components/ui/actions/Button'
 import Link from 'next/link'
 import * as XLSX from 'xlsx-js-style'
 import type { Settings, Student } from '@/lib/types'
@@ -250,12 +251,12 @@ export default function PrintListClient({ initialStudents, settings }: { initial
                     </div>
 
                     <div className="flex gap-2 ml-auto">
-                        <button onClick={exportExcel} className="flex items-center gap-2 bg-success hover:opacity-90 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-sm transition">
+                        <Button variant="success" printHidden={false} onClick={exportExcel}>
                             <FileSpreadsheet className="w-4 h-4" /> ទាញយក Excel
-                        </button>
-                        <button onClick={printList} className="flex items-center gap-2 bg-brand hover:bg-brand-hover text-white px-4 py-2 rounded-lg font-bold text-sm shadow-sm transition">
+                        </Button>
+                        <Button printHidden={false} onClick={printList}>
                             <Printer className="w-4 h-4" /> បោះពុម្ព
-                        </button>
+                        </Button>
                     </div>
                 </div>
             </div>

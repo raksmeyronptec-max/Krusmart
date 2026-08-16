@@ -1,6 +1,11 @@
 'use client'
 
 import { useEffect, useState, useTransition } from 'react'
+import { DataTable } from '@/components/ui/data/DataTable'
+import { EmptyState } from '@/components/ui/feedback/EmptyState'
+import { toKhmerNumber } from '@/lib/utils/khmer-num'
+import { useConfirm } from '@/components/ui/overlay/ConfirmDialog'
+import { Button } from '@/components/ui/actions/Button'
 import { ArrowLeft, Package, PlusCircle, Save, X, List, Printer, Edit, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
@@ -52,6 +57,7 @@ export default function InventoryClient({
     const [qty, setQty] = useState('')
     const [note, setNote] = useState('')
     const [pending, startTransition] = useTransition()
+    const { confirm, dialog } = useConfirm()
 
     /**
      * Import the browser's old localStorage list once.
@@ -116,8 +122,11 @@ export default function InventoryClient({
         setNote(item.note ?? '')
     }
 
-    const deleteItem = (id: string) => {
-        if (!confirm('តើអ្នកពិតជាចង់លុបសម្ភារៈនេះមែនទេ?')) return
+    const deleteItem = async (id: string) => {
+        if (!(await confirm({
+            title: 'លុបសម្ភារៈ',
+            message: 'សម្ភារៈនេះនឹងត្រូវលុបចេញជាអចិន្ត្រៃយ៍។',
+        }))) return
         startTransition(async () => {
             const res = await deleteInventoryItem(id)
             if (res.error) {
@@ -215,45 +224,58 @@ export default function InventoryClient({
                             <List className="w-5 h-5 text-brand" /> បញ្ជីទិន្នន័យសម្ភារៈ ({items.length})
                         </h3>
                         <div className="flex gap-2">
-                            <button onClick={printPage} className="bg-danger hover:opacity-90 text-white px-5 py-2.5 rounded-xl font-bold transition shadow-md flex items-center gap-2 text-sm">
+                            <Button variant="danger" printHidden={false} onClick={printPage}>
                                 <Printer className="w-4 h-4" /> បោះពុម្ព PDF
-                            </button>
+                            </Button>
                         </div>
                     </div>
 
-                    <div className="overflow-x-auto rounded-xl border border-divider">
-                        <table className="w-full text-sm text-left">
-                            <thead className="bg-paper text-text-body font-bold border-b">
-                                <tr>
-                                    <th className="p-3 text-center w-16">ល.រ</th>
-                                    <th className="p-3">ឈ្មោះសម្ភារៈ</th>
-                                    <th className="p-3 text-center w-24">ចំនួន</th>
-                                    <th className="p-3">ចំណាំ</th>
-                                    <th className="p-3 text-center w-32">គ្រប់គ្រង</th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-divider">
-                                {items.length === 0 ? (
-                                    <tr><td colSpan={5} className="p-6 text-center text-text-muted font-bold">មិនទាន់មានទិន្នន័យសម្ភារៈនៅឡើយទេ</td></tr>
-                                ) : (
-                                    items.map((item, index) => (
-                                        <tr key={item.id} className="hover:bg-paper transition">
-                                            <td className="p-3 text-center font-bold text-text-body border-r border-divider">{index + 1}</td>
-                                            <td className="p-3 font-bold text-brand">{item.name}</td>
-                                            <td className="p-3 text-center font-bold">{item.qty}</td>
-                                            <td className="p-3 text-text-body text-sm">{item.note || '-'}</td>
-                                            <td className="p-3 text-center">
-                                                <div className="flex justify-center gap-2">
-                                                    <button onClick={() => editItem(item)} className="p-1.5 bg-warning/10 text-warning rounded-lg hover:bg-warning/20 transition" title="កែប្រែ"><Edit className="w-4 h-4" /></button>
-                                                    <button onClick={() => deleteItem(item.id)} className="p-1.5 bg-danger/10 text-danger rounded-lg hover:bg-danger/20 transition" title="លុប"><Trash2 className="w-4 h-4" /></button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                    <DataTable
+                        rows={items}
+                        rowKey={(item) => item.id}
+                        caption="បញ្ជីសារពើភ័ណ្ឌថ្នាក់រៀន"
+                        empty={
+                            <EmptyState
+                                title="មិនទាន់មានទិន្នន័យសម្ភារៈនៅឡើយទេ"
+                                description="បញ្ចូលសម្ភារៈដំបូងខាងលើ ដើម្បីចាប់ផ្តើមកត់ត្រា។"
+                            />
+                        }
+                        columns={[
+                            {
+                                key: 'name',
+                                header: 'ឈ្មោះសម្ភារៈ',
+                                primary: true,
+                                sortable: true,
+                                sortValue: (item) => item.name,
+                                cell: (item) => <span className="font-bold text-brand">{item.name}</span>,
+                            },
+                            {
+                                key: 'qty',
+                                header: 'ចំនួន',
+                                align: 'center',
+                                width: 'w-24',
+                                secondary: true,
+                                sortable: true,
+                                sortValue: (item) => item.qty,
+                                cell: (item) => <span className="font-bold">{toKhmerNumber(item.qty)}</span>,
+                            },
+                            {
+                                key: 'note',
+                                header: 'ចំណាំ',
+                                cell: (item) => item.note || '-',
+                            },
+                        ]}
+                        actions={(item) => (
+                            <div className="flex justify-center gap-2">
+                                <Button variant="warning" size="sm" printHidden={false} onClick={() => editItem(item)} aria-label={`កែប្រែ ${item.name}`}>
+                                    <Edit className="w-4 h-4" aria-hidden="true" />
+                                </Button>
+                                <Button variant="danger" size="sm" printHidden={false} onClick={() => deleteItem(item.id)} aria-label={`លុប ${item.name}`}>
+                                    <Trash2 className="w-4 h-4" aria-hidden="true" />
+                                </Button>
+                            </div>
+                        )}
+                    />
                 </div>
             </div>
 
@@ -311,6 +333,7 @@ export default function InventoryClient({
                 </div>
             </div>
 
+            {dialog}
         </div>
     )
 }

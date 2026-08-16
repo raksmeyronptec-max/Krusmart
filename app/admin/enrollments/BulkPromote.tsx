@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { Button } from '@/components/ui/actions/Button'
 import { ArrowUpCircle, Loader2 } from 'lucide-react'
 import SearchableSelect from '@/components/ui/forms/SearchableSelect'
 import { bulkPromoteClass } from './actions'
@@ -86,33 +87,24 @@ export default function BulkPromote({ classes }: { classes: ClassOption[] }) {
       </div>
 
       {!confirming ? (
-        <button
-          onClick={() => { setConfirming(true); setMessage(null) }}
-          disabled={!fromId || !toId}
-          className="rounded-xl bg-brand px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-40"
-        >
+        <Button printHidden={false} onClick={() => { setConfirming(true); setMessage(null) }}
+          disabled={!fromId || !toId}>
           ឡើងថ្នាក់ជាក្រុម
-        </button>
+        </Button>
       ) : (
         <div className="space-y-3 rounded-xl border border-warning/30 bg-warning/10 p-4">
           <p className="text-sm font-bold text-warning">
             តើអ្នកពិតជាចង់ផ្លាស់ប្តូរសិស្សទាំងអស់ពី {from && label(from)} ទៅ {to && label(to)} មែនទេ?
           </p>
           <div className="flex gap-3">
-            <button
-              onClick={() => setConfirming(false)}
-              className="rounded-xl border border-divider bg-white px-4 py-2 text-sm font-bold text-text-body"
-            >
+            <Button variant="secondary" printHidden={false} onClick={() => setConfirming(false)}>
               បោះបង់
-            </button>
-            <button
-              onClick={run}
-              disabled={pending}
-              className="flex items-center gap-2 rounded-xl bg-warning px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
-            >
+            </Button>
+            <Button variant="warning" printHidden={false} onClick={run}
+              disabled={pending}>
               {pending && <Loader2 className="h-4 w-4 animate-spin" />}
               បញ្ជាក់
-            </button>
+            </Button>
           </div>
         </div>
       )}

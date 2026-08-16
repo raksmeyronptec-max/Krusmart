@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Button } from '@/components/ui/actions/Button'
 import { ArrowLeft, Printer, Search, Users } from 'lucide-react'
 import Link from 'next/link'
 import Select from '@/components/ui/forms/Select'
@@ -125,9 +126,9 @@ export default function StudentTrackingClient({ initialStudents, scoresData, set
                     </Link>
                     
                     <div className="flex gap-2 flex-wrap justify-end">
-                        <button onClick={printAll} className="px-5 py-2.5 rounded-lg font-bold flex items-center gap-2 text-sm bg-success text-white shadow-md hover:opacity-90 transition-all">
+                        <Button variant="success" printHidden={false} onClick={printAll}>
                             <Printer className="w-4 h-4" /> បោះពុម្ពសិស្សទាំងអស់
-                        </button>
+                        </Button>
                     </div>
                 </div>
 
@@ -195,9 +196,9 @@ export default function StudentTrackingClient({ initialStudents, scoresData, set
                                         <div className="text-xs font-bold text-text-body">ពិន្ទុ: <span className="text-brand">{getStudentScoreData(student.id)?.average || '-'}</span></div>
                                         <div className="text-xs font-bold text-text-body">និទ្ទេស: <span className="text-danger">{getGrade(parseFloat(String(getStudentScoreData(student.id)?.average ?? '')))}</span></div>
                                     </div>
-                                    <button className="mt-3 w-full bg-brand-100 hover:bg-brand-100 text-brand font-bold py-1.5 rounded-lg text-xs transition flex justify-center items-center gap-1">
+                                    <Button size="sm" printHidden={false}>
                                         <Printer className="w-3 h-3" /> បោះពុម្ព
-                                    </button>
+                                    </Button>
                                 </div>
                             ))}
                             {filteredStudents.length === 0 && (

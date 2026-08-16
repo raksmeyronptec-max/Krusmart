@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useTransition, type ReactNode } from 'react'
-import { Plus, X, Loader2 } from 'lucide-react'
+import { Button } from '@/components/ui/actions/Button'
+import { Card } from '@/components/ui/layout/Card'
+import { Plus, X } from 'lucide-react'
 import type { ActionResult } from '@/lib/types'
 
 /**
@@ -54,49 +56,41 @@ export function AdminCreateForm({
       )}
 
       {!open ? (
-        <button
+        <Button
           onClick={() => { setOpen(true); setMessage(null) }}
-          className="flex items-center gap-2 rounded-xl bg-brand px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-brand-hover"
+          icon={<Plus className="h-4 w-4" aria-hidden="true" />}
+          printHidden={false}
         >
-          <Plus className="h-4 w-4" /> {title}
-        </button>
+          {title}
+        </Button>
       ) : (
-        <form
-          action={onSubmit}
-          className="space-y-4 rounded-xl border border-divider bg-white p-6 shadow-sm"
-        >
+        <Card as="form" action={onSubmit} className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="kh-moul text-base text-brand">{title}</h2>
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => setOpen(false)}
               aria-label="បិទ"
-              className="rounded-lg p-1 text-text-muted transition hover:bg-paper"
+              printHidden={false}
+              className="px-1"
             >
-              <X className="h-5 w-5" />
-            </button>
+              <X className="h-5 w-5" aria-hidden="true" />
+            </Button>
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{children}</div>
 
           <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="rounded-xl border border-divider px-5 py-2.5 text-sm font-bold text-text-body transition hover:bg-paper"
-            >
+            <Button type="button" variant="secondary" onClick={() => setOpen(false)} printHidden={false}>
               បោះបង់
-            </button>
-            <button
-              type="submit"
-              disabled={pending}
-              className="flex items-center gap-2 rounded-xl bg-brand px-5 py-2.5 text-sm font-bold text-white transition hover:bg-brand-hover disabled:opacity-50"
-            >
-              {pending && <Loader2 className="h-4 w-4 animate-spin" />}
+            </Button>
+            <Button type="submit" loading={pending} printHidden={false}>
               {submitLabel}
-            </button>
+            </Button>
           </div>
-        </form>
+        </Card>
       )}
     </div>
   )

@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useConfirm } from '@/components/ui/overlay/ConfirmDialog'
+import { Button } from '@/components/ui/actions/Button'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
 import { ArrowLeft, Edit, PlusCircle, Printer, Save, Trash2, X } from 'lucide-react'
@@ -42,6 +44,7 @@ export default function BookClient({
   const [form, setForm] = useState<Record<string, string>>(() => emptyForm(book))
   const [editId, setEditId] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
+  const { confirm, dialog } = useConfirm()
 
   const landscape = book.orientation === 'landscape'
   const columns = printableFields(book)
@@ -90,8 +93,11 @@ export default function BookClient({
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const handleDelete = (entry: ClassAdminEntry) => {
-    if (!confirm('តើអ្នកពិតជាចង់លុបកំណត់ត្រានេះមែនទេ?')) return
+  const handleDelete = async (entry: ClassAdminEntry) => {
+    if (!(await confirm({
+      title: 'លុបកំណត់ត្រា',
+      message: 'កំណត់ត្រានេះនឹងត្រូវលុបចេញជាអចិន្ត្រៃយ៍។',
+    }))) return
     startTransition(async () => {
       const res = await deleteBookEntry(entry.id, book.id)
       if (res.error) {
@@ -181,12 +187,9 @@ export default function BookClient({
           >
             <ArrowLeft className="h-5 w-5" aria-hidden="true" /> ត្រឡប់ទៅបញ្ជីសៀវភៅ
           </Link>
-          <button
-            onClick={() => window.print()}
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-danger px-5 py-2.5 text-sm font-bold text-white shadow-md transition hover:opacity-90"
-          >
+          <Button variant="danger" printHidden={false} onClick={() => window.print()}>
             <Printer className="h-4 w-4" aria-hidden="true" /> បោះពុម្ព
-          </button>
+          </Button>
         </div>
 
         <div className="rounded-xl border border-divider bg-bg-surface p-5 shadow-lg md:p-8">
@@ -274,20 +277,14 @@ export default function BookClient({
                       ))}
                       <td className="p-3">
                         <div className="flex justify-center gap-2">
-                          <button
-                            onClick={() => handleEdit(entry)}
-                            aria-label="កែប្រែ"
-                            className="rounded-lg bg-warning/10 p-2 text-warning transition hover:bg-warning/20"
-                          >
+                          <Button variant="warning" printHidden={false} onClick={() => handleEdit(entry)}
+                            aria-label="កែប្រែ">
                             <Edit className="h-4 w-4" aria-hidden="true" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(entry)}
-                            aria-label="លុប"
-                            className="rounded-lg bg-danger/10 p-2 text-danger transition hover:bg-danger/20"
-                          >
+                          </Button>
+                          <Button variant="danger" printHidden={false} onClick={() => handleDelete(entry)}
+                            aria-label="លុប">
                             <Trash2 className="h-4 w-4" aria-hidden="true" />
-                          </button>
+                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -363,6 +360,7 @@ export default function BookClient({
           </div>
         </div>
       </div>
+      {dialog}
     </div>
   )
 }

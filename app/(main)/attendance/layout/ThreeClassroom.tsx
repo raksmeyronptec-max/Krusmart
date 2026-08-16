@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { Button } from '@/components/ui/actions/Button'
 import { Badge, ATTENDANCE_BADGE, ATTENDANCE_COLORS } from '@/components/ui/feedback/Badge'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
@@ -671,9 +672,9 @@ export default function ThreeClassroom({ config, seatingLayout, students, attend
     return (
         <div className="fixed inset-0 z-[100] bg-brand-950 flex flex-col">
             <div className="absolute top-4 left-4 z-50">
-                <button onClick={onClose} className="bg-bg-surface/10 hover:bg-bg-surface/20 text-white rounded-full p-2 backdrop-blur-sm transition-colors border border-white/20 shadow-sm" title="Back to 2D" data-close-3d>
+                <Button variant="secondary" printHidden={false} onClick={onClose} title="Back to 2D" data-close-3d>
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-                </button>
+                </Button>
             </div>
             
             <canvas ref={canvasRef} className="w-full h-full block touch-none cursor-grab" style={{ touchAction: 'none' }}></canvas>

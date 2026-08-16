@@ -64,7 +64,7 @@ Every table is keyed on `teacher_id → auth.users(id)` with four RLS policies o
 
 The SQL in `supabase/` is a **stale snapshot, not the source of truth.** [migrations/00001_init.sql](supabase/migrations/00001_init.sql) is the canonical baseline; the earlier partial snapshots live in `supabase/legacy/` and must not be applied. See [supabase/README.md](supabase/README.md). The live database has drifted:
 
-- `scores` — code writes `score_period` and `score_value`; the SQL declares `month` and `score`. Upserts use `onConflict: 'student_id, subject, score_type, score_period'`.
+- `scores` — code writes `score_period` and `score_value`; the SQL declares `month` and `score`. Upserts use `onConflict: 'teacher_id, student_id, subject, score_type, score_period'`, matching the `scores_owner_period_uniq` index from migration 00002. **`teacher_id` is part of the key on purpose** — without it, two teachers assigned to the same class and subject would silently overwrite each other's marks. Dropping it also breaks the write outright: Postgres rejects the narrower target with `42P10` (no matching unique constraint).
 - `settings` — code reads `photo_url`, which is absent from the SQL.
 - `profiles`, `schools`, `teacher_attendance` — used by [TopNav](components/TopNav.tsx) GPS check-in and `app/admin/teacher-attendance`, but have **no SQL file at all**.
 
@@ -77,7 +77,7 @@ Discriminated by `score_type` + `score_period`, all through the shared actions i
 - `monthly` → period `` `${month}-${academicYear}` ``
 - `semester` → period `` `${semester}-${academicYear}` ``; subject names are prefixed `sem_`
 - `annual` → period `` `annual-${academicYear}` ``
-- `homework` → period `` `${year}_${month}` `` (underscore, unlike the others — `homework/enter` imports `getScores`/`saveScores` from the score feature)
+- `homework` → period `` `${academicYear}_${monthId}` ``, e.g. `2025-2026_nov`. Note the **underscore** separator, unlike the hyphen the other three use — and note that the left half is the full academic year, not a calendar year, so a filter like `` score_period.startsWith(`${calendarYear}_`) `` matches nothing. `subject` is `hw_<dayOfMonth>`, and a homework month runs the 26th of the previous month to the 25th of this one. `homework/enter` imports `getScores`/`saveScores` from the score feature.
 
 The `homework_scores` table defined in SQL is unused by the app.
 

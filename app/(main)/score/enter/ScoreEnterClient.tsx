@@ -1,13 +1,30 @@
 'use client'
 
 import { useState, useCallback, useEffect, useMemo } from 'react'
-import { CalendarCheck, Award, CalendarDays, Bookmark, Clock, BookOpen, FolderPlus, X, Mic, UserCheck, Book, Home, Save, Table2, Loader2 } from 'lucide-react'
 import Link from 'next/link'
-import { getScores, saveScores } from './actions'
+import {
+    CalendarCheck, Award, CalendarDays, Bookmark, Clock, BookOpen, FolderPlus,
+    Mic, UserCheck, Book, Home, Save, Table2, Loader2,
+} from 'lucide-react'
+
+import { Button } from '@/components/ui/actions/Button'
+import { Dialog } from '@/components/ui/overlay/Dialog'
+import { useConfirm } from '@/components/ui/overlay/ConfirmDialog'
+import { notify } from '@/components/ui/feedback/notify'
+import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
+import { controlClass, fieldLabel, requiredMark } from '@/components/ui/forms/fieldStyles'
 import Select from '@/components/ui/forms/Select'
 import SearchableSelect from '@/components/ui/forms/SearchableSelect'
+import { ScoreEntryCards } from './ScoreEntryCards'
+
+import { getScores, saveScores } from './actions'
+import { createCustomSubject } from '@/app/(main)/score/custom-subjects/actions'
+import { useCustomSubjects } from '@/lib/hooks/useCustomSubjects'
+import { appliesTo } from '@/lib/storage/custom-subjects'
 import { scoreCellValue } from '@/lib/utils/score-value'
-import type { Score, ScoreInput, Student } from '@/lib/types'
+import { ACADEMIC_MONTH_OPTIONS_BY_ID } from '@/lib/constants/months'
+import { getCurrentAcademicYear } from '@/lib/constants/academic'
+import type { CustomSubjectScope, Score, ScoreInput, Student } from '@/lib/types'
 
 const behaviorOptions = ['ល្អ', 'ល្អបង្គួរ', 'មធ្យម', 'ខ្សោយ']
 
@@ -118,7 +135,9 @@ const subjectConfigs: Record<string, SubjectColumn[]> = {
 
 export default function ScoreEnterClient({ initialStudents}: { initialStudents: Student[] }) {
     const [scoreType, setScoreType] = useState<'monthly' | 'semester'>('monthly')
-    const [academicYear, setAcademicYear] = useState('2025-2026')
+    // Was hard-coded `'2025-2026'`, which silently became the wrong year every
+    // November. The picker still offers the neighbouring years either side.
+    const [academicYear, setAcademicYear] = useState(getCurrentAcademicYear)
     const [semester, setSemester] = useState('sem1')
     const [month, setMonth] = useState('nov')
     const [selectedSubject, setSubject] = useState('math_general')
@@ -126,6 +145,16 @@ export default function ScoreEnterClient({ initialStudents}: { initialStudents: 
     const [scoresData, setScoresData] = useState<Record<string, Record<string, string | number | null>>>({})
     const [loading, setLoading] = useState(false)
     const [saving, setSaving] = useState(false)
+    /**
+     * Marks typed but not yet saved.
+     *
+     * Changing the month, the subject or the score type re-runs `loadData`,
+     * which replaces `scoresData` wholesale. A teacher who typed thirty marks
+     * and then touched a picker lost all thirty without a word. Every control
+     * that triggers a reload now goes through `switchTo`, which asks first.
+     */
+    const [dirty, setDirty] = useState(false)
+    const { confirm, dialog } = useConfirm()
 
     // Supabase-backed since migration 00012; the hook imports a browser's old
     // localStorage copy once, then reads from the database.
@@ -133,6 +162,14 @@ export default function ScoreEnterClient({ initialStudents}: { initialStudents: 
 
     // Computed
     const scorePeriod = scoreType === 'monthly' ? `${month}-${academicYear}` : `${semester}-${academicYear}`
+
+    // The current year plus one either side, so the list follows the calendar
+    // instead of expiring — it used to be three hard-coded strings.
+    const academicYearOptions = useMemo(() => {
+        const start = parseInt(getCurrentAcademicYear().split('-')[0], 10)
+        return [start - 1, start, start + 1].map((y) => `${y}-${y + 1}`)
+    }, [])
+
     // Semester subjects are prefixed `sem_`. If the teacher switches score type
     // while a subject from the other set is picked, fall back to that set's
     // default. Derived during render — this used to be an effect that re-set state.
@@ -206,6 +243,7 @@ export default function ScoreEnterClient({ initialStudents}: { initialStudents: 
 
 
     const handleScoreChange = (studentId: string, subId: string, value: string) => {
+        setDirty(true)
         setScoresData(prev => ({
             ...prev,
             [studentId]: {
@@ -215,10 +253,26 @@ export default function ScoreEnterClient({ initialStudents}: { initialStudents: 
         }))
     }
 
+    /**
+     * Run a control change that will discard the grid, asking first if there is
+     * anything to lose. The change is applied only on confirmation, so
+     * cancelling leaves the picker where it was.
+     */
+    const switchTo = async (apply: () => void) => {
+        if (dirty && !(await confirm({
+            title: 'ពិន្ទុមិនទាន់រក្សាទុក',
+            message: 'អ្នកបានបញ្ចូលពិន្ទុដែលមិនទាន់រក្សាទុក។ ប្តូរទៅទិន្នន័យផ្សេងនឹងបាត់បង់ពិន្ទុទាំងនោះ។',
+            tone: 'warning',
+            confirmLabel: 'បន្ត​ដោយមិនរក្សាទុក',
+        }))) return
+        setDirty(false)
+        apply()
+    }
+
     const handleSave = async () => {
         setSaving(true)
         const payload: ScoreInput[] = []
-        
+
         Object.keys(scoresData).forEach(studentId => {
             Object.keys(scoresData[studentId]).forEach(subId => {
                 payload.push({
@@ -231,9 +285,10 @@ export default function ScoreEnterClient({ initialStudents}: { initialStudents: 
 
         const res = await saveScores(scoreType, scorePeriod, payload)
         if (res.error) {
-            alert('បរាជ័យក្នុងការរក្សាទុកពិន្ទុ: ' + res.error)
+            notify.error('បរាជ័យក្នុងការរក្សាទុកពិន្ទុ៖ ' + res.error)
         } else {
-            alert('រក្សាទុកពិន្ទុបានជោគជ័យ')
+            setDirty(false)
+            notify.success('រក្សាទុកពិន្ទុបានជោគជ័យ')
         }
         setSaving(false)
     }
@@ -245,7 +300,7 @@ export default function ScoreEnterClient({ initialStudents}: { initialStudents: 
 
     const submitNewSubject = async () => {
         if (!newSubName.trim()) {
-            toast.error('សូមបញ្ចូលឈ្មោះមុខវិជ្ជា')
+            notify.error('សូមបញ្ចូលឈ្មោះមុខវិជ្ជា')
             return
         }
         
@@ -260,7 +315,7 @@ export default function ScoreEnterClient({ initialStudents}: { initialStudents: 
 
         const res = await createCustomSubject(newSubName.trim(), newSubType, cols)
         if (res.error || !res.data) {
-            toast.error(res.error ?? 'រក្សាទុកមុខវិជ្ជាមិនបានសម្រេច')
+            notify.error(res.error ?? 'រក្សាទុកមុខវិជ្ជាមិនបានសម្រេច')
             return
         }
 
@@ -271,11 +326,11 @@ export default function ScoreEnterClient({ initialStudents}: { initialStudents: 
 
         setIsAddModalOpen(false)
         setSubject(res.data.id)
-        toast.success('បានបន្ថែមមុខវិជ្ជាថ្មី')
+        notify.success('បានបន្ថែមមុខវិជ្ជាថ្មី')
     }
 
     return (
-        <div className="min-h-screen bg-paper text-[var(--text-heading)] font-battambang pb-20">
+        <PageContainer className="font-battambang">
             <style jsx global>{`
                 .font-battambang { font-family: 'Battambang', cursive; }
                 
@@ -288,52 +343,31 @@ export default function ScoreEnterClient({ initialStudents}: { initialStudents: 
                 input[type=number] { -moz-appearance: textfield; }
             `}</style>
 
-            {/* Loading Overlay */}
-            {(loading || saving) && (
-                <div className="fixed inset-0 bg-bg-surface/80 z-[2000] flex flex-col justify-center items-center">
-                    <Loader2 className="w-10 h-10 animate-spin text-brand mb-2" />
-                    <p className="font-bold text-text-body">{saving ? 'កំពុងរក្សាទុក...' : 'កំពុងទាញយកទិន្នន័យ...'}</p>
-                </div>
-            )}
+            <PageHeader
+                title="ទម្រង់បញ្ចូលពិន្ទុសិស្ស"
+                description="ជ្រើសរើសប្រភេទពិន្ទុ ខែ និងមុខវិជ្ជា រួចបញ្ចូលពិន្ទុសិស្ស"
+                actions={
+                    <Link
+                        href="/score/total"
+                        className="flex min-h-11 items-center gap-2 rounded-lg border border-divider bg-bg-surface px-4 text-[13px] font-bold text-text-body transition hover:border-brand-400 hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                    >
+                        <Table2 className="h-4 w-4" aria-hidden="true" /> តារាងពិន្ទុសរុប
+                    </Link>
+                }
+            />
 
-            <nav className="bg-brand-900 text-white p-4 shadow-lg sticky top-0 z-50">
-                <div className="container mx-auto flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <Link href="/dashboard" className="hover:text-brand-300 transition-colors flex items-center gap-1">
-                            <ArrowLeft className="w-5 h-5" /> ត្រឡប់
-                        </Link>
-                        <h1 className="kh-moul text-lg hidden sm:block ml-2">បញ្ចូលពិន្ទុ (Online)</h1>
-                    </div>
-                    <div className="text-sm font-bold flex items-center gap-4">
-                        <Link href="/score/total" className="hover:text-brand-300 transition-colors flex items-center gap-1">
-                            <Table2 className="w-4 h-4" /> តារាងពិន្ទុ
-                        </Link>
-                    </div>
-                </div>
-            </nav>
-
-            <div className="container mx-auto p-4 md:p-6 mt-4 max-w-[1400px]">
-                <div className="bg-bg-surface rounded-xl shadow-sm border border-divider overflow-hidden relative">
-                    <div className="h-2 w-full bg-success"></div>
-                    
-                    <div className="p-6 md:p-8">
-                        <div className="flex flex-col md:flex-row items-start md:items-center justify-between border-b border-divider pb-4 mb-6 gap-4">
-                            <div>
-                                <h2 className="kh-moul text-brand text-xl">ទម្រង់បញ្ចូលពិន្ទុសិស្ស</h2>
-                                <p className="text-sm text-text-muted mt-1">ទិន្នន័យនឹងត្រូវបានរក្សាទុកទៅក្នុង Database</p>
-                            </div>
-                        </div>
-
+            <div>
+                    <div>
                         {/* Controls */}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
                             <div className="col-span-1 md:col-span-2 lg:col-span-4 mb-2">
                                 <label className="block text-xs font-bold text-text-muted mb-2 ml-1">ជ្រើសរើសប្រភេទពិន្ទុ</label>
                                 <div className="grid grid-cols-2 gap-3 max-w-sm">
-                                    <button onClick={() => setScoreType('monthly')} className={`p-[0.6rem_1rem] rounded-lg font-bold transition flex items-center justify-center gap-2 text-[13px] border ${scoreType === 'monthly' ? 'bg-brand text-white border-transparent shadow-[0_2px_8px_rgba(79,70,229,0.2)]' : 'bg-bg-surface text-text-muted border-divider hover:border-brand hover:text-brand hover:bg-paper'}`}>
+                                    <button onClick={() => switchTo(() => setScoreType('monthly'))} className={`p-[0.6rem_1rem] rounded-lg font-bold transition flex items-center justify-center gap-2 text-[13px] border ${scoreType === 'monthly' ? 'bg-brand text-white border-transparent shadow-[0_2px_8px_rgba(79,70,229,0.2)]' : 'bg-bg-surface text-text-muted border-divider hover:border-brand hover:text-brand hover:bg-paper'}`}>
                                         <CalendarCheck className="w-4 h-4" />
                                         ពិន្ទុប្រចាំខែ
                                     </button>
-                                    <button onClick={() => setScoreType('semester')} className={`p-[0.6rem_1rem] rounded-lg font-bold transition flex items-center justify-center gap-2 text-[13px] border ${scoreType === 'semester' ? 'bg-brand text-white border-transparent shadow-[0_2px_8px_rgba(79,70,229,0.2)]' : 'bg-bg-surface text-text-muted border-divider hover:border-brand hover:text-brand hover:bg-paper'}`}>
+                                    <button onClick={() => switchTo(() => setScoreType('semester'))} className={`p-[0.6rem_1rem] rounded-lg font-bold transition flex items-center justify-center gap-2 text-[13px] border ${scoreType === 'semester' ? 'bg-brand text-white border-transparent shadow-[0_2px_8px_rgba(79,70,229,0.2)]' : 'bg-bg-surface text-text-muted border-divider hover:border-brand hover:text-brand hover:bg-paper'}`}>
                                         <Award className="w-4 h-4" />
                                         ពិន្ទុប្រចាំឆមាស
                                     </button>
@@ -343,8 +377,8 @@ export default function ScoreEnterClient({ initialStudents}: { initialStudents: 
                             <Select
                                 label="ឆ្នាំសិក្សា"
                                 value={academicYear}
-                                onChange={setAcademicYear}
-                                options={['2024-2025', '2025-2026', '2026-2027']}
+                                onChange={(v) => switchTo(() => setAcademicYear(v))}
+                                options={academicYearOptions}
                                 leadingIcon={<CalendarDays />}
                             />
 
@@ -352,7 +386,7 @@ export default function ScoreEnterClient({ initialStudents}: { initialStudents: 
                                 <Select
                                     label="ឆមាស"
                                     value={semester}
-                                    onChange={setSemester}
+                                    onChange={(v) => switchTo(() => setSemester(v))}
                                     options={[
                                         { value: 'sem1', label: 'ឆមាសទី១' },
                                         { value: 'sem2', label: 'ឆមាសទី២' },
@@ -365,7 +399,7 @@ export default function ScoreEnterClient({ initialStudents}: { initialStudents: 
                                 <Select
                                     label="ខែ"
                                     value={month}
-                                    onChange={setMonth}
+                                    onChange={(v) => switchTo(() => setMonth(v))}
                                     options={ACADEMIC_MONTH_OPTIONS_BY_ID}
                                     leadingIcon={<Clock />}
                                 />
@@ -375,16 +409,16 @@ export default function ScoreEnterClient({ initialStudents}: { initialStudents: 
                                 <div className="flex justify-between items-end mb-1.5 ml-1">
                                     <label className="block text-xs font-bold text-text-muted">មុខវិជ្ជា</label>
                                     <div className="flex gap-2">
-                                        <button onClick={() => setIsAddModalOpen(true)} className="text-xs text-brand hover:text-brand-800 flex items-center gap-1 font-bold bg-brand-100 px-2 py-0.5 rounded border border-divider transition-colors">
+                                        <Button size="sm" printHidden={false} onClick={() => setIsAddModalOpen(true)}>
                                             <FolderPlus className="w-3 h-3" /> បន្ថែម
-                                        </button>
+                                        </Button>
                                     </div>
                                 </div>
                                 <SearchableSelect
                                     ariaLabel="មុខវិជ្ជា"
                                     placeholder="ជ្រើសរើសមុខវិជ្ជា..."
                                     value={subject}
-                                    onChange={setSubject}
+                                    onChange={(v) => switchTo(() => setSubject(v))}
                                     options={subjectOptions}
                                     leadingIcon={<BookOpen />}
                                 />
@@ -394,28 +428,28 @@ export default function ScoreEnterClient({ initialStudents}: { initialStudents: 
                         {/* Quick select monthly */}
                         {scoreType === 'monthly' && (
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-                                <div onClick={() => setSubject('ex_oral')} className="bg-brand-100 border border-divider p-3 rounded-lg flex items-center gap-3 cursor-pointer hover:bg-brand-100 transition">
+                                <div onClick={() => switchTo(() => setSubject('ex_oral'))} className="bg-brand-100 border border-divider p-3 rounded-lg flex items-center gap-3 cursor-pointer hover:bg-brand-100 transition">
                                     <div className="p-2 bg-bg-surface rounded-md shadow-sm text-brand"><Mic className="w-4 h-4" /></div>
                                     <div>
                                         <p className="text-[10px] text-text-muted font-bold uppercase">បញ្ចូលពិន្ទុ</p>
                                         <p className="text-xs md:text-sm font-bold text-text-heading">សំណួរផ្ទាល់មាត់</p>
                                     </div>
                                 </div>
-                                <div onClick={() => setSubject('ex_att')} className="bg-success/10 border border-divider p-3 rounded-lg flex items-center gap-3 cursor-pointer hover:bg-success/10 transition">
+                                <div onClick={() => switchTo(() => setSubject('ex_att'))} className="bg-success/10 border border-divider p-3 rounded-lg flex items-center gap-3 cursor-pointer hover:bg-success/10 transition">
                                     <div className="p-2 bg-bg-surface rounded-md shadow-sm text-success"><UserCheck className="w-4 h-4" /></div>
                                     <div>
                                         <p className="text-[10px] text-text-muted font-bold uppercase">បញ្ចូលពិន្ទុ</p>
                                         <p className="text-xs md:text-sm font-bold text-success">វត្តមាន</p>
                                     </div>
                                 </div>
-                                <div onClick={() => setSubject('ex_book')} className="bg-brand-100 border border-divider p-3 rounded-lg flex items-center gap-3 cursor-pointer hover:bg-brand-100 transition">
+                                <div onClick={() => switchTo(() => setSubject('ex_book'))} className="bg-brand-100 border border-divider p-3 rounded-lg flex items-center gap-3 cursor-pointer hover:bg-brand-100 transition">
                                     <div className="p-2 bg-bg-surface rounded-md shadow-sm text-brand"><Book className="w-4 h-4" /></div>
                                     <div>
                                         <p className="text-[10px] text-text-muted font-bold uppercase">បញ្ចូលពិន្ទុ</p>
                                         <p className="text-xs md:text-sm font-bold text-brand-800">សៀវភៅ</p>
                                     </div>
                                 </div>
-                                <div onClick={() => setSubject('ex_hw')} className="bg-warning/10 border border-divider p-3 rounded-lg flex items-center gap-3 cursor-pointer hover:bg-warning/15 transition">
+                                <div onClick={() => switchTo(() => setSubject('ex_hw'))} className="bg-warning/10 border border-divider p-3 rounded-lg flex items-center gap-3 cursor-pointer hover:bg-warning/15 transition">
                                     <div className="p-2 bg-bg-surface rounded-md shadow-sm text-warning"><Home className="w-4 h-4" /></div>
                                     <div>
                                         <p className="text-[10px] text-text-muted font-bold uppercase">បញ្ចូលពិន្ទុ</p>
@@ -425,8 +459,13 @@ export default function ScoreEnterClient({ initialStudents}: { initialStudents: 
                             </div>
                         )}
 
-                        {/* Table */}
-                        <div className="overflow-x-auto border border-divider rounded-lg">
+                        {/*
+                          The grid, on screens that can hold it. Below `lg` the
+                          same state is rendered as one card per pupil — see
+                          `ScoreEntryCards` for why a table is the wrong control
+                          for a phone.
+                        */}
+                        <div className="hidden overflow-x-auto rounded-lg border border-divider lg:block">
                             <table className="w-full border-collapse text-[13px]">
                                 <thead>
                                     <tr>
@@ -473,75 +512,113 @@ export default function ScoreEnterClient({ initialStudents}: { initialStudents: 
                             </table>
                         </div>
 
-                        {/* Actions */}
-                        <div className="flex flex-col md:flex-row gap-4 mt-6 pt-6 border-t border-divider">
-                            <button onClick={handleSave} className="flex-1 py-3 bg-success hover:opacity-90 text-white rounded-lg font-bold shadow-sm transition flex justify-center items-center gap-2">
-                                <Save className="w-5 h-5" /> រក្សាទុកពិន្ទុ
-                            </button>
-                            <Link href="/score/total" className="flex-1 py-3 bg-bg-surface border border-divider text-text-body hover:bg-paper rounded-lg font-bold transition flex justify-center items-center gap-2">
-                                <Table2 className="w-5 h-5" /> មើលតារាងពិន្ទុសរុប
-                            </Link>
+                        <div className="lg:hidden">
+                            <ScoreEntryCards
+                                students={initialStudents}
+                                columns={cols}
+                                values={scoresData}
+                                onChange={handleScoreChange}
+                            />
+                        </div>
+
+                        {/*
+                          The save bar sticks to the bottom of the viewport.
+                          With one card per pupil the button was previously a
+                          scroll away from wherever the teacher was typing, and
+                          nothing else on this page tells them work is pending.
+                        */}
+                        <div className="sticky bottom-4 z-20 mt-6 flex flex-col gap-3 rounded-xl border border-divider bg-bg-surface p-3 shadow-lg sm:flex-row sm:items-center">
+                            {/*
+                              Status lives here rather than in the full-screen
+                              spinner this page used to throw up. Blanking the
+                              whole surface to say "loading" hides the marks the
+                              teacher is in the middle of reading.
+                            */}
+                            <p className="flex min-w-0 flex-1 items-center gap-2 text-sm text-text-muted">
+                                {loading && <Loader2 className="h-4 w-4 shrink-0 animate-spin text-brand" aria-hidden="true" />}
+                                {loading
+                                    ? 'កំពុងទាញយកទិន្នន័យ...'
+                                    : dirty ? 'មានពិន្ទុមិនទាន់រក្សាទុក' : 'ពិន្ទុទាំងអស់បានរក្សាទុករួចរាល់'}
+                            </p>
+                            <Button
+                                variant="success"
+                                size="lg"
+                                printHidden={false}
+                                onClick={handleSave}
+                                loading={saving}
+                                icon={<Save className="h-5 w-5" />}
+                            >
+                                រក្សាទុកពិន្ទុ
+                            </Button>
                         </div>
                     </div>
-                </div>
             </div>
 
-            {/* Add Subject Modal */}
-            {isAddModalOpen && (
-                <div className="fixed inset-0 bg-black/50 z-[1000] flex justify-center items-end sm:items-center p-0 sm:p-4">
-                    <div className="bg-bg-surface p-6 rounded-xl shadow-lg max-w-md w-full">
-                        <div className="flex justify-between items-center mb-4 border-b border-divider pb-3">
-                            <h3 className="kh-moul text-brand text-lg flex items-center gap-2">
-                                <FolderPlus className="w-5 h-5" /> បន្ថែមមុខវិជ្ជាថ្មី
-                            </h3>
-                            <button onClick={() => setIsAddModalOpen(false)} className="text-text-muted hover:text-danger transition">
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-                        
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-bold text-text-body mb-1">ឈ្មោះមុខវិជ្ជា <span className="text-danger">*</span></label>
-                                <input value={newSubName} onChange={e => setNewSubName(e.target.value)} type="text" className="w-full p-2.5 border border-divider rounded-lg focus:ring-2 focus:ring-focus-ring outline-none font-bold text-sm" placeholder="ឧ. កុំព្យូទ័រ, ភាសាចិន..." />
-                            </div>
-                            
-                            <Select
-                                label="ប្រើសម្រាប់"
-                                value={newSubType}
-                                onChange={v => setNewSubType(v as CustomSubjectScope)}
-                                options={[
-                                    { value: 'monthly', label: 'ប្រចាំខែ ប៉ុណ្ណោះ' },
-                                    { value: 'semester', label: 'ប្រចាំឆមាស ប៉ុណ្ណោះ' },
-                                    { value: 'both', label: 'ប្រចាំខែ និងប្រចាំឆមាស' },
-                                ]}
-                            />
-                            
-                            <div>
-                                <label className="block text-sm font-bold text-text-body mb-1">ជួរឈរពិន្ទុ (ជម្រើស)</label>
-                                <p className="text-[11px] text-text-muted mb-2 leading-relaxed">
-                                    បើមុខវិជ្ជានេះមានច្រើនជួរឈរ សូមសរសេរខណ្ឌដោយសញ្ញាក្បៀស (,) ឧ. <strong>ទ្រឹស្តី, អនុវត្តន៍</strong>។ បើទុកទទេ វានឹងយកឈ្មោះមុខវិជ្ជាជាជួរឈរតែមួយ។
-                                </p>
-                                <input value={newSubCols} onChange={e => setNewSubCols(e.target.value)} type="text" className="w-full p-2.5 border border-divider rounded-lg focus:ring-2 focus:ring-focus-ring outline-none font-bold text-sm" placeholder="ឧ. ទ្រឹស្តី, អនុវត្តន៍" />
-                            </div>
-                        </div>
-                        
-                        <div className="flex gap-3 mt-6 pt-2">
-                            <button onClick={() => setIsAddModalOpen(false)} className="flex-1 py-2.5 bg-paper hover:bg-divider text-text-body rounded-lg font-bold transition">បោះបង់</button>
-                            <button onClick={submitNewSubject} className="flex-1 py-2.5 bg-brand hover:bg-brand-hover text-white rounded-lg font-bold transition flex justify-center items-center gap-2">
-                                <Save className="w-4 h-4" /> រក្សាទុក
-                            </button>
-                        </div>
+            {/*
+              Add a custom subject. The previous overlay had no focus trap, no
+              Escape handler and no accessible name — `Dialog` supplies all
+              three, and rises from the bottom on a phone.
+            */}
+            <Dialog
+                open={isAddModalOpen}
+                onClose={() => setIsAddModalOpen(false)}
+                title="បន្ថែមមុខវិជ្ជាថ្មី"
+                description="មុខវិជ្ជាថ្មីនឹងបង្ហាញនៅក្នុងបញ្ជីជ្រើសរើសមុខវិជ្ជា"
+                footer={
+                    <>
+                        <Button variant="secondary" printHidden={false} onClick={() => setIsAddModalOpen(false)}>
+                            បោះបង់
+                        </Button>
+                        <Button printHidden={false} onClick={submitNewSubject} icon={<Save className="h-4 w-4" />}>
+                            រក្សាទុក
+                        </Button>
+                    </>
+                }
+            >
+                <div className="flex flex-col gap-4">
+                    <div>
+                        <label className={fieldLabel} htmlFor="new-subject-name">
+                            ឈ្មោះមុខវិជ្ជា <span className={requiredMark}>*</span>
+                        </label>
+                        <input
+                            id="new-subject-name"
+                            type="text"
+                            value={newSubName}
+                            onChange={e => setNewSubName(e.target.value)}
+                            className={controlClass(false, 'font-bold')}
+                            placeholder="ឧ. កុំព្យូទ័រ, ភាសាចិន..."
+                        />
+                    </div>
+
+                    <Select
+                        label="ប្រើសម្រាប់"
+                        value={newSubType}
+                        onChange={v => setNewSubType(v as CustomSubjectScope)}
+                        options={[
+                            { value: 'monthly', label: 'ប្រចាំខែ ប៉ុណ្ណោះ' },
+                            { value: 'semester', label: 'ប្រចាំឆមាស ប៉ុណ្ណោះ' },
+                            { value: 'both', label: 'ប្រចាំខែ និងប្រចាំឆមាស' },
+                        ]}
+                    />
+
+                    <div>
+                        <label className={fieldLabel} htmlFor="new-subject-cols">ជួរឈរពិន្ទុ (ជម្រើស)</label>
+                        <p className="mb-2 text-[11px] leading-relaxed text-text-muted">
+                            បើមុខវិជ្ជានេះមានច្រើនជួរឈរ សូមសរសេរខណ្ឌដោយសញ្ញាក្បៀស (,) ឧ. <strong>ទ្រឹស្តី, អនុវត្តន៍</strong>។ បើទុកទទេ វានឹងយកឈ្មោះមុខវិជ្ជាជាជួរឈរតែមួយ។
+                        </p>
+                        <input
+                            id="new-subject-cols"
+                            type="text"
+                            value={newSubCols}
+                            onChange={e => setNewSubCols(e.target.value)}
+                            className={controlClass(false, 'font-bold')}
+                            placeholder="ឧ. ទ្រឹស្តី, អនុវត្តន៍"
+                        />
                     </div>
                 </div>
-            )}
-        </div>
+            </Dialog>
+
+            {dialog}
+        </PageContainer>
     )
 }
-// Add ArrowLeft icon to lucide-react import
-import { ArrowLeft } from 'lucide-react'
-import { ACADEMIC_MONTH_OPTIONS_BY_ID } from '@/lib/constants/months'
-import toast from 'react-hot-toast'
-import { useCustomSubjects } from '@/lib/hooks/useCustomSubjects'
-import { createCustomSubject } from '@/app/(main)/score/custom-subjects/actions'
-import { appliesTo } from '@/lib/storage/custom-subjects'
-import type { CustomSubjectScope } from '@/lib/types'

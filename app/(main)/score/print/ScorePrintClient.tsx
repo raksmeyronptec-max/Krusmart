@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Button } from '@/components/ui/actions/Button'
 import Link from 'next/link'
 import { ArrowLeft, FileSpreadsheet, Loader2, Printer } from 'lucide-react'
 import Select from '@/components/ui/forms/Select'
@@ -259,21 +260,15 @@ export default function ScorePrintClient({
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <button
-              onClick={() => window.print()}
-              disabled={loading || rows.length === 0}
-              className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-danger px-6 py-2.5 font-bold text-white shadow-md transition hover:opacity-90 disabled:opacity-50"
-            >
+            <Button variant="danger" printHidden={false} onClick={() => window.print()}
+              disabled={loading || rows.length === 0}>
               {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Printer className="h-4 w-4" aria-hidden="true" />}
               បោះពុម្ព
-            </button>
-            <button
-              onClick={exportExcel}
-              disabled={loading || rows.length === 0}
-              className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-success px-6 py-2.5 font-bold text-white shadow-md transition hover:opacity-90 disabled:opacity-50"
-            >
+            </Button>
+            <Button variant="success" printHidden={false} onClick={exportExcel}
+              disabled={loading || rows.length === 0}>
               <FileSpreadsheet className="h-4 w-4" aria-hidden="true" /> នាំចេញ Excel
-            </button>
+            </Button>
           </div>
 
           {!loading && rows.length === 0 && (

@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
+import { Button } from '@/components/ui/actions/Button'
 import { ArrowLeft, Printer, Users } from 'lucide-react'
 import Link from 'next/link'
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts'
@@ -83,9 +84,9 @@ export default function PrintStudentAgeClient({ initialStudents, settings, acade
                     <Link href="/dashboard" className="inline-flex items-center gap-2 text-brand hover:text-brand-800 font-bold transition bg-bg-surface/50 px-4 py-2 rounded-xl backdrop-blur-sm shadow-sm w-fit">
                         <ArrowLeft className="w-5 h-5" /> ត្រឡប់ទៅទំព័រដើម
                     </Link>
-                    <button onClick={printPage} className="bg-brand hover:bg-brand-hover text-white px-5 py-2.5 rounded-xl font-bold transition shadow-md flex items-center gap-2 text-sm">
+                    <Button printHidden={false} onClick={printPage}>
                         <Printer className="w-4 h-4" /> បោះពុម្ពទិន្នន័យ
-                    </button>
+                    </Button>
                 </div>
 
                 <div className="bg-bg-surface/95 backdrop-blur border border-white/50 rounded-xl p-6 md:p-8 shadow-lg mb-8">

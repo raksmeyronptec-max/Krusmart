@@ -1,8 +1,10 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
-import { Calendar, Award, GraduationCap, CalendarDays, Clock, Bookmark, Settings2, Lock, Unlock, Printer, CloudUpload, Home, Table2, Menu, X, Loader2, Check } from 'lucide-react'
-import Link from 'next/link'
+import { useState, useCallback, useEffect, useMemo } from 'react'
+import { Button } from '@/components/ui/actions/Button'
+import { Calendar, Award, GraduationCap, CalendarDays, Clock, Bookmark, Settings2, Lock, Unlock, Printer, CloudUpload, Table2, Menu, X, Loader2, Check } from 'lucide-react'
+import { notify } from '@/components/ui/feedback/notify'
+import { getCurrentAcademicYear } from '@/lib/constants/academic'
 import { getAllScoresByPeriod } from './actions'
 import { saveScores } from '../enter/actions'
 import Select from '@/components/ui/forms/Select'
@@ -108,9 +110,16 @@ const config = {
 
 export default function ScoreTotalClient({ initialStudents}: { initialStudents: Student[] }) {
     const [currentMode, setCurrentMode] = useState<'monthly' | 'semester' | 'annual'>('monthly')
-    const [academicYear, setAcademicYear] = useState('2025-2026')
+    // Was a hard-coded `'2025-2026'`, which quietly became the wrong year
+    // every November.
+    const [academicYear, setAcademicYear] = useState(getCurrentAcademicYear)
     const [month, setMonth] = useState('nov')
     const [semester, setSemester] = useState('sem1')
+
+    const academicYearOptions = useMemo(() => {
+        const start = parseInt(getCurrentAcademicYear().split('-')[0], 10)
+        return [start - 1, start, start + 1].map((y) => `${y}-${y + 1}`)
+    }, [])
 
     const [isEditLocked, setIsEditLocked] = useState(true)
     const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -348,9 +357,9 @@ export default function ScoreTotalClient({ initialStudents}: { initialStudents: 
 
         const res = await saveScores(currentMode, period, payload)
         if (res.error) {
-            alert('បរាជ័យក្នុងការរក្សាទុកពិន្ទុ: ' + res.error)
+            notify.error('បរាជ័យក្នុងការរក្សាទុកពិន្ទុ៖ ' + res.error)
         } else {
-            alert('រក្សាទុកពិន្ទុបានជោគជ័យ')
+            notify.success('រក្សាទុកពិន្ទុបានជោគជ័យ')
             loadData() // re-calculate ranks
         }
         setLoading(false)
@@ -388,17 +397,14 @@ export default function ScoreTotalClient({ initialStudents}: { initialStudents: 
                 tr:hover td.sticky-col-1, tr:hover td.sticky-col-2 { background-color: var(--brand-100); }
             `}</style>
 
-            <div className="fixed inset-0 w-full h-full -z-10 opacity-60 pointer-events-none" style={{ background: 'radial-gradient(circle at 10% 20%, var(--brand-100) 0%, transparent 40%), radial-gradient(circle at 90% 80%, var(--color-success) 0%, transparent 40%), radial-gradient(circle at 50% 50%, var(--color-gold) 0%, transparent 40%)' }}></div>
+            <div className="pointer-events-none absolute inset-0 -z-10 h-full w-full opacity-60" style={{ background: 'radial-gradient(circle at 10% 20%, var(--brand-100) 0%, transparent 40%), radial-gradient(circle at 90% 80%, var(--color-success) 0%, transparent 40%), radial-gradient(circle at 50% 50%, var(--color-gold) 0%, transparent 40%)' }}></div>
 
-            <div className="w-full max-w-full lg:max-w-[98%] mx-auto px-2 py-2 lg:py-4 h-screen flex flex-col relative z-10">
+            <div className="relative z-10 mx-auto flex w-full max-w-full flex-col px-2 py-2 lg:max-w-[98%] lg:py-4">
                 {/* Header & Toolbar */}
-                <div className="mb-2 lg:mb-4 bg-bg-surface/80 backdrop-blur-md p-3 lg:p-4 rounded-xl shadow-sm border border-white/50 flex flex-col transition-all duration-300">
+                <div className="mb-2 lg:mb-4 bg-bg-surface/80 backdrop-blur-md p-3 lg:p-4 rounded-xl shadow-sm border border-divider flex flex-col transition-all duration-300">
                     <div className="flex justify-between items-center w-full">
                         <div className="flex items-center gap-2 lg:gap-4">
-                            <Link href="/dashboard" className="bg-brand-100 p-2 lg:p-3 rounded-xl hover:bg-brand-100 text-brand transition flex items-center justify-center shrink-0">
-                                <Home className="w-5 h-5" />
-                            </Link>
-                            <div className="bg-brand p-2 lg:p-3 rounded-xl shadow-lg shadow-blue-200 text-white shrink-0 hidden sm:block">
+                            <div className="bg-brand p-2 lg:p-3 rounded-xl shadow-lg text-brand-contrast shrink-0 hidden sm:block">
                                 <Table2 className="w-5 h-5 lg:w-6 lg:h-6" />
                             </div>
                             <div>
@@ -433,7 +439,7 @@ export default function ScoreTotalClient({ initialStudents}: { initialStudents: 
                                     ariaLabel="ឆ្នាំសិក្សា"
                                     value={academicYear}
                                     onChange={setAcademicYear}
-                                    options={['2024-2025', '2025-2026', '2026-2027']}
+                                    options={academicYearOptions}
                                     leadingIcon={<CalendarDays />}
                                     wrapperClassName="w-full sm:w-auto"
                                 />
@@ -462,10 +468,10 @@ export default function ScoreTotalClient({ initialStudents}: { initialStudents: 
                                             leadingIcon={<Bookmark />}
                                             wrapperClassName="w-full sm:w-auto"
                                         />
-                                        <button onClick={() => setIsMonthModalOpen(true)} className="flex items-center justify-center gap-2 px-3 py-2 bg-bg-surface border border-divider rounded-xl text-sm font-bold text-text-body hover:bg-paper transition w-full sm:w-auto">
+                                        <Button variant="secondary" printHidden={false} onClick={() => setIsMonthModalOpen(true)}>
                                             <Settings2 className="w-4 h-4 text-brand-500" />
                                             <span>ជ្រើសរើសខែបូកបញ្ចូល</span>
-                                        </button>
+                                        </Button>
                                     </div>
                                 )}
                             </div>
@@ -474,23 +480,23 @@ export default function ScoreTotalClient({ initialStudents}: { initialStudents: 
 
                             {/* Actions */}
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full xl:w-auto mt-2 xl:mt-0">
-                                <button onClick={() => setIsEditLocked(!isEditLocked)} className={`flex justify-center items-center gap-2 px-4 py-2.5 text-white rounded-xl font-bold shadow-lg transition-all w-full ${isEditLocked ? 'bg-text-muted hover:opacity-90 shadow-slate-200' : 'bg-warning hover:bg-gold shadow-yellow-200'}`}>
+                                <button onClick={() => setIsEditLocked(!isEditLocked)} className={`flex justify-center items-center gap-2 px-4 py-2.5 text-white rounded-xl font-bold shadow-lg transition-all w-full ${isEditLocked ? 'bg-text-muted hover:opacity-90' : 'bg-warning hover:bg-gold'}`}>
                                     {isEditLocked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
                                     <span className="text-sm">{isEditLocked ? 'ចាក់សោរ' : 'ដោះសោរ'}</span>
                                 </button>
-                                <button onClick={() => window.print()} className="flex justify-center items-center gap-2 px-4 py-2.5 bg-success text-white hover:opacity-90 rounded-xl font-bold shadow-lg shadow-emerald-200 transition-all w-full">
+                                <Button variant="success" printHidden={false} onClick={() => window.print()}>
                                     <Printer className="w-4 h-4" /> <span className="text-sm">បោះពុម្ព</span>
-                                </button>
-                                <button onClick={handleSave} className="flex justify-center items-center gap-2 px-4 py-2.5 bg-brand text-white hover:bg-[var(--brand)] rounded-xl font-bold shadow-lg shadow-blue-200 transition-all w-full">
+                                </Button>
+                                <Button printHidden={false} onClick={handleSave}>
                                     <CloudUpload className="w-4 h-4" /> <span className="text-sm">រក្សាទុក</span>
-                                </button>
+                                </Button>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 {/* Table Area */}
-                <div className="flex-1 bg-bg-surface/95 backdrop-blur-xl rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/50 overflow-hidden flex flex-col relative">
+                <div className="relative flex max-h-[72vh] min-h-[320px] flex-col overflow-hidden rounded-xl border border-divider bg-bg-surface/95 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-xl print:max-h-none print:overflow-visible">
                     {loading && (
                         <div className="absolute inset-0 bg-bg-surface/70 z-50 flex justify-center items-center">
                             <Loader2 className="w-10 h-10 animate-spin text-brand" />
@@ -648,9 +654,9 @@ export default function ScoreTotalClient({ initialStudents}: { initialStudents: 
                             </div>
                         </div>
                         <div className="p-4 border-t border-divider bg-paper flex justify-end">
-                            <button onClick={() => { setIsMonthModalOpen(false); loadData(); }} className="px-5 py-2.5 bg-brand hover:bg-brand-hover text-white rounded-xl font-bold shadow-md shadow-blue-200 transition-all flex items-center gap-2">
+                            <Button printHidden={false} onClick={() => { setIsMonthModalOpen(false); loadData(); }}>
                                 <Check className="w-4 h-4" /> យល់ព្រម
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 </div>
