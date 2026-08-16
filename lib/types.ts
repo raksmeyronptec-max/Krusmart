@@ -53,6 +53,11 @@ export interface Student {
   created_at: string
   updated_at: string
 
+  // Aggregated fields for the list UI
+  attendance_rate?: number | null
+  overall_average?: number | null
+  grade_letter?: string | null
+
   /**
    * Legacy columns carried over from the pre-Supabase (Firebase) data. None of
    * them are written by this app — several views still read them as fallbacks
