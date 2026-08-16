@@ -2,7 +2,9 @@
 
 import { useState, useMemo } from 'react'
 import { Button } from '@/components/ui/actions/Button'
-import type { AttendanceRecord, Score, Student } from '@/lib/types'
+import type { AttendanceRecord, Score, Settings, Student } from '@/lib/types'
+import { CognitivePanel, type StudentSummary } from './CognitivePanel'
+import { useActiveClass } from '@/lib/hooks/useActiveClass'
 import { 
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     PieChart, Pie, Cell
@@ -33,10 +35,12 @@ interface StudentAnalytics {
     }
 }
 
-export default function ScoreAnalyseClient({ initialStudents, attendanceData, scoresData, academicYear }: { 
-    initialStudents: Student[], attendanceData: AttendanceRecord[], scoresData: Score[], academicYear: string 
+export default function ScoreAnalyseClient({ initialStudents, attendanceData, scoresData, academicYear, settings }: {
+    initialStudents: Student[], attendanceData: AttendanceRecord[], scoresData: Score[], academicYear: string,
+    settings: Settings | null
 }) {
     const [selectedYear, setSelectedYear] = useState(academicYear)
+    const { classId } = useActiveClass()
 
 
     // Calculate Global Data
@@ -177,9 +181,39 @@ export default function ScoreAnalyseClient({ initialStudents, attendanceData, sc
         }
     }, [initialStudents, attendanceData, scoresData, selectedYear])
 
+    /**
+     * The slice of `studentData` the cognitive detail sheet prints.
+     *
+     * Narrowed here rather than handing the panel the whole analytics object, so
+     * it depends only on the five figures it actually renders.
+     */
+    const cognitiveSummaries = useMemo<Record<string, StudentSummary>>(
+        () => Object.fromEntries(
+            Object.entries(analytics.studentData).map(([id, d]) => [
+                id,
+                { attRate: d.attRate, overallAvg: d.overallAvg, p: d.p, l: d.l, a: d.a },
+            ]),
+        ),
+        [analytics.studentData],
+    )
+
     return (
-        <div className="min-h-screen bg-paper text-text-heading font-battambang pb-10">
-            <nav className="bg-brand text-white p-4 shadow-lg sticky top-0 z-50">
+        <div className="min-h-screen bg-paper text-text-heading pb-10">
+            {/*
+              Printing this page means printing one pupil's detail sheet, not the
+              class dashboard behind it. Everything marked `data-analysis-chrome`
+              drops out; the sheet inside CognitivePanel is `hidden print:block`
+              and is all that remains.
+            */}
+            <style jsx global>{`
+                @media print {
+                    @page { size: A4 portrait; margin: 12mm; }
+                    body { background: white !important; }
+                    [data-analysis-chrome] { display: none !important; }
+                }
+            `}</style>
+
+            <nav data-analysis-chrome className="bg-brand text-white p-4 shadow-lg sticky top-0 z-50">
                 <div className="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-4">
                     <div className="flex items-center gap-4">
                         <Link href="/dashboard" className="flex items-center gap-2 hover:text-warning transition font-bold text-sm bg-bg-surface/10 px-3 py-1.5 rounded-lg border border-white/20">
@@ -214,7 +248,7 @@ export default function ScoreAnalyseClient({ initialStudents, attendanceData, sc
             <div className="max-w-7xl mx-auto px-4 mt-6 space-y-6">
                 
                 {/* Summary Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div data-analysis-chrome className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="bg-bg-surface p-4 rounded-xl shadow-sm border border-divider border-l-4 border-l-blue-500 flex items-center gap-4">
                         <div className="p-3 bg-brand-100 text-brand rounded-full"><Users className="w-6 h-6" /></div>
                         <div>
@@ -250,7 +284,7 @@ export default function ScoreAnalyseClient({ initialStudents, attendanceData, sc
                 </div>
 
                 {/* Holistic Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
+                <div data-analysis-chrome className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
                     <div className="bg-brand-100 p-4 rounded-xl border border-divider flex items-center justify-between shadow-sm">
                         <div>
                             <p className="text-xs text-brand-500 font-bold uppercase mb-1">សុខភាព (ធម្មតា)</p>
@@ -275,7 +309,7 @@ export default function ScoreAnalyseClient({ initialStudents, attendanceData, sc
                 </div>
 
                 {/* Charts */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div data-analysis-chrome className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div className="bg-bg-surface p-5 lg:col-span-2 border-t-4 border-brand rounded-xl shadow-sm">
                         <div className="flex justify-between items-center mb-4 border-b pb-2">
                             <h2 className="font-bold text-brand flex items-center gap-2">
@@ -318,7 +352,7 @@ export default function ScoreAnalyseClient({ initialStudents, attendanceData, sc
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div data-analysis-chrome className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div className="bg-bg-surface p-5 lg:col-span-2 border-t-4 border-brand rounded-xl shadow-sm">
                         <div className="flex justify-between items-center mb-4 border-b pb-2">
                             <h2 className="font-bold text-brand flex items-center gap-2">
@@ -381,7 +415,17 @@ export default function ScoreAnalyseClient({ initialStudents, attendanceData, sc
                         </div>
                     </div>
                 </div>
-                
+
+                <div className="mt-6">
+                    <CognitivePanel
+                        students={initialStudents}
+                        summaries={cognitiveSummaries}
+                        settings={settings}
+                        academicYear={selectedYear}
+                        classId={classId}
+                    />
+                </div>
+
             </div>
         </div>
     )

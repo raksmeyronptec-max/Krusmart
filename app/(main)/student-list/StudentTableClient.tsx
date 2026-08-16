@@ -6,6 +6,7 @@ import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { UserPlus, Printer, Trash2, Save, Search, LayoutGrid, List, Filter, ChevronRight, Download } from 'lucide-react'
 
 import { useConfirm } from '@/components/ui/overlay/ConfirmDialog'
+import { useIsClient } from '@/components/ui/overlay/useIsClient'
 import { Dialog } from '@/components/ui/overlay/Dialog'
 import { Button } from '@/components/ui/actions/Button'
 import { notify } from '@/components/ui/feedback/notify'
@@ -77,8 +78,22 @@ export default function StudentTableClient({ initialStudents }: { initialStudent
     const [sortKey, setSortKey] = useState('default')
     
     // View Mode State (with hydration safety)
-    const [viewMode, setViewMode] = useState<'grid' | 'table'>('table')
-    const [isMounted, setIsMounted] = useState(false)
+    /**
+     * The saved view, or the one this screen width deserves.
+     *
+     * Resolved lazily rather than in an effect. `useState` runs the initialiser
+     * only on the client — the server never reaches it — so `localStorage` and
+     * `innerWidth` are both safe here, and there is no second render to correct
+     * the value afterwards. Hydration is kept honest by `isMounted` below, which
+     * holds the server's markup until the client has taken over.
+     */
+    const [viewMode, setViewMode] = useState<'grid' | 'table'>(() => {
+        if (typeof window === 'undefined') return 'table'
+        const saved = localStorage.getItem('rosterViewMode')
+        if (saved === 'grid' || saved === 'table') return saved
+        return window.innerWidth < 768 ? 'grid' : 'table'
+    })
+    const isMounted = useIsClient()
     
     // Selection and Sidebar State
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -107,17 +122,6 @@ export default function StudentTableClient({ initialStudents }: { initialStudent
     const [pageSize, setPageSize] = useState(20)
     const [isSavingOrder, setIsSavingOrder] = useState(false)
     const { confirm, dialog } = useConfirm()
-
-    // Initialize View Mode
-    useEffect(() => {
-        setIsMounted(true)
-        const saved = localStorage.getItem('rosterViewMode')
-        if (saved === 'grid' || saved === 'table') {
-            setViewMode(saved)
-        } else if (window.innerWidth < 768) {
-            setViewMode('grid')
-        }
-    }, [])
 
     // Update URL query when debounced search changes
     useEffect(() => {

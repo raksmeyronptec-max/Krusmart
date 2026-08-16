@@ -181,28 +181,62 @@ export interface ScoreInput {
 
 /**
  * `settings` row, keyed by teacher. Every field is optional: the row is created
- * incrementally from the profile form, and several columns (`photo_url`,
- * `school_code`, `school_logo`, `director_name`, `manager_name`,
- * `teacher_name`, `province_date`) exist live but are absent from the SQL
- * snapshot.
+ * incrementally from the profile form.
+ *
+ * Three pairs of columns hold one concept each, because migration 00002 added
+ * a second name for a field the legacy form already wrote. Different routes
+ * read different halves, so `/profile` writes **both** halves of each pair from
+ * a single input and migration 00013 backfills the older rows. Never set one
+ * without the other:
+ *
+ *   `homeroom_teacher` ↔ `teacher_name`   the signing teacher
+ *   `province_for_date` ↔ `province_date` the province on the "ធ្វើនៅ ___" line
+ *   `director_name` ↔ `manager_name`      the principal
+ *
+ * `manager_role` is NOT part of a pair — it is the job title printed above the
+ * principal's name (`នាយកសាលា`), not a name.
  */
 export interface Settings {
   teacher_id?: string
   surname?: string | null
   name?: string | null
+  /** Teacher's own contact number. */
+  phone?: string | null
+  gender?: string | null
+  /** កម្រិតវប្បធម៌ — e.g. `បរិញ្ញាប័ត្រ`. */
+  education_level?: string | null
+  /** កម្រិតបណ្តុះបណ្តាល — e.g. `១២+៤`. */
+  training_level?: string | null
+  /** អតីតភាពឆ្នាំ. Free text, not a number — the legacy field accepted `១២ឆ្នាំ`. */
+  seniority_years?: string | null
+
+  /** Paired with `homeroom_teacher`. */
   teacher_name?: string | null
+  homeroom_teacher?: string | null
+
   management_unit_1?: string | null
   management_unit_2?: string | null
   school_name?: string | null
   school_code?: string | null
   school_logo?: string | null
   class_name?: string | null
-  homeroom_teacher?: string | null
+
+  /** Paired with `manager_name`. */
   director_name?: string | null
   manager_name?: string | null
+  /** The principal's job title, printed above their name. Not a name. */
   manager_role?: string | null
+  principal_phone?: string | null
+
+  /** Paired with `province_date`. */
   province_for_date?: string | null
   province_date?: string | null
+
+  /** Administrative location of the SCHOOL — unrelated to `students.curr_*`. */
+  admin_province?: string | null
+  admin_district?: string | null
+  admin_commune?: string | null
+
   academic_year?: string | null
   photo_url?: string | null
   created_at?: string
@@ -497,14 +531,58 @@ export interface ReportCard {
   updated_at?: string
 }
 
-/** `attendance_locks` row — a class-day closed to further edits. */
+/**
+ * `attendance_locks` row — a day closed to further edits.
+ *
+ * Dual-scoped like everything else (see `lib/utils/queryFilter.ts`): V2 locks
+ * carry `class_id`, legacy locks carry `teacher_id` with a null `class_id`.
+ * Exactly one of the two is set — migration 00014 enforces it.
+ */
 export interface AttendanceLock {
   id: string
-  class_id: string
+  class_id: string | null
+  teacher_id: string | null
   date: string
   locked_by?: string | null
   locked_at: string
 }
+
+/**
+ * `cognitive_assessments` row — one standing judgement of a pupil across four
+ * cognitive levels, each 0-100.
+ *
+ * Deliberately not stored in `scores`: that table's values are marks out of ten
+ * that `gradeFor()` and every average in the app interpret as such. See
+ * migration 00015.
+ */
+export interface CognitiveAssessment {
+  id: string
+  teacher_id: string
+  student_id: string
+  class_id?: string | null
+  academic_year_id?: string | null
+  /** ដឹងយល់ */
+  knowing: number
+  /** អនុវត្ត */
+  applying: number
+  /** វិភាគ */
+  analyzing: number
+  /** វាយតម្លៃ */
+  evaluating: number
+  note?: string | null
+  created_at?: string
+  updated_at?: string
+}
+
+/** The four levels, in the order they are shown and printed. */
+export const COGNITIVE_LEVELS = [
+  { key: 'knowing', label: 'ដឹងយល់' },
+  { key: 'applying', label: 'អនុវត្ត' },
+  { key: 'analyzing', label: 'វិភាគ' },
+  { key: 'evaluating', label: 'វាយតម្លៃ' },
+] as const
+
+export type CognitiveLevelKey = (typeof COGNITIVE_LEVELS)[number]['key']
 
 /** `audit_logs` row. Append-only: there is no UPDATE or DELETE policy. */
 export interface AuditLogEntry {

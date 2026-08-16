@@ -2,19 +2,35 @@
 
 import { useMemo } from 'react'
 import { Button } from '@/components/ui/actions/Button'
-import { ArrowLeft, Printer, Users } from 'lucide-react'
+import { ArrowLeft, Printer, Users, Ruler } from 'lucide-react'
 import Link from 'next/link'
-import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts'
+import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend, LineChart, Line, ScatterChart, Scatter } from 'recharts'
 import type { Settings, Student } from '@/lib/types'
 import { calculateAge } from '@/lib/utils/date'
 
-export default function PrintStudentAgeClient({ initialStudents, settings, academicYear }: { 
-    initialStudents: Student[], settings: Settings | null, academicYear: string 
+/** Mean of a list, or null when there is nothing to average. */
+function mean(values: number[]): number | null {
+    if (values.length === 0) return null
+    return values.reduce((a, b) => a + b, 0) / values.length
+}
+
+/** One decimal place, or an em dash when the figure does not exist yet. */
+function fmt(value: number | null, unit: string): string {
+    return value === null ? '—' : `${value.toFixed(1)} ${unit}`
+}
+
+export default function PrintStudentAgeClient({ initialStudents, settings, academicYear, heights }: {
+    initialStudents: Student[], settings: Settings | null, academicYear: string,
+    /** `studentId` → latest height in cm, from the health tracking book. */
+    heights: Record<string, number>
 }) {
     const MIN_AGE = 5
     const MAX_AGE = 20
 
-    const { ageStats, totalF, totalM, allTotal, ageDataForCharts } = useMemo(() => {
+    const {
+        ageStats, totalF, totalM, allTotal, ageDataForCharts,
+        metrics, scatterMale, scatterFemale, hasHeightData,
+    } = useMemo(() => {
         const stats = { female: {} as Record<number, number>, male: {} as Record<number, number> }
         for (let i = MIN_AGE; i <= MAX_AGE; i++) {
             stats.female[i] = 0
@@ -23,16 +39,40 @@ export default function PrintStudentAgeClient({ initialStudents, settings, acade
 
         let totalF = 0
         let totalM = 0
-        
+
+        // Collected as raw lists rather than running sums so the averages and the
+        // maxima come from exactly the same population.
+        const ageAll: number[] = [], ageM: number[] = [], ageF: number[] = []
+        const hAll: number[] = [], hM: number[] = [], hF: number[] = []
+        const scatterMale: { age: number; height: number; name: string }[] = []
+        const scatterFemale: { age: number; height: number; name: string }[] = []
+
         initialStudents.forEach(s => {
             const isFemale = s.gender === 'ស្រី' || s.gender === 'F'
             if (isFemale) totalF++
             else totalM++
 
             const age = calculateAge(s.dob)
+            const height = heights[s.id]
+
             if (age !== null && age >= MIN_AGE && age <= MAX_AGE) {
                 if (isFemale) stats.female[age]++
                 else stats.male[age]++
+
+                ageAll.push(age)
+                if (isFemale) ageF.push(age); else ageM.push(age)
+            }
+
+            if (typeof height === 'number') {
+                hAll.push(height)
+                if (isFemale) hF.push(height); else hM.push(height)
+
+                // The scatter plots height against age, so a pupil missing either
+                // one cannot be placed and is left off rather than drawn at zero.
+                if (age !== null) {
+                    const point = { age, height, name: s.name_kh || s.full_name || '' }
+                    if (isFemale) scatterFemale.push(point); else scatterMale.push(point)
+                }
             }
         })
 
@@ -48,8 +88,18 @@ export default function PrintStudentAgeClient({ initialStudents, settings, acade
             }
         }
 
-        return { ageStats: stats, totalF, totalM, allTotal: initialStudents.length, ageDataForCharts }
-    }, [initialStudents])
+        const metrics = {
+            avgAgeAll: mean(ageAll), avgAgeM: mean(ageM), avgAgeF: mean(ageF),
+            maxAge: ageAll.length ? Math.max(...ageAll) : null,
+            avgHAll: mean(hAll), avgHM: mean(hM), avgHF: mean(hF),
+            maxHeight: hAll.length ? Math.max(...hAll) : null,
+        }
+
+        return {
+            ageStats: stats, totalF, totalM, allTotal: initialStudents.length, ageDataForCharts,
+            metrics, scatterMale, scatterFemale, hasHeightData: hAll.length > 0,
+        }
+    }, [initialStudents, heights])
 
     const printPage = () => {
         window.print()
@@ -111,6 +161,34 @@ export default function PrintStudentAgeClient({ initialStudents, settings, acade
                         </div>
                     </div>
 
+                    {/* Age and height metrics, carried over from the legacy analysis page. */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                        <div className="bg-paper border border-divider p-4 rounded-xl">
+                            <p className="text-xs text-text-muted font-bold mb-1">អាយុមធ្យម (សរុប)</p>
+                            <h3 className="text-xl font-bold text-text-heading">{fmt(metrics.avgAgeAll, 'ឆ្នាំ')}</h3>
+                            <p className="mt-1 text-[11px] text-text-muted">
+                                ប្រុស {fmt(metrics.avgAgeM, '')} · ស្រី {fmt(metrics.avgAgeF, '')}
+                            </p>
+                        </div>
+                        <div className="bg-paper border border-divider p-4 rounded-xl">
+                            <p className="text-xs text-text-muted font-bold mb-1">អាយុច្រើនបំផុត</p>
+                            <h3 className="text-xl font-bold text-text-heading">
+                                {metrics.maxAge === null ? '—' : `${metrics.maxAge} ឆ្នាំ`}
+                            </h3>
+                        </div>
+                        <div className="bg-paper border border-divider p-4 rounded-xl">
+                            <p className="text-xs text-text-muted font-bold mb-1">កម្ពស់មធ្យម (សរុប)</p>
+                            <h3 className="text-xl font-bold text-text-heading">{fmt(metrics.avgHAll, 'សម')}</h3>
+                            <p className="mt-1 text-[11px] text-text-muted">
+                                ប្រុស {fmt(metrics.avgHM, '')} · ស្រី {fmt(metrics.avgHF, '')}
+                            </p>
+                        </div>
+                        <div className="bg-paper border border-divider p-4 rounded-xl">
+                            <p className="text-xs text-text-muted font-bold mb-1">កម្ពស់ខ្ពស់បំផុត</p>
+                            <h3 className="text-xl font-bold text-text-heading">{fmt(metrics.maxHeight, 'សម')}</h3>
+                        </div>
+                    </div>
+
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                         <div className="bg-bg-surface p-5 rounded-xl border border-divider shadow-sm flex flex-col items-center">
                             <h3 className="font-bold text-text-body mb-4 self-start flex items-center gap-2">របាយចំនួនសិស្សតាមអាយុសរុប</h3>
@@ -140,6 +218,54 @@ export default function PrintStudentAgeClient({ initialStudents, settings, acade
                                         <Bar dataKey="female" name="ស្រី" fill="#ec4899" radius={[4,4,0,0]} />
                                     </BarChart>
                                 </ResponsiveContainer>
+                            </div>
+                        </div>
+
+                        <div className="bg-bg-surface p-5 rounded-xl border border-divider shadow-sm flex flex-col items-center">
+                            <h3 className="font-bold text-text-body mb-4 self-start flex items-center gap-2">និន្នាការចំនួនសិស្សតាមអាយុ</h3>
+                            <div className="w-full h-[300px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <LineChart data={ageDataForCharts}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                        <XAxis dataKey="ageStr" />
+                                        <YAxis allowDecimals={false} />
+                                        <RechartsTooltip />
+                                        <Legend />
+                                        <Line type="monotone" dataKey="total" name="សរុប" stroke="#0054a6" strokeWidth={2} dot={{ r: 3 }} />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+
+                        <div className="bg-bg-surface p-5 rounded-xl border border-divider shadow-sm flex flex-col items-center">
+                            <h3 className="font-bold text-text-body mb-4 self-start flex items-center gap-2">ទំនាក់ទំនងរវាងអាយុ និងកម្ពស់</h3>
+                            <div className="w-full h-[300px]">
+                                {hasHeightData ? (
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <ScatterChart margin={{ top: 10, right: 10, bottom: 10, left: 0 }}>
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            {/*
+                                              `domain={['dataMin - n', 'dataMax + n']}` rather than the
+                                              default: a class spanning two years of age would otherwise
+                                              plot every point on the axis edges.
+                                            */}
+                                            <XAxis type="number" dataKey="age" name="អាយុ" unit=" ឆ្នាំ" domain={['dataMin - 1', 'dataMax + 1']} allowDecimals={false} />
+                                            <YAxis type="number" dataKey="height" name="កម្ពស់" unit=" សម" domain={['dataMin - 5', 'dataMax + 5']} />
+                                            <RechartsTooltip cursor={{ strokeDasharray: '3 3' }} />
+                                            <Legend />
+                                            <Scatter name="ប្រុស" data={scatterMale} fill="#3b82f6" />
+                                            <Scatter name="ស្រី" data={scatterFemale} fill="#ec4899" />
+                                        </ScatterChart>
+                                    </ResponsiveContainer>
+                                ) : (
+                                    <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-sm text-text-muted">
+                                        <Ruler className="h-8 w-8 text-text-muted/60" aria-hidden="true" />
+                                        <p>មិនទាន់មានទិន្នន័យកម្ពស់នៅឡើយ។</p>
+                                        <Link href="/class-admin/health_tracking" className="font-bold text-brand hover:underline">
+                                            បញ្ចូលទម្ងន់ និងកម្ពស់សិស្ស
+                                        </Link>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

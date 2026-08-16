@@ -83,6 +83,7 @@ export const NAV_MODULES: NavModule[] = [
     children: [
       { label: "បញ្ជីវត្តមានប្រចាំខែ", href: "/attendance/monthly", primary: true },
       { label: "ចុះវត្តមានតាមប្លង់តុ", href: "/attendance/layout" },
+      { label: "អវត្តមានប្រចាំឆ្នាំ", href: "/attendance/yearly" },
     ],
   },
   {

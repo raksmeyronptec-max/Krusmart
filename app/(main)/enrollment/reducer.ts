@@ -88,8 +88,37 @@ export const initialState: EnrollmentState = {
   errors: {},
 }
 
+/** Everything a form control can set. `errors` is managed by its own actions. */
+export type EnrollmentField = Exclude<keyof EnrollmentState, 'errors'>
+
+/**
+ * The string-valued fields — everything a text input or `<select>` drives.
+ *
+ * The generic change handler reads `e.target.name`, which is only ever the name
+ * of a string field, so this is what that cast narrows to.
+ */
+export type EnrollmentTextField = {
+  [K in EnrollmentField]: EnrollmentState[K] extends string ? K : never
+}[EnrollmentField]
+
+/** The boolean-valued fields. Currently just `sameAsBirth`. */
+export type EnrollmentFlagField = {
+  [K in EnrollmentField]: EnrollmentState[K] extends boolean ? K : never
+}[EnrollmentField]
+
 export type EnrollmentAction =
-  | { type: 'SET_FIELD'; field: keyof EnrollmentState; value: any }
+  /*
+   * Split by value type rather than typed per field.
+   *
+   * The obvious alternative — mapping over the keys to pair each field name with
+   * its own value type — types literal call sites beautifully but rejects the
+   * generic `handleChange`, which holds the field name in a variable: TypeScript
+   * cannot prove which member of a distributed union that variable selects.
+   * Two members keyed on the value type carry the same guarantee that mattered
+   * (a boolean field cannot be set to a string) and stay usable from a handler.
+   */
+  | { type: 'SET_FIELD'; field: EnrollmentTextField; value: string }
+  | { type: 'SET_FLAG'; field: EnrollmentFlagField; value: boolean }
   | { type: 'SET_ERROR'; field: string; error: string }
   | { type: 'CLEAR_ERROR'; field: string }
   | { type: 'CLEAR_ALL_ERRORS' }
@@ -103,13 +132,17 @@ export function enrollmentReducer(state: EnrollmentState, action: EnrollmentActi
     case 'SET_FIELD': {
       const newState = { ...state, [action.field]: action.value }
       // Clear error for this field when it changes
-      if (state.errors[action.field as string]) {
+      if (state.errors[action.field]) {
         const newErrors = { ...state.errors }
-        delete newErrors[action.field as string]
+        delete newErrors[action.field]
         newState.errors = newErrors
       }
       return newState
     }
+    // A flag has no validation error to clear — nothing about a checkbox can be
+    // typed wrong — so this is the plain assignment `SET_FIELD` cannot be.
+    case 'SET_FLAG':
+      return { ...state, [action.field]: action.value }
     case 'SET_ERROR':
       return { ...state, errors: { ...state.errors, [action.field]: action.error } }
     case 'CLEAR_ERROR': {

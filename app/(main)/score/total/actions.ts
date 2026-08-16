@@ -62,3 +62,41 @@ export async function getAnnualAverages(academicYear: string): Promise<Score[]> 
     if (error) return []
     return data || []
 }
+
+/**
+ * Every monthly mark for one academic year, in a single round trip.
+ *
+ * The subject-trend chart needs twelve months at once. Calling
+ * `getAllScoresByPeriod` in a loop would be twelve sequential requests over a
+ * classroom connection, so this matches on the period suffix instead.
+ *
+ * Monthly periods are `${month}-${academicYear}` — e.g. `jan-2025-2026` — so
+ * the suffix is unambiguous. Homework periods use an underscore
+ * (`2025-2026_jan`) and a different `score_type`, so they cannot collide.
+ */
+export async function getMonthlyScoresForYear(academicYear: string): Promise<Score[]> {
+    const supabase = await createClient()
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return []
+
+    const scope = await resolveServerScope(user.id)
+    const rosterIds = await rosterIdsForScope(scope)
+
+    let query = supabase
+        .from('scores')
+        .select('*')
+        .eq('score_type', 'monthly')
+        .like('score_period', `%-${academicYear}`)
+
+    query = rosterIds ? query.in('student_id', rosterIds) : query.eq('teacher_id', user.id)
+
+    const { data, error } = await query
+
+    if (error) {
+        logger.error(error)
+        return []
+    }
+
+    return data || []
+}

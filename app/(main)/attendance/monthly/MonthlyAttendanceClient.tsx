@@ -3,7 +3,8 @@
 import React, { useState, useCallback, useEffect } from 'react'
 import { Button } from '@/components/ui/actions/Button'
 import { getMonthlyAttendance, getTeacherSettings } from './actions'
-import { FileDown, FileSpreadsheet, Printer } from 'lucide-react'
+import { CalendarRange, FileDown, FileSpreadsheet, Printer } from 'lucide-react'
+import Link from 'next/link'
 import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
 import { controlClass, fieldLabel } from '@/components/ui/forms/fieldStyles'
 import * as XLSX from 'xlsx-js-style'
@@ -530,6 +531,12 @@ export default function MonthlyAttendanceClient({
                     <Button printHidden={false} onClick={() => window.print()} icon={<Printer className="h-4 w-4" />}>
                         បោះពុម្ព
                     </Button>
+                    <Link
+                        href="/attendance/yearly"
+                        className="tap-target inline-flex items-center gap-2 rounded-lg border border-divider bg-bg-surface px-4 py-2 text-sm font-bold text-text-heading transition hover:bg-paper print:hidden"
+                    >
+                        <CalendarRange className="h-4 w-4" aria-hidden="true" /> អវត្តមានប្រចាំឆ្នាំ
+                    </Link>
                 </div>
             </div>
 

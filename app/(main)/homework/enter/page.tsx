@@ -26,7 +26,14 @@ export default async function HomeworkEnterPage({
   const scope = await resolveServerScope(user.id, requestedClassId)
   const students = await fetchStudentsForScope(scope)
 
+  // The letterhead for the printable score sheet.
+  const { data: settings } = await supabase
+    .from('settings')
+    .select('*')
+    .eq('teacher_id', user.id)
+    .maybeSingle()
+
   return (
-    <HomeworkEnterClient initialStudents={students || []} />
+    <HomeworkEnterClient initialStudents={students || []} settings={settings || null} />
   )
 }

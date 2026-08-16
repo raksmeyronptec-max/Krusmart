@@ -22,7 +22,8 @@ import {
   enrollmentReducer,
   useAutoSave,
   useBeforeUnload,
-  type EnrollmentState
+  type EnrollmentState,
+  type EnrollmentTextField
 } from './reducer'
 import {
   TextField,
@@ -111,7 +112,7 @@ export default function EnrollmentPage() {
   }, [])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    dispatch({ type: 'SET_FIELD', field: e.target.name as keyof EnrollmentState, value: e.target.value })
+    dispatch({ type: 'SET_FIELD', field: e.target.name as EnrollmentTextField, value: e.target.value })
   }
 
   const handleDobChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -374,7 +375,7 @@ export default function EnrollmentPage() {
               <Button type="button" variant="secondary" className="w-full justify-start" icon={<Download className="h-4 w-4" />} onClick={downloadTemplate}>
                 ទាញយកគំរូ Excel
               </Button>
-              <Button type="button" variant="outline" className="w-full justify-start border-warning/50 text-warning hover:bg-warning/10 hover:border-warning" loading={isImporting} icon={<Upload className="h-4 w-4" />} onClick={() => importInputRef.current?.click()}>
+              <Button type="button" variant="secondary" className="w-full justify-start border-warning/50 text-warning hover:bg-warning/10 hover:border-warning" loading={isImporting} icon={<Upload className="h-4 w-4" />} onClick={() => importInputRef.current?.click()}>
                 នាំចូល Excel / CSV
               </Button>
               <input ref={importInputRef} type="file" accept=".xlsx,.xls,.csv" className="sr-only" onChange={handleExcelImport} />
@@ -500,7 +501,7 @@ export default function EnrollmentPage() {
                         checked={state.sameAsBirth} 
                         onChange={(e) => {
                           if (e.target.checked) dispatch({ type: 'COPY_ADDRESS' })
-                          else dispatch({ type: 'SET_FIELD', field: 'sameAsBirth', value: false })
+                          else dispatch({ type: 'SET_FLAG', field: 'sameAsBirth', value: false })
                         }} 
                       />
                       ដូចទីកន្លែងកំណើត

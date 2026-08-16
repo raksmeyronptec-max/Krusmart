@@ -3,13 +3,13 @@
 import { useState, useEffect, useMemo } from 'react'
 import { 
     BookMarked, Calendar, Clock, CalendarDays, Save, Info,
-    CalendarCheck, TableProperties, Loader2, Users, Check, Zap
+    CalendarCheck, TableProperties, Loader2, Users, Check, Zap, Printer
 } from 'lucide-react'
 import { getScores, saveScores } from '../../score/enter/actions'
 import Select from '@/components/ui/forms/Select'
 import { notify } from '@/components/ui/feedback/notify'
 import { useConfirm } from '@/components/ui/overlay/ConfirmDialog'
-import type { ScoreInput, Student } from '@/lib/types'
+import type { ScoreInput, Settings, Student } from '@/lib/types'
 import { logger } from '@/lib/utils/logger'
 import { MONTHS_BY_ACADEMIC_YEAR } from '@/lib/constants/months'
 import { getCurrentAcademicYear } from '@/lib/constants/academic'
@@ -23,7 +23,10 @@ const monthIndexMapping: Record<string, number> = {
 /** The grid only needs the id, the Khmer name and the gender. */
 type StudentRow = Pick<Student, 'id' | 'name_kh' | 'gender'>
 
-export default function HomeworkEnterClient({ initialStudents}: { initialStudents: StudentRow[] }) {
+export default function HomeworkEnterClient({ initialStudents, settings }: {
+    initialStudents: StudentRow[]
+    settings: Settings | null
+}) {
     const [students] = useState<StudentRow[]>(initialStudents)
     const [currentTab, setCurrentTab] = useState<'daily' | 'monthly'>('daily')
     const [isLoading, setIsLoading] = useState(true)
@@ -351,11 +354,90 @@ export default function HomeworkEnterClient({ initialStudents}: { initialStudent
         )
     }
 
+    const monthLabel = MONTHS_BY_ACADEMIC_YEAR.find(m => m.id === monthSelect)?.label ?? ''
+    const femaleTotal = students.filter(s => s.gender === 'ស្រី' || s.gender === 'F').length
+
     return (
         <div className="relative flex flex-col text-text-heading">
-            <div className="bg-animate pointer-events-none absolute inset-0 z-[-1] opacity-60 bg-[radial-gradient(circle_at_10%_20%,var(--brand-100)_0%,transparent_40%),radial-gradient(circle_at_90%_80%,var(--color-success)_0%,transparent_40%),radial-gradient(circle_at_50%_50%,var(--color-gold)_0%,transparent_40%)]"></div>
+            <div data-hw-chrome className="bg-animate pointer-events-none absolute inset-0 z-[-1] opacity-60 bg-[radial-gradient(circle_at_10%_20%,var(--brand-100)_0%,transparent_40%),radial-gradient(circle_at_90%_80%,var(--color-success)_0%,transparent_40%),radial-gradient(circle_at_50%_50%,var(--color-gold)_0%,transparent_40%)]"></div>
 
-            <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-5 px-4 py-6">
+            {/* Printable monthly score sheet — `homework/print-score.html` restored. */}
+            <div className="hidden print:block">
+                <div className="mb-4 flex items-start justify-between">
+                    <div className="kh-moul text-[10pt] leading-relaxed" style={{ marginTop: '24pt' }}>
+                        <p>{settings?.management_unit_1 || 'មន្ទីរអប់រំ យុវជន និងកីឡា...'}</p>
+                        <p>{settings?.management_unit_2 || 'ការិយាល័យអប់រំ យុវជន និងកីឡា...'}</p>
+                        <p>{settings?.school_name || 'សាលា...'}</p>
+                    </div>
+                    <div className="text-center">
+                        <h3 className="kh-moul mb-1 text-[12pt]">ព្រះរាជាណាចក្រកម្ពុជា</h3>
+                        <h3 className="kh-moul mb-1 text-[12pt]">ជាតិ សាសនា ព្រះមហាក្សត្រ</h3>
+                    </div>
+                </div>
+
+                <h2 className="kh-moul mb-1 text-center text-[13pt] uppercase">
+                    របាយការណ៍ពិន្ទុកិច្ចការផ្ទះប្រចាំខែ{monthLabel}
+                </h2>
+                <p className="mb-3 text-center text-[10pt]">កាលបរិច្ឆេទ ២៦ ដល់ ២៥ · ឆ្នាំសិក្សា {yearSelect}</p>
+
+                <div className="mb-2 flex justify-between text-[10pt] font-bold">
+                    <p>សិស្សសរុប {toKhmerNumber(students.length)} នាក់ · ស្រី {toKhmerNumber(femaleTotal)} នាក់</p>
+                    <p>ថ្នាក់ទី៖ {settings?.class_name || '..........'}</p>
+                </div>
+
+                <table className="hw-print-table">
+                    <thead>
+                        <tr>
+                            <th rowSpan={2} className="w-7">ល.រ</th>
+                            <th rowSpan={2} className="min-w-[130px] text-left">គោត្តនាម និងនាម</th>
+                            <th rowSpan={2} className="w-9">ភេទ</th>
+                            <th colSpan={dateColumns.length}>កាលបរិច្ឆេទ (២៦ ដល់ ២៥)</th>
+                            <th rowSpan={2} className="w-12">សរុប</th>
+                            <th rowSpan={2} className="w-14">មធ្យមភាគ</th>
+                        </tr>
+                        <tr>
+                            {dateColumns.map(col => (
+                                <th key={col.dayNum} className={col.isSunday ? 'sun' : ''}>{col.dayNum}</th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {students.map((s, i) => {
+                            const { total, average } = getStudentTotals(s.id)
+                            return (
+                                <tr key={s.id}>
+                                    <td>{toKhmerNumber(i + 1)}</td>
+                                    <td className="text-left font-bold">{s.name_kh}</td>
+                                    <td>{s.gender}</td>
+                                    {dateColumns.map(col => (
+                                        <td key={col.dayNum} className={col.isSunday ? 'sun' : ''}>
+                                            {scores[s.id]?.[col.dayNum] ?? ''}
+                                        </td>
+                                    ))}
+                                    <td className="font-bold">{total}</td>
+                                    <td className="font-bold">{average}</td>
+                                </tr>
+                            )
+                        })}
+                    </tbody>
+                </table>
+
+                <div className="mt-8 flex justify-between text-[10pt]">
+                    <div className="text-center">
+                        <p className="kh-moul uppercase">{settings?.manager_role || 'នាយកសាលា'}</p>
+                        <p className="mt-14">{settings?.manager_name || settings?.director_name || ''}</p>
+                    </div>
+                    <div className="text-center">
+                        <p className="mb-1">
+                            ធ្វើនៅ {settings?.province_date || settings?.province_for_date || '..............'}, ថ្ងៃទី....... ខែ........... ឆ្នាំ២០២...
+                        </p>
+                        <p className="kh-moul">គ្រូបន្ទុកថ្នាក់</p>
+                        <p className="mt-10">{settings?.homeroom_teacher || settings?.teacher_name || ''}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div data-hw-chrome className="mx-auto flex w-full max-w-[1400px] flex-col gap-5 px-4 py-6">
                 
                 {/* Header Section */}
                 <div className="bg-bg-surface/80 backdrop-blur-md p-4 md:p-5 rounded-xl shadow-sm border border-divider flex flex-col gap-4 shrink-0">
@@ -440,6 +522,19 @@ export default function HomeworkEnterClient({ initialStudents}: { initialStudent
                                 {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : (showSuccess ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />)}
                                 <span>{showSuccess ? 'ជោគជ័យ' : 'រក្សាទុក'}</span>
                             </button>
+
+                            {/*
+                              Printing always renders the full month, whichever tab
+                              is on screen: a one-day sheet is not a report anyone
+                              files, and the ministry form is the 26th-to-25th grid.
+                            */}
+                            <button
+                                onClick={() => window.print()}
+                                className="tap-target flex items-center gap-2 rounded-xl border border-divider bg-bg-surface px-5 py-2.5 font-bold text-text-heading shadow-sm transition-all hover:bg-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                            >
+                                <Printer className="w-4 h-4" />
+                                <span>បោះពុម្ព</span>
+                            </button>
                         </div>
                     </div>
 
@@ -516,9 +611,21 @@ export default function HomeworkEnterClient({ initialStudents}: { initialStudent
             </div>
             
             <style jsx global>{`
-                input[type="number"]::-webkit-inner-spin-button, 
-                input[type="number"]::-webkit-outer-spin-button { 
-                    -webkit-appearance: none; margin: 0; 
+                @media print {
+                    @page { size: A4 landscape; margin: 8mm; }
+                    body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    /* The entry grid is a screen tool: it scrolls sideways and
+                       carries sticky columns that print as overlapping ink. */
+                    [data-hw-chrome] { display: none !important; }
+                }
+                .hw-print-table { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
+                .hw-print-table th, .hw-print-table td { border: 1px solid #444; padding: 1px 2px; text-align: center; }
+                .hw-print-table th { background-color: #f1f5f9; font-weight: 700; }
+                .hw-print-table .sun { background-color: #fff1f1; }
+
+                input[type="number"]::-webkit-inner-spin-button,
+                input[type="number"]::-webkit-outer-spin-button {
+                    -webkit-appearance: none; margin: 0;
                 }
                 .custom-scrollbar::-webkit-scrollbar { height: 10px; width: 10px; }
                 .custom-scrollbar::-webkit-scrollbar-track { background: var(--paper); }

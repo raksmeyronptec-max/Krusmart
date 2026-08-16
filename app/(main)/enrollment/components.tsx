@@ -1,5 +1,5 @@
 import { useState, useRef, type ReactNode, type InputHTMLAttributes } from 'react'
-import { AlertCircle, Camera, CheckCircle2, Image as ImageIcon, Smile, User, Bot, UploadCloud, X, Trash2 } from 'lucide-react'
+import { AlertCircle, Camera, CheckCircle2, Image as ImageIcon, Smile, User, Bot, UploadCloud, X, Trash2, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/actions/Button'
 
 export const inputClassName = [
@@ -74,7 +74,7 @@ export function EnrollmentSection({
   number: string
   title: string
   description: string
-  icon: any
+  icon: LucideIcon
   children: ReactNode
   id: string
 }) {
@@ -197,7 +197,7 @@ export function PhotoUploader({
             value={urlInput}
             onChange={(e) => setUrlInput(e.target.value)}
           />
-          <Button type="button" size="sm" variant="outline" onClick={applyUrlPhoto}>
+          <Button type="button" size="sm" variant="secondary" onClick={applyUrlPhoto}>
             ភ្ជាប់
           </Button>
         </div>
@@ -208,6 +208,21 @@ export function PhotoUploader({
 
 
 // -- Avatar Picker Modal --
+
+/**
+ * The DiceBear styles offered, and the single source of the tab union.
+ *
+ * `as const` makes `AvatarStyle` the literal union of the three ids, so the tab
+ * buttons no longer need a cast to satisfy `setActiveTab`.
+ */
+const AVATAR_TABS = [
+  { id: 'notionists', label: 'តុក្កតា', icon: Smile },
+  { id: 'adventurer', label: 'មនុស្ស', icon: User },
+  { id: 'bottts', label: 'រ៉ូបូត', icon: Bot },
+] as const satisfies readonly { id: string; label: string; icon: LucideIcon }[]
+
+type AvatarStyle = (typeof AVATAR_TABS)[number]['id']
+
 export function AvatarPickerModal({
   isOpen,
   onClose,
@@ -217,7 +232,7 @@ export function AvatarPickerModal({
   onClose: () => void
   onSelect: (url: string) => void
 }) {
-  const [activeTab, setActiveTab] = useState<'notionists' | 'adventurer' | 'bottts'>('notionists')
+  const [activeTab, setActiveTab] = useState<AvatarStyle>('notionists')
   if (!isOpen) return null
 
   const seeds = [1, 3, 6, 9, 10, 13, 15, 17, 18, 19, 20, 23, 29, 52, 54, 58, 59, 64, 65, 68, 74, 75, 84, 85, 88, 91, 92, 99, 100, 101, 105, 110]
@@ -232,15 +247,11 @@ export function AvatarPickerModal({
           </button>
         </div>
         <div className="flex border-b border-divider bg-paper px-4 pt-2">
-          {[
-            { id: 'notionists', label: 'តុក្កតា', icon: Smile },
-            { id: 'adventurer', label: 'មនុស្ស', icon: User },
-            { id: 'bottts', label: 'រ៉ូបូត', icon: Bot },
-          ].map((tab) => (
+          {AVATAR_TABS.map((tab) => (
             <button
               key={tab.id}
               type="button"
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 border-b-2 px-4 py-2 font-bold transition-colors ${
                 activeTab === tab.id ? 'border-brand text-brand' : 'border-transparent text-text-muted hover:text-text-heading'
               }`}

@@ -3,12 +3,13 @@
 import { useState, useCallback, useEffect } from 'react'
 import { Button } from '@/components/ui/actions/Button'
 import { Badge, ATTENDANCE_BADGE } from '@/components/ui/feedback/Badge'
-import { ArrowLeft, LayoutTemplate, Save, User, X, Users, Search, Check, Grid3x3, List, Box } from 'lucide-react'
-import { saveAttendance, saveAttendanceBulk, getAttendanceForDate } from './actions'
+import { ArrowLeft, LayoutTemplate, Save, User, X, Users, Search, Check, Grid3x3, List, Box, Lock, Unlock } from 'lucide-react'
+import { saveAttendance, saveAttendanceBulk, getAttendanceForDate, getLockedDates, setDateLock } from './actions'
 import ThreeClassroom from './ThreeClassroom'
 import Select from '@/components/ui/forms/Select'
 import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
 import { BottomSheet } from '@/components/ui/overlay/BottomSheet'
+import { useConfirm } from '@/components/ui/overlay/ConfirmDialog'
 import { notify } from '@/components/ui/feedback/notify'
 import { controlClass } from '@/components/ui/forms/fieldStyles'
 import { RosterCheckIn, type MarkStatus } from './RosterCheckIn'
@@ -39,6 +40,9 @@ import { STORAGE_KEYS } from '@/lib/constants/storage'
 /** Which view is showing. Persisted only for the session, not to storage. */
 type ViewMode = 'list' | '2d' | '3d'
 
+/** Client-side counterpart of `LOCKED_MESSAGE` in `actions.ts`. */
+const LOCKED_HINT = 'ថ្ងៃនេះត្រូវបានចាក់សោ។ សូមដោះសោជាមុនសិន ដើម្បីកែប្រែវត្តមាន។'
+
 export type DayMarks = Record<string, { status: string, note: string }>
 
 export default function AttendanceLayoutClient({
@@ -54,6 +58,7 @@ export default function AttendanceLayoutClient({
 }) {
     const students = initialStudents
     const { classId, className } = useActiveClass()
+    const { confirm, dialog } = useConfirm()
     const [date, setDate] = useState(initialDate)
 
     // Layout State
@@ -64,6 +69,11 @@ export default function AttendanceLayoutClient({
         { [initialDate]: initialAttendance },
     )
     const [isSaving, setIsSaving] = useState(false)
+    // Days closed to further edits. Held as a Set of ISO dates so switching date
+    // is a lookup rather than another round trip.
+    const [lockedDates, setLockedDates] = useState<Set<string>>(new Set())
+    const [isTogglingLock, setIsTogglingLock] = useState(false)
+    const isLocked = lockedDates.has(date)
     // The list is the safe default: it is the only view that works at every
     // width, and a teacher who wants the plan is one tap away from it.
     const [viewMode, setViewMode] = useState<ViewMode>('list')
@@ -97,10 +107,68 @@ export default function AttendanceLayoutClient({
         if (localLayout) setSeatingLayout(JSON.parse(localLayout))
     }, [])
 
+    const refreshLock = useCallback(async (forDate: string) => {
+        const locked = await getLockedDates([forDate], classId ?? undefined)
+        setLockedDates(prev => {
+            const next = new Set(prev)
+            if (locked.includes(forDate)) next.add(forDate)
+            else next.delete(forDate)
+            return next
+        })
+    }, [classId])
+
+    // The lock for the initial day, and again whenever the active class changes
+    // — a lock belongs to a class, so switching class can change the answer.
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch: refreshLock awaits getLockedDates before setting state, so nothing is set synchronously during the effect
+        refreshLock(date)
+        // Deliberately not keyed on `date`: handleDateChange already refreshes
+        // on switch, and re-running here would double the request on every pick.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [refreshLock])
+
     const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newDate = e.target.value
         setDate(newDate)
         loadAttendanceFromDB(newDate)
+        refreshLock(newDate)
+    }
+
+    /**
+     * Close the day, or reopen it.
+     *
+     * Confirmation is asked only when unlocking. Locking is trivially
+     * reversible; unlocking reopens a register someone deliberately closed, and
+     * on a shared class that may be a colleague's decision.
+     */
+    const toggleLock = async () => {
+        const next = !isLocked
+
+        if (!next) {
+            const ok = await confirm({
+                title: 'ដោះសោវត្តមាន?',
+                message: `ថ្ងៃទី ${date} នឹងអាចកែប្រែបានម្តងទៀត។`,
+                confirmLabel: 'ដោះសោ',
+            })
+            if (!ok) return
+        }
+
+        setIsTogglingLock(true)
+        const res = await setDateLock(date, next, classId ?? undefined)
+        setIsTogglingLock(false)
+
+        if (res.error) {
+            notify.error(res.error)
+            return
+        }
+
+        setLockedDates(prev => {
+            const updated = new Set(prev)
+            if (next) updated.add(date)
+            else updated.delete(date)
+            return updated
+        })
+        notify.success(next ? 'បានចាក់សោវត្តមានថ្ងៃនេះ' : 'បានដោះសោវត្តមានថ្ងៃនេះ')
     }
 
     const toggleMode = () => {
@@ -137,6 +205,14 @@ export default function AttendanceLayoutClient({
      * because it looks exactly like success.
      */
     const markStudent = useCallback(async (studentId: string, status: string, note: string) => {
+        // Refused here as well as on the server. The server is the boundary that
+        // matters, but stopping it client-side means no optimistic mark is ever
+        // painted and then rolled back — a flicker that reads as a lost tap.
+        if (lockedDates.has(date)) {
+            notify.error(LOCKED_HINT)
+            return { error: LOCKED_HINT }
+        }
+
         const previous = attendanceHistory[date]?.[studentId]
 
         setAttendanceHistory(prev => ({
@@ -155,9 +231,13 @@ export default function AttendanceLayoutClient({
             })
         }
         return res
-    }, [attendanceHistory, date, classId])
+    }, [attendanceHistory, date, classId, lockedDates])
 
     const markAllStudents = useCallback(async (status: MarkStatus) => {
+        if (lockedDates.has(date)) {
+            return { error: LOCKED_HINT }
+        }
+
         const previousDay = attendanceHistory[date]
         const ids = students.map(s => s.id)
 
@@ -171,7 +251,7 @@ export default function AttendanceLayoutClient({
             setAttendanceHistory(prev => ({ ...prev, [date]: previousDay || {} }))
         }
         return res
-    }, [attendanceHistory, date, students, classId])
+    }, [attendanceHistory, date, students, classId, lockedDates])
 
     const handleSeatClick = async (seatId: string) => {
         const studentId = seatingLayout[seatId]
@@ -384,9 +464,28 @@ export default function AttendanceLayoutClient({
                             onChange={handleDateChange}
                             className={controlClass(false, 'w-auto font-bold text-brand')}
                         />
+                        <Button
+                            variant={isLocked ? 'warning' : 'secondary'}
+                            printHidden={false}
+                            onClick={toggleLock}
+                            loading={isTogglingLock}
+                            icon={isLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+                        >
+                            {isLocked ? 'ដោះសោ' : 'ចាក់សោ'}
+                        </Button>
                     </div>
                 }
             />
+
+            {isLocked && (
+                <div
+                    role="status"
+                    className="mb-4 flex items-start gap-2 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning print:hidden"
+                >
+                    <Lock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                    <span>{LOCKED_HINT}</span>
+                </div>
+            )}
 
             {/*
               The view switcher. `2d` and `3d` are hidden below `lg` rather than
@@ -587,6 +686,8 @@ export default function AttendanceLayoutClient({
                     onClose={() => setViewMode('2d')}
                 />
             )}
+
+            {dialog}
         </PageContainer>
     )
 }

@@ -50,11 +50,12 @@ export default async function ScoreAnalysePage({
     .like('score_period', `%-${academicYear}%`)
 
   return (
-    <ScoreAnalyseClient 
-      initialStudents={students || []} 
+    <ScoreAnalyseClient
+      initialStudents={students || []}
       attendanceData={attendanceData || []}
       scoresData={scoresData || []}
       academicYear={academicYear}
+      settings={settings || null}
     />
   )
 }

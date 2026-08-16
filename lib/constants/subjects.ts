@@ -62,3 +62,21 @@ export const STANDARD_SUBJECT_LABELS: Record<string, string> = {
 export function subjectLabel(key: string): string {
   return STANDARD_SUBJECT_LABELS[key] ?? key
 }
+
+/**
+ * The numeric subject keys of each score mode, in display order.
+ *
+ * Derived from `STANDARD_SUBJECT_LABELS` rather than listed again, so a subject
+ * added above appears in the reports without a second edit.
+ *
+ * Both lists are deliberately numeric-only. The four semester behaviour columns
+ * — `sem_eval_knowledge`, `sem_eval_skill`, `sem_eval_moral`,
+ * `sem_eval_participate` — are Khmer words stored in `scores.score_text` (see
+ * migration 00012), so averaging them or bucketing them into A-F is meaningless.
+ * They are absent from `STANDARD_SUBJECT_LABELS` for the same reason.
+ */
+export const SEMESTER_SUBJECT_KEYS: string[] = Object.keys(STANDARD_SUBJECT_LABELS)
+  .filter((k) => k.startsWith('sem_'))
+
+export const MONTHLY_SUBJECT_KEYS: string[] = Object.keys(STANDARD_SUBJECT_LABELS)
+  .filter((k) => !k.startsWith('sem_'))
