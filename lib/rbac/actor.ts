@@ -3,6 +3,13 @@ import 'server-only'
 import { createClient } from '@/lib/supabase/server'
 import type { RoleName } from '@/lib/types'
 import { type LoginRole } from '@/lib/auth/role-config'
+import {
+  classifyRoleRows,
+  isSelfServeOwner,
+  roleNameOf,
+  ROLE_SELECT,
+  type RoleRow,
+} from './roleRows'
 
 export type ActorKind = 'admin' | 'teacher' | 'parent'
 
@@ -21,45 +28,14 @@ export interface Actor {
   selfServeSchoolIds: string[]
 }
 
-const ADMIN_ROLES: readonly string[] = ['owner', 'principal', 'school_admin']
-
-/**
- * A teacher who onboards themselves ends up holding `owner` on the school they
- * just created — that is what `create_teacher_organisation` (00017) grants, and
- * what every hierarchy write policy checks.
- *
- * Left alone, that role would misclassify them twice: `resolveActor` would call
- * them an admin and route them to the school console, and
- * `resolveAllAvailableRoles` would see two workspaces and send them to
- * `/login/choose-workspace` on *every* sign-in — asking a one-class teacher to
- * choose between "owner" and "teacher" forever.
- *
- * So an `owner` grant is only a real administrative workspace when the school
- * was not self-created. `schools.settings->>'self_serve'` is stamped by the
- * migration precisely to carry that distinction. When the flag cannot be read
- * (RLS hides the row, or the grant predates 00017) the school counts as a real
- * one — the safe direction, since it only ever preserves existing behaviour.
+/*
+ * `ADMIN_ROLES`, `RoleRow`, `ROLE_SELECT`, `one`, `isSelfServeOwner` and
+ * `roleNameOf` moved to `./roleRows`, which is pure. `useUserRole` on the
+ * client asks the same question and used to answer it differently — it selected
+ * `roles(name)` without `schools(settings)`, so a teacher who onboarded
+ * themselves was a plain teacher here and an administrator there. Sharing the
+ * projection and the predicate is what stops that recurring.
  */
-interface RoleRow {
-  school_id: string | null
-  roles?: { name?: string } | { name?: string }[] | null
-  schools?: { settings?: Record<string, unknown> | null } | { settings?: Record<string, unknown> | null }[] | null
-}
-
-const ROLE_SELECT = 'school_id, roles(name), schools(settings)'
-
-/** PostgREST returns an embedded to-one relation as either an object or a 1-element array. */
-function one<T>(rel: T | T[] | null | undefined): T | undefined {
-  return Array.isArray(rel) ? rel[0] : (rel ?? undefined)
-}
-
-function isSelfServe(row: RoleRow): boolean {
-  return one(row.schools)?.settings?.self_serve === true
-}
-
-function roleNameOf(row: RoleRow): string | undefined {
-  return one(row.roles)?.name
-}
 
 export function homeRouteFor(kind: ActorKind): string {
   return kind === 'parent' ? '/parent/dashboard' : '/dashboard'
@@ -88,9 +64,9 @@ export async function resolveAllAvailableRoles(): Promise<LoginRole[]> {
     const row = raw as RoleRow
     const name = roleNameOf(row)
     // A self-created school is not a second workspace to choose between; see
-    // the note on `isSelfServe`. The teacher entry is added below from the
+    // the note on `isSelfServeOwner`. The teacher entry is added below from the
     // assignment the same onboarding created.
-    if (name === 'owner' && !isSelfServe(row)) available.add('owner')
+    if (name === 'owner' && !isSelfServeOwner(row)) available.add('owner')
     if (name === 'principal' || name === 'school_admin') available.add('admin')
     if (name === 'parent') available.add('parent')
     if (name === 'teacher') available.add('teacher')
@@ -128,21 +104,11 @@ export async function resolveActor(): Promise<Actor | null> {
       .limit(1),
   ])
 
-  const roles: RoleName[] = []
-  const selfServeSchoolIds: string[] = []
-  /** Admin roles that came from a school the user did *not* create themselves. */
-  const realAdminRoles: string[] = []
-
-  for (const raw of roleRes.data ?? []) {
-    const row = raw as RoleRow
-    const name = roleNameOf(row)
-    if (!name) continue
-    roles.push(name as RoleName)
-
-    const selfServe = name === 'owner' && isSelfServe(row)
-    if (selfServe && row.school_id) selfServeSchoolIds.push(row.school_id)
-    if (ADMIN_ROLES.includes(name) && !selfServe) realAdminRoles.push(name)
-  }
+  // `realAdminRoles` excludes an `owner` grant on a school the user created
+  // themselves; `roles` keeps it, because RLS does.
+  const classified = classifyRoleRows((roleRes.data ?? []) as RoleRow[])
+  const roles = classified.roles as RoleName[]
+  const { realAdminRoles, selfServeSchoolIds } = classified
 
   const hasAssignments = (assignedRes.data?.length ?? 0) > 0
   const hasLegacyRoster = (ownedRes.data?.length ?? 0) > 0
