@@ -88,11 +88,57 @@ async function resolveSchoolId(): Promise<{ schoolId: string | null; userId: str
   return { schoolId: data?.school_id ?? null, userId: user.id }
 }
 
+/**
+ * Write one education level and its full grade range for a school.
+ *
+ * Both idempotent upserts on the natural keys the schema declares
+ * (`UNIQUE (school_id, name)`, `UNIQUE (education_level_id, name)`), so the
+ * two callers — organisation creation consuming the pre-login choice, and the
+ * standalone level step — can run in any order, any number of times, without
+ * duplicating rows.
+ */
+async function seedEducationLevel(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  schoolId: string,
+  level: NonNullable<ReturnType<typeof levelByKey>>,
+): Promise<{ levelId?: string; error?: string }> {
+  const { data: levelRow, error: levelErr } = await supabase
+    .from('education_levels')
+    .upsert(
+      { school_id: schoolId, name: level.name, name_en: level.nameEn, sort_order: level.sortOrder },
+      { onConflict: 'school_id,name' },
+    )
+    .select('id')
+    .single()
+
+  if (levelErr || !levelRow) return { error: friendlyError(levelErr) }
+
+  const { error: gradesErr } = await supabase.from('grades').upsert(
+    gradesForLevel(level).map((g) => ({
+      education_level_id: levelRow.id,
+      name: g.name,
+      sort_order: g.sortOrder,
+    })),
+    { onConflict: 'education_level_id,name' },
+  )
+
+  if (gradesErr) return { error: friendlyError(gradesErr) }
+  return { levelId: levelRow.id }
+}
+
 // ── Step 1 ──────────────────────────────────────────────────────────────────
 
 export async function createOrganisation(
   name: string,
   kind: string,
+  /**
+   * The level chosen on /choose-level before sign-in, carried through OAuth in
+   * sessionStorage. A hint, not an instruction: validated against the
+   * curriculum ladder here, and an unknown value simply falls back to the
+   * standalone level step. This is the point where the temporary client state
+   * becomes authoritative server-side rows (§10 of the level-first flow).
+   */
+  levelKey?: string,
 ): Promise<ActionResult> {
   const { supabase, user } = await requireTeacher()
 
@@ -112,6 +158,28 @@ export async function createOrganisation(
     entityId: schoolId as string,
     actorId: user.id,
   })
+
+  // Level chosen before sign-in: persist it now that a school exists to hang
+  // it on, and land on the dashboard — the wizard's remaining question (which
+  // class?) is answered from there. The RPC has already granted `owner`, so
+  // these are ordinary admin-policy writes.
+  const level = levelKey ? levelByKey(levelKey) : undefined
+  if (level) {
+    const seeded = await seedEducationLevel(supabase, schoolId as string, level)
+    if (!seeded.error) {
+      await auditLog({
+        action: 'education_level.created',
+        entityType: 'education_level',
+        entityId: seeded.levelId,
+        metadata: { via: 'choose-level' },
+        actorId: user.id,
+      })
+      redirect('/dashboard')
+    }
+    // Seeding failed: the school exists and the level step can repair, so fall
+    // through rather than stranding the teacher on an error they cannot fix.
+    logger.error('createOrganisation: level seeding failed', seeded.error)
+  }
 
   redirect('/onboarding/level')
 }
@@ -135,36 +203,20 @@ export async function chooseEducationLevel(levelKey: string): Promise<ActionResu
   const level = levelByKey(levelKey)
   if (!level) return { error: 'សូមជ្រើសរើសកម្រិតសិក្សា' }
 
-  const { data: levelRow, error: levelErr } = await supabase
-    .from('education_levels')
-    .upsert(
-      { school_id: schoolId, name: level.name, name_en: level.nameEn, sort_order: level.sortOrder },
-      { onConflict: 'school_id,name' },
-    )
-    .select('id')
-    .single()
-
-  if (levelErr || !levelRow) return { error: friendlyError(levelErr) }
-
-  const { error: gradesErr } = await supabase.from('grades').upsert(
-    gradesForLevel(level).map((g) => ({
-      education_level_id: levelRow.id,
-      name: g.name,
-      sort_order: g.sortOrder,
-    })),
-    { onConflict: 'education_level_id,name' },
-  )
-
-  if (gradesErr) return { error: friendlyError(gradesErr) }
+  const seeded = await seedEducationLevel(supabase, schoolId, level)
+  if (seeded.error) return { error: seeded.error }
 
   await auditLog({
     action: 'education_level.created',
     entityType: 'education_level',
-    entityId: levelRow.id,
+    entityId: seeded.levelId,
     actorId: user.id,
   })
 
-  redirect(`/onboarding/grade?level=${levelRow.id}`)
+  // Grade is no longer a wizard step: class creation owns that question, and
+  // its page loads every grade the rows above just seeded. /onboarding/grade
+  // survives for old links but nothing routes to it any more.
+  redirect('/onboarding/class')
 }
 
 // ── Step 3 ──────────────────────────────────────────────────────────────────

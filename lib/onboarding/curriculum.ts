@@ -1,4 +1,6 @@
-import { toKhmerNumber } from '@/lib/utils/khmer-num'
+// Relative and extension-qualified so the scripts/ harnesses can run this
+// module under plain node — same reason as lib/scores/template.ts.
+import { toKhmerNumber } from '../utils/khmer-num.ts'
 
 /**
  * The MoEYS education ladder, as data.

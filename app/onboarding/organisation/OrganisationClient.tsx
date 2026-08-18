@@ -1,15 +1,17 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
 import {
   School, Building2, User, ArrowRight, Plus, Search, Clock, X,
-  CheckCircle2, MapPin, Loader2,
+  CheckCircle2, MapPin, Loader2, GraduationCap,
 } from 'lucide-react'
 import { Button } from '@/components/ui/actions/Button'
 import { ChoiceCard } from '@/components/onboarding/ChoiceCard'
 import { StepHeading } from '@/components/onboarding/StepHeading'
 import { notify } from '@/components/ui/feedback/notify'
+import { levelByKey, type EducationLevelKey } from '@/lib/onboarding/curriculum'
+import { readPendingLevel } from '@/lib/onboarding/pendingLevel'
 import {
   cancelJoinRequest,
   createOrganisation,
@@ -54,6 +56,20 @@ export function OrganisationClient({
 }) {
   const [mode, setMode] = useState<'create' | 'join'>('create')
   const [kind, setKind] = useState('school')
+
+  /**
+   * The level picked on /choose-level before sign-in. Restored after hydration
+   * (sessionStorage does not exist on the server — the deferred-tick pattern
+   * ProfileClient uses) and passed to createOrganisation, which validates it
+   * again and seeds the level with the school. Left in storage until then, so
+   * a refresh or a failed create keeps the choice.
+   */
+  const [levelKey, setLevelKey] = useState<EducationLevelKey | null>(null)
+  useEffect(() => {
+    const t = setTimeout(() => setLevelKey(readPendingLevel()), 0)
+    return () => clearTimeout(t)
+  }, [])
+  const chosenLevel = levelKey ? levelByKey(levelKey) : undefined
   const [name, setName] = useState('')
   const [creating, setCreating] = useState(!existing)
   const [error, setError] = useState<string | null>(null)
@@ -76,7 +92,7 @@ export function OrganisationClient({
     setError(null)
 
     startTransition(async () => {
-      const result = await createOrganisation(name, kind)
+      const result = await createOrganisation(name, kind, levelKey ?? undefined)
       // A successful action redirects and never returns; anything here failed.
       if (result?.error) {
         setError(result.error)
@@ -94,6 +110,16 @@ export function OrganisationClient({
       setSearching(false)
     }
   }
+
+  // Level-aware ordering, not filtering: a school that has not seeded the
+  // chosen level yet may still be the right school, so it stays visible —
+  // matches simply come first and carry a badge.
+  const orderedResults = useMemo(() => {
+    if (!results) return null
+    if (!chosenLevel) return results
+    const matches = (r: OrganisationSearchResult) => r.levels.includes(chosenLevel.name)
+    return [...results].sort((a, b) => Number(matches(b)) - Number(matches(a)))
+  }, [results, chosenLevel])
 
   function sendRequest(school: OrganisationSearchResult) {
     setRequestingId(school.id)
@@ -152,6 +178,13 @@ export function OrganisationClient({
   return (
     <div className="flex flex-col gap-6">
       <StepHeading title="ជ្រើសរើសស្ថាប័ន" question="តើអ្នកកំពុងបង្រៀននៅស្ថាប័នណា?" />
+
+      {chosenLevel && (
+        <p className="-mt-3 inline-flex items-center gap-2 self-start rounded-full bg-brand-100 px-3 py-1.5 text-xs font-bold text-brand-800 dark:bg-brand-900/40 dark:text-brand-300">
+          <GraduationCap className="h-3.5 w-3.5" aria-hidden="true" />
+          កម្រិតសិក្សា៖ {chosenLevel.name}
+        </p>
+      )}
 
       {/* ------------------------------------------------- pending request */}
       {pendingRequest && (
@@ -326,9 +359,9 @@ export function OrganisationClient({
             </p>
           )}
 
-          {results && results.length > 0 && (
+          {orderedResults && orderedResults.length > 0 && (
             <ul className="flex flex-col gap-2.5">
-              {results.map((school) => (
+              {orderedResults.map((school) => (
                 <li
                   key={school.id}
                   className="flex flex-wrap items-center gap-3 rounded-xl border border-divider bg-bg-surface p-4"
@@ -341,13 +374,18 @@ export function OrganisationClient({
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-bold text-text-heading">{school.name}</p>
-                    <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-xs text-text-muted">
+                    <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-muted">
                       {school.address && (
                         <span className="inline-flex items-center gap-1">
                           <MapPin className="h-3 w-3" aria-hidden="true" /> {school.address}
                         </span>
                       )}
                       {school.levels.length > 0 && <span>{school.levels.join(' · ')}</span>}
+                      {chosenLevel && school.levels.includes(chosenLevel.name) && (
+                        <span className="rounded-full bg-success/10 px-2 py-0.5 font-bold text-success">
+                          មានកម្រិតរបស់អ្នក
+                        </span>
+                      )}
                     </p>
                   </div>
                   <Button
