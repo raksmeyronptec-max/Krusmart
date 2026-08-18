@@ -5,46 +5,60 @@ import { useRouter } from 'next/navigation'
 import { LifeBuoy } from 'lucide-react'
 import { Button } from '@/components/ui/actions/Button'
 import { notify } from '@/components/ui/feedback/notify'
-import { useActiveClass } from '@/lib/hooks/useActiveClass'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import { recoverLegacyRoster } from './actions'
 
 /**
- * Shown when the server detected the stranded-onboarding signature: the active
- * class has zero enrolments while students still exist under this teacher's
- * `teacher_id` (the state commit 2686507 left teachers in — see 00018).
+ * Shown when the server found students under this teacher's `teacher_id` with
+ * no enrolment row anywhere — the state commit 2686507 left onboarded teachers
+ * in (see migration 00018), and the state a failed enrol-compensation in
+ * `enrollment/actions.ts` falls back to.
  *
  * A visible, teacher-triggered action rather than a silent write on page load:
  * enrolling students into a class is a data change to student records, and the
  * teacher should see it happen — and see it audited — not wonder why the
  * roster changed by itself.
+ *
+ * `classId` comes from the server page's validated scope, not from client
+ * context: the banner's precondition was computed for that exact class, and
+ * recovering into whatever class the (possibly still-loading) context points
+ * at could file the roster somewhere the teacher is not looking.
  */
-export function RecoverRosterBanner({ count }: { count: number }) {
+export function RecoverRosterBanner({ count, classId }: { count: number; classId: string }) {
   const router = useRouter()
-  const { classId } = useActiveClass()
   const [busy, setBusy] = useState(false)
-  const [done, setDone] = useState(false)
 
   const recover = async () => {
     setBusy(true)
     try {
-      const result = await recoverLegacyRoster(classId ?? undefined)
+      const result = await recoverLegacyRoster(classId)
       if (result.error) {
         notify.error(result.error)
         return
       }
-      setDone(true)
-      notify.success(
-        `បាននាំសិស្ស ${toKhmerNumber(result.enrolled ?? 0)} នាក់ចូលក្នុងថ្នាក់នេះវិញដោយជោគជ័យ។`,
-      )
-      // The roster is fetched by the server component; re-render it.
+      const enrolled = result.enrolled ?? 0
+      if (enrolled > 0) {
+        notify.success(
+          `បាននាំសិស្ស ${toKhmerNumber(enrolled)} នាក់ចូលក្នុងថ្នាក់នេះវិញដោយជោគជ័យ។`,
+        )
+      } else {
+        // A no-op is not a success story — say so instead of celebrating ០.
+        notify.error('មិនមានសិស្សដែលអាចនាំចូលថ្នាក់នេះបានទេ។')
+      }
+      // The roster is fetched by the server component; refreshing re-runs the
+      // page's detection and unmounts this banner via the key change. No local
+      // "done" flag on purpose: whether the banner should still show is the
+      // server's call — if recovery legitimately enrolled nobody, it stays.
       router.refresh()
+    } catch {
+      // A thrown action (network drop, expired session, redeploy) rejects
+      // instead of returning {error} — without this the button silently
+      // does nothing and the rejection goes unhandled.
+      notify.error('មិនអាចនាំសិស្សចូលថ្នាក់វិញបានទេ។ សូមព្យាយាមម្តងទៀត។')
     } finally {
       setBusy(false)
     }
   }
-
-  if (done) return null
 
   return (
     <div className="mb-4 flex flex-col gap-3 rounded-xl border border-divider bg-bg-surface p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -57,9 +71,8 @@ export function RecoverRosterBanner({ count }: { count: number }) {
             សិស្សរបស់អ្នកមិនបានបាត់ទេ
           </p>
           <p className="text-sm text-text-body">
-            អ្នកមានសិស្ស {toKhmerNumber(count)} នាក់ដែលបានបញ្ចូលពីមុន
-            ប៉ុន្តែពួកគេមិនទាន់ត្រូវបានភ្ជាប់ចូលថ្នាក់ថ្មីរបស់អ្នកទេ។
-            ចុចប៊ូតុងនេះ ដើម្បីនាំសិស្សទាំងអស់ចូលក្នុងថ្នាក់នេះវិញ។
+            អ្នកមានសិស្ស {toKhmerNumber(count)} នាក់ដែលមិនទាន់បានភ្ជាប់ចូលថ្នាក់ណាមួយ។
+            ចុចប៊ូតុងនេះ ដើម្បីនាំសិស្សទាំងនោះចូលក្នុងថ្នាក់នេះ។
           </p>
         </div>
       </div>

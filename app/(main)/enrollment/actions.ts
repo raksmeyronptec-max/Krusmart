@@ -63,12 +63,24 @@ async function enrolOrCompensate(
   if (!error) return {}
 
   logger.error(error)
-  const { error: undoErr } = await supabase
+  const { data: undone, error: undoErr } = await supabase
     .from('students')
     .delete()
     .in('id', studentIds)
     .eq('teacher_id', scope.teacherId)
-  if (undoErr) logger.error('compensating delete failed:', undoErr)
+    .select('id')
+
+  // A zero-row delete is "success" to PostgREST, so the count is checked too:
+  // telling the teacher "nothing was saved" while rows survive would invite a
+  // re-submit that duplicates every student. If any row survived, say what
+  // actually happened and point at the recovery banner instead.
+  if (undoErr || (undone?.length ?? 0) < studentIds.length) {
+    if (undoErr) logger.error('compensating delete failed:', undoErr)
+    return {
+      error:
+        'សិស្សត្រូវបានរក្សាទុក ប៉ុន្តែមិនទាន់បានភ្ជាប់ចូលថ្នាក់ទេ។ សូមបើកទំព័របញ្ជីឈ្មោះសិស្ស ដើម្បីនាំសិស្សចូលថ្នាក់វិញ។ កុំបញ្ចូលសិស្សដដែលម្តងទៀត។',
+    }
+  }
 
   return {
     error:
@@ -90,6 +102,12 @@ export async function createStudent(formData: FormData, classId?: string) {
   // parameter and is validated against the caller's own assignments inside
   // resolveServerScope. Legacy accounts resolve to legacy and are untouched.
   const scope = await resolveServerScope(user.id, classId)
+  // Unreachable via resolveServerScope today (assignments carry a NOT NULL
+  // year), but student_enrollments.academic_year_id is NOT NULL — failing here
+  // beats a 23502 after the student insert triggering a destructive undo.
+  if (scope.mode === 'v2' && !scope.academicYearId) {
+    return { error: 'មិនអាចកំណត់ឆ្នាំសិក្សាបានទេ។ សូមព្យាយាមម្តងទៀត។' }
+  }
 
   // extract data
   const student_id = formData.get('studentId') as string
@@ -197,19 +215,19 @@ export async function createStudent(formData: FormData, classId?: string) {
     // Without this row the student is invisible in v2 — see enrolOrCompensate.
     const enrol = await enrolOrCompensate(supabase, scope, [created.id])
     if (enrol.error) return { error: enrol.error }
-
-    await auditLog({
-      action: 'enrollment.created', entityType: 'student_enrollment', entityId: created.id,
-      actorId: user.id, newValue: { class_id: scope.classId, academic_year_id: scope.academicYearId },
-    })
   }
 
   // Identity fields only. The trail records that a student was enrolled and by
   // whom — copying the full demographic record (parents, address, poverty
   // status) into an admin-readable log would be a needless second store of it.
+  // One entry covers both writes: the class metadata records the enrolment, so
+  // a reader never has to pair two rows to count one event.
   await auditLog({
     action: 'student.created', entityType: 'student', entityId: null, actorId: user.id,
     newValue: { student_id, name_kh, grade },
+    metadata: scope.mode === 'v2'
+      ? { class_id: scope.classId, academic_year_id: scope.academicYearId }
+      : undefined,
   })
 
   revalidatePath('/student-list')
@@ -225,6 +243,10 @@ export async function importStudents(students: StudentImportRow[], classId?: str
   }
 
   const scope = await resolveServerScope(user.id, classId)
+  // See createStudent: fail before the batch insert, not with a 23502 after.
+  if (scope.mode === 'v2' && !scope.academicYearId) {
+    return { error: 'មិនអាចកំណត់ឆ្នាំសិក្សាបានទេ។ សូមព្យាយាមម្តងទៀត។' }
+  }
 
   const studentsToInsert = students.map(s => {
     return {
@@ -292,12 +314,10 @@ export async function importStudents(students: StudentImportRow[], classId?: str
     // and all-or-nothing with the students above, via enrolOrCompensate.
     const enrol = await enrolOrCompensate(supabase, scope, created.map((r) => r.id))
     if (enrol.error) return { error: enrol.error }
-
-    await auditLogBatch('enrollment.created', 'student_enrollment', created.length, {
-      class_id: scope.classId, academic_year_id: scope.academicYearId,
-    }, user.id)
   }
 
+  // One summary entry for the whole operation; class metadata records the
+  // enrolments, so one logical event is one audit row.
   await auditLogBatch('student.imported', 'student', studentsToInsert.length, {
     scope: scope.mode, class_id: scope.mode === 'v2' ? scope.classId : null,
   }, user.id)

@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { logger } from '@/lib/utils/logger'
+import { khmerRpcError } from '@/lib/utils/rpc-errors'
 import { auditLog, auditLogBatch } from '@/lib/audit/log'
 import type { ActionResult } from '@/lib/types'
 import { gradesForLevel, levelByKey } from '@/lib/onboarding/curriculum'
@@ -18,17 +19,55 @@ import { gradesForLevel, levelByKey } from '@/lib/onboarding/curriculum'
  * this file needs elevated rights.
  */
 
-/** SQLSTATEs `create_teacher_organisation` raises, all with Khmer messages. */
-const RPC_ERROR_CODES = new Set(['28000', '22023', '23505', 'P0002'])
-
 /**
  * §28: never surface a raw database error. Our own RPC messages are written in
  * Khmer for the teacher and are safe to show; anything else is not.
  */
 function friendlyError(error: { message?: string; code?: string } | null): string {
-  if (error?.code && RPC_ERROR_CODES.has(error.code) && error.message) return error.message
-  logger.error('onboarding:', error)
-  return 'មិនអាចរក្សាទុកបានទេ។ សូមព្យាយាមម្តងទៀត។'
+  return khmerRpcError(error, 'មិនអាចរក្សាទុកបានទេ។ សូមព្យាយាមម្តងទៀត។')
+}
+
+/**
+ * Undo a partially-created class so the account returns to the exact state it
+ * was in before submitting: no assignment (⇒ legacy scope, students visible)
+ * and no class row for a retry's UNIQUE (grade_id, academic_year_id, name) to
+ * collide with. Assignment first — it references the class; deleting one that
+ * was never created is a harmless no-op, which is what lets both error paths
+ * share this helper.
+ *
+ * Failures are logged, not surfaced: the caller is already returning the
+ * original error, and even a half-rollback leaves the account working — with
+ * the assignment gone the scope is legacy again, and a zombie class row only
+ * blocks re-using the same class name, which the 23505 message tells the
+ * teacher how to work around (change the section name).
+ */
+async function rollbackClass(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  classId: string,
+): Promise<void> {
+  const { data: removedAssign, error: assignErr } = await supabase
+    .from('teacher_assignments')
+    .delete()
+    .eq('teacher_id', userId)
+    .eq('class_id', classId)
+    .select('id')
+  if (assignErr) logger.error('onboarding rollback (assignment):', assignErr)
+
+  const { data: removedClass, error: classErr } = await supabase
+    .from('classes')
+    .delete()
+    .eq('id', classId)
+    .select('id')
+  if (classErr) logger.error('onboarding rollback (class):', classErr)
+
+  // A zero-row delete is success to PostgREST (RLS just filters), so log it —
+  // it is the only trace that the rollback did not actually take.
+  if (!classErr && (removedClass?.length ?? 0) === 0) {
+    logger.error('onboarding rollback: class row not removed', {
+      classId, assignmentsRemoved: removedAssign?.length ?? 0,
+    })
+  }
 }
 
 async function requireTeacher() {
@@ -181,7 +220,7 @@ export async function createClassAndAssign(input: {
   if (assignErr) {
     // The class row alone is harmless (no assignment ⇒ still legacy scope),
     // but remove it anyway so a retry does not hit the unique name constraint.
-    await supabase.from('classes').delete().eq('id', cls.id)
+    await rollbackClass(supabase, user.id, cls.id)
     return { error: friendlyError(assignErr) }
   }
 
@@ -204,35 +243,30 @@ export async function createClassAndAssign(input: {
     // name) on the class insert above — an error they cannot fix. Deleting
     // both returns the account to the legacy state it was in before
     // submitting, where their students are still visible and pressing the
-    // button again is safe. Assignment first — it references the class.
-    // Should either delete itself fail, the recovery banner on /student-list
-    // detects the stranded state and re-runs this same RPC.
-    await supabase
-      .from('teacher_assignments')
-      .delete()
-      .eq('teacher_id', user.id)
-      .eq('class_id', cls.id)
-    await supabase.from('classes').delete().eq('id', cls.id)
+    // button again is safe. Should the rollback itself half-fail (logged in
+    // rollbackClass), the recovery banner on /student-list detects any
+    // still-stranded roster and re-runs this same RPC.
+    await rollbackClass(supabase, user.id, cls.id)
     return { error: friendlyError(backfillErr) }
   }
 
   const backfilled = Number(enrolled ?? 0)
-  if (backfilled > 0) {
-    await auditLogBatch(
-      'enrollment.backfilled',
-      'student_enrollment',
-      backfilled,
-      { class_id: cls.id, trigger: 'onboarding' },
-      user.id,
-    )
-  }
 
-  await auditLog({
-    action: 'class.created',
-    entityType: 'class',
-    entityId: cls.id,
-    actorId: user.id,
-  })
+  // Independent audit rows; neither throws. Parallel, so the wizard's final
+  // submit does not pay two serial round-trips after the data is already safe.
+  await Promise.all([
+    backfilled > 0
+      ? auditLogBatch('enrollment.backfilled', 'student_enrollment', backfilled, {
+          class_id: cls.id, trigger: 'onboarding',
+        }, user.id)
+      : Promise.resolve(),
+    auditLog({
+      action: 'class.created',
+      entityType: 'class',
+      entityId: cls.id,
+      actorId: user.id,
+    }),
+  ])
 
   redirect(`/onboarding/students?class=${cls.id}`)
 }

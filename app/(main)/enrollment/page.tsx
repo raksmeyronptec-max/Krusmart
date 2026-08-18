@@ -4,7 +4,7 @@ import {
   useCallback, useEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore,
   type FormEvent,
 } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import {
   AlertCircle, Award, Check, CheckCircle2, Clock, FileSpreadsheet, Home, Info,
   List, MapPin, RotateCcw, Save, Upload, UserPlus, Users,
@@ -17,6 +17,7 @@ import { PageContainer, PageHeader } from "@/components/shell/PageContainer"
 import Select from "@/components/ui/forms/Select"
 import SearchableSelect from "@/components/ui/forms/SearchableSelect"
 import { useActiveClass } from "@/lib/hooks/useActiveClass"
+import { CLASS_PARAM } from "@/lib/utils/scopeParam"
 import { calculateAge } from "@/lib/utils/date"
 import { getErrorMessage } from "@/lib/utils/errors"
 import { toKhmerNumber } from "@/lib/utils/khmer-num"
@@ -52,7 +53,14 @@ function formatSavedAt(timestamp: number) {
 
 export default function EnrollmentPage() {
   const router = useRouter()
-  const { classId: activeClassId } = useActiveClass()
+  const urlSearchParams = useSearchParams()
+  const { classId: contextClassId, loading: classLoading } = useActiveClass()
+
+  // Which class this form writes into. The URL param wins: onboarding links
+  // here as /enrollment?class=<id>, and it is available immediately while
+  // TeacherContext is still hydrating. The server re-validates whichever id is
+  // sent against the caller's own assignments, so neither source is trusted.
+  const activeClassId = urlSearchParams.get(CLASS_PARAM) ?? contextClassId
   const [state, dispatch] = useReducer(enrollmentReducer, INITIAL_STATE)
   const { values, errors, sameAsBirth } = state
 
@@ -212,6 +220,14 @@ export default function EnrollmentPage() {
   }
 
   const confirmSave = async () => {
+    // No URL param and the context has not resolved yet: sending no class
+    // would let the server fall back to the homeroom assignment, silently
+    // filing the student into a class other than the one on screen.
+    if (!activeClassId && classLoading) {
+      setSubmitError("កំពុងផ្ទុកទិន្នន័យថ្នាក់ សូមរង់ចាំបន្តិច រួចព្យាយាមម្តងទៀត។")
+      setShowConfirm(false)
+      return
+    }
     setIsSaving(true)
     setSubmitError(null)
     try {
@@ -254,6 +270,13 @@ export default function EnrollmentPage() {
   }
 
   const runImport = async (students: StudentImportRow[]): Promise<string | null> => {
+    if (!activeClassId && classLoading) {
+      // Same guard as confirmSave — a whole spreadsheet in the wrong class is
+      // strictly worse than one student.
+      const message = "កំពុងផ្ទុកទិន្នន័យថ្នាក់ សូមរង់ចាំបន្តិច រួចព្យាយាមម្តងទៀត។"
+      notify.error(message)
+      return message
+    }
     try {
       const result = await importStudents(students, activeClassId ?? undefined)
       if (result?.error) {

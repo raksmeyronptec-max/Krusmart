@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { logger } from '@/lib/utils/logger'
 import { resolveServerScope } from '@/lib/utils/serverScope'
+import { khmerRpcError } from '@/lib/utils/rpc-errors'
 import type { ActionResult } from '@/lib/types'
 import { auditLog, auditLogBatch } from '@/lib/audit/log'
 
@@ -131,7 +132,7 @@ export async function recoverLegacyRoster(
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
-    return { error: 'Unauthorized' }
+    return { error: 'មិនមានសិទ្ធិ (Unauthorized)' }
   }
 
   const scope = await resolveServerScope(user.id, classId)
@@ -146,8 +147,10 @@ export async function recoverLegacyRoster(
   })
 
   if (error) {
-    logger.error(error)
-    return { error: 'មិនអាចនាំសិស្សចូលថ្នាក់វិញបានទេ។ សូមព្យាយាមម្តងទៀត។' }
+    // The RPC's own errors (28000, P0002…) carry Khmer messages written for
+    // the teacher — e.g. "no class of yours found" beats "try again" when
+    // retrying can never work. Anything else gets the generic fallback.
+    return { error: khmerRpcError(error, 'មិនអាចនាំសិស្សចូលថ្នាក់វិញបានទេ។ សូមព្យាយាមម្តងទៀត។') }
   }
 
   const enrolled = Number(data ?? 0)

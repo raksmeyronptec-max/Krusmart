@@ -20,8 +20,6 @@ import { deleteStudent, deleteAllStudents, saveStudentsOrder } from './actions'
 import { RecoverRosterBanner } from './RecoverRosterBanner'
 import type { Student } from '@/lib/types'
 import { fromKhmerNumber, toKhmerNumber } from '@/lib/utils/khmer-num'
-import {  } from '@/lib/utils/date'
-import {  } from '@/lib/utils/drive-image'
 import { useActiveClass } from '@/lib/hooks/useActiveClass'
 import { useDebounce } from '@/lib/hooks/useDebounce'
 import { exportStudentsToExcel } from '@/lib/utils/export'
@@ -72,10 +70,13 @@ function sortRoster(list: Student[], sortKey: string): Student[] {
 export default function StudentTableClient({
     initialStudents,
     legacyRecoverableCount = 0,
+    recoverClassId,
 }: {
     initialStudents: Student[]
-    /** Legacy students detected with no enrolment in the active class — see page.tsx. */
+    /** Teacher-owned students with no enrolment row anywhere — see page.tsx. */
     legacyRecoverableCount?: number
+    /** The server-validated class the recovery would enrol into. */
+    recoverClassId?: string
 }) {
     const router = useRouter()
     const searchParams = useSearchParams()
@@ -329,8 +330,8 @@ export default function StudentTableClient({
                 }
             />
 
-            {legacyRecoverableCount > 0 && (
-                <RecoverRosterBanner count={legacyRecoverableCount} />
+            {legacyRecoverableCount > 0 && recoverClassId && (
+                <RecoverRosterBanner count={legacyRecoverableCount} classId={recoverClassId} />
             )}
 
             {/* Sticky Header Bar */}

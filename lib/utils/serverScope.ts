@@ -163,6 +163,58 @@ export async function rosterIdsForScope(scope: QueryScope): Promise<string[] | n
 }
 
 /**
+ * Students stranded outside the enrolment system: rows under this teacher's
+ * `teacher_id` with **no `student_enrollments` row at all**.
+ *
+ * That absence is the exact signature of the onboarding gap migration 00018
+ * closes (commit 2686507 created assignments without ever writing enrolments)
+ * and of a failed enrol-compensation in `enrollment/actions.ts` — and it is
+ * deliberately *not* "the roster looks empty": a student enrolled anywhere,
+ * in any year, in any status, was placed by someone on purpose, and offering
+ * to bulk-enrol them here would present a mass roster change (e.g. dragging
+ * last year's class into a new year's) as a recovery of lost data.
+ *
+ * Gated on an active homeroom assignment for the scope's class because
+ * `backfill_teacher_enrolments` (the repair this count drives) only acts for
+ * one — a subject-only teacher must not be offered a button that can never
+ * succeed.
+ */
+export async function countRecoverableLegacyStudents(
+  scope: QueryScope,
+  userId: string,
+): Promise<number> {
+  if (scope.mode !== 'v2') return 0
+
+  const supabase = await createClient()
+
+  const { data: homeroom } = await supabase
+    .from('teacher_assignments')
+    .select('id')
+    .eq('teacher_id', userId)
+    .eq('class_id', scope.classId)
+    .eq('is_homeroom', true)
+    .eq('status', 'active')
+    .limit(1)
+    .maybeSingle()
+  if (!homeroom) return 0
+
+  const { data: owned } = await supabase
+    .from('students')
+    .select('id')
+    .eq('teacher_id', userId)
+  const ids = (owned ?? []).map((r) => r.id)
+  if (ids.length === 0) return 0
+
+  const { data: enrolledRows } = await supabase
+    .from('student_enrollments')
+    .select('student_id')
+    .in('student_id', ids)
+  const enrolled = new Set((enrolledRows ?? []).map((r) => r.student_id))
+
+  return ids.filter((id) => !enrolled.has(id)).length
+}
+
+/**
  * Only hex and dashes reach a PostgREST `or=` string.
  *
  * The ids below come from `profiles` and from an assignment this teacher was
