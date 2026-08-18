@@ -39,6 +39,30 @@
   --color-brand-hover: var(--brand-hover);
   --color-brand-contrast: var(--brand-contrast);
   --color-focus-ring: var(--focus-ring);
+  /*
+   * Filled-success action.
+   *
+   * `--color-success` is a *status* colour, sized for text and 10%-tint
+   * badges. Used as a button fill it measures 3.24:1 against white — the
+   * primary check-in action in the top bar was failing SC 1.4.3 outright.
+   * Rather than move `--success` and repaint every badge in the app, the solid
+   * variant gets its own pair: a darker green on light (4.95:1 with white) and
+   * a brighter one on dark carrying navy text (9.96:1). Only a filled control
+   * should use these.
+   */
+  --color-success-solid: var(--success-solid);
+  --color-success-on-solid: var(--success-on-solid);
+  /*
+   * Destructive *text*, as opposed to the destructive status colour.
+   *
+   * `--danger` is tuned to be legible as a filled chip and as a 10% tint. As a
+   * label colour it measures 4.16:1 on a light surface and 4.04:1 on a dark
+   * one — both under SC 1.4.3. Sign-out is the one control in the shell that
+   * wears it, and a sign-out you cannot read is not a minor defect. Same hue,
+   * moved far enough along the ramp to clear 4.5:1 in both themes including the
+   * `danger/5` hover.
+   */
+  --color-danger-text: var(--danger-text);
 
   /* Elevation. Tinted with the darkest navy rather than pure black, so a
      shadow reads as part of the palette instead of a grey smudge. */
@@ -55,7 +79,10 @@
 
   /* Fonts */
   --font-kantumruy: 'Kantumruy Pro', sans-serif;
-  --font-moul: 'Moul', cursive;
+  /* NOT `cursive`: that generic family resolves to Apple Chancery on macOS and
+     Comic Sans on Windows — both slanted, neither Khmer-capable. If Moul fails
+     to load, a heading must fall back to the body face, not to a script one. */
+  --font-moul: 'Moul', 'Kantumruy Pro', sans-serif;
 
   /* Animations */
   --animate-gradient-text: gradientText 6s ease infinite;
@@ -131,6 +158,10 @@
    */
   --focus-ring: #1B6FB0;
 
+  --success-solid: #128054;
+  --success-on-solid: #FFFFFF;
+  --danger-text: #BE2B44;
+
   --elevation-sm: 0 1px 2px 0 rgba(15, 27, 61, 0.05);
   --elevation-md: 0 4px 6px -1px rgba(15, 27, 61, 0.07), 0 2px 4px -2px rgba(15, 27, 61, 0.05);
   --elevation-lg: 0 10px 15px -3px rgba(15, 27, 61, 0.08), 0 4px 6px -4px rgba(15, 27, 61, 0.04);
@@ -159,6 +190,12 @@
   --brand-contrast: #081225;
   --focus-ring: #43C1D8;
 
+  /* The light-mode green is nearly invisible on this ground (2.6:1), so the
+     solid flips the same way the brand does: a bright fill with dark text. */
+  --success-solid: #3DD68C;
+  --success-on-solid: #081225;
+  --danger-text: #F0808F;
+
   --elevation-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
   --elevation-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
   --elevation-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
@@ -184,6 +221,18 @@ body {
 .kh-moul {
   font-family: var(--font-moul);
   line-height: 1.8;
+  /*
+   * Moul ships one upright weight and no italic. Left unguarded, any ancestor
+   * carrying `font-bold` or `italic` makes the browser *synthesise* the missing
+   * face — a sheared, smeared Khmer display type, which is what the oblique
+   * page headings were. `font-synthesis: none` is the property that forbids
+   * exactly that; the two explicit declarations stop a utility class winning
+   * the cascade in the first place. Never remove these to "make a heading
+   * bolder" — pick a larger size instead.
+   */
+  font-weight: 400;
+  font-style: normal;
+  font-synthesis: none;
 }
 
 /* Custom Utilities from Legacy App */
@@ -209,6 +258,112 @@ body {
   .tap-target {
     min-height: 44px;
     min-width: 44px;
+  }
+
+  /*
+   * Truncation that does not decapitate Khmer.
+   *
+   * Khmer stacks COENG subscripts *below* the baseline and diacritics above it,
+   * well outside the line box a Latin-metric `line-height` reserves. Tailwind's
+   * `truncate` sets `overflow: hidden`, whose clip rectangle is that line box —
+   * so `រដ្ឋបាលថ្នាក់រៀន` loses the foot of its ្ឋ and ្ន. Padding the box and
+   * pulling the identical amount back off the margin enlarges the clip
+   * rectangle without moving anything: the element occupies exactly the space
+   * it did, and the glyphs survive. Use this instead of `truncate` on any
+   * element that can hold Khmer.
+   */
+  .kh-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding-block: 0.3em;
+    margin-block: -0.3em;
+  }
+
+  /*
+   * Sidebar accordion.
+   *
+   * `grid-template-rows: 0fr → 1fr` is the one technique that animates to the
+   * content's real height without a magic `max-height` that either clips a long
+   * group or makes a short one crawl. It is a layout animation, which the
+   * performance rule normally rules out — measured here it is worth it: the
+   * animating subtree is at most eight rows inside a 264px column that is a
+   * flex sibling of the content area, so nothing outside the sidebar is
+   * re-laid-out, and no page content moves. 180ms in, 140ms out: leaving is
+   * always quicker than arriving.
+   */
+  /*
+   * Sidebar row.
+   *
+   * 32px is what makes four labelled sections, ten modules and one open group
+   * fit inside a 768px laptop viewport without a scrollbar — the density this
+   * whole rail is sized around. A 32px row is also below the 44px touch floor,
+   * which matters on a 1024px tablet and not at all on the mouse-driven laptop
+   * this is drawn for, so the floor is applied to coarse pointers only. The
+   * *visual* row does not grow; the hit area does.
+   */
+  .nav-row {
+    min-height: 32px;
+  }
+
+  @media (pointer: coarse) {
+    .nav-row {
+      min-height: 44px;
+    }
+  }
+
+  .nav-accordion {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 140ms cubic-bezier(0.4, 0, 1, 1);
+  }
+
+  .nav-accordion[data-open="true"] {
+    grid-template-rows: 1fr;
+    transition-duration: 180ms;
+    transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* The clipper. The rows inside carry `.kh-truncate`, whose own padded clip
+     rectangle keeps their COENG subscripts intact; this box only has to hide
+     the part of the list that has not unfolded yet. */
+  .nav-accordion > * {
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  /*
+   * Icon-rail tooltip.
+   *
+   * Reachable on `focus-visible` as well as hover — a keyboard user tabbing the
+   * collapsed rail has no other way to learn what an icon is, and hover-only
+   * would leave them navigating ten identical squares. `pointer-events: none`
+   * keeps it from swallowing the click it is describing.
+   */
+  .rail-tip {
+    position: absolute;
+    left: calc(100% + 8px);
+    top: 50%;
+    translate: 0 -50%;
+    z-index: 50;
+    pointer-events: none;
+    opacity: 0;
+    scale: 0.96;
+    transition: opacity 150ms ease-out, scale 150ms ease-out;
+  }
+
+  .rail-item:hover > .rail-tip,
+  .rail-item:has(:focus-visible) > .rail-tip {
+    opacity: 1;
+    scale: 1;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .nav-accordion,
+    .nav-accordion[data-open="true"],
+    .rail-tip {
+      transition: none !important;
+    }
   }
 
   @media print {

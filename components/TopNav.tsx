@@ -2,21 +2,44 @@
 
 import { useMemo, useState, useEffect } from "react"
 import Link from "next/link"
-import { User, LogOut, Users, CheckSquare, MapPin, Crown, ChevronDown, Copy, ExternalLink, UserCircle, Loader2 } from "lucide-react"
-import { ThemeToggle } from "./ThemeToggle"
+import { MapPin, Loader2, Search } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { calculateDistanceInMeters } from "@/lib/utils/distance"
 import toast from "react-hot-toast"
-import { getErrorMessageOr } from '@/lib/utils/errors'
-import { logger } from '@/lib/utils/logger'
-import { ClassContextSwitcher } from './ClassContextSwitcher'
+import { getErrorMessageOr } from "@/lib/utils/errors"
+import { logger } from "@/lib/utils/logger"
+import { ClassContextSwitcher } from "./ClassContextSwitcher"
+import { AccountMenu } from "./shell/AccountMenu"
+import { CommandPalette, useCommandPalette } from "./shell/CommandPalette"
+import { sectionsForRoles } from "@/lib/navigation"
+import type { RoleName } from "@/lib/types"
 
-export function TopNav() {
+/**
+ * The application bar.
+ *
+ * One band, one height (`h-14`), aligned to the sidebar's header so the two
+ * read as a single strip rather than two panels that happen to be adjacent.
+ * Three zones, and the split between them is the point:
+ *
+ *   left    identity and *context* — which class you are editing. Never an
+ *           action; a teacher should not open a menu to check where they are.
+ *   centre  search. ~30 destinations exist; the middle of the bar used to be
+ *           empty while finding any of them took two or three steps.
+ *   right   exactly one filled action — ចុះវត្តមាន, the thing done on arrival —
+ *           then the account menu. The Premium upsell and the theme toggle both
+ *           used to sit here at full weight; both now live inside the menu.
+ *
+ * `sticky` needs no compensating offset: the bar is in normal flow inside the
+ * shell's flex column, so the content region begins below it and stays there.
+ */
+export function TopNav({ roles }: { roles?: RoleName[] }) {
   const [isCheckingIn, setIsCheckingIn] = useState(false)
   const [photoUrl, setPhotoUrl] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
   // Memoised so effects can list it as a dependency without re-running.
   const supabase = useMemo(() => createClient(), [])
+  const palette = useCommandPalette()
+  const sections = useMemo(() => sectionsForRoles(roles), [roles])
 
   useEffect(() => {
     const fetchProfileData = async () => {
@@ -58,11 +81,11 @@ export function TopNav() {
         .select('school_id')
         .eq('id', user.id)
         .single()
-      
+
       if (profileError || !profile) {
         throw new Error("រកមិនឃើញគណនីគ្រូរបស់អ្នកនៅក្នុងប្រព័ន្ធគ្រប់គ្រងទេ។")
       }
-      
+
       const schoolId = profile.school_id
       if (!schoolId) {
         throw new Error("គណនីរបស់អ្នកមិនទាន់បានភ្ជាប់ជាមួយសាលាណាមួយទេ។")
@@ -74,11 +97,11 @@ export function TopNav() {
         .select('location')
         .eq('id', schoolId)
         .single()
-      
+
       if (schoolError || !school || !school.location) {
         throw new Error("នាយកសាលាមិនទាន់បានកំណត់ទីតាំងសាលាទេ។")
       }
-      
+
       const schoolLoc = school.location as { latitude: number, longitude: number, radius: number }
 
       // 4. Process Geolocation
@@ -90,16 +113,16 @@ export function TopNav() {
         try {
           const teacherLat = position.coords.latitude
           const teacherLng = position.coords.longitude
-          
+
           const distance = calculateDistanceInMeters(
-            schoolLoc.latitude, schoolLoc.longitude, 
+            schoolLoc.latitude, schoolLoc.longitude,
             teacherLat, teacherLng
           )
 
           // 5. Verify Distance Limit
           if (distance <= schoolLoc.radius) {
             const todayStr = new Date().toISOString().split('T')[0]
-            
+
             const { error: insertError } = await supabase
               .from('teacher_attendance')
               .insert({
@@ -137,6 +160,8 @@ export function TopNav() {
     window.location.href = "/login"
   }
 
+  const openPalette = () => palette.setOpen(true)
+
   return (
     // `data-app-chrome` lets the print rule in globals.css remove the whole bar,
     // and `no-print`/`print:hidden` stay for the feature pages whose own @media
@@ -144,21 +169,20 @@ export function TopNav() {
     // view, so all three paths matter.
     <header
       data-app-chrome
-      className="no-print print:hidden sticky top-0 z-40 border-b border-divider bg-bg-surface/90 shadow-sm backdrop-blur-lg"
+      className="no-print sticky top-0 z-40 border-b border-divider bg-bg-surface/90 backdrop-blur-lg print:hidden"
     >
-      <nav className="flex items-center justify-between gap-3 px-4 py-2.5 md:px-6" aria-label="របារឧបករណ៍">
-        <div className="flex min-w-0 items-center gap-4">
+      <nav className="flex h-14 items-center gap-2 px-3 md:gap-4 md:px-5" aria-label="របារឧបករណ៍">
+        <div className="flex min-w-0 shrink items-center gap-3">
           {/* The sidebar owns the mark from `lg` up; below that this is the only
               place it appears. */}
           <Link
             href="/dashboard"
-            className="flex shrink-0 items-center gap-2 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring lg:hidden"
+            className="flex shrink-0 items-center gap-2 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring lg:hidden"
           >
             <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg shadow-sm">
               {/* eslint-disable-next-line @next/next/no-img-element -- local asset; next/image adds a request for a 36px logo */}
               <img src="/logo.png" alt="KruSmart" className="h-full w-full object-cover" />
             </span>
-            <span className="kh-moul animate-gradient-text hidden text-lg sm:block">KruSmart</span>
           </Link>
 
           {/* Active class / subject. Renders nothing for a pre-V2 account. */}
@@ -167,16 +191,50 @@ export function TopNav() {
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1.5 md:gap-3">
-          {/* Check-in is the one action a teacher takes on arrival, so it stays
-              reachable at every width — icon-only on a phone, labelled above. */}
+        {/*
+          Search takes the space the bar was wasting. A button rather than a
+          real input: focusing an input that immediately hands off to a modal
+          leaves the caret in a field the user can no longer see. This looks
+          like the field it opens, announces the shortcut, and is one control
+          instead of two competing for focus.
+        */}
+        <button
+          type="button"
+          onClick={openPalette}
+          aria-haspopup="dialog"
+          aria-keyshortcuts="Meta+K Control+K"
+          className="mx-auto hidden h-9 w-full max-w-sm items-center gap-2 rounded-lg border border-divider bg-paper px-3 text-left text-sm text-text-body transition-colors hover:border-brand/60 hover:text-text-heading focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring lg:flex"
+        >
+          <Search className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <span className="kh-truncate flex-1">ស្វែងរកមុខងារ...</span>
+          <kbd className="hidden shrink-0 rounded border border-divider bg-bg-surface px-1.5 py-0.5 font-sans text-[11px] font-bold text-text-body xl:inline">
+            ⌘K
+          </kbd>
+        </button>
+
+        <div className="ml-auto flex shrink-0 items-center gap-1.5 md:gap-2.5">
+          <button
+            type="button"
+            onClick={openPalette}
+            aria-haspopup="dialog"
+            aria-label="ស្វែងរកមុខងារ"
+            className="tap-target flex items-center justify-center rounded-lg text-text-body transition-colors hover:bg-paper hover:text-text-heading focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring lg:hidden"
+          >
+            <Search className="h-5 w-5" aria-hidden="true" />
+          </button>
+
+          {/*
+            The one filled action in the bar. `success-solid` rather than
+            `success`: the status green measures 3.24:1 under white text, which
+            fails SC 1.4.3 for the single most-used control in the app.
+          */}
           <button
             onClick={handleCheckIn}
             disabled={isCheckingIn}
             aria-label="ចុះវត្តមាន"
-            className={`tap-target flex items-center gap-1.5 rounded-full bg-success px-3 py-2 font-bold text-white shadow-sm transition md:px-4 ${
+            className={`tap-target flex items-center gap-1.5 rounded-lg bg-success-solid px-3 font-bold text-success-on-solid shadow-sm transition md:px-4 ${
               isCheckingIn ? "opacity-70" : "hover:opacity-90"
-            }`}
+            } focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring`}
           >
             {isCheckingIn ? (
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -188,81 +246,25 @@ export function TopNav() {
             </span>
           </button>
 
-          <button className="tap-target hidden items-center gap-1.5 rounded-lg bg-gradient-to-r from-brand-800 to-brand-600 px-4 py-2 font-bold text-white shadow-sm transition hover:from-brand-700 hover:to-brand-500 xl:flex">
-            <Crown className="h-4 w-4" aria-hidden="true" /> <span>Premium</span>
-          </button>
-
-          <ThemeToggle />
-
-          {/* Profile menu is now available at every width — it carries sign-out,
-              and the mobile hamburger that used to hold it has been replaced by
-              the bottom bar. */}
-          <div className="group relative">
-            <button
-              className="tap-target flex items-center gap-2 rounded-full border border-divider bg-brand-100 px-2.5 py-1.5 text-brand-800 transition-colors hover:bg-brand-100/70 focus:outline-none dark:bg-brand-900 dark:text-brand-300 dark:hover:bg-brand-800"
-              aria-haspopup="true"
-              aria-expanded="false"
-              aria-label="ម៉ឺនុយគណនី"
-            >
-              {photoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element -- user-uploaded avatar; next/image adds no value and breaks PDF capture
-                <img src={photoUrl} alt="" className="h-5 w-5 rounded-full border border-divider object-cover" />
-              ) : (
-                <UserCircle className="h-4 w-4" aria-hidden="true" />
-              )}
-              <span className="hidden text-xs font-medium sm:inline">គ្រូបង្រៀន</span>
-              <ChevronDown className="h-4 w-4 transition-transform duration-200" aria-hidden="true" />
-            </button>
-
-            <div className="invisible absolute right-0 left-auto z-50 mt-2 w-56 origin-top-right transform overflow-hidden rounded-xl border border-divider bg-bg-surface opacity-0 shadow-md transition-all group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
-              <div className="py-1">
-                <Link href="/profile" className="flex w-full items-center gap-2 px-4 py-3 text-sm text-text-body transition hover:bg-paper">
-                  <User className="h-4 w-4" aria-hidden="true" /> ប្រវត្តិរូប
-                </Link>
-                <button
-                  onClick={() => {
-                    if (userId) {
-                      navigator.clipboard.writeText(userId)
-                      toast.success("បានចម្លងកូដថ្នាក់ដោយជោគជ័យ!")
-                    }
-                  }}
-                  className="flex w-full items-center gap-2 px-4 py-3 text-sm text-text-body transition hover:bg-paper"
-                >
-                  <Copy className="h-4 w-4" aria-hidden="true" /> <span className="copy-text">Copy កូដថ្នាក់</span>
-                </button>
-                <Link href="/print-student-codes" className="flex w-full items-center gap-2 px-4 py-3 text-sm text-text-body transition hover:bg-paper">
-                  <CheckSquare className="h-4 w-4" aria-hidden="true" /> កូដអាណាព្យាបាល
-                </Link>
-                <Link href="/team" className="flex w-full items-center gap-2 px-4 py-3 text-sm text-text-body transition hover:bg-paper">
-                  <Users className="h-4 w-4" aria-hidden="true" /> ក្រុមការងារ Krusmart
-                </Link>
-                <a
-                  href="https://www.ptec.edu.kh/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex w-full items-center gap-2 px-4 py-3 text-sm text-text-body transition hover:bg-paper"
-                >
-                  <ExternalLink className="h-4 w-4" aria-hidden="true" /> គេហទំព័រវិទ្យាស្ថាន
-                </a>
-              </div>
-              <div className="border-t border-divider py-1">
-                <button
-                  onClick={handleLogout}
-                  className="flex w-full items-center gap-2 px-4 py-3 text-sm font-bold text-danger transition hover:bg-danger/5"
-                >
-                  <LogOut className="h-4 w-4" aria-hidden="true" /> ចាកចេញ
-                </button>
-              </div>
-            </div>
-          </div>
+          <AccountMenu photoUrl={photoUrl} userId={userId} onSignOut={handleLogout} />
         </div>
       </nav>
 
       {/* Which class you are editing is context, not an action — a teacher
-          should never open a menu to check it. */}
-      <div className="border-t border-divider px-4 py-2 md:hidden">
-        <ClassContextSwitcher compact />
-      </div>
+          should never open a menu to check it. Below `md` the bar has no room
+          for it beside the controls, so it gets its own strip. The frame is
+          passed *into* the switcher so a pre-V2 account, for which it renders
+          nothing, does not get an empty bordered strip under the bar. */}
+      <ClassContextSwitcher
+        compact
+        frameClassName="border-t border-divider px-3 py-1.5 md:hidden"
+      />
+
+      <CommandPalette
+        open={palette.open}
+        onClose={() => palette.setOpen(false)}
+        sections={sections}
+      />
     </header>
   )
 }

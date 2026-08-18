@@ -49,7 +49,9 @@ export default async function MainLayout({
   return (
     <SchoolContextProvider>
       <TeacherContextProvider>
-        <AppShell>{children}</AppShell>
+        {/* `actor.roles` is already resolved above, so the shell filters the
+            navigation with no extra query and no post-hydration flash. */}
+        <AppShell roles={actor?.roles}>{children}</AppShell>
       </TeacherContextProvider>
     </SchoolContextProvider>
   )
