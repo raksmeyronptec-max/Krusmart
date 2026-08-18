@@ -15,7 +15,7 @@ npm run lint     # eslint (flat config, eslint-config-next core-web-vitals + typ
 
 No test framework is configured — there is nothing to run for tests. Type errors surface via `npm run build` (`tsc` is `noEmit`).
 
-Requires `.env.local` with `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` (see `.env.example`). The only other env var is `IMGBB_API_KEY` (server-only, optional — photo uploads in `/homework/send`; unset, the photo field reports uploads unavailable and everything else works). There is no service-role key anywhere, so **every** data path goes through RLS as the logged-in user — the only exceptions are the two SECURITY DEFINER functions, `create_teacher_organisation` (migration 00017) and `backfill_teacher_enrolments` (migration 00018), both keyed entirely on `auth.uid()`.
+Requires `.env.local` with `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` (see `.env.example`). The only other env var is `IMGBB_API_KEY` (server-only, optional — photo uploads in `/homework/send`; unset, the photo field reports uploads unavailable and everything else works). There is no service-role key anywhere, so **every** data path goes through RLS as the logged-in user — the only exceptions are the two SECURITY DEFINER functions, `create_teacher_organisation` (migration 00017) and `backfill_teacher_enrolments` (migration 00018, redefined in 00019), both keyed entirely on `auth.uid()`.
 
 ## What this is
 
@@ -133,6 +133,7 @@ The wizard state is **derived from `Actor`, never stored** — same principle as
 | `00016_score_templates.sql` | `score_template_subjects` — the score subject list as layered data (see below). |
 | `00017_teacher_owned_organisation.sql` | `create_teacher_organisation()` RPC backing `/onboarding` (see the onboarding section). |
 | `00018_backfill_teacher_enrolments.sql` | `backfill_teacher_enrolments()` — idempotently enrols the caller's `students.teacher_id` roster into their active homeroom class. Called by onboarding the moment the assignment flips the account to v2 scope, and by the recovery banner on `/student-list`. |
+| `00019_backfill_never_enrolled_only.sql` | Redefines 00018's function to enrol only students with **no enrolment row at all**, matching `countRecoverableLegacyStudents` exactly — 00018's year-scoped guard silently promoted a previous year's roster into a new class. Students with any enrolment history move only through the explicit promote/transfer/withdraw workflows. |
 
 `supabase/legacy/` holds superseded partial snapshots — **do not apply them**. `supabase/README.md` still describes the pre-V2 world in places (it claims the scores conflict key omits `teacher_id`, and that there is no classes table); the migrations and this file are the newer account. Verify against the live project before relying on any of it.
 

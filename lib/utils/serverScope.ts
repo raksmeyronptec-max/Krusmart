@@ -174,6 +174,12 @@ export async function rosterIdsForScope(scope: QueryScope): Promise<string[] | n
  * to bulk-enrol them here would present a mass roster change (e.g. dragging
  * last year's class into a new year's) as a recovery of lost data.
  *
+ * CONTRACT: this predicate must stay identical to the NOT EXISTS in
+ * `backfill_teacher_enrolments` (migration 00019) — the banner's count is a
+ * promise about what the button will do, and the two disagreeing is exactly
+ * the defect 00019 fixed (the RPC's year-scoped guard silently promoted a
+ * previous year's roster while the banner claimed a handful).
+ *
  * Gated on an active homeroom assignment for the scope's class because
  * `backfill_teacher_enrolments` (the repair this count drives) only acts for
  * one — a subject-only teacher must not be offered a button that can never
