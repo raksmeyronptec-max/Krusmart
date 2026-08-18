@@ -240,6 +240,19 @@ export default function LoginForm({ role = 'universal', hideRegister = false }: 
         </div>
       )}
 
+      {/* The level-first journey: a brand-new teacher picks their education
+          level before creating an account, so the onboarding wizard can shape
+          itself around it. Shown only in register mode — an existing account
+          already carries its level in the database. */}
+      {!hideRegister && mode === 'register' && (
+        <p className="mb-4 rounded-lg bg-brand-100 px-3 py-2.5 text-xs text-brand-800 dark:bg-brand-900/40 dark:text-brand-300">
+          គ្រូថ្មី? ជ្រើសរើសកម្រិតសិក្សារបស់អ្នកជាមុនសិន —{' '}
+          <a href="/choose-level" className="font-bold underline">
+            ចាប់ផ្តើមទីនេះ
+          </a>
+        </p>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-4">
           <div>
               <label htmlFor="email" className="block text-sm font-semibold text-text-body dark:text-text-body mb-1">អុីមែល (Email)</label>

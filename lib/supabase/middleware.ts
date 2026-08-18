@@ -43,6 +43,8 @@ export async function updateSession(request: NextRequest) {
   const isPublicRoute =
     request.nextUrl.pathname.startsWith('/login') ||
     request.nextUrl.pathname === '/parent/login' ||
+    // Level-first onboarding starts before there is a session to check.
+    request.nextUrl.pathname === '/choose-level' ||
     request.nextUrl.pathname === '/'
   
   if (!user && !isPublicRoute) {

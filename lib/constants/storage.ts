@@ -30,6 +30,14 @@ export const STORAGE_KEYS = {
    * session-expiry redirect so re-login never loses typed input.
    */
   profileDraft: 'krusmart_profile_draft',
+  /**
+   * Education level picked on `/choose-level` *before* sign-in, held in
+   * sessionStorage so it survives the OAuth round trip (same tab, full-page
+   * redirect) but never outlives the tab. A navigation hint only: the level
+   * step re-validates it against the curriculum ladder and the authoritative
+   * rows are written server-side by `chooseEducationLevel`.
+   */
+  pendingLevel: 'krusmart_pending_level',
 } as const
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS]

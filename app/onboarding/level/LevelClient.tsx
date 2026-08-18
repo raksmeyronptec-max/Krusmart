@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { GraduationCap, BookOpen, Library } from 'lucide-react'
 import { Button } from '@/components/ui/actions/Button'
 import { ChoiceCard } from '@/components/onboarding/ChoiceCard'
 import { StepHeading } from '@/components/onboarding/StepHeading'
 import { notify } from '@/components/ui/feedback/notify'
 import { EDUCATION_LEVELS, gradeRangeLabel, type EducationLevelKey } from '@/lib/onboarding/curriculum'
+import { clearPendingLevel, readPendingLevel } from '@/lib/onboarding/pendingLevel'
 import { chooseEducationLevel } from '../actions'
 
 const ICONS = {
@@ -19,6 +20,22 @@ export function LevelClient() {
   const [key, setKey] = useState<EducationLevelKey>('primary')
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
+
+  // Restore the level picked on /choose-level before sign-in. One-shot and a
+  // hint only — the teacher still confirms, and the server action re-validates
+  // the key regardless. Deferred a tick so the state update runs after
+  // hydration (sessionStorage does not exist on the server), the same pattern
+  // ProfileClient uses for its draft.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const pendingLevel = readPendingLevel()
+      if (pendingLevel) {
+        setKey(pendingLevel)
+        clearPendingLevel()
+      }
+    }, 0)
+    return () => clearTimeout(t)
+  }, [])
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
