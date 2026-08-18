@@ -462,6 +462,11 @@ export interface Class {
   academic_year_id: string
   name: string
   capacity?: number | null
+  /**
+   * Grade 11–12 stream (00021). The same subject carries a different full mark
+   * per stream, so template resolution reads this off the class.
+   */
+  track?: 'science' | 'social_science' | null
   created_at?: string
 }
 
@@ -806,6 +811,17 @@ export interface ScoreTemplateSubjectRow {
   grade_id?: string | null
   school_id?: string | null
   class_id?: string | null
+
+  /**
+   * Global scoping added by 00021 — NULL means "applies regardless", which is
+   * what every row written before that migration means. `level_key` exists
+   * because `education_levels` is per-school and a system row has no global
+   * UUID to reference; `track` because grade 11–12 streams carry different
+   * full marks for the same subject.
+   */
+  level_key?: 'primary' | 'lower_secondary' | 'upper_secondary' | null
+  grade_number?: number | null
+  track?: 'science' | 'social_science' | null
 
   subject_key: string
   label_km: string

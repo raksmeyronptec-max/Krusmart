@@ -25,9 +25,61 @@
 // would crash them at load time. `allowImportingTsExtensions` covers tsc.
 import { NATIONAL_COEFFICIENT_UNIT } from '../grading/scheme.ts'
 import type { ScoreTemplateSubjectRow } from '@/lib/types'
+import type { EducationLevelKey } from '@/lib/onboarding/curriculum'
 
 /** Which `scores.score_type` a subject appears under. */
 export type TemplateScoreType = 'monthly' | 'semester' | 'annual' | 'homework'
+
+/**
+ * Which curriculum a class resolves against — its education level, grade
+ * number, and (grades 11–12) stream. Every field optional: a legacy account
+ * has none of them, and resolution must then behave exactly as it did before
+ * the levels existed.
+ */
+export interface TemplateContext {
+  levelKey?: EducationLevelKey | null
+  gradeNumber?: number | null
+  track?: 'science' | 'social_science' | null
+}
+
+/**
+ * Which system/school rows apply to a context.
+ *
+ * Two-step, and the order is the safety property:
+ *
+ *   1. If the context names a level AND rows tagged with that level exist
+ *      (matching grade and track where the row narrows them), those rows are
+ *      the curriculum — a grade-12 science class sees `hs_math` at /125 and
+ *      none of the primary skills.
+ *   2. Otherwise the *untagged* rows apply: no context (legacy account,
+ *      pre-00021 database, fallback constant), a level nothing has been
+ *      seeded for yet, or a grade-12 class whose track is still unset. All of
+ *      those land on today's list rather than an empty picker, which to a
+ *      teacher reads as data loss.
+ *
+ * Class-scope rows are always kept: they belong to the resolved class by
+ * construction (RLS plus the class_id filter), and hiding a teacher's own
+ * override because a seed arrived later would silently undo their edit.
+ */
+export function filterRowsForContext(
+  rows: ScoreTemplateSubjectRow[],
+  context?: TemplateContext | null,
+): ScoreTemplateSubjectRow[] {
+  const classRows = rows.filter((r) => r.scope === 'class')
+  const upper = rows.filter((r) => r.scope !== 'class')
+
+  if (context?.levelKey) {
+    const tagged = upper.filter(
+      (r) =>
+        r.level_key === context.levelKey &&
+        (r.grade_number == null || r.grade_number === context.gradeNumber) &&
+        (r.track == null || r.track === context.track),
+    )
+    if (tagged.length > 0) return [...tagged, ...classRows]
+  }
+
+  return [...upper.filter((r) => r.level_key == null), ...classRows]
+}
 
 /**
  * One editable column of the score grid.
@@ -84,10 +136,11 @@ const LAYER_PRECEDENCE: Record<ScoreTemplateSubjectRow['scope'], number> = {
 export function resolveTemplate(
   rows: ScoreTemplateSubjectRow[],
   scoreType: TemplateScoreType,
+  context?: TemplateContext | null,
 ): EffectiveSubject[] {
   const winners = new Map<string, ScoreTemplateSubjectRow>()
 
-  for (const row of rows) {
+  for (const row of filterRowsForContext(rows, context)) {
     const current = winners.get(row.subject_key)
     if (!current || LAYER_PRECEDENCE[row.scope] < LAYER_PRECEDENCE[current.scope]) {
       winners.set(row.subject_key, row)
@@ -417,10 +470,11 @@ export interface EditableSubject {
 export function resolveTemplateEditor(
   rows: ScoreTemplateSubjectRow[],
   scoreType: TemplateScoreType,
+  context?: TemplateContext | null,
 ): EditableSubject[] {
   const byKey = new Map<string, { inherited: ScoreTemplateSubjectRow | null; override: ScoreTemplateSubjectRow | null }>()
 
-  for (const row of rows) {
+  for (const row of filterRowsForContext(rows, context)) {
     const entry = byKey.get(row.subject_key) ?? { inherited: null, override: null }
     if (row.scope === 'class') {
       entry.override = row

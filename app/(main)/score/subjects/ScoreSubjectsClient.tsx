@@ -21,7 +21,7 @@ import { DEFAULT_SCHEME_CONFIG } from '@/lib/grading/scheme'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import {
   coefficientFor, resolveTemplateEditor,
-  type EditableSubject, type TemplateScoreType,
+  type EditableSubject, type TemplateContext, type TemplateScoreType,
 } from '@/lib/scores/template'
 import type { ScoreTemplateSubjectRow } from '@/lib/types'
 import {
@@ -74,10 +74,13 @@ const SCORE_TYPES: { id: TemplateScoreType; label: string }[] = [
 
 export default function ScoreSubjectsClient({
   initialRows,
+  templateContext,
   classId,
   className,
 }: {
   initialRows: ScoreTemplateSubjectRow[]
+  /** The class's curriculum context; resolution filters by it (00021). */
+  templateContext: TemplateContext | null
   classId: string | null
   className: string
 }) {
@@ -86,7 +89,10 @@ export default function ScoreSubjectsClient({
   const [busyKey, setBusyKey] = useState<string | null>(null)
   const { confirm, dialog } = useConfirm()
 
-  const subjects = useMemo(() => resolveTemplateEditor(rows, scoreType), [rows, scoreType])
+  const subjects = useMemo(
+    () => resolveTemplateEditor(rows, scoreType, templateContext),
+    [rows, scoreType, templateContext],
+  )
 
   const refresh = useCallback(async () => {
     const next = await getClassTemplateRows(classId ?? undefined)

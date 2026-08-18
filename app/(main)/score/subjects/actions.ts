@@ -6,8 +6,9 @@ import { requirePermission } from '@/lib/rbac/server'
 import { auditLog } from '@/lib/audit/log'
 import { logger } from '@/lib/utils/logger'
 import { getErrorMessage } from '@/lib/utils/errors'
-import { fetchScoreTemplateRows, resolveServerScope } from '@/lib/utils/serverScope'
+import { fetchScoreTemplate, resolveServerScope } from '@/lib/utils/serverScope'
 import {
+  filterRowsForContext,
   overrideDiffers,
   type OverridableFields,
   type SubjectColumn,
@@ -48,6 +49,12 @@ export interface SubjectPatch {
 interface ClassContext {
   userId: string
   classId: string
+  /**
+   * Already narrowed to this class's curriculum (level / grade / track,
+   * 00021). Without the narrowing, a grade-12 class would see two system rows
+   * per subject key — one per track — and `splitRows` could inherit from the
+   * wrong stream's full mark.
+   */
   rows: ScoreTemplateSubjectRow[]
 }
 
@@ -74,7 +81,8 @@ async function classContext(classId?: string): Promise<ClassContext | { error: s
     return { error: 'គណនីនេះមិនទាន់មានថ្នាក់រៀនទេ ដូច្នេះមិនអាចកែបញ្ជីមុខវិជ្ជាតាមថ្នាក់បានឡើយ។' }
   }
 
-  return { userId: user.id, classId: scope.classId, rows: await fetchScoreTemplateRows(scope) }
+  const { rows, context } = await fetchScoreTemplate(scope)
+  return { userId: user.id, classId: scope.classId, rows: filterRowsForContext(rows, context) }
 }
 
 function splitRows(rows: ScoreTemplateSubjectRow[], subjectKey: string) {

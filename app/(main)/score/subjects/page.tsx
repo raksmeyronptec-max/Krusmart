@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import {
   classIdFromSearchParams,
-  fetchScoreTemplateRows,
+  fetchScoreTemplate,
   resolveServerScope,
 } from '@/lib/utils/serverScope'
 import ScoreSubjectsClient from './ScoreSubjectsClient'
@@ -32,7 +32,7 @@ export default async function ScoreSubjectsPage({
 
   const requestedClassId = await classIdFromSearchParams(searchParams)
   const scope = await resolveServerScope(user.id, requestedClassId)
-  const rows = await fetchScoreTemplateRows(scope)
+  const { rows, context } = await fetchScoreTemplate(scope)
 
   let className = ''
   if (scope.mode === 'v2') {
@@ -47,6 +47,7 @@ export default async function ScoreSubjectsPage({
   return (
     <ScoreSubjectsClient
       initialRows={rows}
+      templateContext={context}
       classId={scope.mode === 'v2' ? scope.classId : null}
       className={className}
     />

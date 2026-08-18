@@ -1,7 +1,8 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { fetchScoreTemplateRows, resolveServerScope } from '@/lib/utils/serverScope'
+import { fetchScoreTemplate, resolveServerScope } from '@/lib/utils/serverScope'
+import type { TemplateContext } from '@/lib/scores/template'
 import type { ScoreTemplateSubjectRow } from '@/lib/types'
 
 /**
@@ -22,12 +23,12 @@ import type { ScoreTemplateSubjectRow } from '@/lib/types'
  */
 export async function listScoreTemplateSubjects(
   classId?: string,
-): Promise<ScoreTemplateSubjectRow[]> {
+): Promise<{ rows: ScoreTemplateSubjectRow[]; context: TemplateContext | null }> {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return []
+  if (!user) return { rows: [], context: null }
 
   const scope = await resolveServerScope(user.id, classId)
-  return fetchScoreTemplateRows(scope)
+  return fetchScoreTemplate(scope)
 }

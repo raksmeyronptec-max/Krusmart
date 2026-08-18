@@ -8,8 +8,10 @@ import {
   resolveTemplate,
   SYSTEM_PRIMARY_TEMPLATE,
   type EffectiveSubject,
+  type TemplateContext,
   type TemplateScoreType,
 } from '@/lib/scores/template'
+import { EDUCATION_LEVELS } from '@/lib/onboarding/curriculum'
 import type { ScoreTemplateSubjectRow, Student, TeacherAssignment } from '@/lib/types'
 
 /**
@@ -280,6 +282,71 @@ export async function fetchScoreTemplateRows(
 }
 
 /**
+ * Which curriculum a class resolves against: education level, grade number,
+ * and (grades 11–12) stream.
+ *
+ * The level is recovered by matching `education_levels.name` against the
+ * canonical ladder in `lib/onboarding/curriculum.ts` — the strings 00004
+ * backfilled and onboarding re-seeds verbatim, which that module documents as
+ * an invariant. `grades.sort_order` carries the grade number under the same
+ * contract. A school that invented its own level names simply resolves to no
+ * level, and `filterRowsForContext` then falls back to the untagged rows —
+ * today's behaviour, never an empty picker.
+ *
+ * `classes.track` arrives with 00021; on a database that has not run it, the
+ * dedicated select fails and the track degrades to null, again the safe
+ * direction (the row-level track filter only ever narrows).
+ */
+export async function resolveClassTemplateContext(
+  classId: string,
+): Promise<TemplateContext | null> {
+  const supabase = await createClient()
+
+  const { data: cls } = await supabase
+    .from('classes')
+    .select('grade_id, grade:grades(sort_order, education_level:education_levels(name))')
+    .eq('id', classId)
+    .maybeSingle()
+  if (!cls) return null
+
+  // PostgREST types embedded to-one relations as object-or-array.
+  const one = <T,>(rel: T | T[] | null | undefined): T | undefined =>
+    Array.isArray(rel) ? rel[0] : (rel ?? undefined)
+
+  const grade = one(cls.grade as { sort_order?: number | null; education_level?: unknown } | null)
+  const levelName = one(grade?.education_level as { name?: string } | { name?: string }[] | null)?.name
+  const levelKey = EDUCATION_LEVELS.find((l) => l.name === levelName)?.key ?? null
+  const gradeNumber =
+    typeof grade?.sort_order === 'number' && grade.sort_order >= 1 && grade.sort_order <= 12
+      ? grade.sort_order
+      : null
+
+  // Separate select so a pre-00021 database (no `track` column → 42703) costs
+  // the track, not the whole context.
+  let track: TemplateContext['track'] = null
+  const { data: trackRow, error: trackErr } = await supabase
+    .from('classes')
+    .select('track')
+    .eq('id', classId)
+    .maybeSingle()
+  if (!trackErr) {
+    const raw = (trackRow as { track?: string | null } | null)?.track
+    track = raw === 'science' || raw === 'social_science' ? raw : null
+  }
+
+  return { levelKey, gradeNumber, track }
+}
+
+/** Rows plus the context they should be resolved under, in one call. */
+export async function fetchScoreTemplate(
+  scope: QueryScope,
+): Promise<{ rows: ScoreTemplateSubjectRow[]; context: TemplateContext | null }> {
+  const rows = await fetchScoreTemplateRows(scope)
+  const context = scope.mode === 'v2' ? await resolveClassTemplateContext(scope.classId) : null
+  return { rows, context }
+}
+
+/**
  * The subjects a server-rendered screen should offer, for one score type.
  *
  * Built on `resolveServerScope`, deliberately: the class selection travels in
@@ -296,6 +363,6 @@ export async function resolveServerTemplate(
   scoreType: TemplateScoreType,
 ): Promise<EffectiveSubject[]> {
   const scope = await resolveServerScope(userId, requestedClassId)
-  const rows = await fetchScoreTemplateRows(scope)
-  return resolveTemplate(rows.length > 0 ? rows : SYSTEM_PRIMARY_TEMPLATE, scoreType)
+  const { rows, context } = await fetchScoreTemplate(scope)
+  return resolveTemplate(rows.length > 0 ? rows : SYSTEM_PRIMARY_TEMPLATE, scoreType, context)
 }

@@ -7,6 +7,7 @@ import {
   resolveTemplate,
   SYSTEM_PRIMARY_TEMPLATE,
   type EffectiveSubject,
+  type TemplateContext,
   type TemplateScoreType,
 } from '@/lib/scores/template'
 import type { ScoreTemplateSubjectRow } from '@/lib/types'
@@ -30,16 +31,22 @@ import { logger } from '@/lib/utils/logger'
 export function useScoreTemplate(scoreType: TemplateScoreType): {
   subjects: EffectiveSubject[]
   rows: ScoreTemplateSubjectRow[]
+  context: TemplateContext | null
   loading: boolean
   reload: () => Promise<void>
 } {
   const { classId, loading: classLoading } = useActiveClass()
 
   const [rows, setRows] = useState<ScoreTemplateSubjectRow[]>([])
+  // The class's curriculum context (level / grade / track, 00021). Null for a
+  // legacy account, which is exactly the fallback `filterRowsForContext` wants.
+  const [context, setContext] = useState<TemplateContext | null>(null)
   const [loading, setLoading] = useState(true)
 
   const reload = useCallback(async () => {
-    setRows(await listScoreTemplateSubjects(classId ?? undefined))
+    const next = await listScoreTemplateSubjects(classId ?? undefined)
+    setRows(next.rows)
+    setContext(next.context)
   }, [classId])
 
   useEffect(() => {
@@ -53,7 +60,10 @@ export function useScoreTemplate(scoreType: TemplateScoreType): {
     const run = async () => {
       try {
         const fetched = await listScoreTemplateSubjects(classId ?? undefined)
-        if (!cancelled) setRows(fetched)
+        if (!cancelled) {
+          setRows(fetched.rows)
+          setContext(fetched.context)
+        }
       } catch (e) {
         logger.error(e)
       } finally {
@@ -66,9 +76,9 @@ export function useScoreTemplate(scoreType: TemplateScoreType): {
   }, [classId, classLoading])
 
   const subjects = useMemo(
-    () => resolveTemplate(rows.length > 0 ? rows : SYSTEM_PRIMARY_TEMPLATE, scoreType),
-    [rows, scoreType],
+    () => resolveTemplate(rows.length > 0 ? rows : SYSTEM_PRIMARY_TEMPLATE, scoreType, context),
+    [rows, context, scoreType],
   )
 
-  return { subjects, rows, loading: loading || classLoading, reload }
+  return { subjects, rows, context, loading: loading || classLoading, reload }
 }
