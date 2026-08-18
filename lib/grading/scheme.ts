@@ -22,14 +22,41 @@ export interface GradeBand {
   label: string
 }
 
+/** How subjects combine into an average — design §3.2. */
+export type SchemeWeighting = 'simple' | 'coefficient'
+
+/**
+ * The national coefficient base: ៥០ ពិន្ទុ = មេគុណ ១.
+ *
+ * One exported constant, because the same "divide by 50" must never be typed
+ * twice — the design stores no coefficient column precisely so a stored value
+ * and a derived one cannot drift, and two literals would reopen that door.
+ */
+export const NATIONAL_COEFFICIENT_UNIT = 50
+
 /** Stored in `grading_schemes.config`. */
 export interface GradingSchemeConfig {
-  /** Highest attainable raw score. Cambodian primary marks out of 10. */
+  /**
+   * The scale the scheme's *average* is expressed on: 10 for primary, 50 for
+   * secondary. Band `min`s are anchored to this — a band is a fraction of
+   * `maxScore`, which is what lets one scheme grade subjects marked out of
+   * 125 or 75 (see `bandThreshold`).
+   */
   maxScore: number
-  /** At or above this counts as a pass. */
+  /** At or above this counts as a pass, on the `maxScore` scale. */
   passMark: number
   /** Ordered high → low. The first band containing a score wins. */
   bands: GradeBand[]
+  /**
+   * `simple` — plain mean, the primary path; every subject weighs the same.
+   * `coefficient` — secondary: a subject weighs `maxScore ÷ coefficientUnit`,
+   * so the average of full marks lands exactly on `coefficientUnit`.
+   * Absent means `simple`, which is what every scheme seeded before this
+   * field existed must keep meaning.
+   */
+  weighting?: SchemeWeighting
+  /** Coefficient base for `weighting: 'coefficient'`. Defaults to the national ៥០. */
+  coefficientUnit?: number
   /**
    * Relative weight per assessment `type`, used by `weightedAverage`.
    * A type absent from this map defaults to the assessment's own `weight`.
@@ -56,6 +83,73 @@ export const DEFAULT_SCHEME_CONFIG: GradingSchemeConfig = {
   ],
 }
 
+/**
+ * The secondary ladder — same percentage rungs (90/80/70/60/50), different
+ * Khmer descriptors, shifted one step against primary per the MoEYS reference
+ * the design cites (§3.3ខ): what primary calls ល្អណាស់ at A, secondary calls
+ * ល្អប្រសើរ, and so on down.
+ *
+ * The average scale is /៥០ because that is what `coefficientAverage` produces
+ * when every subject scores full marks: Σ(max) ÷ Σ(max÷50) = 50. Band mins are
+ * the doc's verified thresholds for a /50 scale — floor(50 × 0.9) = 45, etc.
+ *
+ * Like `DEFAULT_SCHEME_CONFIG` this is the seed for *new* schemes, not a live
+ * setting; per-level rows in `grading_schemes.config` override it.
+ */
+export const SECONDARY_SCHEME_CONFIG: GradingSchemeConfig = {
+  maxScore: 50,
+  passMark: 25,
+  weighting: 'coefficient',
+  coefficientUnit: NATIONAL_COEFFICIENT_UNIT,
+  bands: [
+    { letter: 'A', min: 45, max: 50, label: 'ល្អប្រសើរ' },
+    { letter: 'B', min: 40, max: 44.99, label: 'ល្អណាស់' },
+    { letter: 'C', min: 35, max: 39.99, label: 'ល្អ' },
+    { letter: 'D', min: 30, max: 34.99, label: 'ល្អបង្គួរ' },
+    { letter: 'E', min: 25, max: 29.99, label: 'មធ្យម' },
+    { letter: 'F', min: 0, max: 24.99, label: 'ខ្សោយ' },
+  ],
+}
+
+/**
+ * The weight one subject carries in a coefficient-weighted average.
+ *
+ * Derived, never stored — `coefficient = maxScore ÷ coefficientUnit` (design
+ * §3.2), so a subject marked /125 counts 2.5 and one marked /25 counts 0.5.
+ * Under `simple` weighting every subject weighs 1, which is what makes this
+ * safe to call unconditionally.
+ */
+export function coefficientOf(
+  maxScore: number,
+  config: GradingSchemeConfig = DEFAULT_SCHEME_CONFIG,
+): number {
+  if (config.weighting !== 'coefficient') return 1
+  const unit = config.coefficientUnit ?? NATIONAL_COEFFICIENT_UNIT
+  return unit > 0 ? maxScore / unit : 1
+}
+
+/**
+ * A band's threshold re-expressed on another scale.
+ *
+ * The design's verified tables (§3.3ក) are all `floor(scale × fraction)`:
+ * A on /125 is 112 (not 112.5, not 113), on /75 it is 67. `floor` is the
+ * documented rounding — a mark of 112/125 *is* an A even though 112/125 is
+ * 89.6%, because the printed threshold a Cambodian teacher compares against
+ * says 112.
+ *
+ * When the scale *is* the scheme's own, the band min is returned untouched:
+ * flooring there would silently move a custom band like `min: 8.5` down to 8,
+ * changing results for schemes already in the database.
+ */
+export function bandThreshold(
+  min: number,
+  scale: number,
+  config: GradingSchemeConfig = DEFAULT_SCHEME_CONFIG,
+): number {
+  if (scale === config.maxScore) return min
+  return Math.floor((scale * min) / config.maxScore)
+}
+
 /** Result of grading one average. */
 export interface GradeResult {
   letter: string
@@ -76,16 +170,26 @@ export interface GradeResult {
 export function gradeFor(
   average: number | null | undefined,
   config: GradingSchemeConfig = DEFAULT_SCHEME_CONFIG,
+  /**
+   * The scale `average` is expressed on, when it is not the scheme's own —
+   * a per-subject mark out of 75 graded against a /50 scheme, say. Thresholds
+   * are then the floor-converted ones from `bandThreshold`, matching the
+   * printed tables teachers actually hold. Omitted, behaviour is exactly what
+   * it always was.
+   */
+  scale: number = config.maxScore,
 ): GradeResult | null {
   if (average === null || average === undefined || !Number.isFinite(average)) return null
 
   const ordered = [...config.bands].sort((a, b) => b.min - a.min)
-  const band = ordered.find((b) => average >= b.min) ?? ordered[ordered.length - 1]
+  const band =
+    ordered.find((b) => average >= bandThreshold(b.min, scale, config)) ??
+    ordered[ordered.length - 1]
 
   return {
     letter: band.letter,
     label: band.label,
-    passed: average >= config.passMark,
+    passed: average >= bandThreshold(config.passMark, scale, config),
   }
 }
 
@@ -93,16 +197,18 @@ export function gradeFor(
 export function letterFor(
   average: number | null | undefined,
   config: GradingSchemeConfig = DEFAULT_SCHEME_CONFIG,
+  scale?: number,
 ): string {
-  return gradeFor(average, config)?.letter ?? '-'
+  return gradeFor(average, config, scale)?.letter ?? '-'
 }
 
 /** Just the Khmer descriptor. */
 export function descriptorFor(
   average: number | null | undefined,
   config: GradingSchemeConfig = DEFAULT_SCHEME_CONFIG,
+  scale?: number,
 ): string {
-  return gradeFor(average, config)?.label ?? '-'
+  return gradeFor(average, config, scale)?.label ?? '-'
 }
 
 /** One scored assessment feeding a weighted total. */
@@ -150,6 +256,43 @@ export function weightedAverage(
   return Math.round((weighted / totalWeight) * config.maxScore * 100) / 100
 }
 
+/** One subject's mark feeding a coefficient-weighted average. */
+export interface CoefficientEntry {
+  score: number | null | undefined
+  /** The subject's full mark, from its template row. */
+  maxScore: number
+}
+
+/**
+ * The secondary average: `Σពិន្ទុ ÷ Σមេគុណ` (design §3.2).
+ *
+ * No manual normalising — a pupil with full marks in every subject scores
+ * Σ(max) ÷ Σ(max÷50) = 50, so the result lands on the `/coefficientUnit`
+ * scale by construction. Unmarked subjects are skipped along with their
+ * coefficients, same rule as `weightedAverage`: not-yet-assessed is not zero.
+ *
+ * Under `simple` weighting this degrades to the plain mean (`coefficientOf`
+ * returns 1 for every subject), so one call site can serve both levels.
+ *
+ * Returns `null` when nothing has been marked.
+ */
+export function coefficientAverage(
+  entries: CoefficientEntry[],
+  config: GradingSchemeConfig = DEFAULT_SCHEME_CONFIG,
+): number | null {
+  let sum = 0
+  let totalCoefficient = 0
+
+  for (const e of entries) {
+    if (e.score === null || e.score === undefined || !Number.isFinite(e.score)) continue
+    sum += e.score
+    totalCoefficient += coefficientOf(e.maxScore, config)
+  }
+
+  if (totalCoefficient === 0) return null
+  return Math.round((sum / totalCoefficient) * 100) / 100
+}
+
 /** Plain mean of raw marks, rounded to 2dp — the legacy monthly/semester path. */
 export function simpleAverage(scores: (number | null | undefined)[]): number | null {
   const valid = scores.filter((s): s is number => typeof s === 'number' && Number.isFinite(s))
@@ -168,6 +311,13 @@ export function parseSchemeConfig(raw: unknown): GradingSchemeConfig {
     maxScore: typeof c.maxScore === 'number' ? c.maxScore : DEFAULT_SCHEME_CONFIG.maxScore,
     passMark: typeof c.passMark === 'number' ? c.passMark : DEFAULT_SCHEME_CONFIG.passMark,
     bands: c.bands,
+    // Anything unrecognised falls back to `simple` — the only value that
+    // existed before this field, so old configs keep meaning what they meant.
+    weighting: c.weighting === 'coefficient' ? 'coefficient' : 'simple',
+    coefficientUnit:
+      typeof c.coefficientUnit === 'number' && c.coefficientUnit > 0
+        ? c.coefficientUnit
+        : undefined,
     typeWeights: c.typeWeights,
   }
 }

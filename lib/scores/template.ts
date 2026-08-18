@@ -19,6 +19,7 @@
  * `next/headers` in here breaks the build.
  */
 
+import { NATIONAL_COEFFICIENT_UNIT } from '@/lib/grading/scheme'
 import type { ScoreTemplateSubjectRow } from '@/lib/types'
 
 /** Which `scores.score_type` a subject appears under. */
@@ -473,7 +474,7 @@ export function resolveTemplateEditor(
  * `weightedAverage` in `lib/grading/scheme.ts` has no callers. It is shown to
  * the teacher as a consequence of the number they are typing, not as an input.
  */
-export const COEFFICIENT_BASE = 50
+export const COEFFICIENT_BASE = NATIONAL_COEFFICIENT_UNIT
 
 export function coefficientFor(maxScore: number): number {
   return Math.round((maxScore / COEFFICIENT_BASE) * 100) / 100
