@@ -3,7 +3,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { logger } from '@/lib/utils/logger'
-import { auditLog } from '@/lib/audit/log'
+import { auditLog, auditLogBatch } from '@/lib/audit/log'
 import type { ActionResult } from '@/lib/types'
 import { gradesForLevel, levelByKey } from '@/lib/onboarding/curriculum'
 
@@ -178,7 +178,54 @@ export async function createClassAndAssign(input: {
     status: 'active',
   })
 
-  if (assignErr) return { error: friendlyError(assignErr) }
+  if (assignErr) {
+    // The class row alone is harmless (no assignment ⇒ still legacy scope),
+    // but remove it anyway so a retry does not hit the unique name constraint.
+    await supabase.from('classes').delete().eq('id', cls.id)
+    return { error: friendlyError(assignErr) }
+  }
+
+  // The assignment above just flipped every scoped read to v2, where the
+  // roster comes from student_enrollments — a table nothing else on the
+  // teacher side writes. Any students this account already has (the legacy
+  // roster) must be enrolled *now*, or they vanish from every screen the
+  // moment we redirect. Must run after the assignment: the RPC resolves the
+  // target class from the caller's own homeroom assignments (00018).
+  const { data: enrolled, error: backfillErr } = await supabase.rpc(
+    'backfill_teacher_enrolments',
+    { p_class_id: cls.id },
+  )
+
+  if (backfillErr) {
+    // Roll the assignment and the class back rather than leaving them and
+    // asking the teacher to retry: with the assignment in place they are in
+    // exactly the broken state this call exists to prevent (v2 scope, empty
+    // roster), and a resubmit would trip UNIQUE (grade_id, academic_year_id,
+    // name) on the class insert above — an error they cannot fix. Deleting
+    // both returns the account to the legacy state it was in before
+    // submitting, where their students are still visible and pressing the
+    // button again is safe. Assignment first — it references the class.
+    // Should either delete itself fail, the recovery banner on /student-list
+    // detects the stranded state and re-runs this same RPC.
+    await supabase
+      .from('teacher_assignments')
+      .delete()
+      .eq('teacher_id', user.id)
+      .eq('class_id', cls.id)
+    await supabase.from('classes').delete().eq('id', cls.id)
+    return { error: friendlyError(backfillErr) }
+  }
+
+  const backfilled = Number(enrolled ?? 0)
+  if (backfilled > 0) {
+    await auditLogBatch(
+      'enrollment.backfilled',
+      'student_enrollment',
+      backfilled,
+      { class_id: cls.id, trigger: 'onboarding' },
+      user.id,
+    )
+  }
 
   await auditLog({
     action: 'class.created',

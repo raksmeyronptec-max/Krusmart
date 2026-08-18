@@ -15,7 +15,7 @@ npm run lint     # eslint (flat config, eslint-config-next core-web-vitals + typ
 
 No test framework is configured — there is nothing to run for tests. Type errors surface via `npm run build` (`tsc` is `noEmit`).
 
-Requires `.env.local` with `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` (see `.env.example`). These are the only env vars the app reads; there is no service-role key anywhere, so **every** data path goes through RLS as the logged-in user.
+Requires `.env.local` with `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` (see `.env.example`). The only other env var is `IMGBB_API_KEY` (server-only, optional — photo uploads in `/homework/send`; unset, the photo field reports uploads unavailable and everything else works). There is no service-role key anywhere, so **every** data path goes through RLS as the logged-in user — the single exception is the `create_teacher_organisation` SECURITY DEFINER function (migration 00017, below).
 
 ## What this is
 
@@ -35,6 +35,7 @@ Next.js 16 App Router + React 19, Tailwind v4, Supabase (auth + Postgres).
 | `app/admin/` | School console (owner / principal / school_admin) | `app/admin/layout.tsx` calls `getUserRoles()` + `isSchoolAdmin()` server-side before any child renders |
 | `app/parent/(portal)/` | Parent portal — dashboard, grades, attendance, homework, family, student card | Real Supabase auth + `parent_students` link (migration 00010) |
 | `app/login/` | Multi-role sign-in: `/login` (universal) plus `/login/{owner,admin,teacher,parent}`, `choose-workspace`, `reset-password`, `update-password` | Public |
+| `app/onboarding/` | First-run wizard for a brand-new teacher: organisation → level → grade → class → students | Own layout (deliberately outside `(main)` — no sidebar over 26 features that can't render yet); redirects admins/parents/finished teachers away |
 
 `app/page.tsx` redirects to `/dashboard`. Per-role login screens are presentation only — `ROLE_CONFIGS` in [lib/auth/role-config.ts](lib/auth/role-config.ts) supplies the Khmer copy and icon; the actual credentials and roles are the same everywhere.
 
@@ -47,7 +48,7 @@ Next.js 16 App Router + React 19, Tailwind v4, Supabase (auth + Postgres).
 
 ### The app shell
 
-`app/(main)/layout.tsx` is **not** a bare wrapper: it resolves the actor, redirects parents to `/parent/dashboard`, and wraps everything in `SchoolContextProvider` → `TeacherContextProvider` → [`AppShell`](components/shell/AppShell.tsx). `AppShell` renders `TopNav`, `Sidebar` (≥1024px), `MobileNav` (<1024px) and `Breadcrumb`, so **a new `(main)` page must not render `<TopNav />` itself** — the layout owns it.
+`app/(main)/layout.tsx` is **not** a bare wrapper: it resolves the actor, redirects parents to `/parent/dashboard`, sends never-set-up teachers into `/onboarding` via `onboardingRedirect(actor)`, and wraps everything in `SchoolContextProvider` → `TeacherContextProvider` → [`AppShell`](components/shell/AppShell.tsx). `AppShell` renders `TopNav`, `Sidebar` (≥1024px), `MobileNav` (<1024px) and `Breadcrumb`, so **a new `(main)` page must not render `<TopNav />` itself** — the layout owns it.
 
 Because every printable view now sits under the shell, the shell disappears on paper via two attributes handled in `globals.css`: `data-app-chrome` → `display:none`, `data-app-frame` → `display:contents` (drops the box from layout while keeping children, so an A4 sheet measures the same as before the shell existed). Keep both attributes on any new frame element.
 
@@ -96,13 +97,19 @@ Everywhere else, **scope by `.eq('teacher_id', user.id)` even though RLS enforce
 | --- | --- |
 | [lib/rbac/permissions.ts](lib/rbac/permissions.ts) | Pure, isomorphic. `Permission` is `` `${Resource}:${Action}` `` (e.g. `'scores:update'`), plus `hasPermission()` and `isSchoolAdmin()`. **Keep this free of server-only imports** — the client hook imports it, and pulling in `next/headers` here breaks the build. |
 | [lib/rbac/server.ts](lib/rbac/server.ts) | `server-only`. `getUserRoles()`, `getTeacherAssignments()`, and `requirePermission()` which *throws* a Khmer error rather than returning a flag. |
-| [lib/rbac/actor.ts](lib/rbac/actor.ts) | `server-only`. `resolveActor()` → `{ kind: 'admin' \| 'teacher' \| 'parent' }` for routing decisions; `resolveAllAvailableRoles()` backs `/login/choose-workspace`. |
+| [lib/rbac/actor.ts](lib/rbac/actor.ts) | `server-only`. `resolveActor()` → `{ kind: 'admin' \| 'teacher' \| 'parent', hasAssignments, hasLegacyRoster, selfServeSchoolIds }` for routing decisions; `resolveAllAvailableRoles()` backs `/login/choose-workspace`. |
 | [lib/rbac/useUserRole.ts](lib/rbac/useUserRole.ts) | Client hook for conditional rendering only — `can()`, `isAdmin`. |
 | [lib/audit/log.ts](lib/audit/log.ts) | `auditLog()` / `auditLogBatch()` into `audit_logs`, which has INSERT/SELECT policies but deliberately no UPDATE/DELETE. |
 
 A signed-in user with **no `user_roles` row resolves to `['teacher']`** on both client and server — that fallback is what keeps pre-V2 accounts working, so don't "tighten" it. `resolveActor` keys parents off the `parent_students` link instead, precisely because the absence of a role can't distinguish them.
 
 These checks decide what the UI *offers*. RLS is the runtime boundary; `requirePermission` produces a clear Khmer error instead of an opaque empty result.
+
+### Teacher onboarding (self-serve organisations)
+
+A teacher signing up without an admin provisioning them used to be stuck on the legacy path forever — `schools` had a SELECT policy but no write policy, and granting yourself a role requires already holding one. Migration 00017 breaks that deadlock with **one** SECURITY DEFINER function, `create_teacher_organisation(name, kind, year)`: it creates the school (kind `school` / `center` / `independent` in `schools.settings`, no new DDL), grants the caller `owner`, stamps `profiles.school_id` (required — `schools_select_member` reads *profiles*, not `user_roles`), and refuses to run twice (one self-serve org per teacher). From there the owner creates levels/grades/classes through the existing admin policies — nothing else was widened.
+
+The wizard state is **derived from `Actor`, never stored** — same principle as legacy/v2 scoping. [lib/onboarding/state.ts](lib/onboarding/state.ts) is the single source of routing truth: `onboardingRedirect(actor)` (wired into `app/(main)/layout.tsx` and the login action) sends a brand-new teacher to `/onboarding/organisation`, resumes a partial setup at `/onboarding/class`, and deliberately returns `null` for a pre-V2 teacher with a legacy roster — interrupting a working account with a mandatory wizard risks live data, so their migration is opt-in. `app/onboarding/layout.tsx` must **not** call `onboardingRedirect` (it targets routes inside its own tree — infinite loop); each step page checks its own prerequisite instead. Level → grade are two routes but one rail step. The national curriculum ladder lives in [lib/onboarding/curriculum.ts](lib/onboarding/curriculum.ts) as data, on purpose — changing it must not need a migration.
 
 ## Data model
 
@@ -118,6 +125,11 @@ These checks decide what the UI *offers*. RLS is the runtime boundary; `requireP
 | `00005`–`00008` | PostgREST grants; class-scoped read access for `students`, `scores`, `profiles`. |
 | `00009`–`00011` | Seeded grading schemes; parent portal; closes a grade/attendance injection hole. |
 | `00012_legacy_features.sql` | `custom_subjects`, `inventory_items`, `class_admin_entries`, `scores.score_text`. |
+| `00013_settings_profile_fields.sql` | Nine `settings` columns for the teacher-profile fields the legacy build had, plus a backfill. |
+| `00014_attendance_locks_teacher_access.sql` | Makes `attendance_locks` writable by the class teacher, in both legacy (`teacher_id`) and v2 (`class_id`) shapes. |
+| `00015_cognitive_assessments.sql` | Per-pupil 0–100 cognitive ratings for `/score-analyse` — a separate table *by design*: it is not a mark out of ten, so it must not live in `scores` where `gradeFor()` and every average would misread it. |
+| `00016_score_templates.sql` | `score_template_subjects` — the score subject list as layered data (see below). |
+| `00017_teacher_owned_organisation.sql` | `create_teacher_organisation()` RPC backing `/onboarding` (see the onboarding section). |
 
 `supabase/legacy/` holds superseded partial snapshots — **do not apply them**. `supabase/README.md` still describes the pre-V2 world in places (it claims the scores conflict key omits `teacher_id`, and that there is no classes table); the migrations and this file are the newer account. Verify against the live project before relying on any of it.
 
@@ -135,6 +147,10 @@ Upserts use `onConflict: 'teacher_id, student_id, subject, score_type, score_per
 A cell may hold a number *or* a Khmer word: the four `sem_eval_*` columns are rated from a dropdown, and `parseFloat` on those wrote `NULL` behind a success toast. Migration 00012 added `score_text`; route every read and write through [lib/utils/score-value.ts](lib/utils/score-value.ts) (`splitScoreCell`) so the two columns cannot drift apart again.
 
 The `homework_scores` table defined in SQL is unused by the app.
+
+### Score templates: the subject list is data, not code
+
+The score grid's subject picker used to be a literal array (the Cambodian *primary* curriculum, compiled in). It now resolves from `score_template_subjects` (migration 00016) in three layers — `system` (national default, seeded, read-only), `school` (admin amendments), `class` (assigned-teacher amendments) — where the lowest layer present wins per `subject_key`. The merge lives in [lib/scores/template.ts](lib/scores/template.ts) (pure, no server-only imports — a client hook consumes it) with [lib/hooks/useScoreTemplate.ts](lib/hooks/useScoreTemplate.ts) on the browser side. This changes only which columns the UI *offers*: `scores.subject` stays a TEXT key, `scores_owner_period_uniq` is untouched, and every already-entered mark keeps resolving. `SubjectColumn.id` is what `scores.subject` stores — it is schema, never rename one.
 
 ### localStorage
 
@@ -166,7 +182,7 @@ These exist because the same code was previously copy-pasted across a dozen clie
 | [lib/utils/xlsx.ts](lib/utils/xlsx.ts), [lib/utils/export.ts](lib/utils/export.ts) | Typed cell/style shapes for `xlsx-js-style`, and the roster export. |
 | [lib/utils/cleaning-random.ts](lib/utils/cleaning-random.ts), [lib/utils/poster-tiles.ts](lib/utils/poster-tiles.ts) | Pure logic pulled out of the cleaning rota and poster splitter. |
 | [lib/class-admin/books.ts](lib/class-admin/books.ts) | The 13 MoEYS class-administration books as *data*. One editor client, one print client, one table (`class_admin_entries`). Adding a book means adding an entry; the `id` values are persisted, so treat them as schema. |
-| [lib/hooks/](lib/hooks) | `useActiveClass`, `useAcademicYear`, `useCustomSubjects`, `useDebounce`. |
+| [lib/hooks/](lib/hooks) | `useActiveClass`, `useAcademicYear`, `useCustomSubjects`, `useDebounce`, `useScoreTemplate`. |
 
 ## Shared UI components
 

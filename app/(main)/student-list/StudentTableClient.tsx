@@ -17,6 +17,7 @@ import Pagination from '@/components/ui/navigation/Pagination'
 import { controlClass } from '@/components/ui/forms/fieldStyles'
 
 import { deleteStudent, deleteAllStudents, saveStudentsOrder } from './actions'
+import { RecoverRosterBanner } from './RecoverRosterBanner'
 import type { Student } from '@/lib/types'
 import { fromKhmerNumber, toKhmerNumber } from '@/lib/utils/khmer-num'
 import {  } from '@/lib/utils/date'
@@ -68,7 +69,14 @@ function sortRoster(list: Student[], sortKey: string): Student[] {
     return arr
 }
 
-export default function StudentTableClient({ initialStudents }: { initialStudents: Student[] }) {
+export default function StudentTableClient({
+    initialStudents,
+    legacyRecoverableCount = 0,
+}: {
+    initialStudents: Student[]
+    /** Legacy students detected with no enrolment in the active class — see page.tsx. */
+    legacyRecoverableCount?: number
+}) {
     const router = useRouter()
     const searchParams = useSearchParams()
     const pathname = usePathname()
@@ -320,6 +328,10 @@ export default function StudentTableClient({ initialStudents }: { initialStudent
                     </>
                 }
             />
+
+            {legacyRecoverableCount > 0 && (
+                <RecoverRosterBanner count={legacyRecoverableCount} />
+            )}
 
             {/* Sticky Header Bar */}
             <div className="sticky top-0 z-30 mb-6 flex flex-col gap-3 border-b border-divider bg-bg-surface/90 p-4 pb-4 pt-4 backdrop-blur-md md:flex-row md:items-center print:hidden rounded-b-xl shadow-sm">

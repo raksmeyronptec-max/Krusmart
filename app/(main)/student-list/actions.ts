@@ -114,6 +114,51 @@ export async function deleteAllStudents(classId?: string): Promise<ActionResult>
   return { success: true }
 }
 
+/**
+ * Repair a roster stranded by the onboarding gap 00018 closes.
+ *
+ * A teacher who onboarded before the backfill existed holds a homeroom
+ * assignment (so every read is v2-scoped) but zero enrolments — their students
+ * still exist under `students.teacher_id` yet appear nowhere. This re-runs the
+ * same `backfill_teacher_enrolments` RPC onboarding now calls, on the
+ * teacher's explicit request from the banner on /student-list. Idempotent, so
+ * a double-tap cannot double-enrol.
+ */
+export async function recoverLegacyRoster(
+  classId?: string,
+): Promise<ActionResult & { enrolled?: number }> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: 'Unauthorized' }
+  }
+
+  const scope = await resolveServerScope(user.id, classId)
+  if (scope.mode === 'legacy') {
+    // No assignment ⇒ the legacy path is already reading students.teacher_id;
+    // there is nothing to recover into.
+    return { success: true, enrolled: 0 }
+  }
+
+  const { data, error } = await supabase.rpc('backfill_teacher_enrolments', {
+    p_class_id: scope.classId,
+  })
+
+  if (error) {
+    logger.error(error)
+    return { error: 'មិនអាចនាំសិស្សចូលថ្នាក់វិញបានទេ។ សូមព្យាយាមម្តងទៀត។' }
+  }
+
+  const enrolled = Number(data ?? 0)
+  await auditLogBatch('enrollment.backfilled', 'student_enrollment', enrolled, {
+    class_id: scope.classId, trigger: 'recovery',
+  }, user.id)
+
+  revalidatePath('/student-list')
+  return { success: true, enrolled }
+}
+
 export async function saveStudentsOrder(orderedIds: string[]): Promise<ActionResult> {
   const supabase = await createClient()
 

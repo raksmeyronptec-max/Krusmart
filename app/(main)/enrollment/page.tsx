@@ -16,6 +16,7 @@ import { notify } from "@/components/ui/feedback/notify"
 import { PageContainer, PageHeader } from "@/components/shell/PageContainer"
 import Select from "@/components/ui/forms/Select"
 import SearchableSelect from "@/components/ui/forms/SearchableSelect"
+import { useActiveClass } from "@/lib/hooks/useActiveClass"
 import { calculateAge } from "@/lib/utils/date"
 import { getErrorMessage } from "@/lib/utils/errors"
 import { toKhmerNumber } from "@/lib/utils/khmer-num"
@@ -51,6 +52,7 @@ function formatSavedAt(timestamp: number) {
 
 export default function EnrollmentPage() {
   const router = useRouter()
+  const { classId: activeClassId } = useActiveClass()
   const [state, dispatch] = useReducer(enrollmentReducer, INITIAL_STATE)
   const { values, errors, sameAsBirth } = state
 
@@ -213,7 +215,9 @@ export default function EnrollmentPage() {
     setIsSaving(true)
     setSubmitError(null)
     try {
-      const result = await createStudent(toFormData(values))
+      // The active class travels as a parameter, same as deleteAllStudents:
+      // the server validates it against the caller's own assignments.
+      const result = await createStudent(toFormData(values), activeClassId ?? undefined)
       if (result?.error) {
         setSubmitError(result.error)
         setShowConfirm(false)
@@ -251,7 +255,7 @@ export default function EnrollmentPage() {
 
   const runImport = async (students: StudentImportRow[]): Promise<string | null> => {
     try {
-      const result = await importStudents(students)
+      const result = await importStudents(students, activeClassId ?? undefined)
       if (result?.error) {
         notify.error(result.error)
         return result.error

@@ -3,6 +3,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { logger } from '@/lib/utils/logger'
+import { resolveServerScope } from '@/lib/utils/serverScope'
+import type { QueryScope } from '@/lib/utils/queryFilter'
 import type { StudentImportRow } from '@/lib/types'
 import { auditLog, auditLogBatch } from '@/lib/audit/log'
 
@@ -31,13 +33,63 @@ function friendlyDbError(error: { code?: string; message: string }, context: 'si
   return `មានបញ្ហាក្នុងការរក្សាទុកទិន្នន័យ៖ ${error.message}`
 }
 
-export async function createStudent(formData: FormData) {
+/**
+ * In v2 the roster is read from `student_enrollments`, not `students.teacher_id`
+ * (see `fetchStudentsForScope`), so a student row without an enrolment row is
+ * invisible on every roster-consuming screen. This inserts the enrolments for a
+ * batch of just-created students — and if it fails, deletes those students
+ * again, so the pair cannot half-succeed: PostgREST offers no client-side
+ * transaction, so atomicity here is by compensation. The delete is keyed on the
+ * ids we just created *and* `teacher_id`, the project's second guard.
+ *
+ * Worst case — the compensating delete itself fails — the students exist
+ * without enrolments, exactly the state the recovery action on /student-list
+ * detects and repairs with `backfill_teacher_enrolments` (00018).
+ */
+async function enrolOrCompensate(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  scope: Extract<QueryScope, { mode: 'v2' }>,
+  studentIds: string[],
+): Promise<{ error?: string }> {
+  const { error } = await supabase.from('student_enrollments').insert(
+    studentIds.map((id) => ({
+      student_id: id,
+      class_id: scope.classId,
+      academic_year_id: scope.academicYearId,
+      status: 'active',
+    })),
+  )
+
+  if (!error) return {}
+
+  logger.error(error)
+  const { error: undoErr } = await supabase
+    .from('students')
+    .delete()
+    .in('id', studentIds)
+    .eq('teacher_id', scope.teacherId)
+  if (undoErr) logger.error('compensating delete failed:', undoErr)
+
+  return {
+    error:
+      error.code === '42501'
+        ? 'អ្នកមិនមានសិទ្ធិបញ្ចូលសិស្សក្នុងថ្នាក់នេះទេ។'
+        : 'មិនអាចភ្ជាប់សិស្សចូលថ្នាក់បានទេ។ គ្មានសិស្សណាត្រូវបានរក្សាទុកទេ។ សូមព្យាយាមម្តងទៀត។',
+  }
+}
+
+export async function createStudent(formData: FormData, classId?: string) {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
     return { error: 'មិនមានសិទ្ធិ (Unauthorized)' }
   }
+
+  // Same contract as deleteAllStudents: the client's active class arrives as a
+  // parameter and is validated against the caller's own assignments inside
+  // resolveServerScope. Legacy accounts resolve to legacy and are untouched.
+  const scope = await resolveServerScope(user.id, classId)
 
   // extract data
   const student_id = formData.get('studentId') as string
@@ -82,7 +134,7 @@ export async function createStudent(formData: FormData) {
     return { error: 'សូមបំពេញព័ត៌មានដែលមានសញ្ញា * ឱ្យបានគ្រប់គ្រាន់!' }
   }
 
-  const { error } = await supabase.from('students').insert({
+  const row = {
     teacher_id: user.id,
     student_id,
     grade,
@@ -116,11 +168,40 @@ export async function createStudent(formData: FormData) {
     special_features,
     other_remarks,
     photo_url
-  })
+  }
 
-  if (error) {
-    logger.error(error)
-    return { error: friendlyDbError(error, 'single') }
+  if (scope.mode === 'legacy') {
+    // Pre-V2 account: exactly the write this action always made. teacher_id
+    // is the only boundary there is; no enrolment row exists or is needed.
+    const { error } = await supabase.from('students').insert(row)
+
+    if (error) {
+      logger.error(error)
+      return { error: friendlyDbError(error, 'single') }
+    }
+  } else {
+    const { data: created, error } = await supabase
+      .from('students')
+      .insert(row)
+      .select('id')
+      .single()
+
+    if (error) {
+      logger.error(error)
+      return { error: friendlyDbError(error, 'single') }
+    }
+    if (!created) {
+      return { error: 'មានបញ្ហាក្នុងការរក្សាទុកទិន្នន័យ។ សូមព្យាយាមម្តងទៀត។' }
+    }
+
+    // Without this row the student is invisible in v2 — see enrolOrCompensate.
+    const enrol = await enrolOrCompensate(supabase, scope, [created.id])
+    if (enrol.error) return { error: enrol.error }
+
+    await auditLog({
+      action: 'enrollment.created', entityType: 'student_enrollment', entityId: created.id,
+      actorId: user.id, newValue: { class_id: scope.classId, academic_year_id: scope.academicYearId },
+    })
   }
 
   // Identity fields only. The trail records that a student was enrolled and by
@@ -135,13 +216,15 @@ export async function createStudent(formData: FormData) {
   return { success: true }
 }
 
-export async function importStudents(students: StudentImportRow[]) {
+export async function importStudents(students: StudentImportRow[], classId?: string) {
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
 
   if (authError || !user) {
     return { error: 'មិនមានសិទ្ធិបញ្ចូលទិន្នន័យទេ' }
   }
+
+  const scope = await resolveServerScope(user.id, classId)
 
   const studentsToInsert = students.map(s => {
     return {
@@ -183,14 +266,41 @@ export async function importStudents(students: StudentImportRow[]) {
     }
   })
 
-  const { error } = await supabase.from('students').insert(studentsToInsert)
+  if (scope.mode === 'legacy') {
+    // Pre-V2 account: exactly the write this action always made.
+    const { error } = await supabase.from('students').insert(studentsToInsert)
 
-  if (error) {
-    logger.error(error)
-    return { error: friendlyDbError(error, 'import') }
+    if (error) {
+      logger.error(error)
+      return { error: friendlyDbError(error, 'import') }
+    }
+  } else {
+    const { data: created, error } = await supabase
+      .from('students')
+      .insert(studentsToInsert)
+      .select('id')
+
+    if (error) {
+      logger.error(error)
+      return { error: friendlyDbError(error, 'import') }
+    }
+    if (!created || created.length === 0) {
+      return { error: 'មានបញ្ហាក្នុងការរក្សាទុកទិន្នន័យ។ គ្មានសិស្សណាត្រូវបានបញ្ចូលទេ។' }
+    }
+
+    // One batch insert for the whole import, not a round-trip per student —
+    // and all-or-nothing with the students above, via enrolOrCompensate.
+    const enrol = await enrolOrCompensate(supabase, scope, created.map((r) => r.id))
+    if (enrol.error) return { error: enrol.error }
+
+    await auditLogBatch('enrollment.created', 'student_enrollment', created.length, {
+      class_id: scope.classId, academic_year_id: scope.academicYearId,
+    }, user.id)
   }
 
-  await auditLogBatch('student.imported', 'student', studentsToInsert.length, undefined, user.id)
+  await auditLogBatch('student.imported', 'student', studentsToInsert.length, {
+    scope: scope.mode, class_id: scope.mode === 'v2' ? scope.classId : null,
+  }, user.id)
 
   revalidatePath('/student-list')
   return { success: true }
