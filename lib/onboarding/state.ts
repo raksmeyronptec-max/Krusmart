@@ -57,10 +57,18 @@ export function onboardingRedirect(actor: Actor | null): string | null {
   // A class exists and is assigned — onboarding is finished by definition.
   if (actor.hasAssignments) return null
 
-  // An organisation exists but no class does: the teacher stopped partway, or
-  // their class was removed. Resume at the class step rather than making them
-  // re-pick an organisation they already created.
-  if (actor.selfServeSchoolIds.length > 0) return '/onboarding/class'
+  // An organisation exists but no class does. The dashboard is the resume
+  // surface now (§16 of the level-first flow): it carries a create-class call
+  // to action into /onboarding/class, which loads every grade the school has.
+  // Redirecting into the wizard here would make the dashboard unreachable for
+  // exactly the person who just finished organisation setup.
+  if (actor.selfServeSchoolIds.length > 0) return null
+
+  // A member of somebody else's school — an approved join request. They hold
+  // only `teacher`, so the wizard's level/class writes would be refused by
+  // RLS; their class arrives as an admin assignment. The dashboard shows them
+  // an awaiting-assignment banner instead.
+  if (actor.memberSchoolIds.length > 0) return null
 
   // Pre-V2 account: leave it alone, offer the upgrade in the UI instead.
   if (actor.hasLegacyRoster) return null

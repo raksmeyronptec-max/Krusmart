@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { resolveAllAvailableRoles, homeRouteFor, resolveActor } from '@/lib/rbac/actor'
+import { onboardingRedirect } from '@/lib/onboarding/state'
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
@@ -26,6 +27,16 @@ export async function GET(request: Request) {
       const actor = await resolveActor()
       if (!actor) {
         return NextResponse.redirect(`${origin}/login`)
+      }
+
+      // Setup outranks workspace choice — the same rule routeAfterLogin
+      // applies to password sign-ins. Without this, a brand-new Google teacher
+      // (the level-first journey's main path) landed on /dashboard only for
+      // the (main) layout to bounce them; the callback is where §7 wants the
+      // decision made once, deterministically.
+      const setupRoute = onboardingRedirect(actor)
+      if (setupRoute) {
+        return NextResponse.redirect(`${origin}${setupRoute}`)
       }
 
       const availableRoles = await resolveAllAvailableRoles()

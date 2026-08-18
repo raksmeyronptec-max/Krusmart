@@ -5,6 +5,7 @@ import {
   CalendarCheck, UserPlus, Edit3, Send, FileBarChart, BookOpen,
 } from 'lucide-react'
 import { getDashboardData } from './queries'
+import { resolveActor } from '@/lib/rbac/actor'
 import { FeatureGrid } from './FeatureGrid'
 import { StatCard } from '@/components/ui/data/StatCard'
 import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
@@ -52,8 +53,21 @@ export default async function DashboardPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>
 }) {
-  const { stats, attention } = await getDashboardData(searchParams)
+  const [{ stats, attention }, actor] = await Promise.all([
+    getDashboardData(searchParams),
+    resolveActor(),
+  ])
   const grade = gradeFor(stats.monthAverage)
+
+  // The dashboard is the resume surface for onboarding now — a teacher with an
+  // organisation but no class lands here, not in the wizard, so the next step
+  // has to be said out loud. Two classless situations, two different truths:
+  // the self-serve creator's next move is theirs to make; the approved joiner
+  // is waiting on their school's administrator.
+  const classless = actor?.kind === 'teacher' && !actor.hasAssignments && !actor.hasLegacyRoster
+  const needsClass = classless && actor.selfServeSchoolIds.length > 0
+  const awaitingAssignment =
+    classless && !needsClass && actor.memberSchoolIds.length > 0
 
   return (
     <PageContainer>
@@ -61,6 +75,54 @@ export default async function DashboardPage({
         title="សួស្តី លោកគ្រូ/អ្នកគ្រូ"
         description={`ទិដ្ឋភាពរួមនៃថ្នាក់របស់អ្នក · ឆ្នាំសិក្សា ${stats.academicYear}`}
       />
+
+      {needsClass && (
+        <section
+          aria-label="បង្កើតថ្នាក់"
+          className="mb-5 flex flex-wrap items-center gap-4 rounded-xl border border-brand-400/50 bg-brand-100 p-4 dark:bg-brand-900/30"
+        >
+          <span
+            aria-hidden="true"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand text-brand-contrast shadow-sm"
+          >
+            <BookOpen className="h-5 w-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="font-bold text-text-heading">ស្ថាប័នរួចរាល់ — នៅសល់តែថ្នាក់</p>
+            <p className="mt-0.5 text-sm text-text-muted">
+              បង្កើតថ្នាក់របស់អ្នក (ជ្រើសរើសថ្នាក់ទី និងផ្នែក) រួចបញ្ចូលសិស្ស — បន្ទាប់មក
+              គ្រប់មុខងារនឹងដំណើរការពេញលេញ។
+            </p>
+          </div>
+          <Link
+            href="/onboarding/class"
+            className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand px-4 text-sm font-bold text-brand-contrast transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+          >
+            បង្កើតថ្នាក់ <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
+        </section>
+      )}
+
+      {awaitingAssignment && (
+        <section
+          aria-label="រង់ចាំការចាត់តាំង"
+          className="mb-5 flex items-start gap-4 rounded-xl border border-divider bg-bg-surface p-4"
+        >
+          <span
+            aria-hidden="true"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-warning/10 text-warning"
+          >
+            <Info className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
+            <p className="font-bold text-text-heading">កំពុងរង់ចាំការចាត់តាំងថ្នាក់</p>
+            <p className="mt-0.5 text-sm leading-relaxed text-text-muted">
+              អ្នកជាសមាជិកនៃស្ថាប័នរួចហើយ។ អ្នកគ្រប់គ្រងសាលានឹងចាត់តាំងថ្នាក់ជូនអ្នក —
+              បន្ទាប់ពីនោះ ទិន្នន័យថ្នាក់នឹងបង្ហាញនៅទីនេះដោយស្វ័យប្រវត្តិ។
+            </p>
+          </div>
+        </section>
+      )}
 
       {/* 1 — what is happening today */}
       <section aria-label="ស្ថិតិសង្ខេប" className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">

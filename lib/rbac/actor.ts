@@ -26,6 +26,13 @@ export interface Actor {
   hasLegacyRoster: boolean
   /** Schools this user owns *because they created them through onboarding*. */
   selfServeSchoolIds: string[]
+  /**
+   * Every school this user holds any role in — including one they merely
+   * joined. What separates an approved joiner (belongs somewhere, waits for an
+   * admin to assign a class) from a brand-new account (belongs nowhere, must
+   * be sent to onboarding). Superset of `selfServeSchoolIds`.
+   */
+  memberSchoolIds: string[]
 }
 
 /*
@@ -108,11 +115,11 @@ export async function resolveActor(): Promise<Actor | null> {
   // themselves; `roles` keeps it, because RLS does.
   const classified = classifyRoleRows((roleRes.data ?? []) as RoleRow[])
   const roles = classified.roles as RoleName[]
-  const { realAdminRoles, selfServeSchoolIds } = classified
+  const { realAdminRoles, selfServeSchoolIds, schoolIds: memberSchoolIds } = classified
 
   const hasAssignments = (assignedRes.data?.length ?? 0) > 0
   const hasLegacyRoster = (ownedRes.data?.length ?? 0) > 0
-  const base = { userId: user.id, hasAssignments, hasLegacyRoster, selfServeSchoolIds }
+  const base = { userId: user.id, hasAssignments, hasLegacyRoster, selfServeSchoolIds, memberSchoolIds }
 
   if (roles.length > 0) {
     // A self-serve owner is deliberately *not* an admin actor: they belong in
