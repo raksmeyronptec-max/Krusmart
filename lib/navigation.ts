@@ -152,6 +152,7 @@ export const NAV_SECTIONS: NavSection[] = [
         children: [
           { label: "តារាងពិន្ទុសរុប", href: "/score/total", primary: true, alias: "total score table" },
           { label: "បញ្ចូលពិន្ទុ", href: "/score/enter", alias: "enter score" },
+          { label: "មុខវិជ្ជាតាមថ្នាក់", href: "/score/subjects", alias: "subjects template class" },
           { label: "តារាងពិន្ទុ (ទម្រង់ក្រសួង)", href: "/score/print", alias: "score print moeys" },
           { label: "តារាងចំណាត់ថ្នាក់", href: "/ranking", alias: "ranking" },
           { label: "វិភាគទិន្នន័យសរុប", href: "/score-analyse", alias: "score analyse" },

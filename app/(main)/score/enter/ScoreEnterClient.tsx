@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import {
     CalendarCheck, Award, CalendarDays, Bookmark, Clock, BookOpen, FolderPlus,
     Mic, UserCheck, Book, Home, Save, Table2, Loader2, Search, Rows3, Grid3x3,
-    CopyPlus, Users, ListChecks, Gauge, Sparkles, RotateCcw, Check, X,
+    CopyPlus, Users, ListChecks, Gauge, Sparkles, RotateCcw, Check, X, SlidersHorizontal,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/actions/Button'
@@ -728,6 +728,15 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
                     <Button size="sm" variant="secondary" printHidden={false} onClick={() => setIsAddModalOpen(true)}>
                         <FolderPlus className="h-3.5 w-3.5" aria-hidden="true" /> បន្ថែមមុខវិជ្ជា
                     </Button>
+
+                    {/* The subject list itself is editable per class since the
+                        template's class layer landed; this is the way in. */}
+                    <Link
+                        href="/score/subjects"
+                        className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-divider bg-bg-surface px-3 text-xs font-bold text-text-body transition hover:border-brand-400 hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring sm:min-h-8"
+                    >
+                        <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" /> មុខវិជ្ជាតាមថ្នាក់
+                    </Link>
 
                     {scoreType === 'monthly' && (
                         <Button

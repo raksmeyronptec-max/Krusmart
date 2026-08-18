@@ -379,3 +379,137 @@ export function maxScoreByColumn(subjects: EffectiveSubject[]): Record<string, n
   }
   return out
 }
+
+/**
+ * One subject as the class-scope editor sees it: what the higher layers give,
+ * what this class has overridden, and the result.
+ *
+ * `resolveTemplate` returns only the winner, which is all the score grid needs.
+ * The editor additionally has to answer "is this the system's or mine?" and
+ * "what would I get back if I reset?", and both questions need the losing rows.
+ */
+export interface EditableSubject {
+  subjectKey: string
+  /** The winning row, exactly as the score grid would resolve it. */
+  effective: EffectiveSubject
+  /** The system/school row this class inherits, if any. */
+  inherited: ScoreTemplateSubjectRow | null
+  /** This class's own row, if it has one. */
+  override: ScoreTemplateSubjectRow | null
+  /** No higher layer defines this key — a subject this class added itself. */
+  isClassOwn: boolean
+  /** Hidden rows are excluded from the grid but must still be listed here. */
+  hidden: boolean
+}
+
+/**
+ * The editor's view of one score type's subject list.
+ *
+ * Unlike `resolveTemplate` this keeps hidden subjects — a teacher cannot unhide
+ * what the screen refuses to show them — and sorts on the same key so the order
+ * matches the picker exactly.
+ */
+export function resolveTemplateEditor(
+  rows: ScoreTemplateSubjectRow[],
+  scoreType: TemplateScoreType,
+): EditableSubject[] {
+  const byKey = new Map<string, { inherited: ScoreTemplateSubjectRow | null; override: ScoreTemplateSubjectRow | null }>()
+
+  for (const row of rows) {
+    const entry = byKey.get(row.subject_key) ?? { inherited: null, override: null }
+    if (row.scope === 'class') {
+      entry.override = row
+    } else if (
+      !entry.inherited ||
+      LAYER_PRECEDENCE[row.scope] < LAYER_PRECEDENCE[entry.inherited.scope]
+    ) {
+      entry.inherited = row
+    }
+    byKey.set(row.subject_key, entry)
+  }
+
+  const out: EditableSubject[] = []
+
+  for (const [subjectKey, { inherited, override }] of byKey) {
+    const winner = override ?? inherited
+    if (!winner) continue
+    if (!winner.score_types.includes(scoreType)) continue
+
+    out.push({
+      subjectKey,
+      effective: {
+        subjectKey,
+        labelKm: winner.label_km,
+        groupLabel: winner.group_label ?? null,
+        maxScore: Number(winner.max_score),
+        columns: winner.columns ?? [],
+        valueKind: winner.value_kind,
+        sortOrder: winner.sort_order,
+        origin: winner.scope,
+      },
+      inherited,
+      override,
+      isClassOwn: inherited === null,
+      hidden: winner.hidden,
+    })
+  }
+
+  return out.sort(
+    (a, b) =>
+      a.effective.sortOrder - b.effective.sortOrder ||
+      a.subjectKey.localeCompare(b.subjectKey),
+  )
+}
+
+/**
+ * The derived coefficient for a full mark, per design §3.2.
+ *
+ * There is no `coefficient` column and there must not be one: two editable
+ * numbers that can contradict each other is a bug waiting to happen. The
+ * national scale of 50 is what makes a subject marked out of 100 count double
+ * one marked out of 50.
+ *
+ * Nothing multiplies by this yet — the score screens use `simpleAverage`, and
+ * `weightedAverage` in `lib/grading/scheme.ts` has no callers. It is shown to
+ * the teacher as a consequence of the number they are typing, not as an input.
+ */
+export const COEFFICIENT_BASE = 50
+
+export function coefficientFor(maxScore: number): number {
+  return Math.round((maxScore / COEFFICIENT_BASE) * 100) / 100
+}
+
+/**
+ * The fields that decide whether a class row says anything its parent does not.
+ *
+ * `subject_key` is absent on purpose: it identifies the subject rather than
+ * describing it, and it is what `scores.subject` stores, so it is never part of
+ * what an override changes.
+ */
+export const OVERRIDE_FIELDS = [
+  'label_km', 'group_label', 'columns', 'max_score',
+  'value_kind', 'score_types', 'sort_order', 'hidden',
+] as const
+
+export type OverridableFields = Pick<ScoreTemplateSubjectRow, (typeof OVERRIDE_FIELDS)[number]>
+
+/**
+ * Does this override still differ from what it inherits?
+ *
+ * When it does not, the row should be deleted rather than stored. A redundant
+ * class row is not merely wasteful — it *pins* the definition, so a later change
+ * to the national default would never reach the class. Keeping inheritance live
+ * wherever a teacher has not actually diverged is the point of the layering.
+ *
+ * A subject with no parent (one the class invented) always differs: there is
+ * nothing to fall back to.
+ */
+export function overrideDiffers(
+  candidate: OverridableFields,
+  inherited: ScoreTemplateSubjectRow | null,
+): boolean {
+  if (!inherited) return true
+  return OVERRIDE_FIELDS.some(
+    (field) => JSON.stringify(candidate[field]) !== JSON.stringify(inherited[field]),
+  )
+}
