@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { resolveActor, resolveAllAvailableRoles, homeRouteFor } from '@/lib/rbac/actor'
+import { onboardingRedirect } from '@/lib/onboarding/state'
 import { type LoginRole } from '@/lib/auth/role-config'
 
 /**
@@ -20,8 +21,14 @@ async function routeAfterLogin(targetRole?: LoginRole): Promise<string> {
   const actor = await resolveActor()
   if (!actor) return '/login'
 
+  // Setup outranks workspace choice. A teacher who has not finished onboarding
+  // has exactly one place to be, and `choose-workspace` would offer them a
+  // teacher workspace that renders empty pages.
+  const setupRoute = onboardingRedirect(actor)
+  if (setupRoute) return setupRoute
+
   const availableRoles = await resolveAllAvailableRoles()
-  
+
   // Rule: If > 1 workspace exists, redirect to `/login/choose-workspace`
   if (availableRoles.length > 1) {
     return `/login/choose-workspace`

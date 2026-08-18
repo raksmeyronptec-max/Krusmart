@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { AppShell } from '@/components/shell/AppShell'
 import { resolveActor } from '@/lib/rbac/actor'
+import { onboardingRedirect } from '@/lib/onboarding/state'
 import { SchoolContextProvider } from '@/lib/context/SchoolContext'
 import { TeacherContextProvider } from '@/lib/context/TeacherContext'
 
@@ -35,6 +36,15 @@ export default async function MainLayout({
   // of a role, so legacy teacher accounts are unaffected.
   const actor = await resolveActor()
   if (actor?.kind === 'parent') redirect('/parent/dashboard')
+
+  // A teacher with no class has nothing this shell can navigate to: every
+  // sidebar entry leads to a feature that needs a roster. Send them to
+  // onboarding *before* `AppShell` mounts, rather than showing them a full
+  // navigation tree over empty pages. `onboardingRedirect` reads only fields
+  // already on `actor`, so this adds no query. It returns null for legacy
+  // accounts, which keep the app exactly as they have it today.
+  const setupRoute = onboardingRedirect(actor)
+  if (setupRoute) redirect(setupRoute)
 
   return (
     <SchoolContextProvider>

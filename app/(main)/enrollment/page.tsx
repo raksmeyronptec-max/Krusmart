@@ -67,6 +67,23 @@ export default function EnrollmentPage() {
   const [showConfirm, setShowConfirm] = useState(false)
   const [showReset, setShowReset] = useState(false)
 
+  /**
+   * `?import=1` opens the Excel importer straight away, so onboarding's
+   * "នាំចូលសិស្សពី Excel" lands on the importer rather than on the manual form
+   * with a second click still to make.
+   *
+   * Read from `window.location` rather than `useSearchParams()` on purpose:
+   * this page *is* the client component, so there is no server page above it to
+   * host the Suspense boundary that `useSearchParams` requires — the pattern
+   * `score/enter` uses. An effect needs no boundary and cannot affect how this
+   * route renders.
+   */
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("import") !== "1") return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reads the URL once on mount. The rule targets state *derived* from props/state, which cascades; this is a one-shot read of an external source that cannot arrive as a prop (see above), and the dialog stays user-closable afterwards.
+    setShowImport(true)
+  }, [])
+
   const formRef = useRef<HTMLFormElement>(null)
   /** Suppresses the unsaved-work prompt while we are deliberately navigating away. */
   const leavingRef = useRef(false)
