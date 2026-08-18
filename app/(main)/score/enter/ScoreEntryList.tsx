@@ -34,7 +34,12 @@ export interface ScoreEntryListProps {
   savedCells?: Set<string>
   /** Row number in the *unfiltered* roster, so filtering does not renumber pupils. */
   rowNumbers: Map<string, number>
-  maxScore?: number
+  /**
+   * Full mark for one column. A grid can hold columns from a dozen
+   * different subjects at once, so the maximum is per column, not per
+   * grid — see `maxScoreByColumn` in `lib/scores/template.ts`.
+   */
+  maxScoreFor?: (columnId: string) => number
 }
 
 export function ScoreEntryList({
@@ -44,7 +49,7 @@ export function ScoreEntryList({
   onChange,
   savedCells,
   rowNumbers,
-  maxScore = 10,
+  maxScoreFor = () => 10,
 }: ScoreEntryListProps) {
   const containerRef = useRef<HTMLUListElement>(null)
   const single = columns.length === 1
@@ -131,7 +136,7 @@ export function ScoreEntryList({
                           id={id}
                           type="number"
                           min={0}
-                          max={maxScore}
+                          max={maxScoreFor(col.id)}
                           step="0.25"
                           inputMode="decimal"
                           placeholder="—"

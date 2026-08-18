@@ -36,7 +36,9 @@ import {
 import { getCurrentAcademicYear } from '@/lib/constants/academic'
 import { allColumnsFor, subjectConfigs, subjectTitle } from './subjectConfigs'
 import { useScoreTemplate } from '@/lib/hooks/useScoreTemplate'
-import { columnsFor, toSubjectOptions, type SubjectColumn } from '@/lib/scores/template'
+import {
+    columnsFor, maxScoreByColumn, toSubjectOptions, type SubjectColumn,
+} from '@/lib/scores/template'
 import type { CustomSubjectScope, Score, ScoreInput, Student } from '@/lib/types'
 
 /**
@@ -198,6 +200,21 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
     const customCols = useMemo(
         () => customSubjects.filter(s => appliesTo(s, scoreType)).flatMap(s => s.columns),
         [customSubjects, scoreType],
+    )
+
+    /**
+     * Full mark per column, from the resolved template.
+     *
+     * `EffectiveSubject.maxScore` was being resolved and then thrown away: the
+     * grid received `DEFAULT_SCHEME_CONFIG.maxScore` at every call site, so a
+     * subject whose maximum a school had changed still accepted marks up to 10.
+     * The default still answers for anything the template does not define — the
+     * `subjectConfigs` fallback keys and the teacher's own custom subjects.
+     */
+    const maxScores = useMemo(() => maxScoreByColumn(templateSubjects), [templateSubjects])
+    const maxScoreFor = useCallback(
+        (columnId: string) => maxScores[columnId] ?? DEFAULT_SCHEME_CONFIG.maxScore,
+        [maxScores],
     )
 
     /** Columns the current view actually edits. */
@@ -870,7 +887,7 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
                             onChange={handleScoreChange}
                             savedCells={savedCells}
                             rowNumbers={rowNumbers}
-                            maxScore={DEFAULT_SCHEME_CONFIG.maxScore}
+                            maxScoreFor={maxScoreFor}
                         />
                     </div>
                     <div className="lg:hidden">
@@ -881,7 +898,7 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
                             onChange={handleScoreChange}
                             savedCells={savedCells}
                             rowNumbers={rowNumbers}
-                            maxScore={DEFAULT_SCHEME_CONFIG.maxScore}
+                            maxScoreFor={maxScoreFor}
                         />
                     </div>
                 </>
@@ -893,7 +910,7 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
                     onChange={handleScoreChange}
                     savedCells={savedCells}
                     rowNumbers={rowNumbers}
-                    maxScore={DEFAULT_SCHEME_CONFIG.maxScore}
+                    maxScoreFor={maxScoreFor}
                 />
             )}
 
@@ -1010,7 +1027,7 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
                                 id="bulk-score"
                                 type="number"
                                 min={0}
-                                max={DEFAULT_SCHEME_CONFIG.maxScore}
+                                max={maxScoreFor(bulkColumn)}
                                 step="0.25"
                                 inputMode="decimal"
                                 value={bulkValue}

@@ -8,7 +8,7 @@
  * in `ScoreEnterClient.tsx` to `score_template_subjects`, and nothing else was
  * supposed to change. This script proves it without a browser or a database.
  *
- * Three checks:
+ * Four checks:
  *
  *   1. The picker. `BEFORE` is the `subjectOptions` literal as it stood in
  *      commit afff30a, transcribed by hand. `AFTER` is what
@@ -26,7 +26,14 @@
  *      will actually read. Drift between them is invisible until a teacher
  *      opens the page, so the SQL is parsed and compared field by field.
  *
- * Run it after touching either of those two.
+ *   4. The maximum score. `ScoreEnterClient` used to hand the grid a literal
+ *      `DEFAULT_SCHEME_CONFIG.maxScore` at every call site; it now hands over
+ *      the per-column maximum resolved from the template. Every column of the
+ *      seeded default must still resolve to the same number, or that rewiring
+ *      changed what a teacher can type.
+ *
+ * Run it after touching the template constant, the seed, or the max-score
+ * wiring.
  *
  * Exits non-zero on any difference.
  */
@@ -34,11 +41,13 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import {
+  maxScoreByColumn,
   resolveTemplate,
   SYSTEM_PRIMARY_TEMPLATE,
   toSubjectOptions,
   type SubjectOption,
 } from '../lib/scores/template.ts'
+import { DEFAULT_SCHEME_CONFIG } from '../lib/grading/scheme.ts'
 import { subjectConfigs } from '../app/(main)/score/enter/subjectConfigs.ts'
 
 /** `subjectOptions` as it stood before the refactor, in order. */
@@ -151,6 +160,25 @@ for (const expected of SYSTEM_PRIMARY_TEMPLATE) {
   if (want !== got) fail(`${expected.subject_key}\n      - ${want}\n      + ${got}`)
 }
 if (failures === 0) console.log(`  \u2713 SQL seed matches SYSTEM_PRIMARY_TEMPLATE`)
+
+// --- 4. the maximum score ---------------------------------------------------
+// Before: every input got DEFAULT_SCHEME_CONFIG.maxScore. After: each gets its
+// own subject's. Identical for the seeded curriculum, which is the whole claim.
+console.log('\nmax score per column:')
+{
+  const before = DEFAULT_SCHEME_CONFIG.maxScore
+  let columns = 0
+
+  for (const scoreType of ['monthly', 'semester'] as const) {
+    const lookup = maxScoreByColumn(resolveTemplate(SYSTEM_PRIMARY_TEMPLATE, scoreType))
+    for (const [columnId, after] of Object.entries(lookup)) {
+      columns += 1
+      if (after !== before) fail(`${scoreType} ${columnId}\n      - ${before}\n      + ${after}`)
+    }
+  }
+
+  if (failures === 0) console.log(`  \u2713 ${columns} columns all still ${before}`)
+}
 
 // --- verdict ----------------------------------------------------------------
 if (failures > 0) {

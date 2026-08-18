@@ -1,7 +1,8 @@
 'use client'
 
 import { useRef } from 'react'
-import { Check } from 'lucide-react'
+import { Check, MoveHorizontal } from 'lucide-react'
+import { FullscreenGrid } from '@/components/ui/data/FullscreenGrid'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import { simpleAverage } from '@/lib/grading/scheme'
 import { formatMark, letterOrDash, numericCell, styleFor } from '@/lib/utils/score-band'
@@ -30,7 +31,12 @@ export interface ScoreEntryGridProps {
   onChange: (studentId: string, columnId: string, value: string) => void
   savedCells?: Set<string>
   rowNumbers: Map<string, number>
-  maxScore?: number
+  /**
+   * Full mark for one column. A grid can hold columns from a dozen
+   * different subjects at once, so the maximum is per column, not per
+   * grid — see `maxScoreByColumn` in `lib/scores/template.ts`.
+   */
+  maxScoreFor?: (columnId: string) => number
 }
 
 export function ScoreEntryGrid({
@@ -40,14 +46,28 @@ export function ScoreEntryGrid({
   onChange,
   savedCells,
   rowNumbers,
-  maxScore = 10,
+  maxScoreFor = () => 10,
 }: ScoreEntryGridProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   return (
-    <div
-      ref={scrollRef}
-      className="max-h-[68vh] overflow-auto rounded-xl border border-divider bg-bg-surface shadow-sm"
+    /* `FullscreenGrid` owns the ពេញអេក្រង់ toggle, the scroll region and its
+       accessibility contract. Ctrl+S keeps working while expanded — the save
+       shortcut is a window listener in `ScoreEnterClient` — which is why the
+       expanded hint repeats it; the sticky save bar itself sits behind the
+       overlay until the teacher exits. */
+    <FullscreenGrid
+      label="តារាងបញ្ចូលពិន្ទុ"
+      scrollRef={scrollRef}
+      hint={
+        <span className="flex min-w-0 items-center gap-1.5">
+          <MoveHorizontal className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <span className="kh-truncate">
+            អូសតារាងទៅឆ្វេង-ស្តាំ · ឈ្មោះសិស្សនៅជាប់នឹងកន្លែងដើម
+          </span>
+        </span>
+      }
+      expandedHint="Ctrl+S ដើម្បីរក្សាទុក · ESC ដើម្បីបិទពេញអេក្រង់"
     >
       <table className="w-full border-collapse text-[13px]">
         <thead>
@@ -123,7 +143,7 @@ export function ScoreEntryGrid({
                         <input
                           type="number"
                           min={0}
-                          max={maxScore}
+                          max={maxScoreFor(col.id)}
                           step="0.25"
                           inputMode="decimal"
                           placeholder="—"
@@ -159,7 +179,7 @@ export function ScoreEntryGrid({
           })}
         </tbody>
       </table>
-    </div>
+    </FullscreenGrid>
   )
 }
 

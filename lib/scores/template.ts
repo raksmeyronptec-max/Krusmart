@@ -358,3 +358,24 @@ export const SYSTEM_PRIMARY_TEMPLATE: ScoreTemplateSubjectRow[] = [
     hidden: false,
   },
 ]
+
+/**
+ * Full mark per *column id*, from the resolved subjects.
+ *
+ * The grid edits columns, not subjects: `khmer_all` renders seven of them, and
+ * in "all subjects" mode a single grid holds columns belonging to a dozen
+ * different subjects. A per-column lookup is therefore the only shape that can
+ * carry a per-subject maximum into the inputs.
+ *
+ * Deliberately keyed on `SubjectColumn.id` rather than added *to* the column:
+ * that object is stored verbatim in `score_template_subjects.columns` and its
+ * `id` is what `scores.subject` holds, so it is schema and must not grow fields
+ * that belong to the row around it.
+ */
+export function maxScoreByColumn(subjects: EffectiveSubject[]): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const subject of subjects) {
+    for (const column of subject.columns) out[column.id] = subject.maxScore
+  }
+  return out
+}
