@@ -31,7 +31,7 @@ import { getCurrentAcademicYear } from '@/lib/constants/academic'
 import { MONTHS_BY_ACADEMIC_YEAR, MONTH_LABEL_BY_ID } from '@/lib/constants/months'
 import { DEFAULT_SCHEME_CONFIG } from '@/lib/grading/scheme'
 import { scoreCellValue, scoreNumericValue } from '@/lib/utils/score-value'
-import { formatMark, letterOrDash, styleFor } from '@/lib/utils/score-band'
+import { formatMark, letterOrDash, numericCell, styleFor } from '@/lib/utils/score-band'
 import { getDriveImageUrl } from '@/lib/utils/drive-image'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import {
@@ -42,6 +42,7 @@ import { Sparkline } from './Sparkline'
 import { ScoreAnalyticsPanel } from './ScoreAnalyticsPanel'
 import { ScoreTotalCards } from './ScoreTotalCards'
 import { ScoreTotalPrint } from './ScoreTotalPrint'
+import { FullscreenGrid } from '@/components/ui/data/FullscreenGrid'
 import { exportScoreTotal } from './exportScoreTotal'
 import type { Score, ScoreInput, Settings, Student } from '@/lib/types'
 
@@ -392,8 +393,11 @@ export default function ScoreTotalClient({
         for (const col of allColumns) {
             if (col.isText) continue
             const values = rows
-                .map(r => ({ id: r.id, v: Number(r.scores[col.key]) }))
-                .filter(x => Number.isFinite(x.v))
+                // `numericCell` keeps a cleared cell ('') out of the ranking —
+                // `Number('')` is 0, which would have ranked an unmarked pupil
+                // as though they scored zero.
+                .map(r => ({ id: r.id, v: numericCell(r.scores[col.key]) }))
+                .filter((x): x is { id: string; v: number } => x.v !== null)
                 .sort((a, b) => b.v - a.v)
             const ranks = new Map<string, number>()
             let rank = 1
@@ -907,8 +911,15 @@ export default function ScoreTotalClient({
                 </div>
             ) : (
                 <>
-                    {/* Desktop / tablet: the grid, with its two pinned rails. */}
-                    <div className="hidden max-h-[70vh] overflow-auto rounded-xl border border-divider bg-bg-surface shadow-sm lg:block">
+                    {/* Desktop / tablet: the grid, with its two pinned rails.
+                        `FullscreenGrid` owns the ពេញអេក្រង់ toggle and the
+                        scroll region; the pinned rails need nothing because
+                        `position: sticky` resolves against that same container
+                        in both states. Saving stays on the toolbar button, which
+                        sits behind the overlay — edits made while expanded are
+                        kept (same DOM nodes) and save on exit. */}
+                    <div className="hidden lg:block">
+                        <FullscreenGrid label="តារាងពិន្ទុសិស្សសរុប" collapsedMaxHeight="max-h-[70vh]">
                         <table className="score-grid w-full border-collapse text-sm">
                             <thead>
                                 <tr>
@@ -928,7 +939,7 @@ export default function ScoreTotalClient({
                                             {g.name}
                                         </th>
                                     ))}
-                                    <th colSpan={resultColumns.length + 2} className="border border-brand-400 bg-gold p-1.5 text-center text-xs text-white">
+                                    <th colSpan={resultColumns.length + 2} className="border border-brand-400 bg-gold p-1.5 text-center text-xs font-bold text-brand-950">
                                         លទ្ធផលសរុប
                                     </th>
                                     <th rowSpan={2} className="st-r1 border border-brand-400 p-2 text-center text-xs text-brand-contrast" style={{ minWidth: '120px' }}>
@@ -939,18 +950,18 @@ export default function ScoreTotalClient({
                                     {columns.map((c) => (
                                         <th
                                             key={c.key}
-                                            className="min-w-[74px] border border-brand-400 bg-brand-700/90 p-1.5 text-[10px] font-normal text-white"
+                                            className="min-w-[74px] border border-brand-400 bg-brand-700/90 p-1.5 text-[11px] font-normal text-white"
                                         >
                                             {c.label}
                                         </th>
                                     ))}
                                     {resultColumns.map((c) => (
-                                        <th key={c.key} className="min-w-[76px] border border-brand-400 bg-gold p-1.5 text-[10px] font-bold text-white">
+                                        <th key={c.key} className="min-w-[76px] border border-brand-400 bg-gold p-1.5 text-[11px] font-bold text-brand-950">
                                             {c.label}
                                         </th>
                                     ))}
-                                    <th className="w-14 border border-brand-400 bg-gold p-1.5 text-[10px] font-bold text-white">និទ្ទេស</th>
-                                    <th className="w-10 border border-brand-400 bg-gold p-1.5 text-[10px] font-bold text-white">
+                                    <th className="w-14 border border-brand-400 bg-gold p-1.5 text-[11px] font-bold text-brand-950">និទ្ទេស</th>
+                                    <th className="w-10 border border-brand-400 bg-gold p-1.5 text-[11px] font-bold text-brand-950">
                                         <span className="sr-only">សកម្មភាព</span>⋮
                                     </th>
                                 </tr>
@@ -1005,8 +1016,12 @@ export default function ScoreTotalClient({
 
                                             {columns.map((col) => {
                                                 const raw = stu.scores[col.key] ?? ''
-                                                const numeric = Number(raw)
-                                                const cellStyle = col.isText || !Number.isFinite(numeric)
+                                                // `numericCell`, not `Number(raw)`: `Number('') === 0`, which is
+                                                // finite, so every not-yet-entered cell was painted as a *fail* —
+                                                // a wall of danger pills over a class that simply has no marks
+                                                // yet. score-band's own contract: missing is `none`, never `fail`.
+                                                const numeric = numericCell(raw)
+                                                const cellStyle = col.isText || numeric === null
                                                     ? styleFor(null)
                                                     : styleFor(numeric)
                                                 const rank = columnRanks.get(col.key)?.get(stu.id)
@@ -1018,7 +1033,7 @@ export default function ScoreTotalClient({
                                                     return (
                                                         <td key={col.key} className="border border-divider p-1 text-center" title={tooltip}>
                                                             <span className={`inline-block rounded-lg px-2 py-0.5 text-xs font-bold tabular-nums ${cellStyle.pill}`}>
-                                                                {raw === '' ? '—' : col.isText || !Number.isFinite(numeric) ? String(raw) : formatMark(numeric)}
+                                                                {raw === '' ? '—' : col.isText || numeric === null ? String(raw) : formatMark(numeric)}
                                                             </span>
                                                         </td>
                                                     )
@@ -1085,6 +1100,7 @@ export default function ScoreTotalClient({
                                 })}
                             </tbody>
                         </table>
+                        </FullscreenGrid>
                     </div>
 
                     {/* Phones and small tablets: one card per pupil. */}

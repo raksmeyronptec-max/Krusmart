@@ -23,7 +23,8 @@
     "react-hot-toast": "^2.6.0",
     "recharts": "^3.8.1",
     "three": "^0.184.0",
-    "xlsx-js-style": "^1.2.0"
+    "xlsx-js-style": "^1.2.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

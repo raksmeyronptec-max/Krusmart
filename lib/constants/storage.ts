@@ -24,6 +24,12 @@ export const STORAGE_KEYS = {
    * means re-reading the whole paper form.
    */
   enrollmentDraft: 'krusmart_enrollment_draft',
+  /**
+   * Unsaved `/profile` edits, held in sessionStorage (not localStorage — the
+   * draft can carry PII, so it must not outlive the tab). Restored after a
+   * session-expiry redirect so re-login never loses typed input.
+   */
+  profileDraft: 'krusmart_profile_draft',
 } as const
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS]

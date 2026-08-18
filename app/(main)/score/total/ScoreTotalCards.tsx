@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { Eye, PencilLine } from 'lucide-react'
 import { getDriveImageUrl } from '@/lib/utils/drive-image'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
-import { formatMark, letterOrDash, styleFor } from '@/lib/utils/score-band'
+import { formatMark, letterOrDash, numericCell, styleFor } from '@/lib/utils/score-band'
 import type { GridColumn, TotalledStudent } from './scoreTotalConfig'
 
 /**
@@ -76,14 +76,16 @@ export function ScoreTotalCards({ rows, columns, enterHref, rowNumbers }: ScoreT
             {marks.length > 0 && (
               <ul className="mt-2.5 flex flex-wrap gap-1.5 border-t border-divider pt-2.5">
                 {marks.map((m) => {
-                  const numeric = Number(m.value)
-                  const cell = Number.isFinite(numeric) ? styleFor(numeric) : styleFor(null)
+                  // `numericCell`: `Number('')` is 0, which painted an unmarked
+                  // chip as a fail on the phone cards too.
+                  const numeric = numericCell(m.value)
+                  const cell = numeric !== null ? styleFor(numeric) : styleFor(null)
                   return (
                     <li
                       key={m.label}
                       className={`rounded-lg px-2 py-0.5 text-[11px] font-bold ${cell.pill}`}
                     >
-                      {m.label}: {Number.isFinite(numeric) ? formatMark(numeric) : String(m.value)}
+                      {m.label}: {numeric !== null ? formatMark(numeric) : String(m.value)}
                     </li>
                   )
                 })}

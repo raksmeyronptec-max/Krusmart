@@ -247,6 +247,71 @@ export interface Settings {
 
   academic_year?: string | null
   photo_url?: string | null
+  /** Teacher's handwritten signature as a data URL, printed in report signature blocks. */
+  teacher_signature?: string | null
+  /** Director's stamp/seal as a data URL, printed beside the director's name. */
+  director_seal?: string | null
+  created_at?: string
+  updated_at?: string
+}
+
+/** One row of the children repeater inside `teacher_profiles.children`. */
+export interface TeacherChild {
+  name: string
+  gender: string
+  dob: string
+}
+
+/**
+ * `teacher_profiles` row (migration 00020) — the extended teacher record.
+ * Sensitive PII lives here rather than on `settings` because `settings` is
+ * parent-readable (00010's `settings_select_own_or_parent`); this table has
+ * an owner-only policy.
+ */
+export interface TeacherProfile {
+  teacher_id?: string
+  date_of_birth?: string | null
+  nationality?: string | null
+  ethnicity?: string | null
+  disability_type?: string | null
+  id_card_type?: string | null
+  id_card_number?: string | null
+  id_card_expiry?: string | null
+  specialized_subjects?: string[] | null
+  grade_levels?: string | null
+  teacher_code?: string | null
+  service_start_date?: string | null
+  teaching_type?: string | null
+  shift?: string | null
+  teacher_status?: string | null
+  appointment_start_date?: string | null
+  appointment_end_date?: string | null
+  civil_servant_id?: string | null
+  rank_position?: string | null
+  function_role?: string | null
+  work_type?: string | null
+  framework_category?: string | null
+  rank_class?: string | null
+  rank_step?: string | null
+  rank_type?: string | null
+  appointment_decree_number?: string | null
+  appointment_decree_date?: string | null
+  salary_rank?: string | null
+  diploma?: string | null
+  marital_status?: string | null
+  spouse_name?: string | null
+  spouse_occupation?: string | null
+  spouse_phone?: string | null
+  children_count?: number | null
+  children?: TeacherChild[] | null
+  res_province?: string | null
+  res_district?: string | null
+  res_commune?: string | null
+  res_village?: string | null
+  birth_province?: string | null
+  birth_district?: string | null
+  birth_commune?: string | null
+  birth_village?: string | null
   created_at?: string
   updated_at?: string
 }

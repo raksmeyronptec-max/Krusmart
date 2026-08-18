@@ -15,11 +15,20 @@ export default async function ProfilePage() {
   // `maybeSingle`, not `single`: a teacher who has never opened this page has no
   // `settings` row at all, and `single()` treats that as PGRST116 — an error
   // object plus null data — rather than as the ordinary empty case it is.
-  const { data: settings } = await supabase
-    .from('settings')
-    .select('*')
-    .eq('teacher_id', user.id)
-    .maybeSingle()
+  // The same lifecycle applies to `teacher_profiles` (00020). Both rows null
+  // is what sends ProfileClient into its first-time setup flow.
+  const [{ data: settings }, { data: profile }] = await Promise.all([
+    supabase.from('settings').select('*').eq('teacher_id', user.id).maybeSingle(),
+    supabase.from('teacher_profiles').select('*').eq('teacher_id', user.id).maybeSingle(),
+  ])
 
-  return <ProfileClient initialSettings={settings ?? null} />
+  return (
+    <ProfileClient
+      initialSettings={settings ?? null}
+      initialProfile={profile ?? null}
+      userId={user.id}
+      email={user.email ?? ''}
+      emailVerified={Boolean(user.email_confirmed_at)}
+    />
+  )
 }

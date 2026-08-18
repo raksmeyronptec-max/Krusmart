@@ -2,6 +2,7 @@
 
 import { useRef } from 'react'
 import { Ban, MoveHorizontal } from 'lucide-react'
+import { FullscreenGrid } from '@/components/ui/data/FullscreenGrid'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import { khmerWeekday } from '@/lib/constants/weekdays'
 import { cellAttrs, handleCellKeyDown } from '../../score/enter/cellNav'
@@ -60,19 +61,23 @@ export function HomeworkMonthlyGrid({
     <>
       {/* ------------------------------------------------------------- grid */}
       <div className="hidden lg:block">
-        <p className="mb-2 flex items-center gap-1.5 text-[11px] font-bold text-text-muted">
-          <MoveHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
-          អូសតារាងទៅឆ្វេង-ស្តាំដើម្បីមើលថ្ងៃទាំង {toKhmerNumber(days.length)} ថ្ងៃ · ឈ្មោះសិស្សនៅជាប់នឹងកន្លែងដើម
-        </p>
-
-        <div
-          ref={scrollRef}
-          // Focusable so a keyboard-only user can scroll the region; without
-          // tabindex a scroll container with no focusable child is unreachable.
-          tabIndex={0}
-          role="region"
-          aria-label="តារាងពិន្ទុកិច្ចការផ្ទះប្រចាំខែ"
-          className="max-h-[64vh] overflow-auto rounded-xl border border-divider bg-bg-surface shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+        {/* `FullscreenGrid` owns the ពេញអេក្រង់ toggle, the scroll region and
+            its accessibility contract; Ctrl+S keeps working while expanded
+            because the save shortcut is a window listener in
+            `HomeworkEnterClient`, which is why the expanded hint repeats it. */}
+        <FullscreenGrid
+          label="តារាងពិន្ទុកិច្ចការផ្ទះប្រចាំខែ"
+          collapsedMaxHeight="max-h-[64vh]"
+          scrollRef={scrollRef}
+          hint={
+            <span className="flex min-w-0 items-center gap-1.5">
+              <MoveHorizontal className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <span className="kh-truncate">
+                អូសតារាងទៅឆ្វេង-ស្តាំដើម្បីមើលថ្ងៃទាំង {toKhmerNumber(days.length)} ថ្ងៃ · ឈ្មោះសិស្សនៅជាប់នឹងកន្លែងដើម
+              </span>
+            </span>
+          }
+          expandedHint={`ថ្ងៃទាំង ${toKhmerNumber(days.length)} ថ្ងៃ · Ctrl+S ដើម្បីរក្សាទុក · ESC ដើម្បីបិទពេញអេក្រង់`}
         >
           <table className="w-full border-collapse text-[13px]">
             <caption className="sr-only">
@@ -198,7 +203,7 @@ export function HomeworkMonthlyGrid({
               })}
             </tbody>
           </table>
-        </div>
+        </FullscreenGrid>
       </div>
 
       {/* -------------------------------------------------- phone / tablet */}
