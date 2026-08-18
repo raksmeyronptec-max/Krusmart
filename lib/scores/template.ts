@@ -19,7 +19,11 @@
  * `next/headers` in here breaks the build.
  */
 
-import { NATIONAL_COEFFICIENT_UNIT } from '@/lib/grading/scheme'
+// Relative and extension-qualified on purpose: the verify scripts under
+// `scripts/` run this module with plain `node`, which strips types but neither
+// rewrites the `@/` alias nor resolves extensionless specifiers — either form
+// would crash them at load time. `allowImportingTsExtensions` covers tsc.
+import { NATIONAL_COEFFICIENT_UNIT } from '../grading/scheme.ts'
 import type { ScoreTemplateSubjectRow } from '@/lib/types'
 
 /** Which `scores.score_type` a subject appears under. */
