@@ -82,6 +82,8 @@ export function isBrandNewTeacher(actor: Actor | null): boolean {
     actor?.kind === 'teacher' &&
     !actor.hasAssignments &&
     !actor.hasLegacyRoster &&
+    // Membership of any kind — created or joined — means not brand-new.
+    actor.memberSchoolIds.length === 0 &&
     actor.selfServeSchoolIds.length === 0
   )
 }
