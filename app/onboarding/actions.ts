@@ -270,3 +270,96 @@ export async function createClassAndAssign(input: {
 
   redirect(`/onboarding/students?class=${cls.id}`)
 }
+
+// ── Joining an existing organisation (migration 00022) ──────────────────────
+
+/** A school as `search_organisations()` projects it — safe public fields only. */
+export interface OrganisationSearchResult {
+  id: string
+  name: string
+  address: string | null
+  kind: string | null
+  /** Education-level names the school teaches, in ladder order. */
+  levels: string[]
+}
+
+/**
+ * Find schools to join. Goes through the SECURITY DEFINER search RPC because
+ * `schools_select_member` hides exactly the school a joiner needs to see —
+ * see 00022's header for why the policy itself must not widen.
+ */
+export async function searchOrganisations(query: string): Promise<OrganisationSearchResult[]> {
+  const trimmed = query.trim()
+  if (trimmed.length < 2) return []
+
+  const { supabase } = await requireTeacher()
+  const { data, error } = await supabase.rpc('search_organisations', { p_query: trimmed })
+
+  if (error) {
+    logger.error('search_organisations:', error)
+    return []
+  }
+  return (data ?? []) as OrganisationSearchResult[]
+}
+
+/**
+ * Ask to join a school. Creates a `join_requests` row and nothing else —
+ * membership arrives only when that school's administrator approves, so this
+ * grants no access to any data.
+ */
+export async function requestToJoin(schoolId: string, message?: string): Promise<ActionResult> {
+  const { supabase, user } = await requireTeacher()
+  if (!schoolId) return { error: 'សូមជ្រើសរើសស្ថាប័ន' }
+
+  const { data, error } = await supabase
+    .from('join_requests')
+    .insert({
+      school_id: schoolId,
+      user_id: user.id,
+      message: message?.trim() || null,
+    })
+    .select('id')
+    .single()
+
+  if (error) {
+    // The partial unique index: one open request per school per teacher.
+    if (error.code === '23505') return { error: 'អ្នកបានស្នើសុំចូលរួមស្ថាប័ននេះរួចហើយ។ សូមរង់ចាំការអនុម័ត។' }
+    return { error: friendlyError(error) }
+  }
+
+  await auditLog({
+    action: 'join_request.created',
+    entityType: 'join_request',
+    entityId: data.id,
+    metadata: { school_id: schoolId },
+    schoolId,
+    actorId: user.id,
+  })
+
+  redirect('/onboarding/organisation')
+}
+
+/** Withdraw an open request. RLS limits the delete to the caller's own pending rows. */
+export async function cancelJoinRequest(requestId: string): Promise<ActionResult> {
+  const { supabase, user } = await requireTeacher()
+
+  const { data, error } = await supabase
+    .from('join_requests')
+    .delete()
+    .eq('id', requestId)
+    .eq('user_id', user.id)
+    .eq('status', 'pending')
+    .select('id')
+
+  if (error) return { error: friendlyError(error) }
+  if ((data?.length ?? 0) === 0) return { error: 'រកមិនឃើញសំណើនេះទេ' }
+
+  await auditLog({
+    action: 'join_request.cancelled',
+    entityType: 'join_request',
+    entityId: requestId,
+    actorId: user.id,
+  })
+
+  redirect('/onboarding/organisation')
+}

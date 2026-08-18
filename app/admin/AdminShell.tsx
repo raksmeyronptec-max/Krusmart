@@ -26,6 +26,7 @@ const adminNavItems = [
   { name: "មុខវិជ្ជា", path: "/admin/subjects", icon: BookOpenCheck },
   { name: "និទ្ទេស និងវាយតម្លៃ", path: "/admin/grading", icon: FileBarChart },
   { name: "ឆ្នាំសិក្សា", path: "/admin/academic-years", icon: FileBarChart },
+  { name: "សំណើចូលរួម", path: "/admin/join-requests", icon: Users },
   { name: "កំណត់ហេតុសវនកម្ម", path: "/admin/audit-logs", icon: BellRing },
   { name: "ការកំណត់សាលា", path: "/admin/settings", icon: GraduationCap },
 ]

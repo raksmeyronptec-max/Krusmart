@@ -6,6 +6,7 @@ import { requirePermission } from '@/lib/rbac/server'
 import { auditLog } from '@/lib/audit/log'
 import { logger } from '@/lib/utils/logger'
 import { getErrorMessageOr } from '@/lib/utils/errors'
+import { khmerRpcError } from '@/lib/utils/rpc-errors'
 import type { ActionResult } from '@/lib/types'
 
 /**
@@ -375,4 +376,49 @@ export async function createAssessment(formData: FormData): Promise<ActionResult
   } catch (error) {
     return { error: getErrorMessageOr(error, 'មានបញ្ហាក្នុងការបង្កើតការវាយតម្លៃ') }
   }
+}
+
+// ── Join requests (migration 00022) ─────────────────────────────────────────
+
+/**
+ * Decide a join request. Both decisions go through the SECURITY DEFINER RPCs,
+ * which re-verify `is_school_admin` on the *request's* school themselves —
+ * approval writes `user_roles`, which no ordinary policy lets a caller do for
+ * someone else, and that is exactly the point: membership is a decision, not
+ * a self-service write.
+ */
+async function decideJoinRequest(
+  requestId: string,
+  decision: 'approve' | 'reject',
+): Promise<ActionResult> {
+  try {
+    await requirePermission('teachers:update')
+    const supabase = await createClient()
+
+    const { error } = await supabase.rpc(
+      decision === 'approve' ? 'approve_join_request' : 'reject_join_request',
+      { p_request: requestId },
+    )
+    if (error) return { error: khmerRpcError(error, 'មិនអាចសម្រេចលើសំណើនេះបានទេ') }
+
+    await auditLog({
+      action: decision === 'approve' ? 'join_request.approved' : 'join_request.rejected',
+      entityType: 'join_request',
+      entityId: requestId,
+    })
+
+    revalidatePath('/admin/join-requests')
+    return { success: true }
+  } catch (e) {
+    logger.error(e)
+    return { error: getErrorMessageOr(e, 'មិនអាចសម្រេចលើសំណើនេះបានទេ') }
+  }
+}
+
+export async function approveJoinRequest(formData: FormData): Promise<ActionResult> {
+  return decideJoinRequest(String(formData.get('request_id') ?? ''), 'approve')
+}
+
+export async function rejectJoinRequest(formData: FormData): Promise<ActionResult> {
+  return decideJoinRequest(String(formData.get('request_id') ?? ''), 'reject')
 }
