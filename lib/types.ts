@@ -504,6 +504,13 @@ export interface TeacherAssignment {
   subject_id?: string | null
   academic_year_id: string
   is_homeroom: boolean
+  /**
+   * Score-template subject this assignment covers (00024), e.g. `hs_physics`.
+   * NULL means homeroom — the teacher covers the whole class. Distinct from
+   * `subject_id`, which points at the admin console's `subjects` catalogue and
+   * is not what the score system identifies subjects by.
+   */
+  subject_key?: string | null
   status: string
   created_at?: string
 }

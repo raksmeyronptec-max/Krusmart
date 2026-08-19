@@ -137,7 +137,10 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
     // from `score_template_subjects` (migration 00016). Falls back to the
     // seeded national default while the class context resolves, so the picker
     // is never momentarily empty.
-    const { subjects: templateSubjects, context, scheme } = useScoreTemplate(scoreType)
+    // `mySubjects` — a subject teacher may only enter their own subjects. The
+    // full template (`subjects`) is what aggregation weighs and is deliberately
+    // not what this picker offers.
+    const { mySubjects: templateSubjects, role, context, scheme } = useScoreTemplate(scoreType)
 
     const scorePeriod = scoreType === 'monthly' ? `${month}-${academicYear}` : `${semester}-${academicYear}`
 
@@ -629,11 +632,23 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
                         <p className="mt-1 text-sm text-text-muted">
                             បញ្ចូលពិន្ទុសម្រាប់មុខវិជ្ជា និងខែដែលបានជ្រើសរើស
                         </p>
-                        {levelContextLabel && (
-                            <p className="mt-2 inline-flex items-center rounded-full bg-brand-100 px-3 py-1 text-xs font-bold text-brand-800 dark:bg-brand-900/40 dark:text-brand-300">
-                                {levelContextLabel}
-                            </p>
-                        )}
+                        <span className="mt-2 flex flex-wrap items-center gap-2">
+                            {levelContextLabel && (
+                                <span className="inline-flex items-center rounded-full bg-brand-100 px-3 py-1 text-xs font-bold text-brand-800 dark:bg-brand-900/40 dark:text-brand-300">
+                                    {levelContextLabel}
+                                </span>
+                            )}
+                            {/*
+                              A subject teacher sees only their own subjects, so
+                              say why — otherwise a missing subject reads as a
+                              bug rather than as somebody else's responsibility.
+                            */}
+                            {!role.coversWholeClass && (
+                                <span className="inline-flex items-center rounded-full bg-paper px-3 py-1 text-xs font-bold text-text-muted">
+                                    គ្រូមុខវិជ្ជា · បង្ហាញតែមុខវិជ្ជារបស់អ្នក
+                                </span>
+                            )}
+                        </span>
                     </div>
                     <Link
                         href="/score/total"

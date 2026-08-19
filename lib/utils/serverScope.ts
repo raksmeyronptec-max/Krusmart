@@ -463,3 +463,69 @@ export async function resolveStudentGradingContext(
   const { rows, context } = await fetchScoreTemplate(scope)
   return buildGradingContext(rows, context, scoreType)
 }
+
+/**
+ * What a teacher is to a class: the whole class, or named subjects within it.
+ *
+ * Derived from `teacher_assignments` alone — never from the education level, a
+ * flag, or a route. A primary teacher holds one homeroom row and covers
+ * everything; a secondary subject teacher holds one row per subject they teach
+ * and covers only those. Both models are the same data shape, which is why the
+ * primary path needs no special case.
+ */
+export interface ClassTeachingRole {
+  /** A homeroom (`subject_key IS NULL`) assignment exists for this class. */
+  isHomeroom: boolean
+  /** Template subject keys this teacher is assigned to in this class. */
+  subjectKeys: string[]
+  /**
+   * True when the teacher may enter marks for the whole effective template:
+   * a homeroom teacher, or a legacy/primary account with no subject rows at
+   * all. False only when they hold subject assignments and no homeroom one —
+   * the secondary subject teacher.
+   */
+  coversWholeClass: boolean
+}
+
+/**
+ * Resolve the caller's teaching role for one class.
+ *
+ * Legacy accounts (no assignments at all) come back as whole-class, so nothing
+ * about their experience changes: the scope resolver already puts them on the
+ * `teacher_id` path and the picker already offers them the full template.
+ */
+export async function resolveClassTeachingRole(
+  userId: string,
+  classId: string | null,
+): Promise<ClassTeachingRole> {
+  const wholeClass: ClassTeachingRole = { isHomeroom: false, subjectKeys: [], coversWholeClass: true }
+  if (!classId) return wholeClass
+
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('teacher_assignments')
+    .select('is_homeroom, subject_key')
+    .eq('teacher_id', userId)
+    .eq('class_id', classId)
+    .eq('status', 'active')
+
+  // A failed read must not silently narrow what a teacher can enter; the
+  // database still refuses writes they may not make.
+  if (error) {
+    logger.error('resolveClassTeachingRole:', error)
+    return wholeClass
+  }
+
+  const rows = data ?? []
+  const isHomeroom = rows.some((r) => r.is_homeroom === true || r.subject_key == null)
+  const subjectKeys = rows
+    .map((r) => r.subject_key as string | null)
+    .filter((k): k is string => typeof k === 'string' && k.length > 0)
+
+  return {
+    isHomeroom,
+    subjectKeys,
+    // No subject rows means nothing to narrow to — the primary and legacy case.
+    coversWholeClass: isHomeroom || subjectKeys.length === 0,
+  }
+}
