@@ -134,6 +134,12 @@ The wizard state is **derived from `Actor`, never stored** — same principle as
 | `00017_teacher_owned_organisation.sql` | `create_teacher_organisation()` RPC backing `/onboarding` (see the onboarding section). |
 | `00018_backfill_teacher_enrolments.sql` | `backfill_teacher_enrolments()` — idempotently enrols the caller's `students.teacher_id` roster into their active homeroom class. Called by onboarding the moment the assignment flips the account to v2 scope, and by the recovery banner on `/student-list`. |
 | `00019_backfill_never_enrolled_only.sql` | Redefines 00018's function to enrol only students with **no enrolment row at all**, matching `countRecoverableLegacyStudents` exactly — 00018's year-scoped guard silently promoted a previous year's roster into a new class. Students with any enrolment history move only through the explicit promote/transfer/withdraw workflows. |
+| `00020_teacher_profile_extended.sql` | `teacher_profiles` + two `settings` columns (signature / seal images). |
+| `00021_score_template_levels.sql` | `level_key` / `grade_number` / `track` on `score_template_subjects`, `track` on `classes`, and the verified Grade-12 seeds (both streams). |
+| `00022_organisation_join_requests.sql` | `join_requests` + `search_organisations()` / `approve_join_request()` / `reject_join_request()` / `my_join_requests()`. |
+| `00023_secondary_grading_schemes.sql` | Corrects the two secondary levels' stored default schemes to /50 coefficient. Display truth only — no calculation reads these rows. |
+| `00024_assignment_subject_key.sql` | `teacher_assignments.subject_key` — the assignment names the subject by the score system's own identity. Header records why no `subjects` rows were minted. |
+| `00025_homeroom_uniqueness_subject_key.sql` | Re-keys homeroom uniqueness on *both* NULLs — without it a `subject_key` assignment collides with the teacher's homeroom row, and a second subject in one class is impossible. |
 
 `supabase/legacy/` holds superseded partial snapshots — **do not apply them**. `supabase/README.md` still describes the pre-V2 world in places (it claims the scores conflict key omits `teacher_id`, and that there is no classes table); the migrations and this file are the newer account. Verify against the live project before relying on any of it.
 
@@ -155,6 +161,15 @@ The `homework_scores` table defined in SQL is unused by the app.
 ### Score templates: the subject list is data, not code
 
 The score grid's subject picker used to be a literal array (the Cambodian *primary* curriculum, compiled in). It now resolves from `score_template_subjects` (migration 00016) in three layers — `system` (national default, seeded, read-only), `school` (admin amendments), `class` (assigned-teacher amendments) — where the lowest layer present wins per `subject_key`. The merge lives in [lib/scores/template.ts](lib/scores/template.ts) (pure, no server-only imports — a client hook consumes it) with [lib/hooks/useScoreTemplate.ts](lib/hooks/useScoreTemplate.ts) on the browser side. This changes only which columns the UI *offers*: `scores.subject` stays a TEXT key, `scores_owner_period_uniq` is untouched, and every already-entered mark keeps resolving. `SubjectColumn.id` is what `scores.subject` stores — it is schema, never rename one.
+
+### Subject identity: `subject_key` is the only one
+
+The same concept used to be named two ways: `subject_key` TEXT (score templates, `scores.subject`, `/score/collect`) and `subject_id` UUID → `public.subjects` (admin console, `class_subjects`). They never reconciled — the catalogue holds per-*column* codes (`math_num`), the template per-*subject* keys (`math_general`), and `kh_read` exists as both — and `public.subjects` is empty for every self-serve school. Converged on `subject_key`:
+
+- **Assignments carry `subject_key`** (00024/00025). Both writers — the admin console's `assignTeacher` and `/score/collect`'s `assignSubjectTeacher` — validate the key against the class's *resolved* template, and both pickers label subjects through `assignableSubjects()` in [lib/scores/template.ts](lib/scores/template.ts), so the two surfaces cannot name a subject differently. Do not add a third subject picker that reads `public.subjects`.
+- **`teacher_assignments.subject_id` is legacy**: still selected (reads tolerate it), never written. Nothing ever wrote a non-NULL value outside the old admin form, and the app was never deployed, so no rows need migrating; a hypothetical old row (`subject_key` NULL) resolves as whole-class — exactly its pre-00024 meaning. Do not backfill `subject_key` from `subjects.code` — the mapping is ambiguous by construction.
+- **`public.subjects` / `class_subjects` remain** as the admin catalogue (`/admin/subjects`) and 00004's backfill target; neither is load-bearing for grading or assignment.
+- **The `assessments` feature was removed, not migrated.** The table (00003) and `scores.assessment_id` exist, but nothing ever wrote a score against an assessment and no report read one; for self-serve schools the creation form's `class_subjects` picker was empty, so it could not even be used. The admin UI, action and queries are gone; the tables stay untouched. If assessment-style grading is ever built, key it on `subject_key`, not `class_subject_id`.
 
 ### localStorage
 

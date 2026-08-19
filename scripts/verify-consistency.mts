@@ -26,6 +26,8 @@ import {
   studentAverage,
 } from '../lib/scores/aggregate.ts'
 import {
+  assignableSubjects,
+  filterRowsForContext,
   maxScoreByColumn,
   resolveTemplate,
   SYSTEM_PRIMARY_TEMPLATE,
@@ -307,6 +309,63 @@ console.log('\nrank walk:')
   check('ties share a rank and the next rank skips',
     byId.b === 1 && byId.a === 2 && byId.c === 2 && byId.d === 4,
     JSON.stringify(byId))
+}
+
+// --- subject identity: the assignment picker vs /score/collect ------------------
+//
+// The admin console's assignment picker and /score/collect both derive their
+// subject list from assignableSubjects / resolveTemplate over the same rows.
+// These checks pin that: every subject either surface shows carries the same
+// label on the other, in every curriculum context — which is the user-visible
+// acceptance test for the identity convergence ("one subject name everywhere").
+console.log('\nassignment picker vs /score/collect labels:')
+const CONTEXTS: [string, TemplateContext | null][] = [
+  ['primary (context null)', null],
+  ['grade 12 science', { levelKey: 'upper_secondary', gradeNumber: 12, track: 'science' }],
+  ['grade 12 social', { levelKey: 'upper_secondary', gradeNumber: 12, track: 'social_science' }],
+]
+for (const [name, context] of CONTEXTS) {
+  const picker = assignableSubjects(allRows, context)
+  const byKey = new Map(picker.map((o) => [o.subjectKey, o.labelKm]))
+  // /score/collect's list, built exactly as getCollectionOverview builds it.
+  const source = filterRowsForContext(allRows, context)
+  for (const scoreType of ['monthly', 'semester'] as const) {
+    const collect = resolveTemplate(source, scoreType, context)
+    const missing = collect.filter((c) => byKey.get(c.subjectKey) !== c.labelKm)
+    check(`${name} / ${scoreType}: every collect subject is offered under the same label (${collect.length})`,
+      collect.length > 0 && missing.length === 0,
+      missing.map((m) => `${m.subjectKey}: collect="${m.labelKm}" picker="${byKey.get(m.subjectKey) ?? '(absent)'}"`).join('; '))
+  }
+}
+
+// Grade-12 science must offer that track's six subjects and nothing else — not
+// the primary list, not the other stream's. A picker offering a subject the
+// class does not teach is how a teacher gets assigned to an empty column.
+{
+  const sci = assignableSubjects(allRows, CONTEXTS[1][1])
+  const keys = sci.map((o) => o.subjectKey).sort()
+  const expected = seeds.filter((r) => r.track === 'science').map((r) => r.subject_key).sort()
+  check(`grade 12 science picker ≡ the six seeded science subjects`,
+    JSON.stringify(keys) === JSON.stringify(expected),
+    `got ${JSON.stringify(keys)}`)
+  check('grade 12 science picker offers no primary subject',
+    !keys.some((k) => SYSTEM_PRIMARY_TEMPLATE.some((r) => r.subject_key === k)))
+}
+
+// Primary is the union of the monthly and semester pickers, unchanged — the
+// convergence must not alter what a primary or legacy account is offered.
+{
+  const primary = assignableSubjects(allRows, null)
+  const union = new Set<string>()
+  for (const t of ['monthly', 'semester'] as const)
+    for (const sub of resolveTemplate(SYSTEM_PRIMARY_TEMPLATE, t, null)) union.add(sub.subjectKey)
+  check(`primary picker ≡ monthly ∪ semester of the shipped template (${union.size})`,
+    primary.length === union.size && primary.every((o) => union.has(o.subjectKey)))
+  // And with NO rows at all (a database missing 00016), the fallback inside
+  // assignableSubjects must produce the identical list.
+  const fallback = assignableSubjects([], null)
+  check('empty-rows fallback ≡ the same primary list',
+    JSON.stringify(fallback) === JSON.stringify(primary))
 }
 
 if (failures > 0) {

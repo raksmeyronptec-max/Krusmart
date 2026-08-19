@@ -7,6 +7,8 @@ import { auditLog } from '@/lib/audit/log'
 import { logger } from '@/lib/utils/logger'
 import { getErrorMessageOr } from '@/lib/utils/errors'
 import { khmerRpcError } from '@/lib/utils/rpc-errors'
+import { fetchTemplateRowsByIds, resolveClassTemplateContext } from '@/lib/utils/serverScope'
+import { assignableSubjects } from '@/lib/scores/template'
 import type { ActionResult } from '@/lib/types'
 
 /**
@@ -222,11 +224,19 @@ export async function assignTeacher(formData: FormData): Promise<ActionResult> {
 
     const teacherId = String(formData.get('teacher_id') ?? '').trim()
     const classId = String(formData.get('class_id') ?? '').trim()
-    const subjectId = String(formData.get('subject_id') ?? '').trim() || null
+    // `subject_key` is the score system's identity (what `scores.subject` and
+    // `/score/collect` use). `subject_id` — the old `public.subjects` UUID —
+    // is no longer written: the catalogue it points into is empty for
+    // self-serve schools and its names never reconciled with template keys.
+    const subjectKey = String(formData.get('subject_key') ?? '').trim() || null
     const isHomeroom = formData.get('is_homeroom') === 'on'
 
     if (!teacherId) return { error: 'សូមជ្រើសរើសគ្រូបង្រៀន' }
     if (!classId) return { error: 'សូមជ្រើសរើសថ្នាក់' }
+    // No subject and no homeroom flag is still a valid row: a whole-class
+    // co-teacher. `resolveClassTeachingRole` treats it as covering the class,
+    // and the 00006/00007 read policies key off any active assignment — the
+    // old form allowed it, so refusing it here would narrow admin capability.
 
     const supabase = await createClient()
 
@@ -244,12 +254,28 @@ export async function assignTeacher(formData: FormData): Promise<ActionResult> {
       return { error: 'ថ្នាក់នេះមិនស្ថិតក្នុងសាលារបស់អ្នកទេ' }
     }
 
+    // Validate the key against the class's resolved template — the same
+    // resolver `/score/collect` uses, and the only thing that knows which
+    // template rows (level, grade, track) apply to this class. A key the class
+    // does not teach must be refused here: an assignment to a subject that
+    // never appears on a report is worse than no assignment.
+    if (subjectKey) {
+      const [rows, context] = await Promise.all([
+        fetchTemplateRowsByIds(ctx.activeSchoolId, classId),
+        resolveClassTemplateContext(classId),
+      ])
+      const known = assignableSubjects(rows, context)
+      if (!known.some((k) => k.subjectKey === subjectKey)) {
+        return { error: 'មុខវិជ្ជានេះមិនមានក្នុងកម្មវិធីសិក្សារបស់ថ្នាក់នេះទេ' }
+      }
+    }
+
     const { data, error } = await supabase
       .from('teacher_assignments')
       .insert({
         teacher_id: teacherId,
         class_id: classId,
-        subject_id: subjectId,
+        subject_key: subjectKey,
         academic_year_id: cls.academic_year_id,
         is_homeroom: isHomeroom,
         status: 'active',
@@ -266,7 +292,7 @@ export async function assignTeacher(formData: FormData): Promise<ActionResult> {
     await auditLog({
       action: 'teacher_assignment.created', entityType: 'teacher_assignment', entityId: data.id,
       schoolId: ctx.activeSchoolId,
-      newValue: { teacher_id: teacherId, class_id: classId, subject_id: subjectId, is_homeroom: isHomeroom },
+      newValue: { teacher_id: teacherId, class_id: classId, subject_key: subjectKey, is_homeroom: isHomeroom },
     })
 
     revalidatePath('/admin/teachers')
@@ -300,81 +326,49 @@ export async function removeAssignment(assignmentId: string): Promise<ActionResu
   }
 }
 
-// -----------------------------------------------------------------------------
-// Assessments
-// -----------------------------------------------------------------------------
-
 /**
- * Create an assessment against a class+subject.
+ * The subjects a teacher can be assigned to in one class, as picker options.
  *
- * Assessments are the V2 path. They coexist with the legacy `score_type` /
- * `score_period` discrimination rather than replacing it: nothing here touches
- * the monthly, semester, annual or homework rows the app already writes.
+ * Feeds the admin assignment form's dependent subject picker: the options are
+ * the class's *resolved* template (level, grade, track — the same list
+ * `/score/collect` shows), not the `public.subjects` catalogue, whose
+ * free-typed names never matched a template key and which is empty for every
+ * self-serve school.
  */
-export async function createAssessment(formData: FormData): Promise<ActionResult> {
+export async function listAssignableSubjects(
+  classId: string,
+): Promise<{ options: { value: string; label: string }[] } | { error: string }> {
   try {
-    const ctx = await requirePermission('assessments:create')
+    const ctx = await requirePermission('teachers:update')
     if (!ctx.activeSchoolId) return { error: 'គណនីរបស់អ្នកមិនទាន់បានភ្ជាប់ជាមួយសាលាទេ' }
+    if (!classId.trim()) return { options: [] }
 
-    const name = String(formData.get('name') ?? '').trim()
-    const classSubjectId = String(formData.get('class_subject_id') ?? '').trim()
-    const type = String(formData.get('type') ?? '').trim()
-
-    if (!name) return { error: 'សូមបញ្ចូលឈ្មោះការវាយតម្លៃ' }
-    if (!classSubjectId) return { error: 'សូមជ្រើសរើសថ្នាក់ និងមុខវិជ្ជា' }
-    if (!type) return { error: 'សូមជ្រើសរើសប្រភេទ' }
-
-    const maxScore = Number(formData.get('max_score') ?? 10) || 10
-    const weight = Number(formData.get('weight') ?? 1) || 1
-    const term = String(formData.get('term') ?? '').trim() || null
-    const date = String(formData.get('date') ?? '').trim() || null
-
-    if (maxScore <= 0) return { error: 'ពិន្ទុអតិបរមាត្រូវតែធំជាងសូន្យ' }
-    if (weight <= 0) return { error: 'តម្លៃទម្ងន់ត្រូវតែធំជាងសូន្យ' }
-
+    // The class must sit in the caller's school — same guard as assignTeacher,
+    // so the picker cannot enumerate another school's curriculum.
     const supabase = await createClient()
-
-    // The class_subject must sit in the caller's school; a forged id must not
-    // create an assessment inside somebody else's school.
-    const { data: cs } = await supabase
-      .from('class_subjects')
-      .select('id, classes!inner(academic_year_id, academic_years!inner(school_id))')
-      .eq('id', classSubjectId)
+    const { data: cls } = await supabase
+      .from('classes')
+      .select('id, academic_years!inner(school_id)')
+      .eq('id', classId)
       .maybeSingle()
-
-    if (!cs) return { error: 'រកមិនឃើញថ្នាក់ និងមុខវិជ្ជាទេ' }
-
-    const rel = cs as { classes?: { academic_year_id?: string; academic_years?: { school_id?: string } | { school_id?: string }[] } | { academic_year_id?: string; academic_years?: unknown }[] }
-    const cls = Array.isArray(rel.classes) ? rel.classes[0] : rel.classes
-    const year = Array.isArray(cls?.academic_years) ? cls?.academic_years[0] : cls?.academic_years
-    if ((year as { school_id?: string })?.school_id !== ctx.activeSchoolId) {
+    const rel = cls as { academic_years?: { school_id?: string } | { school_id?: string }[] } | null
+    const year = Array.isArray(rel?.academic_years) ? rel?.academic_years[0] : rel?.academic_years
+    if (!cls || year?.school_id !== ctx.activeSchoolId) {
       return { error: 'ថ្នាក់នេះមិនស្ថិតក្នុងសាលារបស់អ្នកទេ' }
     }
 
-    const { data, error } = await supabase
-      .from('assessments')
-      .insert({
-        class_subject_id: classSubjectId,
-        academic_year_id: cls?.academic_year_id,
-        name, type, max_score: maxScore, weight, term, date, status: 'active',
-      })
-      .select('id')
-      .single()
-
-    if (error) {
-      logger.error(error)
-      return { error: error.message }
+    const [rows, context] = await Promise.all([
+      fetchTemplateRowsByIds(ctx.activeSchoolId, classId),
+      resolveClassTemplateContext(classId),
+    ])
+    return {
+      options: assignableSubjects(rows, context).map((s) => ({
+        value: s.subjectKey,
+        label: s.labelKm,
+      })),
     }
-
-    await auditLog({
-      action: 'assessment.created', entityType: 'assessment', entityId: data.id,
-      schoolId: ctx.activeSchoolId, newValue: { name, type, max_score: maxScore, weight },
-    })
-
-    revalidatePath('/admin/grading')
-    return { success: true }
   } catch (error) {
-    return { error: getErrorMessageOr(error, 'មានបញ្ហាក្នុងការបង្កើតការវាយតម្លៃ') }
+    return { error: getErrorMessageOr(error, 'មិនអាចទាញយកមុខវិជ្ជាបានទេ') }
   }
 }
 

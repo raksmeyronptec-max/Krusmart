@@ -203,6 +203,36 @@ export function toSubjectOptions(subjects: EffectiveSubject[]): SubjectOption[] 
   }))
 }
 
+/**
+ * The subjects a teacher can be assigned to in a class, with the label each
+ * assignment surface must show.
+ *
+ * ONE function on purpose. The admin console's assignment picker and
+ * `/score/collect` previously named subjects from two different catalogues
+ * (`public.subjects` free-typed names vs template `label_km`), which is how the
+ * same subject wore two names in the same school. Both now derive their list
+ * here, so they cannot disagree — that is requirement, not convenience.
+ *
+ * An assignment is not per score type (a teacher who enters the monthly maths
+ * marks also enters the semester ones), so the list is the union of the
+ * monthly and semester resolutions, deduplicated by key in template order.
+ * Annual resolves derived columns and homework resolves day slots; neither
+ * names anything assignable.
+ */
+export function assignableSubjects(
+  rows: ScoreTemplateSubjectRow[],
+  context: TemplateContext | null,
+): { subjectKey: string; labelKm: string }[] {
+  const source = rows.length > 0 ? filterRowsForContext(rows, context) : SYSTEM_PRIMARY_TEMPLATE
+  const seen = new Map<string, string>()
+  for (const scoreType of ['monthly', 'semester'] as const) {
+    for (const s of resolveTemplate(source, scoreType, context)) {
+      if (!seen.has(s.subjectKey)) seen.set(s.subjectKey, s.labelKm)
+    }
+  }
+  return [...seen.entries()].map(([subjectKey, labelKm]) => ({ subjectKey, labelKm }))
+}
+
 /** Column layout for one subject, or `null` when the template does not define it. */
 export function columnsFor(
   subjects: EffectiveSubject[],

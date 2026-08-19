@@ -493,9 +493,10 @@ export interface ClassSubject {
 /**
  * `teacher_assignments` row.
  *
- * `subject_id` is null for a homeroom assignment. Uniqueness is enforced by two
- * partial indexes rather than one constraint, because `NULL <> NULL` would
- * otherwise let duplicate homeroom rows accumulate.
+ * A subject assignment carries `subject_key`; NULL (with no `is_homeroom`)
+ * never occurs from the current writers. Uniqueness is enforced by partial
+ * indexes rather than one constraint, because `NULL <> NULL` would otherwise
+ * let duplicate homeroom rows accumulate.
  */
 export interface TeacherAssignment {
   id: string
@@ -506,9 +507,12 @@ export interface TeacherAssignment {
   is_homeroom: boolean
   /**
    * Score-template subject this assignment covers (00024), e.g. `hs_physics`.
-   * NULL means homeroom — the teacher covers the whole class. Distinct from
-   * `subject_id`, which points at the admin console's `subjects` catalogue and
-   * is not what the score system identifies subjects by.
+   * NULL means homeroom — the teacher covers the whole class. This is the
+   * canonical subject identity (what `scores.subject` stores); `subject_id`
+   * above is the legacy `public.subjects` UUID, kept readable but no longer
+   * written by anything — the two never reconciled (the catalogue holds
+   * per-column codes like `math_num`, the template per-subject keys like
+   * `math_general`, and `kh_read` exists as both).
    */
   subject_key?: string | null
   status: string
@@ -589,7 +593,15 @@ export interface GradingScheme {
   created_at?: string
 }
 
-/** `assessments` row. */
+/**
+ * `assessments` row.
+ *
+ * The table exists (00003) but the feature was never built past a definition
+ * form: nothing has ever written `scores.assessment_id`, and no report reads
+ * these rows. The admin UI for it was removed with the subject-identity
+ * convergence rather than migrated to `subject_key` — see CLAUDE.md. The row
+ * type stays because the table is still in the live schema.
+ */
 export interface Assessment {
   id: string
   class_subject_id: string

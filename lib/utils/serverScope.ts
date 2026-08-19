@@ -259,13 +259,34 @@ export async function fetchScoreTemplateRows(
     .eq('id', scope.teacherId)
     .maybeSingle()
 
+  return fetchTemplateRowsByIds(
+    typeof profile?.school_id === 'string' ? profile.school_id : null,
+    scope.mode === 'v2' ? scope.classId : null,
+  )
+}
+
+/**
+ * The three template layers for an explicit school and class.
+ *
+ * The core of `fetchScoreTemplateRows`, split out because the admin console
+ * resolves class-first: an admin assigning a teacher holds no assignment to
+ * the class, so there is no teacher-scope to resolve from — but they do hold
+ * `ctx.activeSchoolId`, and RLS's `is_school_admin` branch (00016) already
+ * grants them the class rows. Same query either way, so the two entry points
+ * cannot drift.
+ */
+export async function fetchTemplateRowsByIds(
+  schoolId: string | null,
+  classId: string | null,
+): Promise<ScoreTemplateSubjectRow[]> {
+  const supabase = await createClient()
+
   const filters = ['scope.eq.system']
-  const schoolId = profile?.school_id
   if (typeof schoolId === 'string' && UUID.test(schoolId)) {
     filters.push(`school_id.eq.${schoolId}`)
   }
-  if (scope.mode === 'v2' && UUID.test(scope.classId)) {
-    filters.push(`class_id.eq.${scope.classId}`)
+  if (typeof classId === 'string' && UUID.test(classId)) {
+    filters.push(`class_id.eq.${classId}`)
   }
 
   const { data, error } = await supabase

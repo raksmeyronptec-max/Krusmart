@@ -1,6 +1,7 @@
-import { getAdminScope, getTeachers, getClasses, getSubjects, getStaffOptions } from '../queries'
+import { getAdminScope, getTeachers, getClasses, getStaffOptions } from '../queries'
 import { AdminPage, NoSchool } from '../AdminPage'
 import { TeachersTable } from './TeachersTable'
+import { AssignSubjectFields } from './AssignSubjectFields'
 import { AdminCreateForm, SelectField } from '../AdminForm'
 import { assignTeacher } from '../actions'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
@@ -9,8 +10,8 @@ export default async function AdminTeachersPage() {
   const scope = await getAdminScope()
   if (!scope) return <NoSchool />
 
-  const [teachers, classes, subjects, staff] = await Promise.all([
-    getTeachers(scope), getClasses(scope), getSubjects(scope), getStaffOptions(scope),
+  const [teachers, classes, staff] = await Promise.all([
+    getTeachers(scope), getClasses(scope), getStaffOptions(scope),
   ])
 
   return (
@@ -25,17 +26,11 @@ export default async function AdminTeachersPage() {
           required
           options={staff.map((p) => ({ value: p.id, label: p.label }))}
         />
-        <SelectField
-          label="ថ្នាក់"
-          name="class_id"
-          required
-          options={classes.map((c) => ({ value: c.id, label: `${c.gradeName} › ${c.name}` }))}
-        />
-        <SelectField
-          label="មុខវិជ្ជា (ទុកទទេ = គ្រូបន្ទុកថ្នាក់)"
-          name="subject_id"
-          placeholder="គ្មាន (គ្រូបន្ទុកថ្នាក់)"
-          options={subjects.map((s) => ({ value: s.id, label: s.name }))}
+        {/* Class + dependent subject picker: the options are the chosen
+            class's resolved template — the same list /score/collect shows —
+            not the free-typed `subjects` catalogue. */}
+        <AssignSubjectFields
+          classes={classes.map((c) => ({ id: c.id, label: `${c.gradeName} › ${c.name}` }))}
         />
         <label className="flex items-center gap-2 self-end pb-2">
           <input type="checkbox" name="is_homeroom" className="h-4 w-4 rounded border-divider" />
