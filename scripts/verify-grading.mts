@@ -162,10 +162,15 @@ console.log('\nprimary /10 neutrality:')
 // discipline as the template seeds: parse the SQL, compare field by field.
 console.log('\nSQL scheme seeds (00023):')
 {
+  // Executable SQL only: the ROLLBACK block at the foot carries a fourth,
+  // commented-out ladder (00009's, for restoration) that must not be counted.
   const sql = readFileSync(
     fileURLToPath(new URL('../supabase/migrations/00023_secondary_grading_schemes.sql', import.meta.url)),
     'utf8',
   )
+    .split('\n')
+    .filter((line) => !line.trimStart().startsWith('--'))
+    .join('\n')
   const BAND =
     /jsonb_build_object\('letter','([A-F])','min',([\d.]+),\s*'max',([\d.]+),\s*'label','([^']+)'\)/g
   const bands = [...sql.matchAll(BAND)].map((m) => ({
