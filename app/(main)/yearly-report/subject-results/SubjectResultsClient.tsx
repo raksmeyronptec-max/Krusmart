@@ -9,6 +9,8 @@ import { getAllScoresByPeriod } from '../../score/total/actions'
 import { MONTHS_BY_ACADEMIC_YEAR } from '@/lib/constants/months'
 import { MONTHLY_SUBJECT_KEYS, SEMESTER_SUBJECT_KEYS, subjectLabel } from '@/lib/constants/subjects'
 import { DEFAULT_SCHEME_CONFIG, gradeFor } from '@/lib/grading/scheme'
+import { useScoreTemplate } from '@/lib/hooks/useScoreTemplate'
+import { maxScoreByColumn } from '@/lib/scores/template'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import type { Score, Settings, Student } from '@/lib/types'
 
@@ -30,9 +32,15 @@ interface SubjectRow {
   fail: Tally
 }
 
-/** A pupil passes a subject at 5.00, and reaches the A-C band at 7.00. */
-const PASS_MARK = 5.0
-const ABC_MARK = 7.0
+/**
+ * A pupil passes a subject at half its full mark, and reaches the A–C band at
+ * 70% of it — the same two fractions the scheme's own pass mark and C band
+ * encode. Expressed as fractions rather than the literal 5.0 / 7.0 so a
+ * subject marked out of 75 is judged at 37.5 / 52.5 instead of being called a
+ * pass on a /10 yardstick.
+ */
+const PASS_FRACTION = 0.5
+const ABC_FRACTION = 0.7
 
 /** Letters in report order, taken from the shared scheme so the two agree. */
 const LETTERS = [...DEFAULT_SCHEME_CONFIG.bands]
@@ -69,6 +77,10 @@ export function SubjectResultsClient({
   settings: Settings | null
   academicYear: string
 }) {
+  // One grading resolution for the whole report; the tally loop below is pure.
+  const { subjects: templateSubjects, scheme } = useScoreTemplate('monthly')
+  const maxByColumn = useMemo(() => maxScoreByColumn(templateSubjects), [templateSubjects])
+
   const [mode, setMode] = useState<Mode>('monthly')
   const [month, setMonth] = useState<string>(MONTHS_BY_ACADEMIC_YEAR[0].id)
   const [semester, setSemester] = useState('sem1')
@@ -128,13 +140,15 @@ export function SubjectResultsClient({
 
         bump(row.tot, isFemale)
 
-        const letter = gradeFor(val)?.letter
+        // A per-subject mark, graded on that subject's own scale.
+        const letter = gradeFor(val, scheme, maxByColumn[key] ?? scheme.maxScore)?.letter
         if (letter && row.grades[letter]) bump(row.grades[letter], isFemale)
 
-        if (val >= PASS_MARK) bump(row.pass, isFemale)
+        const subjectMax = maxByColumn[key] ?? scheme.maxScore
+        if (val >= subjectMax * PASS_FRACTION) bump(row.pass, isFemale)
         else bump(row.fail, isFemale)
 
-        if (val >= ABC_MARK) bump(row.passABC, isFemale)
+        if (val >= subjectMax * ABC_FRACTION) bump(row.passABC, isFemale)
       }
 
       // A subject nobody has been marked in is left off entirely rather than
@@ -143,7 +157,7 @@ export function SubjectResultsClient({
     }
 
     return out
-  }, [scores, mode, femaleIds])
+  }, [scores, mode, femaleIds, scheme, maxByColumn])
 
   const exportExcel = () => {
     const header = [

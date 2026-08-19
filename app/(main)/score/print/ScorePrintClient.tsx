@@ -9,6 +9,9 @@ import { getAllScoresByPeriod } from '../total/actions'
 import { ACADEMIC_MONTH_OPTIONS_BY_ID } from '@/lib/constants/months'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import { gradeFor } from '@/lib/grading/scheme'
+import { useScoreTemplate } from '@/lib/hooks/useScoreTemplate'
+import { maxScoreByColumn } from '@/lib/scores/template'
+import { studentAverage } from '@/lib/scores/aggregate'
 import { scoreCellValue, scoreNumericValue } from '@/lib/utils/score-value'
 import type { Score, Settings, Student } from '@/lib/types'
 
@@ -61,6 +64,10 @@ export default function ScorePrintClient({
   settings: Settings | null
   academicYear: string
 }) {
+  // One grading resolution for the whole sheet; the row loop below is pure.
+  const { subjects: templateSubjects, scheme } = useScoreTemplate('monthly')
+  const maxByColumn = useMemo(() => maxScoreByColumn(templateSubjects), [templateSubjects])
+
   const [mode, setMode] = useState<'monthly' | 'semester'>('monthly')
   const [month, setMonth] = useState('nov')
   const [semester, setSemester] = useState('sem1')
@@ -84,8 +91,8 @@ export default function ScorePrintClient({
     const subjects = mode === 'monthly' ? MONTHLY_SUBJECTS : SEMESTER_SUBJECTS
     const wanted = new Set(subjects)
 
-    const byStudent = new Map<string, { sum: number; count: number; behaviour: string[] }>()
-    for (const s of initialStudents) byStudent.set(s.id, { sum: 0, count: 0, behaviour: [] })
+    const byStudent = new Map<string, { marks: Record<string, number>; behaviour: string[] }>()
+    for (const s of initialStudents) byStudent.set(s.id, { marks: {}, behaviour: [] })
 
     for (const row of scores) {
       const entry = byStudent.get(row.student_id)
@@ -95,10 +102,7 @@ export default function ScorePrintClient({
         // Behavioural rows have no numeric value and must not drag the average
         // down; `scoreNumericValue` returns null for them.
         const value = scoreNumericValue(row)
-        if (value !== null) {
-          entry.sum += value
-          entry.count += 1
-        }
+        if (value !== null) entry.marks[row.subject] = value
       } else if (BEHAVIOUR_SUBJECTS.includes(row.subject)) {
         const text = scoreCellValue(row)
         if (typeof text === 'string' && text) entry.behaviour.push(text)
@@ -106,9 +110,11 @@ export default function ScorePrintClient({
     }
 
     const computed = initialStudents.map((student) => {
-      const e = byStudent.get(student.id) ?? { sum: 0, count: 0, behaviour: [] }
-      const average = e.count > 0 ? e.sum / e.count : null
-      const result = gradeFor(average)
+      const e = byStudent.get(student.id) ?? { marks: {}, behaviour: [] }
+      // Shared aggregation on the class's scheme — the ministry sheet must
+      // print the same average and letter as every other surface.
+      const { average, total } = studentAverage(e.marks, subjects, maxByColumn, scheme)
+      const result = gradeFor(average, scheme)
 
       // The sheet shows one overall conduct word: the most frequent of the four.
       const tally = new Map<string, number>()
@@ -117,8 +123,8 @@ export default function ScorePrintClient({
 
       return {
         student,
-        total: e.sum,
-        scored: e.count,
+        total,
+        scored: Object.keys(e.marks).length,
         average,
         letter: result?.letter ?? '-',
         label: result?.label ?? '-',
@@ -140,18 +146,18 @@ export default function ScorePrintClient({
     })
 
     return computed
-  }, [initialStudents, scores, mode])
+  }, [initialStudents, scores, mode, scheme, maxByColumn])
 
   const stats = useMemo(() => {
     const female = initialStudents.filter((s) => s.gender === 'ស្រី' || s.gender === 'Female').length
     const marked = rows.filter((r) => r.average !== null)
-    const below = marked.filter((r) => (r.average ?? 0) < 5).length
+    const below = marked.filter((r) => (r.average ?? 0) < scheme.passMark).length
     const failing = marked.filter((r) => r.letter === 'F').length
     const classAvg = marked.length
       ? marked.reduce((sum, r) => sum + (r.average ?? 0), 0) / marked.length
       : null
     return { total: initialStudents.length, female, male: initialStudents.length - female, below, failing, classAvg }
-  }, [initialStudents, rows])
+  }, [initialStudents, rows, scheme.passMark])
 
   const periodLabel =
     mode === 'monthly'
@@ -321,7 +327,7 @@ export default function ScorePrintClient({
                 <td className="text-left">{r.student.name_kh}</td>
                 <td>{r.student.gender || '-'}</td>
                 <td>{r.scored > 0 ? toKhmerNumber(r.total) : '-'}</td>
-                <td className={r.average !== null && r.average < 5 ? 'font-bold' : ''}>
+                <td className={r.average !== null && r.average < scheme.passMark ? 'font-bold' : ''}>
                   {r.average === null ? '-' : toKhmerNumber(r.average.toFixed(2))}
                 </td>
                 <td>{r.letter}</td>

@@ -14,6 +14,9 @@ import Link from 'next/link'
 import Select from '@/components/ui/forms/Select'
 import { MONTHS_BY_ACADEMIC_YEAR } from '@/lib/constants/months'
 import { letterFor } from '@/lib/grading/scheme'
+import { useScoreTemplate } from '@/lib/hooks/useScoreTemplate'
+import { maxScoreByColumn } from '@/lib/scores/template'
+import { studentAverage } from '@/lib/scores/aggregate'
 
 /** Per-student roll-up built by the analytics pass below. */
 interface StudentAnalytics {
@@ -41,6 +44,10 @@ export default function ScoreAnalyseClient({ initialStudents, attendanceData, sc
 }) {
     const [selectedYear, setSelectedYear] = useState(academicYear)
     const { classId } = useActiveClass()
+
+    // One grading resolution for the whole analysis; the per-student loop is pure.
+    const { subjects: templateSubjects, scheme } = useScoreTemplate('monthly')
+    const maxByColumn = useMemo(() => maxScoreByColumn(templateSubjects), [templateSubjects])
 
 
     // Calculate Global Data
@@ -88,16 +95,18 @@ export default function ScoreAnalyseClient({ initialStudents, attendanceData, sc
                 )
 
                 if (monthlyScores.length > 0) {
-                    let stSum = 0, stCount = 0
-                    monthlyScores.forEach(score => {
-                        stSum += score.score_value!
-                        stCount++
-                    })
-                    const mAvg = stSum / stCount
-                    monthAvgSum += mAvg; monthCount++
-                    monthlyAvgs[m.num].sum += mAvg
-                    monthlyAvgs[m.num].count++
-                    sScores[m.num] = mAvg
+                    // Row-driven, as this analysis has always been, but each
+                    // row weighted by its subject's full mark so a secondary
+                    // class is analysed on /50 rather than read as /10.
+                    const marks: Record<string, number> = {}
+                    monthlyScores.forEach(score => { marks[score.subject] = score.score_value! })
+                    const { average } = studentAverage(marks, Object.keys(marks), maxByColumn, scheme)
+                    if (average !== null) {
+                        monthAvgSum += average; monthCount++
+                        monthlyAvgs[m.num].sum += average
+                        monthlyAvgs[m.num].count++
+                        sScores[m.num] = average
+                    }
                 }
             })
 
@@ -106,18 +115,21 @@ export default function ScoreAnalyseClient({ initialStudents, attendanceData, sc
                 sumAllAvg += overallAvg; validStudents++
                 // Bucket via the shared engine so the histogram cannot drift
                 // from the letter shown on reports and certificates.
-                const letter = letterFor(overallAvg)
+                const letter = letterFor(overallAvg, scheme)
                 if (letter in gradesCount) gradesCount[letter as keyof typeof gradesCount]++
             }
 
             // Simple risk metrics
-            const isRisk = (overallAvg !== null && overallAvg < 5.0) || a >= 3 || (totalDays > 0 && attRate < 80)
+            const isRisk = (overallAvg !== null && overallAvg < scheme.passMark) || a >= 3 || (totalDays > 0 && attRate < 80)
             if (isRisk) riskCount++
 
             // Assign slow/diff randomly for visual demo based on score
             if (overallAvg !== null) {
-                if (overallAvg > 7.5) healthyCount++
-                else if (overallAvg > 5.5) slowCount++
+                // 7.5 and 5.5 of ten — kept as the same fractions of whatever
+                // scale the class is on, so the three buckets keep their
+                // meaning at /50.
+                if (overallAvg > scheme.maxScore * 0.75) healthyCount++
+                else if (overallAvg > scheme.maxScore * 0.55) slowCount++
                 else diffCount++
             }
 
@@ -132,7 +144,7 @@ export default function ScoreAnalyseClient({ initialStudents, attendanceData, sc
                 sScores,
                 isRisk,
                 holistic: {
-                    scorePoints: overallAvg ? (overallAvg / 10) * 100 : 0,
+                    scorePoints: overallAvg ? (overallAvg / scheme.maxScore) * 100 : 0,
                     attendancePoints: attRate,
                     homeworkPoints: hwPoints,
                     healthPoints: healthPoints,
@@ -179,7 +191,7 @@ export default function ScoreAnalyseClient({ initialStudents, attendanceData, sc
             slowCount,
             diffCount
         }
-    }, [initialStudents, attendanceData, scoresData, selectedYear])
+    }, [initialStudents, attendanceData, scoresData, selectedYear, scheme, maxByColumn])
 
     /**
      * The slice of `studentData` the cognitive detail sheet prints.

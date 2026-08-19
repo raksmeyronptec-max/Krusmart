@@ -5,12 +5,16 @@ import type { QueryScope } from '@/lib/utils/queryFilter'
 import { CLASS_PARAM } from './scopeParam'
 import { logger } from '@/lib/utils/logger'
 import {
+  maxScoreByColumn,
   resolveTemplate,
+  usesLevelCurriculum,
   SYSTEM_PRIMARY_TEMPLATE,
   type EffectiveSubject,
   type TemplateContext,
   type TemplateScoreType,
 } from '@/lib/scores/template'
+import { schemeForLevel } from '@/lib/grading/levelSchemes'
+import type { GradingSchemeConfig } from '@/lib/grading/scheme'
 import { EDUCATION_LEVELS } from '@/lib/onboarding/curriculum'
 import type { ScoreTemplateSubjectRow, Student, TeacherAssignment } from '@/lib/types'
 
@@ -365,4 +369,97 @@ export async function resolveServerTemplate(
   const scope = await resolveServerScope(userId, requestedClassId)
   const { rows, context } = await fetchScoreTemplate(scope)
   return resolveTemplate(rows.length > 0 ? rows : SYSTEM_PRIMARY_TEMPLATE, scoreType, context)
+}
+
+/**
+ * Everything a server-rendered surface needs to grade: the curriculum context,
+ * its grading scheme, and the effective subjects with their full marks.
+ *
+ * Resolved **once per page** and then reused for every pupil — the shared
+ * calculation is pure, so a class of forty costs one context resolution, not
+ * forty. Any surface calling this inside a per-student loop is an N+1 and is
+ * the bug this shape exists to prevent.
+ */
+export interface ServerGradingContext {
+  context: TemplateContext | null
+  scheme: GradingSchemeConfig
+  subjects: EffectiveSubject[]
+  maxByColumn: Record<string, number>
+  /** True when a level curriculum is in effect rather than the primary fallback. */
+  levelCurriculum: boolean
+}
+
+function buildGradingContext(
+  rows: ScoreTemplateSubjectRow[],
+  context: TemplateContext | null,
+  scoreType: TemplateScoreType,
+): ServerGradingContext {
+  const source = rows.length > 0 ? rows : SYSTEM_PRIMARY_TEMPLATE
+  const levelCurriculum = usesLevelCurriculum(source, context)
+  const subjects = resolveTemplate(source, scoreType, context)
+  return {
+    context,
+    // Keyed on the curriculum actually in effect, matching `useScoreTemplate`:
+    // a class whose level has no seeded curriculum falls back to the primary
+    // subject list, and grading it /50 while showing /10 subjects would be
+    // worse than either world.
+    scheme: levelCurriculum ? schemeForLevel(context?.levelKey) : schemeForLevel(null),
+    subjects,
+    maxByColumn: maxScoreByColumn(subjects),
+    levelCurriculum,
+  }
+}
+
+/** The grading context for a teacher-facing server surface. */
+export async function resolveServerGradingContext(
+  userId: string,
+  requestedClassId: string | undefined,
+  scoreType: TemplateScoreType = 'monthly',
+): Promise<ServerGradingContext> {
+  const scope = await resolveServerScope(userId, requestedClassId)
+  const { rows, context } = await fetchScoreTemplate(scope)
+  return buildGradingContext(rows, context, scoreType)
+}
+
+/**
+ * The grading context for a surface that starts from a *pupil* rather than a
+ * teacher — the parent portal and the parent report, whose reader has no
+ * teacher assignment and no active class selection.
+ *
+ * The class comes from the pupil's own enrolment, newest first, excluding
+ * withdrawals — the same `.neq('status','withdrawn')` rule the roster reads
+ * use, so a pupil promoted out of last year's class still resolves against the
+ * class they actually sat in. RLS decides whether the caller may see the
+ * enrolment at all; nothing here widens that.
+ */
+export async function resolveStudentGradingContext(
+  studentId: string,
+  scoreType: TemplateScoreType = 'monthly',
+): Promise<ServerGradingContext> {
+  const supabase = await createClient()
+
+  const { data: enrolment } = await supabase
+    .from('student_enrollments')
+    .select('class_id, academic_year_id')
+    .eq('student_id', studentId)
+    .neq('status', 'withdrawn')
+    .order('enrolled_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const classId = enrolment?.class_id as string | undefined
+  if (!classId) {
+    // A legacy pupil with no enrolment row grades exactly as before levels
+    // existed — the primary fallback, never an empty or mis-scaled result.
+    return buildGradingContext([], null, scoreType)
+  }
+
+  const scope: QueryScope = {
+    mode: 'v2',
+    teacherId: '',
+    classId,
+    academicYearId: (enrolment?.academic_year_id as string | null) ?? null,
+  }
+  const { rows, context } = await fetchScoreTemplate(scope)
+  return buildGradingContext(rows, context, scoreType)
 }

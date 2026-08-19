@@ -3,12 +3,14 @@ import 'server-only'
 import { createClient } from '@/lib/supabase/server'
 import {
   classIdFromSearchParams,
+  resolveServerGradingContext,
   fetchStudentsForScope,
   resolveServerScope,
   rosterIdsForScope,
 } from '@/lib/utils/serverScope'
 import { getCurrentAcademicYear } from '@/lib/constants/academic'
-import { simpleAverage } from '@/lib/grading/scheme'
+import { simpleAverage, type GradingSchemeConfig } from '@/lib/grading/scheme'
+import { studentAverage } from '@/lib/scores/aggregate'
 import { scoreNumericValue } from '@/lib/utils/score-value'
 import { logger } from '@/lib/utils/logger'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
@@ -36,7 +38,9 @@ export interface DashboardStats {
   todayLate: number
   attendanceRate: number | null
   monthAverage: number | null
-  /** Students whose monthly average is below 5. */
+  /** The class's grading scheme — the page grades and labels with it. */
+  scheme?: GradingSchemeConfig
+  /** Students whose monthly average is below the scheme's pass mark. */
   strugglingCount: number
   openHomework: number
   academicYear: string
@@ -71,8 +75,12 @@ export async function getDashboardData(
 
   const requestedClassId = await classIdFromSearchParams(searchParams)
   const scope = await resolveServerScope(user.id, requestedClassId)
-  const students = await fetchStudentsForScope(scope)
-  const rosterIds = await rosterIdsForScope(scope)
+  // One grading resolution for the whole page, in parallel with the roster.
+  const [students, rosterIds, grading] = await Promise.all([
+    fetchStudentsForScope(scope),
+    rosterIdsForScope(scope),
+    resolveServerGradingContext(user.id, requestedClassId),
+  ])
   const ids = rosterIds ?? students.map((s) => s.id)
 
   const today = todayISO()
@@ -109,17 +117,26 @@ export async function getDashboardData(
 
   // Per student first, then across students: averaging every raw mark would let
   // a pupil with more subjects recorded weigh more than one with fewer.
-  const perStudent = new Map<string, number[]>()
+  //
+  // The grading context is resolved once for the whole page (above) and reused
+  // for every pupil — the calculation is pure, so a class of forty costs one
+  // resolution, not forty.
+  const perStudent = new Map<string, Record<string, number>>()
   for (const row of scores) {
     const v = scoreNumericValue(row)
     if (v === null) continue
-    const list = perStudent.get(row.student_id) ?? []
-    list.push(v)
-    perStudent.set(row.student_id, list)
+    const bucket = perStudent.get(row.student_id) ?? {}
+    bucket[row.subject] = v
+    perStudent.set(row.student_id, bucket)
   }
-  const studentAverages = [...perStudent.values()].map((v) => simpleAverage(v)).filter((v): v is number => v !== null)
+  const studentAverages = [...perStudent.values()]
+    // Row-driven, as this tile has always been: whatever was marked counts,
+    // now weighted by each subject's full mark so a secondary class averages
+    // on /50 instead of being read as a /10 figure.
+    .map((bucket) => studentAverage(bucket, Object.keys(bucket), grading.maxByColumn, grading.scheme).average)
+    .filter((v): v is number => v !== null)
   const monthAverage = simpleAverage(studentAverages)
-  const strugglingCount = studentAverages.filter((v) => v < 5).length
+  const strugglingCount = studentAverages.filter((v) => v < grading.scheme.passMark).length
 
   const female = students.filter((s) => s.gender === 'ស្រី' || s.gender === 'Female').length
   const openHomework = homework.filter((h) => h.status !== 'closed').length
@@ -167,6 +184,7 @@ export async function getDashboardData(
       todayLate,
       attendanceRate,
       monthAverage,
+      scheme: grading.scheme,
       strugglingCount,
       openHomework,
       academicYear,

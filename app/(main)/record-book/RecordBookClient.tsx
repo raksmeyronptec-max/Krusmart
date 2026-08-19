@@ -6,6 +6,7 @@ import { BookUser, Printer, Users } from 'lucide-react'
 import SearchableSelect from '@/components/ui/forms/SearchableSelect'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import { gradeFor } from '@/lib/grading/scheme'
+import { useScoreTemplate } from '@/lib/hooks/useScoreTemplate'
 import { scoreCellValue } from '@/lib/utils/score-value'
 import type { AttendanceRecord, Score, Settings, Student } from '@/lib/types'
 
@@ -68,6 +69,11 @@ export default function RecordBookClient({
   academicYear: string
 }) {
   const [selectedId, setSelectedId] = useState<string>('')
+
+  // The class's grading scheme, resolved once for the whole book — the record
+  // sheet prints an annual letter, which must be the letter every other
+  // surface shows for the same pupil.
+  const { scheme } = useScoreTemplate('semester')
 
   /**
    * `student → subject → { sem1, sem2, annual }`, plus the absence tally.
@@ -201,7 +207,7 @@ export default function RecordBookClient({
         {sheets.map((student) => {
           const entry = byStudent.get(student.id)
           const annualAvg = entry?.marks['annual_avg']?.annual ?? null
-          const result = typeof annualAvg === 'number' ? gradeFor(annualAvg) : null
+          const result = typeof annualAvg === 'number' ? gradeFor(annualAvg, scheme) : null
 
           return (
             <section key={student.id} className="record-sheet bg-white text-black">

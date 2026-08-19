@@ -98,9 +98,15 @@ function surfaceResults(
     certificate: level ? templateKeys : FALLBACK_NUMERIC_KEYS.monthly,
     honorRoll: level ? templateKeys : FALLBACK_NUMERIC_KEYS.monthly,
     parentReport: level ? templateKeys : FALLBACK_NUMERIC_KEYS.monthly,
-    // Tracking is row-driven by design; identical because every row belongs
-    // to the curriculum and carries the same per-column weight.
+    // Row-driven surfaces: they average whatever was marked. Identical to the
+    // template-keyed ones here because every mark in the fixture belongs to
+    // the curriculum and carries the same per-column weight.
     studentTracking: rowKeys,
+    dashboard: rowKeys,
+    studentDetail: rowKeys,
+    scoreAnalyse: rowKeys,
+    parentPortal: rowKeys,
+    ministryPrint: level ? templateKeys : FALLBACK_NUMERIC_KEYS.monthly,
   }
 
   return Object.fromEntries(
@@ -170,7 +176,58 @@ assertConsistent(
   { average: 25, letter: 'E', label: 'មធ្យម' },
 )
 
-// --- 5. ranks: shared walk, ties share ---------------------------------------------
+// --- 5. the level/track matrix, regression rows -------------------------------------
+console.log('\nregression ladders:')
+{
+  const PRIMARY: [number, string][] = [[9,'A'],[8,'B'],[7,'C'],[6,'D'],[5,'E'],[4,'F']]
+  const SECONDARY: [number, string][] = [[45,'A'],[40,'B'],[35,'C'],[30,'D'],[25,'E'],[24,'F']]
+
+  for (const [avg, letter] of PRIMARY) {
+    check(`primary ${avg}/10 → ${letter}`,
+      gradeFor(avg, DEFAULT_SCHEME_CONFIG)?.letter === letter,
+      `got ${gradeFor(avg, DEFAULT_SCHEME_CONFIG)?.letter}`)
+  }
+  const secScheme = schemeForLevel('lower_secondary')
+  for (const [avg, letter] of SECONDARY) {
+    check(`secondary ${avg}/50 → ${letter}`,
+      gradeFor(avg, secScheme)?.letter === letter,
+      `got ${gradeFor(avg, secScheme)?.letter}`)
+  }
+  check('lower and upper secondary share one scheme',
+    JSON.stringify(schemeForLevel('lower_secondary')) === JSON.stringify(schemeForLevel('upper_secondary')))
+}
+
+// --- 5b. equivalence on LETTER and PERCENTAGE — never on descriptor ------------------
+console.log('\nequivalence (letter + percentage, not descriptor):')
+{
+  const cases: [number, number][] = [[9, 10], [45, 50], [90, 100], [112, 125]]
+  const letters = cases.map(([avg, scale]) => gradeFor(avg, schemeForLevel('upper_secondary'), scale)?.letter)
+  check('9/10 ≡ 45/50 ≡ 90/100 ≡ 112/125 on letter',
+    letters.every((l) => l === 'A'), `got ${letters.join(',')}`)
+  check('…and on percentage (≥90% of their own scale)',
+    cases.every(([avg, scale]) => (avg / scale) * 100 >= 89.5))
+
+  // The descriptors differ BY DESIGN — the secondary ladder is shifted one
+  // step. Asserting equality here would be asserting a bug, so assert the
+  // difference instead.
+  check('primary A is ល្អណាស់, secondary A is ល្អប្រសើរ — different by design',
+    gradeFor(9, DEFAULT_SCHEME_CONFIG)?.label === 'ល្អណាស់' &&
+    gradeFor(45, schemeForLevel('upper_secondary'))?.label === 'ល្អប្រសើរ')
+  check('secondary B reuses the primary A word (ladder shifted one step)',
+    gradeFor(40, schemeForLevel('upper_secondary'))?.label === 'ល្អណាស់')
+}
+
+// --- 5c. lower secondary resolves the primary fallback until it is seeded ------------
+console.log('\nlower secondary (no curriculum seeded yet):')
+{
+  const ctx: TemplateContext = { levelKey: 'lower_secondary', gradeNumber: 8, track: null }
+  const subjects = resolveTemplate(allRows, 'monthly', ctx)
+  check('falls back to the primary subject list — never empty', subjects.length > 0)
+  check('…and therefore grades on /10, not a half-applied /50',
+    subjects.every((s) => s.maxScore === DEFAULT_SCHEME_CONFIG.maxScore))
+}
+
+// --- 6. ranks: shared walk, ties share ---------------------------------------------
 console.log('\nrank walk:')
 {
   const items = [

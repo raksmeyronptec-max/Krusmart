@@ -57,7 +57,8 @@ export default async function DashboardPage({
     getDashboardData(searchParams),
     resolveActor(),
   ])
-  const grade = gradeFor(stats.monthAverage)
+  // The class's scheme, resolved once in `getDashboardData`.
+  const grade = gradeFor(stats.monthAverage, stats.scheme)
 
   // The dashboard is the resume surface for onboarding now — a teacher with an
   // organisation but no class lands here, not in the wizard, so the next step

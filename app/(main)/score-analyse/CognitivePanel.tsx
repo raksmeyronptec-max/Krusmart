@@ -8,7 +8,7 @@ import { notify } from '@/components/ui/feedback/notify'
 import { getCognitiveAssessments, saveCognitiveAssessment } from './actions'
 import { COGNITIVE_LEVELS, type CognitiveAssessment, type Settings, type Student } from '@/lib/types'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
-import { letterFor } from '@/lib/grading/scheme'
+import { DEFAULT_SCHEME_CONFIG, letterFor } from '@/lib/grading/scheme'
 import { logger } from '@/lib/utils/logger'
 
 /** The subset of the page's analytics this panel prints. */
@@ -43,6 +43,9 @@ const LEVEL_COLOURS: Record<string, string> = {
  * analytics pass over the whole class; this is per-pupil state with its own
  * fetch and its own print surface.
  */
+/** The 0–100 scale the four sliders are rated on (migration 00015). */
+const COGNITIVE_SCALE = 100
+
 export function CognitivePanel({
     students,
     summaries,
@@ -136,7 +139,17 @@ export function CognitivePanel({
         notify.success('បានរក្សាទុកការវាយតម្លៃ')
     }
 
-    const grade = summary?.overallAvg != null ? letterFor(summary.overallAvg) : null
+    /**
+     * Cognitive ratings are 0–100 (migration 00015 keeps them out of `scores`
+     * precisely because they are not marks out of ten), but this graded them
+     * against the /10 ladder — so a rating of 9 out of 100 came out an A.
+     * Graded on its own scale instead: the same band fractions, floor-converted
+     * to /100 (A≥90, B≥80 …). Not the class's score scheme — this is a
+     * different instrument and must not inherit /50 either.
+     */
+    const grade = summary?.overallAvg != null
+        ? letterFor(summary.overallAvg, DEFAULT_SCHEME_CONFIG, COGNITIVE_SCALE)
+        : null
 
     return (
         <div className="bg-bg-surface p-5 border-t-4 border-brand rounded-xl shadow-sm">

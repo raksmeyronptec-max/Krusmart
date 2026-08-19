@@ -40,6 +40,8 @@ export interface ScoreTotalPrintProps {
   modeLabel: string
   /** The class's grading scheme — the printed letter must match the screen's. */
   scheme?: GradingSchemeConfig
+  /** Full mark per column, so a failing mark is bolded against its own scale. */
+  maxByColumn?: Record<string, number>
 }
 
 export function ScoreTotalPrint({
@@ -52,6 +54,7 @@ export function ScoreTotalPrint({
   academicYear,
   modeLabel,
   scheme = DEFAULT_SCHEME_CONFIG,
+  maxByColumn = {},
 }: ScoreTotalPrintProps) {
   const panelRef = useRef<HTMLDivElement>(null)
   const isClient = useIsClient()
@@ -185,7 +188,7 @@ export function ScoreTotalPrint({
                       const raw = stu.scores[c.key]
                       const numeric = Number(raw)
                       return (
-                        <td key={c.key} className={Number.isFinite(numeric) && numeric < 5 ? 'font-bold' : ''}>
+                        <td key={c.key} className={Number.isFinite(numeric) && numeric < (maxByColumn[c.key] ?? scheme.maxScore) * (scheme.passMark / scheme.maxScore) ? 'font-bold' : ''}>
                           {raw === null || raw === undefined || raw === ''
                             ? '—'
                             : Number.isFinite(numeric) ? formatMark(numeric) : String(raw)}

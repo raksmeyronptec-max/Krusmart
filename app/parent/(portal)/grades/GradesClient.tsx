@@ -5,7 +5,8 @@ import { BarChart3 } from 'lucide-react'
 import { PortalHeader, EmptyState } from '../../PortalHeader'
 import { useParent } from '../../ParentContext'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
-import { gradeFor, simpleAverage } from '@/lib/grading/scheme'
+import { gradeFor, type GradingSchemeConfig } from '@/lib/grading/scheme'
+import { studentAverage } from '@/lib/scores/aggregate'
 import type { Score } from '@/lib/types'
 
 /**
@@ -17,11 +18,15 @@ import type { Score } from '@/lib/types'
  * store moves to Supabase (Phase 11.5).
  */
 export default function GradesClient({
-  scores, childName, subjectLabels,
+  scores, childName, subjectLabels, scheme, maxByColumn,
 }: {
   scores: Score[]
   childName: string
   subjectLabels: Record<string, string>
+  /** The child's grading scheme, resolved from their enrolment on the server. */
+  scheme: GradingSchemeConfig
+  /** Full mark per subject, so a /75 mark is weighted as a /75 mark. */
+  maxByColumn: Record<string, number>
 }) {
   const { t } = useParent()
   const [mode, setMode] = useState<'monthly' | 'semester'>('monthly')
@@ -62,8 +67,14 @@ export default function GradesClient({
         ) : (
           <div className="space-y-4">
             {periods.map(([period, rows]) => {
-              const avg = simpleAverage(rows.map((r) => r.score_value))
-              const result = gradeFor(avg)
+              // Row-driven — whatever this period holds — but weighted by each
+              // subject's full mark, so a secondary child's average is /50.
+              const marks: Record<string, number> = {}
+              for (const r of rows) {
+                if (r.score_value !== null && r.score_value !== undefined) marks[r.subject] = r.score_value
+              }
+              const { average: avg } = studentAverage(marks, Object.keys(marks), maxByColumn, scheme)
+              const result = gradeFor(avg, scheme)
               return (
                 <article key={period} className="overflow-hidden rounded-2xl border bg-card-dark" style={{ borderColor: 'var(--pp-card-border)' }}>
                   <header className="flex items-center justify-between border-b p-4" style={{ borderColor: 'var(--pp-card-border)' }}>

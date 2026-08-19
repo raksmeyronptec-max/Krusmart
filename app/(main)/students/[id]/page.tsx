@@ -100,9 +100,10 @@ export default async function StudentDetailPage({
   // so a guessed id is indistinguishable from a deleted one.
   if (!detail) notFound()
 
-  const { student: s, academicYear, attendance, subjects, months, overallAverage, homework } = detail
+  const { student: s, academicYear, attendance, subjects, months, overallAverage, scheme, homework } = detail
   const { prev, next, position, total } = await getRosterNeighbours(id)
-  const grade = gradeFor(overallAverage)
+  // The pupil's own scheme, resolved once from their enrolment in `getStudentDetail`.
+  const grade = gradeFor(overallAverage, scheme)
   const age = calculateAge(s.dob)
 
   const flags: { label: string; on: boolean }[] = [
@@ -241,7 +242,11 @@ export default async function StudentDetailPage({
           ) : (
             <ul className="flex flex-col gap-2">
               {subjects.map((sub) => {
-                const pct = sub.average === null ? 0 : Math.max(0, Math.min(100, sub.average * 10))
+                // Percentage of the subject's *own* full mark — `× 10` was a
+                // /10 assumption that read a 60/75 as beyond full.
+                const pct = sub.average === null
+                  ? 0
+                  : Math.max(0, Math.min(100, (sub.average / sub.max) * 100))
                 return (
                   <li key={sub.subject}>
                     <div className="flex items-baseline justify-between gap-3 text-sm">
@@ -257,7 +262,7 @@ export default async function StudentDetailPage({
                     */}
                     <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-paper" aria-hidden="true">
                       <div
-                        className={`h-full rounded-full ${sub.average !== null && sub.average < 5 ? 'bg-danger' : 'bg-brand'}`}
+                        className={`h-full rounded-full ${sub.average !== null && sub.average < sub.max * (scheme.passMark / scheme.maxScore) ? 'bg-danger' : 'bg-brand'}`}
                         style={{ width: `${pct}%` }}
                       />
                     </div>
@@ -276,7 +281,7 @@ export default async function StudentDetailPage({
           ) : (
             <ul className="flex flex-col gap-1.5">
               {months.map((m) => {
-                const g = gradeFor(m.average)
+                const g = gradeFor(m.average, scheme)
                 return (
                   <li
                     key={m.id}

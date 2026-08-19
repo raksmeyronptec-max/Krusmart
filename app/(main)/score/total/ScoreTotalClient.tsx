@@ -1335,6 +1335,7 @@ export default function ScoreTotalClient({
                 academicYear={academicYear}
                 modeLabel={modeLabel}
                 scheme={scheme}
+                maxByColumn={maxByColumn}
             />
 
             {saving && (

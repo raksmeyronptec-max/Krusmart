@@ -3,7 +3,9 @@ import 'server-only'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentAcademicYear } from '@/lib/constants/academic'
 import { ACADEMIC_MONTH_IDS, MONTH_LABEL_BY_ID } from '@/lib/constants/months'
-import { simpleAverage } from '@/lib/grading/scheme'
+import { simpleAverage, type GradingSchemeConfig } from '@/lib/grading/scheme'
+import { studentAverage } from '@/lib/scores/aggregate'
+import { resolveStudentGradingContext } from '@/lib/utils/serverScope'
 import { scoreNumericValue } from '@/lib/utils/score-value'
 import { subjectLabel } from '@/lib/constants/subjects'
 import { logger } from '@/lib/utils/logger'
@@ -31,6 +33,8 @@ export interface SubjectAverage {
   average: number | null
   /** How many months carry a mark for this subject. */
   entries: number
+  /** The subject's full mark, so the page colours and scales against it. */
+  max: number
 }
 
 export interface MonthAverage {
@@ -72,6 +76,8 @@ export interface StudentDetail {
   subjects: SubjectAverage[]
   months: MonthAverage[]
   overallAverage: number | null
+  /** The pupil's grading scheme — the page grades and colours with it. */
+  scheme: GradingSchemeConfig
   /** Homework marks for the year, in academic-month then day order. */
   homework: HomeworkMark[]
 }
@@ -162,9 +168,14 @@ export async function getStudentDetail(id: string): Promise<StudentDetail | null
   }
 
   // Per subject, across the months that carry a mark.
+  // The pupil's grading context, resolved once from their own enrolment — this
+  // page is reached by id and may have no active class selection at all.
+  const grading = await resolveStudentGradingContext(id)
+
   const bySubject = new Map<string, number[]>()
-  // Per month, across the subjects marked in it.
-  const byMonth = new Map<string, number[]>()
+  // Per month: subject key → mark, so the month average can weigh each mark by
+  // its subject's full mark rather than counting every column as equal.
+  const byMonth = new Map<string, Record<string, number>>()
 
   for (const row of monthly) {
     const v = scoreNumericValue(row)
@@ -173,25 +184,32 @@ export async function getStudentDetail(id: string): Promise<StudentDetail | null
     // `score_period` is `${monthId}-${academicYear}`; the id is the first hyphen
     // -delimited segment, and the year contributes the rest.
     const monthId = row.score_period.split('-')[0]
-    byMonth.set(monthId, [...(byMonth.get(monthId) ?? []), v])
+    byMonth.set(monthId, { ...(byMonth.get(monthId) ?? {}), [row.subject]: v })
   }
 
+  // A per-subject average is a mean of that subject's own marks across months,
+  // so it stays on the subject's own scale — no weighting applies within one
+  // subject, and none is introduced here.
   const subjects: SubjectAverage[] = [...bySubject.entries()]
     .map(([subject, values]) => ({
       subject,
       label: subjectLabel(subject),
       average: simpleAverage(values),
       entries: values.length,
+      max: grading.maxByColumn[subject] ?? grading.scheme.maxScore,
     }))
     .sort((a, b) => a.label.localeCompare(b.label, 'km'))
 
   // Academic-year order (Nov → Oct), and only the months that hold a mark —
   // twelve mostly-empty rows would bury the ones that matter.
-  const months: MonthAverage[] = ACADEMIC_MONTH_IDS.filter((m) => byMonth.has(m)).map((m) => ({
-    id: m,
-    label: MONTH_LABEL_BY_ID[m] ?? m,
-    average: simpleAverage(byMonth.get(m) ?? []),
-  }))
+  const months: MonthAverage[] = ACADEMIC_MONTH_IDS.filter((m) => byMonth.has(m)).map((m) => {
+    const marks = byMonth.get(m) ?? {}
+    return {
+      id: m,
+      label: MONTH_LABEL_BY_ID[m] ?? m,
+      average: studentAverage(marks, Object.keys(marks), grading.maxByColumn, grading.scheme).average,
+    }
+  })
 
   // Average the month averages, not every raw mark: a month where six subjects
   // were entered should not outweigh one where two were.
@@ -217,7 +235,7 @@ export async function getStudentDetail(id: string): Promise<StudentDetail | null
     })
     .map(({ month, day, value }) => ({ month, day, value }))
 
-  return { student, academicYear, attendance, subjects, months, overallAverage, homework }
+  return { student, academicYear, attendance, subjects, months, overallAverage, scheme: grading.scheme, homework }
 }
 
 /**
