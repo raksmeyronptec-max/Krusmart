@@ -21,10 +21,17 @@ import type { AttendanceRecord, Score, Student } from '@/lib/types'
  * no new tables, no new columns — around a single student.
  *
  * ACCESS
- * The student is fetched with `.eq('teacher_id', user.id)` on top of RLS, the
- * app-wide convention. A student id that belongs to another teacher returns
- * `null` here and a 404 upstream, so the route cannot be used to probe for
- * rows the caller may not read.
+ * The student is fetched on RLS alone — `students_select_own_or_assigned`
+ * (migration 00006), which grants the creator plus any teacher holding an
+ * active assignment to a class the pupil is enrolled in. The app-wide
+ * `.eq('teacher_id', user.id)` convention is deliberately NOT applied here,
+ * for the same reason the v2 roster read drops it: under the secondary model
+ * a subject teacher legitimately opens the page of a pupil a colleague
+ * created, and ownership would return `null` for every one of them.
+ *
+ * Probe-resistance is unchanged: a pupil the caller may not read returns no
+ * row from RLS, so this still yields `null` here and a 404 upstream. The
+ * boundary moved from the query to the policy, not from somewhere to nowhere.
  */
 
 export interface SubjectAverage {
@@ -93,7 +100,6 @@ export async function getStudentDetail(id: string): Promise<StudentDetail | null
     .from('students')
     .select('*')
     .eq('id', id)
-    .eq('teacher_id', user.id)
     .maybeSingle()
 
   if (error) logger.error(error)
@@ -119,20 +125,35 @@ export async function getStudentDetail(id: string): Promise<StudentDetail | null
       .from('attendance')
       .select('*')
       .eq('student_id', id)
-      .eq('teacher_id', user.id)
+      // No `teacher_id` filter: this page shows one pupil's whole record, and
+      // in a secondary class each subject's marks belong to a different
+      // teacher. The query is already scoped to the one pupil, and migration
+      // 00007's `scores_select_own_or_assigned` decides whether the caller may
+      // see them at all — filtering on ownership here would drop every
+      // colleague's subject from the pupil's own detail page.
       .order('date', { ascending: false }),
     supabase
       .from('scores')
       .select('*')
       .eq('student_id', id)
-      .eq('teacher_id', user.id)
+      // No `teacher_id` filter: this page shows one pupil's whole record, and
+      // in a secondary class each subject's marks belong to a different
+      // teacher. The query is already scoped to the one pupil, and migration
+      // 00007's `scores_select_own_or_assigned` decides whether the caller may
+      // see them at all — filtering on ownership here would drop every
+      // colleague's subject from the pupil's own detail page.
       .eq('score_type', 'monthly')
       .like('score_period', `%${academicYear}`),
     supabase
       .from('scores')
       .select('*')
       .eq('student_id', id)
-      .eq('teacher_id', user.id)
+      // No `teacher_id` filter: this page shows one pupil's whole record, and
+      // in a secondary class each subject's marks belong to a different
+      // teacher. The query is already scoped to the one pupil, and migration
+      // 00007's `scores_select_own_or_assigned` decides whether the caller may
+      // see them at all — filtering on ownership here would drop every
+      // colleague's subject from the pupil's own detail page.
       .eq('score_type', 'homework'),
   ])
 
