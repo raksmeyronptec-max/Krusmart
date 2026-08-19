@@ -15,7 +15,7 @@ import { calculateAge } from '@/lib/utils/date'
 import { letterFor } from '@/lib/grading/scheme'
 import { useScoreTemplate } from '@/lib/hooks/useScoreTemplate'
 import { maxScoreByColumn } from '@/lib/scores/template'
-import { numericColumnKeys, studentAverage } from '@/lib/scores/aggregate'
+import { FALLBACK_NUMERIC_KEYS, numericColumnKeys, studentAverage } from '@/lib/scores/aggregate'
 
 const subjectsConfig = [
     { key: 'kh_listen', label: 'ភាសាខ្មែរ (ស្តាប់)' }, { key: 'kh_speak', label: 'ភាសាខ្មែរ (និយាយ)' },
@@ -119,13 +119,14 @@ export default function ParentReportClient({ initialStudents, settings }: { init
         
         // Group by student for ranking.
         //
-        // Two worlds, deliberately different: on the primary fallback this
-        // keeps its historical row-driven denominator (every score row counts,
-        // including a teacher's custom subjects — which is not exactly the
-        // ranking screen's 29-key denominator; a pre-existing divergence left
-        // untouched rather than silently changing printed reports). On a level
-        // curriculum the denominator is the template's keys with coefficient
-        // weighting, identical to the ranking screen by construction.
+        // The denominator is the ranking screen's, not this screen's own: the
+        // template's keys on a level curriculum, the shared 29-key primary list
+        // otherwise. Previously it counted whatever rows existed, so a parent
+        // could hold a report showing one rank while /ranking showed another
+        // for the same child and period. Converged deliberately — some printed
+        // ranks change once, which is the lesser harm.
+        const rankKeys = templateKeys ?? FALLBACK_NUMERIC_KEYS.monthly
+
         const perStudent: Record<string, Record<string, number | string | null>> = {}
         initialStudents.forEach(stu => { perStudent[stu.id] = {} })
         periodScores.forEach(ps => {
@@ -133,10 +134,10 @@ export default function ParentReportClient({ initialStudents, settings }: { init
         })
 
         const rankedList = initialStudents.map(stu => {
-            const scores = perStudent[stu.id]
-            const keys = templateKeys ?? Object.keys(scores)
-            const { average } = studentAverage(scores, keys, maxByColumn, scheme)
-            return { id: stu.id, avg: average ?? 0 }
+            const { average } = studentAverage(perStudent[stu.id], rankKeys, maxByColumn, scheme)
+            // 2dp, matching the figure teachers actually compare — the ranking
+            // screen ranks on the same rounded value.
+            return { id: stu.id, avg: average === null ? 0 : parseFloat(average.toFixed(2)) }
         }).sort((a, b) => b.avg - a.avg)
 
         const rankMap: Record<string, number> = {}
@@ -179,12 +180,9 @@ export default function ParentReportClient({ initialStudents, settings }: { init
             })
         }
 
-        const own = studentAverage(
-            studentScores,
-            templateKeys ?? subjectsConfig.map(sc => sc.key),
-            maxByColumn,
-            scheme,
-        )
+        // Same denominator as the rank above, so the printed average and the
+        // printed rank cannot disagree about what was counted.
+        const own = studentAverage(studentScores, rankKeys, maxByColumn, scheme)
         const stTotal = own.total
         // 0 when nothing is marked, which the ladder grades as F — preserved
         // because the remark text below depends on it.
