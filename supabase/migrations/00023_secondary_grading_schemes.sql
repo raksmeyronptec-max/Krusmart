@@ -109,6 +109,58 @@ COMMIT;
 -- -- Re-running changes nothing (UPDATE guard + NOT EXISTS).
 --
 -- =============================================================================
--- ROLLBACK: restore 00009's config on the two secondary names, or re-run 00009
--- after deleting affected rows. Primary rows were never touched.
+-- ROLLBACK
+-- =============================================================================
+-- Executable, and in two halves because this migration writes in two ways.
+--
+-- Reversible on purpose: the UPDATE only touches rows still carrying the
+-- untouched 00009 shape (no `weighting` key, maxScore 10), so a school that had
+-- customised its scheme was skipped and has nothing to restore. What the UPDATE
+-- did change is restored below to 00009's exact seed.
+--
+-- Run both halves, in this order, inside one transaction.
+--
+-- BEGIN;
+--
+-- -- 1. Undo the UPDATE: put 00009's primary ladder back on the secondary
+-- --    levels. Guarded by the shape THIS migration wrote, so a scheme edited
+-- --    by an admin after the fact is left alone.
+-- UPDATE public.grading_schemes gs
+--    SET config = jsonb_build_object(
+--         'maxScore', 10,
+--         'passMark', 5,
+--         'bands', jsonb_build_array(
+--             jsonb_build_object('letter','A','min',9,'max',10,   'label','ល្អណាស់'),
+--             jsonb_build_object('letter','B','min',8,'max',8.99, 'label','ល្អ'),
+--             jsonb_build_object('letter','C','min',7,'max',7.99, 'label','ល្អបង្គួរ'),
+--             jsonb_build_object('letter','D','min',6,'max',6.99, 'label','មធ្យម'),
+--             jsonb_build_object('letter','E','min',5,'max',5.99, 'label','ខ្សោយ'),
+--             jsonb_build_object('letter','F','min',0,'max',4.99, 'label','ធ្លាក់')
+--         ),
+--         'typeWeights', jsonb_build_object(
+--             'monthly',1,'quiz',1,'assignment',1,'midterm',2,
+--             'semester',2,'final',3,'yearly',3
+--         )
+--    )
+--   FROM public.education_levels el
+--  WHERE el.id = gs.education_level_id
+--    AND el.name IN ('មធ្យមសិក្សាបឋមភូមិ', 'មធ្យមសិក្សាទុតិយភូមិ')
+--    AND gs.is_default
+--    AND gs.config->>'weighting' = 'coefficient'
+--    AND gs.config->>'maxScore' = '50';
+--
+-- -- 2. Undo the INSERT: remove default schemes this migration created for
+-- --    levels that had none. `created_at` is the only thing distinguishing
+-- --    them from 00009's, so scope by the run window instead — replace the
+-- --    timestamp with the moment you applied this file.
+-- --    Omit this half entirely if you only want to undo the config change.
+-- DELETE FROM public.grading_schemes
+--  WHERE is_default
+--    AND created_at >= TIMESTAMPTZ '<when you applied 00023>';
+--
+-- COMMIT;
+--
+-- Nothing reads these rows at runtime yet — the score screens resolve the
+-- scheme from `lib/grading/levelSchemes.ts` and the admin screen only displays
+-- them — so neither half can change a calculated result either way.
 -- =============================================================================

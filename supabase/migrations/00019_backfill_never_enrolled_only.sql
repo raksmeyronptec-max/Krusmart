@@ -115,6 +115,23 @@ GRANT EXECUTE ON FUNCTION public.backfill_teacher_enrolments(UUID) TO authentica
 -- =============================================================================
 -- ROLLBACK
 -- =============================================================================
--- Re-apply the CREATE OR REPLACE FUNCTION block from
--- 00018_backfill_teacher_enrolments.sql (the year-scoped skip guard).
+-- Re-apply the `CREATE OR REPLACE FUNCTION public.backfill_teacher_enrolments`
+-- block from 00018_backfill_teacher_enrolments.sql verbatim — it restores the
+-- year-scoped skip guard this file replaced.
+--
+-- Deliberately a pointer rather than a copy: duplicating a 60-line function
+-- body here would give the repository two versions of it that could drift, and
+-- the one in 00018 is the definition being restored. Open that file, copy the
+-- block from `CREATE OR REPLACE FUNCTION` down to its `$$;`, and run it.
+--
+-- WARNING — this rollback re-introduces a known bug. 00018's guard skips a
+-- teacher who has *any* enrolment in the target academic year, so a pupil
+-- enrolled in last year's class is silently promoted into the new one. That is
+-- what this file exists to fix. Roll back only if 00019 itself is causing
+-- worse, and re-apply 00019 as soon as it is.
+--
+-- Rolling back does NOT touch `student_enrollments`: rows either function
+-- created are ordinary enrolments, indistinguishable by design from
+-- admin-created ones. See 00018's own ROLLBACK note for how to remove them per
+-- class if that is ever needed.
 -- =============================================================================
