@@ -43,6 +43,22 @@ export interface EducationLevelSpec {
    * level never streams.
    */
   tracksFromGrade?: number
+  /**
+   * How much of this level's curriculum is actually seeded in
+   * `score_template_subjects`.
+   *
+   *   seeded  — every grade has its subjects and full marks
+   *   partial — some grades do; `seededNote` says which
+   *   pending — none does, so a class here silently falls back to the primary
+   *             list and grades /10
+   *
+   * Curriculum metadata, kept here beside the grade ranges rather than queried,
+   * because `/choose-level` runs before sign-in and has no session to query
+   * with. Update it in the same change that seeds a curriculum.
+   */
+  curriculumStatus: 'seeded' | 'partial' | 'pending'
+  /** Khmer qualifier shown on the card when `curriculumStatus` is not `seeded`. */
+  seededNote?: string
 }
 
 export const EDUCATION_LEVELS: readonly EducationLevelSpec[] = [
@@ -54,6 +70,7 @@ export const EDUCATION_LEVELS: readonly EducationLevelSpec[] = [
     from: 1,
     to: 6,
     description: 'សម្រាប់សិស្សថ្នាក់ដំបូង',
+    curriculumStatus: 'seeded',
   },
   {
     key: 'lower_secondary',
@@ -63,6 +80,11 @@ export const EDUCATION_LEVELS: readonly EducationLevelSpec[] = [
     from: 7,
     to: 9,
     description: 'អនុវិទ្យាល័យ',
+    // No subjects or full marks are seeded for grades 7–9 yet, so a class here
+    // would fall back to the primary list and grade /10 — not the /50 the card
+    // would otherwise promise. Closed until the curriculum arrives.
+    curriculumStatus: 'pending',
+    seededNote: 'ឆាប់ៗនេះ',
   },
   {
     key: 'upper_secondary',
@@ -75,6 +97,10 @@ export const EDUCATION_LEVELS: readonly EducationLevelSpec[] = [
     // ថ្នាក់ទី១១–១២ stream; the same subject carries a different full mark per
     // stream (docs/score-system-design.md §6), so the class must declare one.
     tracksFromGrade: 11,
+    // Only ថ្នាក់ទី១២ is seeded (both streams, verified). Grades 10–11 fall back
+    // to the primary list until their full marks are confirmed.
+    curriculumStatus: 'partial',
+    seededNote: 'ថ្នាក់ទី១២ ប៉ុណ្ណោះ',
   },
 ] as const
 
@@ -148,4 +174,9 @@ export function trackLabel(key: string | null | undefined): string | null {
  */
 export function gradeNeedsTrack(level: EducationLevelSpec | undefined, gradeNumber: number): boolean {
   return level?.tracksFromGrade !== undefined && gradeNumber >= level.tracksFromGrade
+}
+
+/** Can a teacher start here, or is the curriculum not seeded yet? */
+export function levelIsSelectable(level: EducationLevelSpec): boolean {
+  return level.curriculumStatus !== 'pending'
 }

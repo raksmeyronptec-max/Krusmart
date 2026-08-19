@@ -8,6 +8,7 @@ import { auditLog, auditLogBatch } from '@/lib/audit/log'
 import type { ActionResult } from '@/lib/types'
 import {
   CLASS_TRACKS, gradeNeedsTrack, gradesForLevel, levelByKey, levelByName,
+  levelIsSelectable,
 } from '@/lib/onboarding/curriculum'
 import { schemeForLevel } from '@/lib/grading/levelSchemes'
 
@@ -191,7 +192,7 @@ export async function createOrganisation(
   // class?) is answered from there. The RPC has already granted `owner`, so
   // these are ordinary admin-policy writes.
   const level = levelKey ? levelByKey(levelKey) : undefined
-  if (level) {
+  if (level && levelIsSelectable(level)) {
     const seeded = await seedEducationLevel(supabase, schoolId as string, level)
     if (!seeded.error) {
       await auditLog({
@@ -229,6 +230,11 @@ export async function chooseEducationLevel(levelKey: string): Promise<ActionResu
 
   const level = levelByKey(levelKey)
   if (!level) return { error: 'សូមជ្រើសរើសកម្រិតសិក្សា' }
+  // The client greys these out; the server refuses them, because a level with
+  // no seeded curriculum would grade /10 while the level promises otherwise.
+  if (!levelIsSelectable(level)) {
+    return { error: 'កម្រិតសិក្សានេះមិនទាន់មានកម្មវិធីសិក្សានៅឡើយទេ។ សូមរង់ចាំ។' }
+  }
 
   const seeded = await seedEducationLevel(supabase, schoolId, level)
   if (seeded.error) return { error: seeded.error }

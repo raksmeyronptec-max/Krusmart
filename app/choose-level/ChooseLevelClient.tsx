@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation'
 import { GraduationCap, BookOpen, Library, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/actions/Button'
 import { ChoiceCard } from '@/components/onboarding/ChoiceCard'
-import { EDUCATION_LEVELS, gradeRangeLabel, type EducationLevelKey } from '@/lib/onboarding/curriculum'
+import {
+  EDUCATION_LEVELS, gradeRangeLabel, levelIsSelectable, type EducationLevelKey,
+} from '@/lib/onboarding/curriculum'
 import { writePendingLevel } from '@/lib/onboarding/pendingLevel'
 import { DEFAULT_SCHEME_CONFIG, SECONDARY_SCHEME_CONFIG } from '@/lib/grading/scheme'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
@@ -29,7 +31,9 @@ function scaleLabel(key: EducationLevelKey): string {
 
 export function ChooseLevelClient() {
   const router = useRouter()
-  const [key, setKey] = useState<EducationLevelKey>('primary')
+  const [key, setKey] = useState<EducationLevelKey>(
+    () => (EDUCATION_LEVELS.find(levelIsSelectable) ?? EDUCATION_LEVELS[0]).key,
+  )
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -57,17 +61,25 @@ export function ChooseLevelClient() {
         <legend className="sr-only">កម្រិតសិក្សា</legend>
         {EDUCATION_LEVELS.map((level) => {
           const Icon = ICONS[level.key]
+          const selectable = levelIsSelectable(level)
+          // A level with no seeded curriculum would fall back to the primary
+          // subject list and grade /10 — so the card must not promise /50 and
+          // then quietly do something else. Closed, and labelled as such.
+          const description = selectable
+            ? `${level.description} · ${scaleLabel(level.key)}`
+            : `${level.description} · មិនទាន់មានកម្មវិធីសិក្សា`
           return (
             <ChoiceCard
               key={level.key}
               name="level"
               value={level.key}
               checked={key === level.key}
+              disabled={!selectable}
               onChange={(v) => setKey(v as EducationLevelKey)}
               icon={<Icon className="h-5 w-5" />}
               title={level.name}
-              description={`${level.description} · ${scaleLabel(level.key)}`}
-              meta={gradeRangeLabel(level)}
+              description={description}
+              meta={level.seededNote ?? gradeRangeLabel(level)}
             />
           )
         })}

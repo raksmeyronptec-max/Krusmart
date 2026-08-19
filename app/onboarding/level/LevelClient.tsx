@@ -6,7 +6,9 @@ import { Button } from '@/components/ui/actions/Button'
 import { ChoiceCard } from '@/components/onboarding/ChoiceCard'
 import { StepHeading } from '@/components/onboarding/StepHeading'
 import { notify } from '@/components/ui/feedback/notify'
-import { EDUCATION_LEVELS, gradeRangeLabel, type EducationLevelKey } from '@/lib/onboarding/curriculum'
+import {
+  EDUCATION_LEVELS, gradeRangeLabel, levelIsSelectable, type EducationLevelKey,
+} from '@/lib/onboarding/curriculum'
 import { clearPendingLevel, readPendingLevel } from '@/lib/onboarding/pendingLevel'
 import { chooseEducationLevel } from '../actions'
 
@@ -61,17 +63,22 @@ export function LevelClient() {
         <legend className="sr-only">កម្រិតសិក្សា</legend>
         {EDUCATION_LEVELS.map((level) => {
           const Icon = ICONS[level.key]
+          // Same gate as /choose-level: a level with no seeded curriculum is
+          // not offered, so nobody enters a term against a scale the screen
+          // did not promise.
+          const selectable = levelIsSelectable(level)
           return (
             <ChoiceCard
               key={level.key}
               name="level"
               value={level.key}
               checked={key === level.key}
+              disabled={!selectable}
               onChange={(v) => setKey(v as EducationLevelKey)}
               icon={<Icon className="h-5 w-5" />}
               title={level.name}
-              description={level.description}
-              meta={gradeRangeLabel(level)}
+              description={selectable ? level.description : `${level.description} · មិនទាន់មានកម្មវិធីសិក្សា`}
+              meta={level.seededNote ?? gradeRangeLabel(level)}
             />
           )
         })}
