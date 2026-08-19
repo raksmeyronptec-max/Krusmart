@@ -10,6 +10,11 @@ import { MONTHS_BY_CALENDAR } from '@/lib/constants/months'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import type { SheetRow } from '@/lib/utils/xlsx'
 import { gradeFor } from '@/lib/grading/scheme'
+import { useScoreTemplate } from '@/lib/hooks/useScoreTemplate'
+import { maxScoreByColumn, resolveTemplate, SYSTEM_PRIMARY_TEMPLATE } from '@/lib/scores/template'
+import {
+    assignRanks, FALLBACK_NUMERIC_KEYS, numericColumnKeys, studentAverage,
+} from '@/lib/scores/aggregate'
 
 /** A student decorated with the per-period scores and the derived ranking fields. */
 type RankedStudent = Student & {
@@ -29,24 +34,23 @@ export default function RankingClient({ initialStudents, settings}: { initialStu
     const [showPreview, setShowPreview] = useState(false)
     const [studentsData, setStudentsData] = useState<RankedStudent[]>([])
 
-    const config = {
-        monthly: {
-            columns: [
-                'kh_listen', 'kh_speak', 'kh_read', 'kh_write', 'kh_calligraphy', 'kh_recitation', 'kh_essay',
-                'math_num', 'math_meas', 'math_geo', 'math_alg', 'math_stat',
-                'sci_phy', 'sci_chem', 'sci_bio', 'sci_earth', 'sci_applied',
-                'soc_ethic', 'soc_geo', 'soc_hist', 'soc_home',
-                'pe_sport', 'health_hygiene', 'life_skill', 'foreign',
-                'ex_oral', 'ex_att', 'ex_book', 'ex_hw'
-            ]
-        },
-        semester: {
-            columns: [
-                'sem_kh_reading', 'sem_kh_listening_speaking', 'sem_kh_dictation', 'sem_kh_essay',
-                'sem_math', 'sem_science', 'sem_moral_civics', 'sem_geo', 'sem_hist', 'sem_home_arts',
-                'sem_life_skills', 'sem_foreign', 'sem_sport'
-            ]
-        }
+    /**
+     * The class's curriculum and grading scheme — the same resolution the
+     * score screens use, so the ranking value IS the score-total average
+     * (§19). Two worlds decided by data: the untagged primary fallback keeps
+     * the shared 29/13-key denominators this screen always counted; a class on
+     * a level template (a grade-12 stream) ranks by the /50 coefficient
+     * average over its own curriculum. The private column list this component
+     * carried is gone — lib/scores/aggregate.ts owns the denominator now.
+     */
+    const { rows: templateRows, context: templateContext, scheme, levelCurriculum } = useScoreTemplate('monthly')
+
+    /** Numeric denominator for one mode, resolved fresh at load time. */
+    const keysForMode = (mode: 'monthly' | 'semester') => {
+        if (!levelCurriculum) return FALLBACK_NUMERIC_KEYS[mode]
+        return numericColumnKeys(resolveTemplate(
+            templateRows.length > 0 ? templateRows : SYSTEM_PRIMARY_TEMPLATE, mode, templateContext,
+        ))
     }
 
     const loadData = async (mode: 'monthly'|'semester'|'yearly', period: string) => {
@@ -72,23 +76,23 @@ export default function RankingClient({ initialStudents, settings}: { initialStu
             return { ...stu, scores: studentScores, total: 0, average: '0.00', finalAverageForRank: 0, desc: '', rank: 0 }
         })
 
-        processedStudents.forEach(stu => {
-            let sum = 0
-            let count = 0
+        const maxByColumn = maxScoreByColumn(resolveTemplate(
+            templateRows.length > 0 ? templateRows : SYSTEM_PRIMARY_TEMPLATE,
+            mode === 'yearly' ? 'semester' : mode,
+            templateContext,
+        ))
 
+        processedStudents.forEach(stu => {
             if (mode === 'monthly' || mode === 'semester') {
-                const cols = config[mode].columns
-                cols.forEach(key => {
-                    const val = parseFloat(String(stu.scores[key] ?? ''))
-                    if (!isNaN(val)) {
-                        sum += val
-                        count++
-                    }
-                })
-                stu.total = sum
-                stu.average = count > 0 ? (sum / count).toFixed(2) : "0.00"
+                // Shared aggregation: Σscore ÷ Σcoefficient under a secondary
+                // scheme (never a raw total of mixed denominators), the plain
+                // mean this screen always showed under the primary default.
+                const { average, total } = studentAverage(stu.scores, keysForMode(mode), maxByColumn, scheme)
+                stu.total = total
+                stu.average = average === null ? '0.00' : average.toFixed(2)
                 stu.finalAverageForRank = parseFloat(stu.average)
             } else if (mode === 'yearly') {
+                // Semester averages already sit on the scheme's scale.
                 const s1 = parseFloat(String(stu.scores['sem1_avg'] ?? '0'))
                 const s2 = parseFloat(String(stu.scores['sem2_avg'] ?? '0'))
                 const div = (s1 > 0 ? 1 : 0) + (s2 > 0 ? 1 : 0)
@@ -97,21 +101,13 @@ export default function RankingClient({ initialStudents, settings}: { initialStu
                 stu.finalAverageForRank = parseFloat(stu.average)
             }
 
-            // Shared grading engine — same A-F ladder this block used inline.
-            const result = gradeFor(stu.finalAverageForRank)
+            // Shared grading engine, on the class's scheme.
+            const result = gradeFor(stu.finalAverageForRank, scheme)
             stu.grade = result?.letter ?? '-'
             stu.desc = result?.label ?? '-'
         })
 
-        // Rank
-        processedStudents.sort((a, b) => b.finalAverageForRank - a.finalAverageForRank)
-        let currentRank = 1
-        for (let i = 0; i < processedStudents.length; i++) {
-            if (i > 0 && processedStudents[i].finalAverageForRank < processedStudents[i-1].finalAverageForRank) {
-                currentRank = i + 1
-            }
-            processedStudents[i].rank = currentRank
-        }
+        assignRanks(processedStudents, s => s.finalAverageForRank, (s, r) => { s.rank = r })
 
         // Restore original order based on order_index
         processedStudents.sort((a,b) => (a.order_index || 0) - (b.order_index || 0))

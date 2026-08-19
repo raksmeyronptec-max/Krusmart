@@ -9,6 +9,13 @@ import Select from '@/components/ui/forms/Select'
 import type { Score, Settings, Student } from '@/lib/types'
 import { MONTHS_BY_ACADEMIC_YEAR } from '@/lib/constants/months'
 import { letterFor } from '@/lib/grading/scheme'
+import { useScoreTemplate } from '@/lib/hooks/useScoreTemplate'
+import { maxScoreByColumn, resolveTemplate, SYSTEM_PRIMARY_TEMPLATE } from '@/lib/scores/template'
+import { levelByKey, trackLabel } from '@/lib/onboarding/curriculum'
+import { toKhmerNumber } from '@/lib/utils/khmer-num'
+import {
+    assignRanks, FALLBACK_NUMERIC_KEYS, numericColumnKeys, studentAverage,
+} from '@/lib/scores/aggregate'
 
 /** A student decorated with the scores and ranking fields the certificate prints. */
 type ProcessedStudent = Student & {
@@ -19,14 +26,6 @@ type ProcessedStudent = Student & {
     rank?: number
 }
 
-const config = {
-    monthly: {
-        columns: ['kh_listen','kh_speak','kh_read','kh_write','kh_calligraphy','kh_recitation','kh_essay','math_num','math_meas','math_geo','math_alg','math_stat','sci_phy','sci_chem','sci_bio','sci_earth','sci_applied','soc_ethic','soc_geo','soc_hist','soc_home','pe_sport','health_hygiene','life_skill','foreign','ex_oral','ex_att','ex_book','ex_hw']
-    },
-    semester: {
-        columns: ['sem_kh_reading','sem_kh_listening_speaking','sem_kh_dictation','sem_kh_essay','sem_math','sem_science','sem_moral_civics','sem_geo','sem_hist','sem_home_arts','sem_life_skills','sem_foreign','sem_sport']
-    }
-}
 
 export default function CertificateClient({ initialStudents, settings }: { initialStudents: Student[], settings: Settings | null }) {
     const [scoreType, setScoreType] = useState('monthly')
@@ -59,9 +58,36 @@ export default function CertificateClient({ initialStudents, settings }: { initi
         return `annual-${academicYear}`
     }, [scoreType, academicYear, month, semester])
 
+    /**
+     * Same resolution as /score/total, so the certificate carries the exact
+     * average and letter the totals grid shows (§19) — the /50 coefficient
+     * average for a class on a level template, the untouched /10 mean on the
+     * primary fallback. The private column list is gone; the shared
+     * denominators live in lib/scores/aggregate.ts.
+     */
+    const { rows: templateRows, context: templateContext, scheme, levelCurriculum } = useScoreTemplate('monthly')
+
+    /** The class's curriculum, said on the panel so the paper is signed in context (§9). */
+    const levelContextLabel = (() => {
+        const level = templateContext?.levelKey ? levelByKey(templateContext.levelKey) : undefined
+        if (!level) return null
+        const parts = [level.name]
+        if (templateContext?.gradeNumber) parts.push(`ថ្នាក់ទី${toKhmerNumber(templateContext.gradeNumber)}`)
+        const track = trackLabel(templateContext?.track)
+        if (track) parts.push(track)
+        return parts.join(' · ')
+    })()
+
     const loadData = useCallback(async () => {
         const period = getScorePeriod()
         const records = await getAllScoresByPeriod(scoreType, period)
+
+        const mode = scoreType === 'monthly' || scoreType === 'semester' ? scoreType : 'semester'
+        const subjectsForMode = resolveTemplate(
+            templateRows.length > 0 ? templateRows : SYSTEM_PRIMARY_TEMPLATE, mode, templateContext,
+        )
+        const keys = levelCurriculum ? numericColumnKeys(subjectsForMode) : FALLBACK_NUMERIC_KEYS[mode]
+        const maxByColumn = maxScoreByColumn(subjectsForMode)
         
         const processedStudents: ProcessedStudent[] = initialStudents.map(stu => {
             const studentScores: Record<string, number | null> = {}
@@ -72,52 +98,31 @@ export default function CertificateClient({ initialStudents, settings }: { initi
         })
 
         processedStudents.forEach(stu => {
-            let sum = 0
-            let scoredSubjectsCount = 0
-
-            const cols = scoreType === 'monthly' ? config.monthly.columns : (scoreType === 'semester' ? config.semester.columns : [])
-            
-            cols.forEach((key: string) => {
-                const rawVal = stu.scores[key]
-                if (rawVal !== null && rawVal !== undefined) {
-                    const val = parseFloat(String(rawVal))
-                    if (!isNaN(val)) {
-                        sum += val
-                        scoredSubjectsCount++
-                    }
-                }
-            })
-            
-            if (scoreType === 'monthly') {
-                stu.total = sum
-                stu.average = scoredSubjectsCount > 0 ? (sum / scoredSubjectsCount).toFixed(2) : "0.00"
-                stu.finalAverageForRank = parseFloat(stu.average)
-            } else if (scoreType === 'yearly') {
+            if (scoreType === 'yearly') {
+                // Semester averages already sit on the scheme's scale.
                 const s1 = parseFloat(String(stu.scores['sem1_avg'] ?? '0'))
                 const s2 = parseFloat(String(stu.scores['sem2_avg'] ?? '0'))
                 stu.total = s1 + s2
                 stu.average = (stu.total / 2).toFixed(2)
                 stu.finalAverageForRank = parseFloat(stu.average)
-            } else { 
-                stu.total = sum
-                stu.average = scoredSubjectsCount > 0 ? (sum / scoredSubjectsCount).toFixed(2) : "0.00"
+            } else {
+                const { average, total } = studentAverage(stu.scores, keys, maxByColumn, scheme)
+                stu.total = total
+                stu.average = average === null ? '0.00' : average.toFixed(2)
                 stu.finalAverageForRank = parseFloat(stu.average)
             }
 
-            stu.grade = letterFor(stu.finalAverageForRank)
+            stu.grade = letterFor(stu.finalAverageForRank, scheme)
         })
 
-        processedStudents.sort((a, b) => (b.finalAverageForRank || 0) - (a.finalAverageForRank || 0))
-        let currentRank = 1
-        for (let i = 0; i < processedStudents.length; i++) {
-            if (i > 0 && (processedStudents[i].finalAverageForRank || 0) < (processedStudents[i-1].finalAverageForRank || 0)) {
-                currentRank = i + 1
-            }
-            processedStudents[i].rank = currentRank
-        }
+        assignRanks(
+            processedStudents,
+            stu => stu.finalAverageForRank || 0,
+            (stu, r) => { stu.rank = r },
+        )
 
         setStudentsData(processedStudents)
-    }, [scoreType, initialStudents, getScorePeriod])
+    }, [scoreType, initialStudents, getScorePeriod, templateRows, templateContext, scheme, levelCurriculum])
 
     useEffect(() => {
         // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch: state is set after await, not synchronously during the effect
@@ -293,6 +298,12 @@ export default function CertificateClient({ initialStudents, settings }: { initi
                                         </div>
                                     )}
                                 </div>
+
+                                {levelContextLabel && (
+                                    <p className="inline-flex items-center self-start rounded-full bg-brand-100 px-3 py-1 text-xs font-bold text-brand-800 dark:bg-brand-900/40 dark:text-brand-300">
+                                        {levelContextLabel}
+                                    </p>
+                                )}
 
                                 <Button printHidden={false} onClick={loadData}>
                                     <RefreshCw className="w-4 h-4" /> ទាញយកចំណាត់ថ្នាក់សិស្ស
