@@ -84,6 +84,11 @@ export function levelByKey(key: string): EducationLevelSpec | undefined {
   return EDUCATION_LEVELS.find((l) => l.key === key)
 }
 
+/** Lookup by the persisted `education_levels.name` — the 00004 canonical strings. */
+export function levelByName(name: string | null | undefined): EducationLevelSpec | undefined {
+  return EDUCATION_LEVELS.find((l) => l.name === name)
+}
+
 /** `ថ្នាក់ទី៥` — the exact form `00004` writes. */
 export function gradeName(n: number): string {
   return `ថ្នាក់ទី${toKhmerNumber(n)}`

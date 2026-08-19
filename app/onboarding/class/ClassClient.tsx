@@ -8,6 +8,9 @@ import Select from '@/components/ui/forms/Select'
 import { StepHeading } from '@/components/onboarding/StepHeading'
 import { notify } from '@/components/ui/feedback/notify'
 import { CLASS_SECTIONS, classDisplayName, generatedClassName } from '@/lib/onboarding/curriculum'
+import {
+  CLASS_TRACKS, gradeNeedsTrack, levelByName, type ClassTrackKey,
+} from '@/lib/onboarding/curriculum'
 import { createClassAndAssign } from '../actions'
 
 interface GradeOption {
@@ -29,12 +32,21 @@ export function ClassClient({
   initialYearId: string
 }) {
   const [gradeId, setGradeId] = useState(initialGradeId)
+  const [track, setTrack] = useState<ClassTrackKey | ''>('')
   const [section, setSection] = useState<string>(CLASS_SECTIONS[0])
   const [yearId, setYearId] = useState(initialYearId)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
   const grade = useMemo(() => grades.find((g) => g.id === gradeId), [grades, gradeId])
+
+  // ថ្នាក់ទី១១–១២ stream into ក្រុមវិទ្យាសាស្ត្រ / សង្គម — the same subject
+  // carries a different full mark per stream, so the class must declare one.
+  // Whether this grade streams is curriculum data (tracksFromGrade), not a
+  // grade-number test written here.
+  const needsTrack = grade
+    ? gradeNeedsTrack(levelByName(grade.levelName), grade.sortOrder)
+    : false
 
   /**
    * §10: "Do not force the teacher to manually type the generated class name."
@@ -49,7 +61,12 @@ export function ClassClient({
     setError(null)
 
     startTransition(async () => {
-      const result = await createClassAndAssign({ gradeId, name, academicYearId: yearId })
+      const result = await createClassAndAssign({
+        gradeId,
+        name,
+        academicYearId: yearId,
+        track: needsTrack && track ? track : undefined,
+      })
       if (result?.error) {
         setError(result.error)
         notify.error(result.error)
@@ -86,6 +103,16 @@ export function ClassClient({
           onChange={setYearId}
           options={years.map((y) => ({ value: y.id, label: y.name }))}
         />
+
+        {needsTrack && (
+          <Select
+            label="ក្រុមសិក្សា"
+            value={track}
+            onChange={(v) => setTrack(v as ClassTrackKey)}
+            placeholder="ជ្រើសរើសក្រុម..."
+            options={CLASS_TRACKS.map((t) => ({ value: t.key, label: t.label }))}
+          />
+        )}
       </div>
 
       {/* The generated name, shown as an outcome rather than an editable field. */}
@@ -113,7 +140,7 @@ export function ClassClient({
           type="submit"
           size="lg"
           loading={pending}
-          disabled={!gradeId || !yearId || !name}
+          disabled={!gradeId || !yearId || !name || (needsTrack && !track)}
           className="sm:min-w-40"
         >
           បង្កើតថ្នាក់

@@ -6,7 +6,10 @@ import { logger } from '@/lib/utils/logger'
 import { khmerRpcError } from '@/lib/utils/rpc-errors'
 import { auditLog, auditLogBatch } from '@/lib/audit/log'
 import type { ActionResult } from '@/lib/types'
-import { gradesForLevel, levelByKey } from '@/lib/onboarding/curriculum'
+import {
+  CLASS_TRACKS, gradeNeedsTrack, gradesForLevel, levelByKey, levelByName,
+} from '@/lib/onboarding/curriculum'
+import { schemeForLevel } from '@/lib/grading/levelSchemes'
 
 /**
  * First-time setup, as four writes.
@@ -123,6 +126,30 @@ async function seedEducationLevel(
   )
 
   if (gradesErr) return { error: friendlyError(gradesErr) }
+
+  // Default grading scheme, so the stored rows agree with the engine's
+  // level-keyed config from day one (00009 only covered levels that existed
+  // when it ran; 00023 backfills the gap for old schools, this covers new
+  // ones). Guarded by a read because grading_schemes has no natural unique
+  // key for defaults; a failure is logged, not fatal — the runtime resolves
+  // the scheme from lib/grading/levelSchemes.ts regardless.
+  const { data: existingScheme } = await supabase
+    .from('grading_schemes')
+    .select('id')
+    .eq('education_level_id', levelRow.id)
+    .eq('is_default', true)
+    .limit(1)
+  if ((existingScheme?.length ?? 0) === 0) {
+    const { error: schemeErr } = await supabase.from('grading_schemes').insert({
+      school_id: schoolId,
+      education_level_id: levelRow.id,
+      name: `ការវាយតម្លៃស្តង់ដារ · ${level.name}`,
+      is_default: true,
+      config: schemeForLevel(level.key),
+    })
+    if (schemeErr) logger.error('seedEducationLevel: scheme seed failed', schemeErr)
+  }
+
   return { levelId: levelRow.id }
 }
 
@@ -233,6 +260,8 @@ export async function createClassAndAssign(input: {
   gradeId: string
   name: string
   academicYearId: string
+  /** Stream for grades that split (curriculum's `tracksFromGrade`). */
+  track?: string
 }): Promise<ActionResult> {
   const { supabase, user } = await requireTeacher()
 
@@ -241,12 +270,29 @@ export async function createClassAndAssign(input: {
   if (!input.gradeId) return { error: 'សូមជ្រើសរើសថ្នាក់' }
   if (!input.academicYearId) return { error: 'សូមជ្រើសរើសឆ្នាំសិក្សា' }
 
+  // The stream is validated against the curriculum, never taken on faith: the
+  // grade row decides whether one is needed, the CLASS_TRACKS ladder decides
+  // what values exist, and a track supplied where none applies is dropped.
+  const { data: gradeRow } = await supabase
+    .from('grades')
+    .select('sort_order, education_levels!inner(name)')
+    .eq('id', input.gradeId)
+    .maybeSingle()
+  const levelRel = (gradeRow as { education_levels?: { name?: string } | { name?: string }[] } | null)
+    ?.education_levels
+  const levelName = (Array.isArray(levelRel) ? levelRel[0] : levelRel)?.name
+  const needsTrack = gradeNeedsTrack(levelByName(levelName), (gradeRow?.sort_order as number) ?? 0)
+
+  const track = CLASS_TRACKS.find((t) => t.key === input.track)?.key ?? null
+  if (needsTrack && !track) return { error: 'សូមជ្រើសរើសក្រុមសិក្សា (វិទ្យាសាស្ត្រ ឬសង្គម)' }
+
   const { data: cls, error: classErr } = await supabase
     .from('classes')
     .insert({
       grade_id: input.gradeId,
       academic_year_id: input.academicYearId,
       name,
+      ...(needsTrack && track ? { track } : {}),
     })
     .select('id')
     .single()

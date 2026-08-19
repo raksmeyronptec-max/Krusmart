@@ -15,6 +15,8 @@
  * Exits non-zero on any failure.
  */
 
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import {
   bandThreshold,
   coefficientAverage,
@@ -152,6 +154,42 @@ console.log('\nprimary /10 neutrality:')
   check('fractional band min honoured on own scale',
     gradeFor(8.5, custom)?.letter === 'A' && gradeFor(8.4, custom)?.letter === 'F')
   check('parseSchemeConfig defaults weighting to simple', custom.weighting === 'simple')
+}
+
+// --- 6. the SQL seeds mirror the TypeScript configs -----------------------------
+// 00023's jsonb bands and SECONDARY_SCHEME_CONFIG are transcriptions of one
+// another; a typo in either is invisible until a teacher opens a page. Same
+// discipline as the template seeds: parse the SQL, compare field by field.
+console.log('\nSQL scheme seeds (00023):')
+{
+  const sql = readFileSync(
+    fileURLToPath(new URL('../supabase/migrations/00023_secondary_grading_schemes.sql', import.meta.url)),
+    'utf8',
+  )
+  const BAND =
+    /jsonb_build_object\('letter','([A-F])','min',([\d.]+),\s*'max',([\d.]+),\s*'label','([^']+)'\)/g
+  const bands = [...sql.matchAll(BAND)].map((m) => ({
+    letter: m[1], min: Number(m[2]), max: Number(m[3]), label: m[4],
+  }))
+  // Three six-band ladders: the UPDATE's secondary set, the INSERT's secondary
+  // set, and the INSERT's primary set — in that file order.
+  check('three complete ladders in the file', bands.length === 18, `got ${bands.length}`)
+
+  const ladders = [bands.slice(0, 6), bands.slice(6, 12), bands.slice(12, 18)]
+  for (const [i, expectedCfg] of [
+    [0, SECONDARY_SCHEME_CONFIG] as const,
+    [1, SECONDARY_SCHEME_CONFIG] as const,
+    [2, DEFAULT_SCHEME_CONFIG] as const,
+  ]) {
+    const got = JSON.stringify(ladders[i])
+    const want = JSON.stringify(expectedCfg.bands)
+    check(`ladder ${i + 1} matches ${expectedCfg === DEFAULT_SCHEME_CONFIG ? 'primary' : 'secondary'} config`,
+      got === want, `\n      - ${want}\n      + ${got}`)
+  }
+
+  check("secondary scalars present ('maxScore', 50 / 'passMark', 25 / unit 50)",
+    sql.includes("'maxScore', 50") && sql.includes("'passMark', 25") &&
+    sql.includes("'coefficientUnit', 50") && sql.includes("'weighting', 'coefficient'"))
 }
 
 if (failures > 0) {
