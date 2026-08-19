@@ -58,12 +58,10 @@ for (const file of files) {
     }
     unguarded.push(`CREATE ${m[1]} without IF NOT EXISTS`)
   }
-  for (const m of sql.matchAll(/\bADD\s+COLUMN\b(?!\s+IF\s+NOT\s+EXISTS)/gi)) {
-    unguarded.push('ADD COLUMN without IF NOT EXISTS')
-  }
-  for (const m of sql.matchAll(/\bCREATE\s+FUNCTION\b/gi)) {
-    unguarded.push('CREATE FUNCTION without OR REPLACE')
-  }
+  const bareAddColumn = sql.match(/\bADD\s+COLUMN\b(?!\s+IF\s+NOT\s+EXISTS)/gi)
+  if (bareAddColumn) unguarded.push(`ADD COLUMN without IF NOT EXISTS (x${bareAddColumn.length})`)
+  const bareFunction = sql.match(/\bCREATE\s+FUNCTION\b/gi)
+  if (bareFunction) unguarded.push(`CREATE FUNCTION without OR REPLACE (x${bareFunction.length})`)
   // A bare INSERT re-inserts on a second run.
   for (const m of sql.matchAll(/\bINSERT\s+INTO\s+public\.(\w+)/gi)) {
     const after = sql.slice(m.index!, m.index! + 4000)
