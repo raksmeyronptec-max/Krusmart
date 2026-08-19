@@ -227,6 +227,72 @@ console.log('\nlower secondary (no curriculum seeded yet):')
     subjects.every((s) => s.maxScore === DEFAULT_SCHEME_CONFIG.maxScore))
 }
 
+// --- 5d. MULTI-TEACHER: the same class, marks owned by different teachers ------------
+// The secondary model splits one class's marks across subject teachers. What
+// must hold is that aggregation depends on the *marks*, never on who entered
+// them — so the same pupil's average is identical however ownership is spread,
+// and every surface still agrees on it.
+//
+// The marks are deliberately at different fractions of their maxima: an
+// earlier fixture had them all at 80%, which made every subset average the
+// same and would have let an owner-filtered read pass unnoticed.
+console.log('\nmulti-teacher class:')
+{
+  const ctx: TemplateContext = { levelKey: 'upper_secondary', gradeNumber: 12, track: 'science' }
+
+  const owned = [
+    { subject: 'hs_math', value: 125, teacherId: 'teacher-A' },      // coef 2.5
+    { subject: 'hs_physics', value: 45, teacherId: 'teacher-B' },    // coef 1.5
+    { subject: 'hs_chemistry', value: 60, teacherId: 'teacher-B' },  // coef 1.5
+    { subject: 'hs_khmer', value: 60, teacherId: 'teacher-C' },      // coef 1.5
+    { subject: 'hs_history', value: 25, teacherId: 'teacher-D' },    // coef 1
+  ]
+
+  // Σ315 ÷ Σ8 = 39.375 → 39.38, a C on the secondary ladder.
+  const asClass = Object.fromEntries(owned.map((m) => [m.subject, m.value]))
+  const classResults = surfaceResults(asClass, ctx)
+  const names = Object.keys(classResults)
+  const classAvg = classResults.scoreTotal.average
+
+  check('every surface agrees on the multi-teacher average (39.38)',
+    classAvg === 39.38 && names.every((n) => classResults[n].average === classAvg),
+    names.map((n) => `${n}=${classResults[n].average}`).join(' '))
+  check('…and on the letter (C)', names.every((n) => classResults[n].letter === 'C'))
+  check('…and on the descriptor',
+    names.every((n) => classResults[n].label === classResults[names[0]].label))
+
+  // The bug this phase fixed: reading only the reader's own rows. Each
+  // teacher's slice genuinely differs from the class figure, so a surviving
+  // owner filter could not pass this.
+  for (const [reader, expected] of [['teacher-A', 50], ['teacher-B', 35]] as const) {
+    const ownedOnly = Object.fromEntries(
+      owned.filter((m) => m.teacherId === reader).map((m) => [m.subject, m.value]),
+    )
+    const narrowed = surfaceResults(ownedOnly, ctx).scoreTotal.average
+    check(`${reader}'s own rows alone average ${expected} — an owner filter would show that`,
+      narrowed === expected && narrowed !== classAvg,
+      `got ${narrowed}`)
+  }
+
+  // Ownership is not an input to the calculation at all.
+  const reshuffled = Object.fromEntries([...owned].reverse().map((m) => [m.subject, m.value]))
+  check('reshuffling ownership changes nothing',
+    surfaceResults(reshuffled, ctx).scoreTotal.average === classAvg)
+
+  // A subject nobody entered stays missing, not zero — the unassigned-subject
+  // case /score/collect flags. Dropping history (25/50) lifts the average to
+  // Σ290 ÷ Σ7 = 41.43, which is the point: it is not dragged to zero.
+  const missingOne = { ...asClass }
+  delete (missingOne as Record<string, number>).hs_history
+  const withGap = surfaceResults(missingOne, ctx)
+  check('an unentered subject drops out rather than scoring zero',
+    withGap.scoreTotal.average === 41.43, `got ${withGap.scoreTotal.average}`)
+  check('…and every surface still agrees',
+    Object.keys(withGap).every((n) => withGap[n].average === withGap.scoreTotal.average))
+  check('…and it is not the zero-filled figure (Σ290 ÷ Σ8 = 36.25)',
+    withGap.scoreTotal.average !== 36.25)
+}
+
 // --- 6. ranks: shared walk, ties share ---------------------------------------------
 console.log('\nrank walk:')
 {
