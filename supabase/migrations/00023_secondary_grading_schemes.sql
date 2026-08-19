@@ -66,6 +66,11 @@ SELECT
             jsonb_build_object(
                 'maxScore', 50, 'passMark', 25,
                 'weighting', 'coefficient', 'coefficientUnit', 50,
+                -- Provenance, so the rollback can find exactly the rows this
+                -- file created without the operator remembering when they ran
+                -- it. Ignored by every reader: lib/grading/scheme.ts consumes
+                -- maxScore/passMark/bands/weighting and nothing else.
+                'seededBy', '00023',
                 'bands', jsonb_build_array(
                     jsonb_build_object('letter','A','min',45,'max',50,   'label','ល្អប្រសើរ'),
                     jsonb_build_object('letter','B','min',40,'max',44.99,'label','ល្អណាស់'),
@@ -79,6 +84,7 @@ SELECT
             jsonb_build_object(
                 'maxScore', 10, 'passMark', 5,
                 'weighting', 'simple',
+                'seededBy', '00023',
                 'bands', jsonb_build_array(
                     jsonb_build_object('letter','A','min',9,'max',10,  'label','ល្អណាស់'),
                     jsonb_build_object('letter','B','min',8,'max',8.99,'label','ល្អ'),
@@ -118,13 +124,31 @@ COMMIT;
 -- customised its scheme was skipped and has nothing to restore. What the UPDATE
 -- did change is restored below to 00009's exact seed.
 --
--- Run both halves, in this order, inside one transaction.
+-- Both halves are self-identifying and idempotent: they find their rows by
+-- what those rows ARE, not by when they were written. No timestamp, no note
+-- kept from the day you applied this file. Run the whole block; running it
+-- twice changes nothing the second time.
+--
+-- Why the stamp is needed at all: a row this file INSERTed for a secondary
+-- level is otherwise byte-identical to one it UPDATEd, and the two need
+-- opposite treatment — the first must be deleted, the second restored. Nothing
+-- in the config told them apart, which is why the INSERT now stamps its own.
+--
+-- Each half is guarded on the stamp (half 1 requires it, half 2 requires its
+-- absence), so the halves cannot touch the same row and the order between them
+-- does not matter. Either half may also be run alone.
 --
 -- BEGIN;
 --
--- -- 1. Undo the UPDATE: put 00009's primary ladder back on the secondary
--- --    levels. Guarded by the shape THIS migration wrote, so a scheme edited
--- --    by an admin after the fact is left alone.
+-- -- 1. Undo the INSERT: rows this file created carry their own provenance.
+-- DELETE FROM public.grading_schemes
+--  WHERE is_default
+--    AND config->>'seededBy' = '00023';
+--
+-- -- 2. Undo the UPDATE: restore 00009's primary ladder on the secondary rows
+-- --    that existed before this file ran. Guarded by the shape THIS migration
+-- --    wrote, so a scheme an admin edited afterwards is left alone, and the
+-- --    absence of `seededBy` proves the row predates this file.
 -- UPDATE public.grading_schemes gs
 --    SET config = jsonb_build_object(
 --         'maxScore', 10,
@@ -146,17 +170,9 @@ COMMIT;
 --  WHERE el.id = gs.education_level_id
 --    AND el.name IN ('មធ្យមសិក្សាបឋមភូមិ', 'មធ្យមសិក្សាទុតិយភូមិ')
 --    AND gs.is_default
+--    AND NOT (gs.config ? 'seededBy')
 --    AND gs.config->>'weighting' = 'coefficient'
 --    AND gs.config->>'maxScore' = '50';
---
--- -- 2. Undo the INSERT: remove default schemes this migration created for
--- --    levels that had none. `created_at` is the only thing distinguishing
--- --    them from 00009's, so scope by the run window instead — replace the
--- --    timestamp with the moment you applied this file.
--- --    Omit this half entirely if you only want to undo the config change.
--- DELETE FROM public.grading_schemes
---  WHERE is_default
---    AND created_at >= TIMESTAMPTZ '<when you applied 00023>';
 --
 -- COMMIT;
 --

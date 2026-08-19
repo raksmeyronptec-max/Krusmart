@@ -48,6 +48,14 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
+-- version-marker: backfill-never-enrolled-only
+--
+-- Load-bearing. This function REPLACES 00018's body rather than creating a new
+-- object, so `pg_proc` presence cannot tell the two versions apart and the
+-- deploy preflight reads this line out of `prosrc` instead. Every other string
+-- in the body appears in 00018's too — including `academic_year`, which 00019
+-- still writes — so nothing incidental can serve as the discriminator.
+-- Do not edit or remove it. See docs/deploy-00018-00024.md, section 00019.
 DECLARE
     v_user     UUID := auth.uid();
     v_class    UUID;

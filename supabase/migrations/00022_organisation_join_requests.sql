@@ -246,10 +246,16 @@ COMMIT;
 -- =============================================================================
 -- ROLLBACK
 -- =============================================================================
+-- All four functions, then the table. `my_join_requests()` is easy to miss —
+-- it is the only one that takes no argument and the only one not called from
+-- an admin screen — but it is SECURITY DEFINER like the rest, so leaving it
+-- behind leaves a privileged function reading a table that no longer exists.
+--
 -- BEGIN;
 -- DROP FUNCTION IF EXISTS public.approve_join_request(UUID);
 -- DROP FUNCTION IF EXISTS public.reject_join_request(UUID);
 -- DROP FUNCTION IF EXISTS public.search_organisations(TEXT);
+-- DROP FUNCTION IF EXISTS public.my_join_requests();
 -- DROP TABLE IF EXISTS public.join_requests CASCADE;
 -- COMMIT;
 -- =============================================================================

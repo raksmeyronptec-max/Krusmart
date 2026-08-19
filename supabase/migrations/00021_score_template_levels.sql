@@ -158,8 +158,16 @@ COMMIT;
 -- =============================================================================
 -- ROLLBACK
 -- =============================================================================
+-- Self-identifying: the DELETE names exactly what this file seeded — the
+-- system-scope grade-12 rows — rather than everything that happens to carry a
+-- level_key. A school or class amendment added later at a lower scope, or a
+-- future migration's seeds for grades 7-11, are not this file's to remove.
+--
 -- BEGIN;
--- DELETE FROM public.score_template_subjects WHERE level_key IS NOT NULL;
+-- DELETE FROM public.score_template_subjects
+--  WHERE scope = 'system'
+--    AND level_key = 'upper_secondary'
+--    AND grade_number = 12;
 -- DROP INDEX IF EXISTS score_template_subjects_target_lvl_uniq;
 -- CREATE UNIQUE INDEX IF NOT EXISTS score_template_subjects_target_uniq
 --     ON public.score_template_subjects
