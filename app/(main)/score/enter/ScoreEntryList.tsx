@@ -5,8 +5,10 @@ import { Check } from 'lucide-react'
 import Select from '@/components/ui/forms/Select'
 import { getDriveImageUrl } from '@/lib/utils/drive-image'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
-import { simpleAverage } from '@/lib/grading/scheme'
-import { formatMark, letterOrDash, numericCell, styleFor } from '@/lib/utils/score-band'
+import {
+  coefficientAverage, DEFAULT_SCHEME_CONFIG, type GradingSchemeConfig,
+} from '@/lib/grading/scheme'
+import { formatMark, letterOrDash, numericCell, styleFor, styleForMark } from '@/lib/utils/score-band'
 import { cellAttrs, handleCellKeyDown } from './cellNav'
 import type { SubjectColumn } from '@/lib/scores/template'
 import type { Student } from '@/lib/types'
@@ -40,6 +42,12 @@ export interface ScoreEntryListProps {
    * grid — see `maxScoreByColumn` in `lib/scores/template.ts`.
    */
   maxScoreFor?: (columnId: string) => number
+  /**
+   * The class's grading scheme. Averages, letters and colours all follow it —
+   * under `coefficient` weighting the per-pupil average is Σscore ÷ Σ(max÷50)
+   * and lands on /50; under the default it is the plain /10 mean, unchanged.
+   */
+  scheme?: GradingSchemeConfig
 }
 
 export function ScoreEntryList({
@@ -50,6 +58,7 @@ export function ScoreEntryList({
   savedCells,
   rowNumbers,
   maxScoreFor = () => 10,
+  scheme = DEFAULT_SCHEME_CONFIG,
 }: ScoreEntryListProps) {
   const containerRef = useRef<HTMLUListElement>(null)
   const single = columns.length === 1
@@ -57,15 +66,17 @@ export function ScoreEntryList({
   return (
     <ul ref={containerRef} className="flex flex-col gap-2.5">
       {students.map((stu, rowIndex) => {
-        const marks = columns
-          .filter((c) => c.type !== 'select')
-          .map((c) => numericCell(values[stu.id]?.[c.id]))
-        const average = simpleAverage(marks)
+        const average = coefficientAverage(
+          columns
+            .filter((c) => c.type !== 'select')
+            .map((c) => ({ score: numericCell(values[stu.id]?.[c.id]), maxScore: maxScoreFor(c.id) })),
+          scheme,
+        )
 
         return (
           <li
             key={stu.id}
-            className={`rounded-xl border border-divider bg-bg-surface p-3 shadow-sm transition hover:border-brand-400 sm:p-4 ${styleFor(average).rail}`}
+            className={`rounded-xl border border-divider bg-bg-surface p-3 shadow-sm transition hover:border-brand-400 sm:p-4 ${styleFor(average, scheme).rail}`}
           >
             <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
               {/* --------------------------------------------------- identity */}
@@ -107,7 +118,7 @@ export function ScoreEntryList({
                 {columns.map((col, colIndex) => {
                   const raw = values[stu.id]?.[col.id] ?? ''
                   const value = numericCell(raw)
-                  const style = styleFor(col.type === 'select' ? null : value)
+                  const style = styleForMark(col.type === 'select' ? null : value, maxScoreFor(col.id), scheme)
                   const id = `score-${stu.id}-${col.id}`
                   const saved = savedCells?.has(`${stu.id}:${col.id}`)
 
@@ -166,10 +177,10 @@ export function ScoreEntryList({
 
                 {/* ---------------------------------------------- grade letter */}
                 <span
-                  className={`flex h-11 min-w-11 shrink-0 items-center justify-center rounded-lg px-2 text-base font-bold ${styleFor(average).pill}`}
+                  className={`flex h-11 min-w-11 shrink-0 items-center justify-center rounded-lg px-2 text-base font-bold ${styleFor(average, scheme).pill}`}
                   title={average === null ? 'មិនទាន់មានពិន្ទុ' : `មធ្យមភាគ ${formatMark(average)}`}
                 >
-                  {letterOrDash(average)}
+                  {letterOrDash(average, scheme)}
                 </span>
               </div>
             </div>
@@ -178,7 +189,7 @@ export function ScoreEntryList({
                 spell it out so the teacher does not have to grade it mentally. */}
             {!single && average !== null && (
               <p className="mt-2 text-right text-[11px] font-bold text-text-muted">
-                មធ្យមភាគ៖ <span className={styleFor(average).text}>{formatMark(average)}</span>
+                មធ្យមភាគ៖ <span className={styleFor(average, scheme).text}>{formatMark(average)}</span>
               </p>
             )}
           </li>

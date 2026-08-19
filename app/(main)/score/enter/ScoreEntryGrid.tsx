@@ -4,8 +4,10 @@ import { useRef } from 'react'
 import { Check, MoveHorizontal } from 'lucide-react'
 import { FullscreenGrid } from '@/components/ui/data/FullscreenGrid'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
-import { simpleAverage } from '@/lib/grading/scheme'
-import { formatMark, letterOrDash, numericCell, styleFor } from '@/lib/utils/score-band'
+import {
+  coefficientAverage, DEFAULT_SCHEME_CONFIG, type GradingSchemeConfig,
+} from '@/lib/grading/scheme'
+import { formatMark, letterOrDash, numericCell, styleFor, styleForMark } from '@/lib/utils/score-band'
 import { cellAttrs, handleCellKeyDown } from './cellNav'
 import type { SubjectColumn } from '@/lib/scores/template'
 import type { Student } from '@/lib/types'
@@ -37,6 +39,12 @@ export interface ScoreEntryGridProps {
    * grid — see `maxScoreByColumn` in `lib/scores/template.ts`.
    */
   maxScoreFor?: (columnId: string) => number
+  /**
+   * The class's grading scheme. Averages, letters and colours all follow it —
+   * under `coefficient` weighting the per-pupil average is Σscore ÷ Σ(max÷50)
+   * and lands on /50; under the default it is the plain /10 mean, unchanged.
+   */
+  scheme?: GradingSchemeConfig
 }
 
 export function ScoreEntryGrid({
@@ -47,6 +55,7 @@ export function ScoreEntryGrid({
   savedCells,
   rowNumbers,
   maxScoreFor = () => 10,
+  scheme = DEFAULT_SCHEME_CONFIG,
 }: ScoreEntryGridProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -98,16 +107,18 @@ export function ScoreEntryGrid({
         </thead>
         <tbody>
           {students.map((stu, rowIndex) => {
-            const marks = columns
-              .filter((c) => c.type !== 'select')
-              .map((c) => numericCell(values[stu.id]?.[c.id]))
-            const average = simpleAverage(marks)
+            const average = coefficientAverage(
+              columns
+                .filter((c) => c.type !== 'select')
+                .map((c) => ({ score: numericCell(values[stu.id]?.[c.id]), maxScore: maxScoreFor(c.id) })),
+              scheme,
+            )
 
             return (
               <tr key={stu.id} className="group border-b border-divider last:border-b-0">
                 <th
                   scope="row"
-                  className={`sticky left-0 z-10 max-w-[240px] truncate border-r border-divider bg-bg-surface px-3 py-1.5 text-left font-bold text-text-heading shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)] group-hover:bg-paper ${styleFor(average).rail}`}
+                  className={`sticky left-0 z-10 max-w-[240px] truncate border-r border-divider bg-bg-surface px-3 py-1.5 text-left font-bold text-text-heading shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)] group-hover:bg-paper ${styleFor(average, scheme).rail}`}
                 >
                   <span className="mr-1.5 text-[11px] font-normal text-text-muted tabular-nums">
                     {toKhmerNumber(rowNumbers.get(stu.id) ?? rowIndex + 1)}.
@@ -118,7 +129,7 @@ export function ScoreEntryGrid({
                 {columns.map((col, colIndex) => {
                   const raw = values[stu.id]?.[col.id] ?? ''
                   const value = numericCell(raw)
-                  const style = styleFor(col.type === 'select' ? null : value)
+                  const style = styleForMark(col.type === 'select' ? null : value, maxScoreFor(col.id), scheme)
                   const saved = savedCells?.has(`${stu.id}:${col.id}`)
                   const label = `${col.label} សម្រាប់ ${stu.name_kh || stu.name_en}`
 
@@ -168,10 +179,10 @@ export function ScoreEntryGrid({
 
                 <td className="border-l border-divider px-2 py-1.5 text-center">
                   <span
-                    className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-bold tabular-nums ${styleFor(average).pill}`}
+                    className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-bold tabular-nums ${styleFor(average, scheme).pill}`}
                   >
                     {formatMark(average)}
-                    <span className="opacity-70">{letterOrDash(average)}</span>
+                    <span className="opacity-70">{letterOrDash(average, scheme)}</span>
                   </span>
                 </td>
               </tr>

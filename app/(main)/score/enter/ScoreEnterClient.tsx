@@ -28,7 +28,8 @@ import { useCustomSubjects } from '@/lib/hooks/useCustomSubjects'
 import { appliesTo } from '@/lib/storage/custom-subjects'
 import { scoreCellValue } from '@/lib/utils/score-value'
 import { formatMark, letterOrDash, numericCell, styleFor } from '@/lib/utils/score-band'
-import { simpleAverage, DEFAULT_SCHEME_CONFIG } from '@/lib/grading/scheme'
+import { levelByKey, trackLabel } from '@/lib/onboarding/curriculum'
+import { coefficientAverage, coefficientOf, simpleAverage, DEFAULT_SCHEME_CONFIG } from '@/lib/grading/scheme'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import {
     ACADEMIC_MONTH_OPTIONS_BY_ID, MONTHS_BY_ACADEMIC_YEAR, MONTH_LABEL_BY_ID,
@@ -136,7 +137,7 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
     // from `score_template_subjects` (migration 00016). Falls back to the
     // seeded national default while the class context resolves, so the picker
     // is never momentarily empty.
-    const { subjects: templateSubjects } = useScoreTemplate(scoreType)
+    const { subjects: templateSubjects, context, scheme } = useScoreTemplate(scoreType)
 
     const scorePeriod = scoreType === 'monthly' ? `${month}-${academicYear}` : `${semester}-${academicYear}`
 
@@ -416,20 +417,25 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
         const averages: number[] = []
 
         for (const stu of initialStudents) {
-            const marks = numeric.map(c => numericCell(scoresData[stu.id]?.[c.id]))
-            const filled = marks.filter(m => m !== null)
-            if (filled.length > 0) entered += 1
-            const avg = simpleAverage(marks)
+            const entries = numeric.map(c => ({
+                score: numericCell(scoresData[stu.id]?.[c.id]),
+                maxScore: maxScoreFor(c.id),
+            }))
+            if (entries.some(e => e.score !== null)) entered += 1
+            // Coefficient-weighted under a secondary scheme, the plain mean
+            // under the default — one call, both worlds.
+            const avg = coefficientAverage(entries, scheme)
             if (avg !== null) averages.push(avg)
         }
 
         return {
             total: initialStudents.length,
             entered,
+            // A mean of per-pupil averages that already sit on the scheme's scale.
             classAverage: simpleAverage(averages),
             percent: initialStudents.length === 0 ? 0 : Math.round((entered / initialStudents.length) * 100),
         }
-    }, [cols, initialStudents, scoresData])
+    }, [cols, initialStudents, scoresData, maxScoreFor, scheme])
 
     // ------------------------------------------------------ copy last month
 
@@ -573,6 +579,35 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
 
     const modeDescription = `បញ្ចូល${scoreType === 'monthly' ? 'ពិន្ទុប្រចាំខែ' : 'ពិន្ទុប្រចាំឆមាស'}សម្រាប់មុខវិជ្ជា${subjectTitle(subject)} ${periodLabel} ឆ្នាំសិក្សា ${academicYear}`
 
+    /**
+     * The class's curriculum context, said out loud (§24): a teacher must
+     * never wonder which mental scale a page is on. Built from the resolved
+     * context, not from any route hint.
+     */
+    const levelContextLabel = useMemo(() => {
+        const level = context?.levelKey ? levelByKey(context.levelKey) : undefined
+        if (!level) return null
+        const parts = [level.name]
+        if (context?.gradeNumber) parts.push(`ថ្នាក់ទី${toKhmerNumber(context.gradeNumber)}`)
+        const track = trackLabel(context?.track)
+        if (track) parts.push(track)
+        return parts.join(' · ')
+    }, [context])
+
+    /**
+     * What the selected subject is marked out of, and what it therefore
+     * weighs. Shown only under a coefficient scheme — on the primary /10 scale
+     * a coefficient would be a number that multiplies nothing (`simpleAverage`
+     * is the engine there), and the maximum is the ambient 10 everyone knows.
+     * Read-only by design: the coefficient is derived, never typed (§3.2).
+     */
+    const subjectScale = useMemo(() => {
+        if (scheme.weighting !== 'coefficient') return null
+        const effective = templateSubjects.find(s => s.subjectKey === subject)
+        if (!effective) return null
+        return { max: effective.maxScore, coefficient: coefficientOf(effective.maxScore, scheme) }
+    }, [scheme, templateSubjects, subject])
+
     const hasStudents = initialStudents.length > 0
     const hasColumns = cols.length > 0
 
@@ -594,6 +629,11 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
                         <p className="mt-1 text-sm text-text-muted">
                             បញ្ចូលពិន្ទុសម្រាប់មុខវិជ្ជា និងខែដែលបានជ្រើសរើស
                         </p>
+                        {levelContextLabel && (
+                            <p className="mt-2 inline-flex items-center rounded-full bg-brand-100 px-3 py-1 text-xs font-bold text-brand-800 dark:bg-brand-900/40 dark:text-brand-300">
+                                {levelContextLabel}
+                            </p>
+                        )}
                     </div>
                     <Link
                         href="/score/total"
@@ -637,9 +677,9 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
                         <Gauge className="h-4 w-4 shrink-0 text-gold" aria-hidden="true" />
                         <div className="min-w-0">
                             <p className="text-[11px] font-bold text-text-muted">មធ្យមភាគថ្នាក់</p>
-                            <p className={`font-bold tabular-nums ${styleFor(stats.classAverage).text}`}>
+                            <p className={`font-bold tabular-nums ${styleFor(stats.classAverage, scheme).text}`}>
                                 {formatMark(stats.classAverage)}
-                                <span className="ml-1.5 text-xs opacity-80">{letterOrDash(stats.classAverage)}</span>
+                                <span className="ml-1.5 text-xs opacity-80">{letterOrDash(stats.classAverage, scheme)}</span>
                             </p>
                         </div>
                     </div>
@@ -677,7 +717,14 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
                         កិច្ចការផ្ទះ
                     </Link>
                 </div>
-                <p className="mt-2 text-xs text-text-muted">{modeDescription}</p>
+                <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-muted">
+                    <span>{modeDescription}</span>
+                    {subjectScale && (
+                        <span className="font-bold text-text-body">
+                            ពិន្ទុពេញ {toKhmerNumber(subjectScale.max)} · មេគុណ {subjectScale.coefficient}
+                        </span>
+                    )}
+                </p>
             </div>
 
             {/* ------------------------------------------------- filter bar */}
@@ -897,6 +944,7 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
                             savedCells={savedCells}
                             rowNumbers={rowNumbers}
                             maxScoreFor={maxScoreFor}
+                            scheme={scheme}
                         />
                     </div>
                     <div className="lg:hidden">
@@ -908,6 +956,7 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
                             savedCells={savedCells}
                             rowNumbers={rowNumbers}
                             maxScoreFor={maxScoreFor}
+                            scheme={scheme}
                         />
                     </div>
                 </>
@@ -920,6 +969,7 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
                     savedCells={savedCells}
                     rowNumbers={rowNumbers}
                     maxScoreFor={maxScoreFor}
+                    scheme={scheme}
                 />
             )}
 
@@ -932,7 +982,7 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
                             បានបញ្ចូល {toKhmerNumber(stats.entered)}/{toKhmerNumber(stats.total)} នាក់
                         </span>
                         <span className="text-text-muted">
-                            មធ្យមភាគថ្នាក់៖ <span className={styleFor(stats.classAverage).text}>{formatMark(stats.classAverage)}</span>
+                            មធ្យមភាគថ្នាក់៖ <span className={styleFor(stats.classAverage, scheme).text}>{formatMark(stats.classAverage)}</span>
                         </span>
                         <span className={`text-xs font-bold ${dirty ? 'text-warning' : 'text-success'}`}>
                             {saving ? 'កំពុងរក្សាទុក...'
