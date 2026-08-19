@@ -58,6 +58,13 @@ interface ReportData {
     rank: number | string
     grade: string
     remark: string
+    /**
+     * Subjects the class's curriculum expects but which carry no mark this
+     * period — usually because nobody is assigned to teach them yet. Named on
+     * the report rather than left as a silent gap, so a parent can see what was
+     * not graded instead of inferring it from a short list.
+     */
+    ungraded: string[]
     attendance: { p: number; l: number; a: number; rate: string | number }
 }
 
@@ -183,6 +190,20 @@ export default function ParentReportClient({ initialStudents, settings }: { init
         // Same denominator as the rank above, so the printed average and the
         // printed rank cannot disagree about what was counted.
         const own = studentAverage(studentScores, rankKeys, maxByColumn, scheme)
+
+        // What the curriculum expects but nobody entered. Named, not omitted.
+        const labelFor = new Map<string, string>(
+            templateKeys
+                ? templateSubjects.flatMap(sub =>
+                    sub.columns.map(col => [col.id, col.label] as [string, string]))
+                : subjectsConfig.map(sc => [sc.key, sc.label] as [string, string]),
+        )
+        const ungraded = rankKeys
+            .filter(key => {
+                const raw = studentScores[key]
+                return raw === null || raw === undefined || raw === ''
+            })
+            .map(key => labelFor.get(key) ?? key)
         const stTotal = own.total
         // 0 when nothing is marked, which the ladder grades as F — preserved
         // because the remark text below depends on it.
@@ -230,6 +251,7 @@ export default function ParentReportClient({ initialStudents, settings }: { init
             rank: stAvg > 0 ? rankMap[sid] : '-',
             grade: stAvg > 0 ? grade : '-',
             remark,
+            ungraded,
             attendance: { p, l, a, rate: attRate }
         })
 
@@ -287,7 +309,10 @@ export default function ParentReportClient({ initialStudents, settings }: { init
             ["", "ពិន្ទុសរុប៖", reportData.total],
             ["", "មធ្យមភាគ៖", reportData.average],
             ["", "ចំណាត់ថ្នាក់លេខ៖", reportData.rank],
-            ["", "និទ្ទេស៖", reportData.grade]
+            ["", "និទ្ទេស៖", reportData.grade],
+            ...(reportData.ungraded.length > 0
+                ? [["", "មុខវិជ្ជាមិនទាន់មានពិន្ទុ៖", reportData.ungraded.join(', ')]]
+                : [])
         ]
         const ws = XLSX.utils.aoa_to_sheet(wsData)
         XLSX.utils.book_append_sheet(wb, ws, "Report")
@@ -526,6 +551,16 @@ export default function ParentReportClient({ initialStudents, settings }: { init
                         </div>
                         <div className="border-2 border-dashed border-gray-300 rounded-xl print:rounded-lg p-4 print:p-2 min-h-[60px] print:min-h-[30px] bg-orange-50/30 flex items-center">
                             <p className="text-gray-600 italic text-[13px] print:text-[11px] w-full text-center">{reportData.remark}</p>
+                            {/*
+                              An ungraded subject is named rather than left as a
+                              silent gap in the table — a parent should see what
+                              was not marked, not have to notice it is missing.
+                            */}
+                            {reportData.ungraded.length > 0 && (
+                                <p className="mt-1 w-full text-center text-[12px] text-amber-700 print:text-[10px]">
+                                    មុខវិជ្ជាមិនទាន់មានពិន្ទុ៖ {reportData.ungraded.join(', ')}
+                                </p>
+                            )}
                         </div>
                     </div>
 
