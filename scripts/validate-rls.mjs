@@ -216,6 +216,59 @@ const main = async () => {
   r = await as(c, null, () => rows(c, `SELECT public.backfill_teacher_enrolments()`))
   check('anon CANNOT run backfill_teacher_enrolments()', !r.ok, r.ok ? 'RAN — grant too wide' : r.code)
 
+  // ------------------------------------------- teacher_assignments (00024)
+  // The subject-identity convergence writes `subject_key` through the existing
+  // `teacher_assignments_admin_write` policy. Prove the policy discriminates
+  // in both directions, that the partial unique index actually fires, and that
+  // a pre-convergence row (subject_id, no key) still reads back — the
+  // "assignment made before this change still resolves" scenario.
+  log('\nteacher_assignments writes (subject_key path)')
+  // A holds `owner` in school A from the positive control above.
+  // D already holds a committed subject-less row on this class (the colleague
+  // fixture above), so this insert succeeding is precisely what 00025 enables:
+  // before it, the homeroom index mistook both rows for homeroom duplicates.
+  r = await as(c, A.t, () => rows(c, `INSERT INTO public.teacher_assignments
+      (teacher_id, class_id, academic_year_id, subject_key, is_homeroom, status)
+      VALUES ($1,$2,$3,'math_general',false,'active') RETURNING id`, [D, A.k, A.y]))
+  check('school owner CAN assign a subject to a teacher who already has a class row (00025)',
+    r.ok && r.value.length === 1, r.ok ? '' : `${r.code} ${r.error}`)
+  // `as()` rolls its transaction back, so the insert above never persisted.
+  // To test the duplicate guard the first row must be COMMITTED — plant it as
+  // superuser, then collide with it as the admin.
+  await c.query(`INSERT INTO public.teacher_assignments
+      (teacher_id, class_id, academic_year_id, subject_key, is_homeroom, status)
+      VALUES ($1,$2,$3,'math_general',false,'active')`, [D, A.k, A.y])
+  r = await as(c, A.t, () => rows(c, `INSERT INTO public.teacher_assignments
+      (teacher_id, class_id, academic_year_id, subject_key, is_homeroom, status)
+      VALUES ($1,$2,$3,'math_general',false,'active') RETURNING id`, [D, A.k, A.y]))
+  check('the same assignment twice hits teacher_assignments_subject_key_uniq', !r.ok && r.code === '23505', r.ok ? 'DUPLICATE ACCEPTED' : r.code)
+  r = await as(c, A.t, () => rows(c, `INSERT INTO public.teacher_assignments
+      (teacher_id, class_id, academic_year_id, subject_key, is_homeroom, status)
+      VALUES ($1,$2,$3,'khmer_all',false,'active') RETURNING id`, [D, A.k, A.y]))
+  check('...but a SECOND subject in the same class is allowed (00025)',
+    r.ok && r.value.length === 1, r.ok ? '' : `${r.code} ${r.error}`)
+  r = await as(c, B.t, () => rows(c, `INSERT INTO public.teacher_assignments
+      (teacher_id, class_id, academic_year_id, subject_key, is_homeroom, status)
+      VALUES ($1,$2,$3,'kh_read',false,'active') RETURNING id`, [B.t, A.k, A.y]))
+  check("a teacher from another school CANNOT write an assignment into A's class", !r.ok, r.ok ? 'INSERT SUCCEEDED — policy too wide' : r.code)
+
+  // A pre-convergence assignment: subject_id set, subject_key NULL. Planted as
+  // superuser because nothing writes this shape any more.
+  const oldSubject = (await one(`INSERT INTO public.subjects (school_id, name, code)
+      VALUES ($1, 'គណិតវិទ្យា (ចាស់)', 'math_legacy') RETURNING id`, [A.sc])).id
+  await c.query(`INSERT INTO public.teacher_assignments
+      (teacher_id, class_id, academic_year_id, subject_id, is_homeroom, status)
+      VALUES ($1,$2,$3,$4,false,'active')`, [D, A.k, A.y, oldSubject])
+  r = await as(c, D, () => rows(c, `SELECT subject_id, subject_key FROM public.teacher_assignments
+      WHERE teacher_id = $1 AND class_id = $2 AND subject_id IS NOT NULL`, [D, A.k]))
+  check('a pre-convergence subject_id row still reads back, subject_key NULL',
+    r.ok && r.value.length === 1 && r.value[0].subject_key === null,
+    r.ok ? JSON.stringify(r.value) : r.error)
+  // resolveClassTeachingRole treats subject_key NULL as whole-class — the same
+  // access every assignment granted before 00024 introduced narrowing, so a
+  // pre-convergence row loses nothing. That mapping lives in serverScope and
+  // is asserted here at the data level: the row is visible and unkeyed.
+
   await c.end()
   const a1 = await conn('postgres'); await a1.query(`DROP DATABASE IF EXISTS ${DB} WITH (FORCE)`); await a1.end()
 

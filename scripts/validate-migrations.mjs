@@ -65,7 +65,7 @@ catch {
 const REPO = new URL('..', import.meta.url).pathname
 const MIG = join(REPO, 'supabase/migrations')
 const ADMIN = { host: '127.0.0.1', port: 54322, user: 'postgres', password: 'postgres', database: 'postgres' }
-const V2 = [18, 19, 20, 21, 22, 23, 24]
+const V2 = [18, 19, 20, 21, 22, 23, 24, 25]
 
 const log = (...a) => console.log(...a)
 const results = []
@@ -225,11 +225,11 @@ const main = async () => {
   log('auth.uid() copied verbatim from the running instance (not a stub)\n')
 
   // ---- 1 -----------------------------------------------------------------
-  log('===== TEST 1 : apply 00001–00024 in order =====')
+  log('===== TEST 1 : apply 00001–00025 in order =====')
   await createDb('v_all'); const c1 = await connect('v_all'); await bootstrap(c1, UID)
   const bad1 = await applyMany(c1, files())
   showBad(bad1); await c1.end()
-  record(1, 'Apply 00001–00024 in order', bad1.length === 0, `${bad1.length}/${files().length} files failed`)
+  record(1, 'Apply 00001–00025 in order', bad1.length === 0, `${bad1.length}/${files().length} files failed`)
 
   // ---- 2 -----------------------------------------------------------------
   log('===== TEST 2 : apply 00018–00024 twice =====')
@@ -242,7 +242,7 @@ const main = async () => {
   if (p2.length) { log('   SECOND pass:'); showBad(p2) }
   if (d2.length) log('   second pass changed: ' + JSON.stringify(d2).slice(0, 1200))
   await c2.end()
-  record(2, 'Apply 00018–00024 twice → second pass is a no-op',
+  record(2, 'Apply 00018–00025 twice → second pass is a no-op',
     p1.length === 0 && p2.length === 0 && d2.length === 0,
     `errors ${p1.length}/${p2.length}, differences ${d2.length}`)
 

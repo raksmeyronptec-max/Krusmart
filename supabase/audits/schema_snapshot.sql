@@ -222,7 +222,11 @@ WITH probe(migration, what, present) AS (
     ('00024 assignment subj key',  'teacher_assignments.subject_key column',
       EXISTS (SELECT 1 FROM information_schema.columns
                WHERE table_schema='public' AND table_name='teacher_assignments'
-                 AND column_name='subject_key'))
+                 AND column_name='subject_key')),
+    ('00025 homeroom key uniq',    'teacher_assignments_homeroom_key_uniq index',
+      EXISTS (SELECT 1 FROM pg_indexes
+               WHERE tablename='teacher_assignments'
+                 AND indexname='teacher_assignments_homeroom_key_uniq'))
 )
 SELECT 'migration presence' AS section,
        migration,

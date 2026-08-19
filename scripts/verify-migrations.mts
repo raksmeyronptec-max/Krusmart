@@ -15,7 +15,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
 const DIR = 'supabase/migrations'
-const PENDING = /^000(1[89]|2[0-4])_/
+const PENDING = /^000(1[89]|2[0-5])_/
 
 let failures = 0
 let checks = 0
@@ -35,8 +35,8 @@ function executable(sql: string): string {
 }
 
 const files = readdirSync(DIR).filter(f => PENDING.test(f)).sort()
-if (files.length !== 7) {
-  console.log(`FAIL: expected 7 pending migrations, found ${files.length}`)
+if (files.length !== 8) {
+  console.log(`FAIL: expected 8 pending migrations, found ${files.length}`)
   process.exit(1)
 }
 
