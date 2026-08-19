@@ -12,8 +12,15 @@
 --
 -- A subject assignment written the NEW way (00024's `subject_key`) leaves
 -- `subject_id` NULL by definition — so to this index it *is* a homeroom row.
--- Consequences, both real and both found by scripts/validate-rls.mjs the
--- first time it gave one teacher a second row in one class:
+--
+-- The defect arrived WITH 00024 and was invisible until an assignment row
+-- existed: the code adding the column was reviewed, its own new index was
+-- checked, but nobody re-read the predicates of the indexes already on the
+-- table under the new column's semantics. Static review missed it;
+-- scripts/validate-rls.mjs found it the first time it gave one teacher a
+-- second row in one class. If you add a partial index — or a column that
+-- changes what an existing partial predicate MEANS — write the behavioural
+-- test first. Consequences, both real:
 --
 --   * a teacher with a homeroom row cannot be assigned any specific subject
 --     in that class — the INSERT dies on this index with 23505, surfaced to

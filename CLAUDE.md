@@ -162,9 +162,19 @@ The `homework_scores` table defined in SQL is unused by the app.
 
 The score grid's subject picker used to be a literal array (the Cambodian *primary* curriculum, compiled in). It now resolves from `score_template_subjects` (migration 00016) in three layers — `system` (national default, seeded, read-only), `school` (admin amendments), `class` (assigned-teacher amendments) — where the lowest layer present wins per `subject_key`. The merge lives in [lib/scores/template.ts](lib/scores/template.ts) (pure, no server-only imports — a client hook consumes it) with [lib/hooks/useScoreTemplate.ts](lib/hooks/useScoreTemplate.ts) on the browser side. This changes only which columns the UI *offers*: `scores.subject` stays a TEXT key, `scores_owner_period_uniq` is untouched, and every already-entered mark keeps resolving. `SubjectColumn.id` is what `scores.subject` stores — it is schema, never rename one.
 
-### Subject identity: `subject_key` is the only one
+### Subject identity: three levels, one live key space per level
 
-The same concept used to be named two ways: `subject_key` TEXT (score templates, `scores.subject`, `/score/collect`) and `subject_id` UUID → `public.subjects` (admin console, `class_subjects`). They never reconciled — the catalogue holds per-*column* codes (`math_num`), the template per-*subject* keys (`math_general`), and `kh_read` exists as both — and `public.subjects` is empty for every self-serve school. Converged on `subject_key`:
+"Subject" is identified at **three different levels**, and confusing any two silently detaches marks — so learn this table before touching anything subject-shaped:
+
+| Identifier | Names | Example | Lives in |
+| --- | --- | --- | --- |
+| `subject_key` | a **subject** in a template | `khmer_all`, `math_general`, `hs_physics` | `score_template_subjects.subject_key`, `teacher_assignments.subject_key` |
+| `SubjectColumn.id` | a **column** within a subject | `kh_read`, `math_num`, `hw_5` | `columns[].id` in template rows — **and this, not `subject_key`, is what `scores.subject` stores** |
+| `subject_id` | a `public.subjects` row | UUID | Legacy. Never written any more; see below |
+
+The levels genuinely overlap in one direction: a single-column subject's column id equals its `subject_key` (`kh_read` is a key *and* a column of `khmer_all`; every `hs_*` subject is single-column by design). That overlap is why the two upper levels look interchangeable in small examples and are not — a mark written under `math_general` instead of `math_num` resolves in **no** grid, and renaming in either level detaches every mark entered against it. `columnsFor()` / `maxScoreByColumn()` in [lib/scores/template.ts](lib/scores/template.ts) are the bridge from subject to columns; nothing maps a column back to a subject, because the answer is not unique.
+
+The third level, `subject_id` UUID → `public.subjects`, never reconciled with either of the others — 00004 backfilled the catalogue's `name`/`code` from raw `scores.subject` values, i.e. **column ids**, while admins free-typed the rest — and the catalogue is empty for every self-serve school. Converged on `subject_key` for assignments:
 
 - **Assignments carry `subject_key`** (00024/00025). Both writers — the admin console's `assignTeacher` and `/score/collect`'s `assignSubjectTeacher` — validate the key against the class's *resolved* template, and both pickers label subjects through `assignableSubjects()` in [lib/scores/template.ts](lib/scores/template.ts), so the two surfaces cannot name a subject differently. Do not add a third subject picker that reads `public.subjects`.
 - **`teacher_assignments.subject_id` is legacy**: still selected (reads tolerate it), never written. Nothing ever wrote a non-NULL value outside the old admin form, and the app was never deployed, so no rows need migrating; a hypothetical old row (`subject_key` NULL) resolves as whole-class — exactly its pre-00024 meaning. Do not backfill `subject_key` from `subjects.code` — the mapping is ambiguous by construction.

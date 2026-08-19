@@ -224,10 +224,13 @@ export async function assignTeacher(formData: FormData): Promise<ActionResult> {
 
     const teacherId = String(formData.get('teacher_id') ?? '').trim()
     const classId = String(formData.get('class_id') ?? '').trim()
-    // `subject_key` is the score system's identity (what `scores.subject` and
-    // `/score/collect` use). `subject_id` — the old `public.subjects` UUID —
-    // is no longer written: the catalogue it points into is empty for
-    // self-serve schools and its names never reconciled with template keys.
+    // `subject_key` names a template SUBJECT (`math_general`), the identity
+    // `/score/collect` and the assignment system use. It is one level above
+    // `scores.subject`, which stores COLUMN ids (`math_num`) — see the
+    // "Subject identity" section of CLAUDE.md before conflating the two.
+    // `subject_id` — the old `public.subjects` UUID — is no longer written:
+    // that catalogue is empty for self-serve schools and its names never
+    // reconciled with either level.
     const subjectKey = String(formData.get('subject_key') ?? '').trim() || null
     const isHomeroom = formData.get('is_homeroom') === 'on'
 
