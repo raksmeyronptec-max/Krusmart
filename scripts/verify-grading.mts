@@ -64,6 +64,33 @@ console.log('\ncoefficient average:')
   check('simple weighting = plain mean', coefficientAverage(simple, DEFAULT_SCHEME_CONFIG) === 7)
 }
 
+// --- 2b. the worked mixed-denominator example (brief §31) ----------------------
+console.log('\nmixed denominators:')
+{
+  // A /50 c1 scored 40, B /75 c1.5 scored 60, C /100 c2 scored 80.
+  // Σscore ÷ Σcoefficient = 180 ÷ 4.5 = 40 — identical to the normalised form
+  // Σ(score/max × coef) ÷ Σcoef × 50, since coef = max ÷ 50 makes
+  // score/max × coef × 50 collapse to score.
+  const entries = [
+    { score: 40, maxScore: 50 },
+    { score: 60, maxScore: 75 },
+    { score: 80, maxScore: 100 },
+  ]
+  const got = coefficientAverage(entries, SECONDARY_SCHEME_CONFIG)
+  check('40/50 + 60/75 + 80/100 → 40 (/50)', got === 40, `got ${got}`)
+  check('…and it grades B', gradeFor(got, SECONDARY_SCHEME_CONFIG)?.letter === 'B')
+}
+
+// --- 2c. equivalent percentages, same letter -----------------------------------
+console.log('\npercentage equivalence:')
+{
+  const cases: [number, number][] = [[9, 10], [45, 50], [90, 100]]
+  const letters = cases.map(([avg, scale]) =>
+    gradeFor(avg, SECONDARY_SCHEME_CONFIG, scale)?.letter)
+  check('9/10 ≡ 45/50 ≡ 90/100 under one band set',
+    letters.every((l) => l === 'A'), `got ${letters.join(',')}`)
+}
+
 // --- 3. floor thresholds (§3.3ក, verified tables) ------------------------------
 console.log('\nfloor thresholds:')
 const TABLE: Record<number, number[]> = {
@@ -82,7 +109,8 @@ for (const [scale, expected] of Object.entries(TABLE)) {
 // --- 4. grade conversion (the brief's matrix) ----------------------------------
 console.log('\ngrade conversion:')
 const CASES: [number, number, string][] = [
-  [9, 10, 'A'], [45, 50, 'A'], [40, 50, 'B'], [35, 50, 'C'],
+  [9, 10, 'A'], [8, 10, 'B'], [7, 10, 'C'], [6, 10, 'D'], [5, 10, 'E'], [4, 10, 'F'],
+  [45, 50, 'A'], [40, 50, 'B'], [35, 50, 'C'],
   [30, 50, 'D'], [25, 50, 'E'], [24, 50, 'F'],
   [112, 125, 'A'], [111, 125, 'B'], [67, 75, 'A'], [37, 75, 'E'],
 ]

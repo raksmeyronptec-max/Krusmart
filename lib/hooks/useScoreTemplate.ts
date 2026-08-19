@@ -5,11 +5,14 @@ import { listScoreTemplateSubjects } from '@/app/(main)/score/template/actions'
 import { useActiveClass } from '@/lib/hooks/useActiveClass'
 import {
   resolveTemplate,
+  usesLevelCurriculum,
   SYSTEM_PRIMARY_TEMPLATE,
   type EffectiveSubject,
   type TemplateContext,
   type TemplateScoreType,
 } from '@/lib/scores/template'
+import { schemeForLevel } from '@/lib/grading/levelSchemes'
+import type { GradingSchemeConfig } from '@/lib/grading/scheme'
 import type { ScoreTemplateSubjectRow } from '@/lib/types'
 import { logger } from '@/lib/utils/logger'
 
@@ -32,6 +35,14 @@ export function useScoreTemplate(scoreType: TemplateScoreType): {
   subjects: EffectiveSubject[]
   rows: ScoreTemplateSubjectRow[]
   context: TemplateContext | null
+  /**
+   * The grading scheme the class's education level uses. Legacy accounts and
+   * unresolved contexts get the primary default — grading exactly as before
+   * levels existed.
+   */
+  scheme: GradingSchemeConfig
+  /** True when a level-specific curriculum (hs_* etc.) is in effect, not the primary fallback. */
+  levelCurriculum: boolean
   loading: boolean
   reload: () => Promise<void>
 } {
@@ -80,5 +91,18 @@ export function useScoreTemplate(scoreType: TemplateScoreType): {
     [rows, context, scoreType],
   )
 
-  return { subjects, rows, context, loading: loading || classLoading, reload }
+  // Scheme awareness rides on the *curriculum actually in effect*, not the
+  // level alone: a grade-12 class whose track is unset falls back to the
+  // primary subject list, and grading it /50 while showing /10 subjects would
+  // be worse than either world.
+  const levelCurriculum = useMemo(() => usesLevelCurriculum(rows, context), [rows, context])
+  const scheme = useMemo(
+    () => (levelCurriculum ? schemeForLevel(context?.levelKey) : schemeForLevel(null)),
+    [levelCurriculum, context],
+  )
+
+  return {
+    subjects, rows, context, scheme, levelCurriculum,
+    loading: loading || classLoading, reload,
+  }
 }

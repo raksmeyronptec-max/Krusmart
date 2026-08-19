@@ -66,19 +66,43 @@ export function filterRowsForContext(
   context?: TemplateContext | null,
 ): ScoreTemplateSubjectRow[] {
   const classRows = rows.filter((r) => r.scope === 'class')
-  const upper = rows.filter((r) => r.scope !== 'class')
+  const tagged = levelTaggedRows(rows, context)
+  if (tagged.length > 0) return [...tagged, ...classRows]
 
-  if (context?.levelKey) {
-    const tagged = upper.filter(
-      (r) =>
-        r.level_key === context.levelKey &&
-        (r.grade_number == null || r.grade_number === context.gradeNumber) &&
-        (r.track == null || r.track === context.track),
-    )
-    if (tagged.length > 0) return [...tagged, ...classRows]
-  }
+  return [...rows.filter((r) => r.scope !== 'class' && r.level_key == null), ...classRows]
+}
 
-  return [...upper.filter((r) => r.level_key == null), ...classRows]
+/** The system/school rows tagged with the context's level (and matching grade/track). */
+function levelTaggedRows(
+  rows: ScoreTemplateSubjectRow[],
+  context?: TemplateContext | null,
+): ScoreTemplateSubjectRow[] {
+  if (!context?.levelKey) return []
+  return rows.filter(
+    (r) =>
+      r.scope !== 'class' &&
+      r.level_key === context.levelKey &&
+      (r.grade_number == null || r.grade_number === context.gradeNumber) &&
+      (r.track == null || r.track === context.track),
+  )
+}
+
+/**
+ * Is a level-specific curriculum in effect for this context — as opposed to
+ * the untagged primary/legacy fallback?
+ *
+ * The totals grid keys on this: its hand-built primary column layout (thirty
+ * columns, several of which the picker template deliberately does not carry)
+ * must stay byte-identical for every account on the fallback, and only a
+ * class that actually resolves a tagged curriculum switches to
+ * template-driven columns. Same predicate `filterRowsForContext` selects by,
+ * so the two can never disagree about which world a class is in.
+ */
+export function usesLevelCurriculum(
+  rows: ScoreTemplateSubjectRow[],
+  context?: TemplateContext | null,
+): boolean {
+  return levelTaggedRows(rows, context).length > 0
 }
 
 /**

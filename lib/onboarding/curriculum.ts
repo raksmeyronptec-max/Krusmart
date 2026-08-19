@@ -36,6 +36,13 @@ export interface EducationLevelSpec {
   from: number
   to: number
   description: string
+  /**
+   * First grade at which classes stream into tracks (ក្រុមវិទ្យាសាស្ត្រ /
+   * វិទ្យាសាស្ត្រសង្គម). Curriculum data, not a rule in code — the class form
+   * reads this instead of anyone writing `if (grade === 12)`. Absent means the
+   * level never streams.
+   */
+  tracksFromGrade?: number
 }
 
 export const EDUCATION_LEVELS: readonly EducationLevelSpec[] = [
@@ -65,6 +72,9 @@ export const EDUCATION_LEVELS: readonly EducationLevelSpec[] = [
     from: 10,
     to: 12,
     description: 'វិទ្យាល័យ',
+    // ថ្នាក់ទី១១–១២ stream; the same subject carries a different full mark per
+    // stream (docs/score-system-design.md §6), so the class must declare one.
+    tracksFromGrade: 11,
   },
 ] as const
 
@@ -113,4 +123,24 @@ export function generatedClassName(gradeNumber: number, section: string): string
 /** `ថ្នាក់ទី៥ ក` — the human-facing echo shown under the form and on success. */
 export function classDisplayName(gradeNumber: number, section: string): string {
   return `${gradeName(gradeNumber)} ${section}`
+}
+
+/** The two upper-secondary streams, as `classes.track` stores them (00021). */
+export const CLASS_TRACKS = [
+  { key: 'science', label: 'ក្រុមវិទ្យាសាស្ត្រ' },
+  { key: 'social_science', label: 'ក្រុមវិទ្យាសាស្ត្រសង្គម' },
+] as const
+
+export type ClassTrackKey = (typeof CLASS_TRACKS)[number]['key']
+
+export function trackLabel(key: string | null | undefined): string | null {
+  return CLASS_TRACKS.find((t) => t.key === key)?.label ?? null
+}
+
+/**
+ * Does a class in this grade need a stream? Read from the level spec — the
+ * one place the "grades 11–12 stream" fact lives.
+ */
+export function gradeNeedsTrack(level: EducationLevelSpec | undefined, gradeNumber: number): boolean {
+  return level?.tracksFromGrade !== undefined && gradeNumber >= level.tracksFromGrade
 }

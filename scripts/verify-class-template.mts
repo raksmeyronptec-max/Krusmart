@@ -165,6 +165,27 @@ console.log('\nanother class:')
   check('unaffected by another class customising', JSON.stringify(keys(rows)) === JSON.stringify(baselineMonthly))
 }
 
+// --- the school layer -------------------------------------------------------
+console.log('\nschool overrides:')
+{
+  const schoolRow: ScoreTemplateSubjectRow = {
+    ...inheritedOf('ex_hw'), id: 'school:ex_hw', scope: 'school',
+    school_id: 'school-1', label_km: 'កិច្ចការផ្ទះ (សាលា)', max_score: 20,
+  }
+  const withSchool = [...system, schoolRow]
+  const resolved = resolveTemplate(withSchool, 'monthly').find((s) => s.subjectKey === 'ex_hw')
+  check('school row beats system', resolved?.labelKm === 'កិច្ចការផ្ទះ (សាលា)' && resolved?.maxScore === 20)
+
+  const classRow = override('ex_hw', { label_km: 'កិច្ចការផ្ទះ (ថ្នាក់)' })
+  const all3 = [...withSchool, classRow]
+  const winner = resolveTemplate(all3, 'monthly').find((s) => s.subjectKey === 'ex_hw')
+  check('class row beats school', winner?.labelKm === 'កិច្ចការផ្ទះ (ថ្នាក់)')
+
+  const editor = resolveTemplateEditor(all3, 'monthly').find((s) => s.subjectKey === 'ex_hw')
+  check('editor inherits from the school layer, not system',
+    editor?.inherited?.id === 'school:ex_hw' && editor?.override?.id === classRow.id)
+}
+
 // --- the delete-when-redundant rule ----------------------------------------
 console.log('\nredundant overrides:')
 {

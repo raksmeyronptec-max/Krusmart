@@ -97,6 +97,33 @@ export function styleFor(
 }
 
 /**
+ * Band one mark on its own column's scale.
+ *
+ * Under a secondary scheme a cell can legitimately hold 112 — out of 125 —
+ * and banding that against the scheme's /50 average scale (let alone the
+ * primary /10 default) would paint everything as excellent. The column's own
+ * maximum is the denominator, with the pass mark carried over as the same
+ * *fraction* of it that the scheme uses (25/50 → 37.5 of 75).
+ *
+ * For a primary column this composes to exactly the default config
+ * (max 10, pass 5), so every existing surface keeps its colours.
+ */
+export function styleForMark(
+  value: number | null | undefined,
+  columnMax: number,
+  config: GradingSchemeConfig = DEFAULT_SCHEME_CONFIG,
+): ScoreBandStyle {
+  if (!Number.isFinite(columnMax) || columnMax <= 0) return styleFor(value, config)
+  return STYLES[
+    bandFor(value, {
+      ...config,
+      maxScore: columnMax,
+      passMark: columnMax * (config.passMark / config.maxScore),
+    })
+  ]
+}
+
+/**
  * A cell as typed by the teacher, read back as a number.
  *
  * Grid state holds raw strings — `''` while a field is being cleared, a Khmer
@@ -110,8 +137,11 @@ export function numericCell(raw: string | number | null | undefined): number | n
 }
 
 /** The letter for a mark, or `—` when there is no mark to grade. */
-export function letterOrDash(value: number | null | undefined): string {
-  return gradeFor(value)?.letter ?? '—'
+export function letterOrDash(
+  value: number | null | undefined,
+  config?: GradingSchemeConfig,
+): string {
+  return gradeFor(value, config)?.letter ?? '—'
 }
 
 /** `7.25` → `7.25`, `7` → `7`, null → `—`. Two decimals at most, no trailing zeros. */
