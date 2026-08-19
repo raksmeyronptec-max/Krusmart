@@ -8,6 +8,7 @@ import { useIsClient } from '@/components/ui/overlay/useIsClient'
 import { useOverlay } from '@/components/ui/overlay/useOverlay'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import { formatMark, letterOrDash } from '@/lib/utils/score-band'
+import { DEFAULT_SCHEME_CONFIG, type GradingSchemeConfig } from '@/lib/grading/scheme'
 import type { ColumnGroup, TotalledStudent } from './scoreTotalConfig'
 import type { Settings } from '@/lib/types'
 
@@ -37,6 +38,8 @@ export interface ScoreTotalPrintProps {
   periodLabel: string
   academicYear: string
   modeLabel: string
+  /** The class's grading scheme — the printed letter must match the screen's. */
+  scheme?: GradingSchemeConfig
 }
 
 export function ScoreTotalPrint({
@@ -48,6 +51,7 @@ export function ScoreTotalPrint({
   periodLabel,
   academicYear,
   modeLabel,
+  scheme = DEFAULT_SCHEME_CONFIG,
 }: ScoreTotalPrintProps) {
   const panelRef = useRef<HTMLDivElement>(null)
   const isClient = useIsClient()
@@ -189,7 +193,7 @@ export function ScoreTotalPrint({
                       )
                     })}
                     <td className="font-bold">{formatMark(avg)}</td>
-                    <td>{letterOrDash(avg)}</td>
+                    <td>{letterOrDash(avg, scheme)}</td>
                     <td>{stu.rank ? toKhmerNumber(stu.rank) : '—'}</td>
                   </tr>
                 )

@@ -10,6 +10,7 @@
  */
 
 import type { CustomSubjectRow, Student } from '@/lib/types'
+import type { EffectiveSubject } from '@/lib/scores/template'
 import { appliesTo } from '@/lib/storage/custom-subjects'
 
 /**
@@ -202,4 +203,60 @@ export function filterGroups(groups: ColumnGroup[], visible: Set<string> | null)
     return groups
         .map(g => ({ ...g, columns: g.columns.filter(c => visible.has(c.key)) }))
         .filter(g => g.columns.length > 0)
+}
+
+/**
+ * Groups for a class whose curriculum comes from the template (a level-tagged
+ * set — grade-12 streams today), rather than this file's hand-built primary
+ * layout.
+ *
+ * One template subject contributes its columns under its `group_label`
+ * (consecutive subjects sharing a label share a band, matching how the picker
+ * groups); a subject with no label falls under a generic heading. Text-kind
+ * subjects mark every column `isText` so they stay out of the averages, same
+ * contract as the hand-built config. The teacher's own `custom_subjects` still
+ * append under មុខវិជ្ជាបន្ថែម exactly as on the fallback path.
+ */
+export function groupsFromTemplate(
+    subjects: EffectiveSubject[],
+    customSubjects: CustomSubjectRow[],
+): ColumnGroup[] {
+    const groups: ColumnGroup[] = []
+    const seen = new Set<string>()
+    const palette = ['bg-brand-800', 'bg-brand-700']
+
+    for (const subject of subjects) {
+        const name = subject.groupLabel ?? 'មុខវិជ្ជាសិក្សា'
+        const columns: GridColumn[] = subject.columns
+            .filter((col) => !seen.has(col.id))
+            .map((col) => {
+                seen.add(col.id)
+                return {
+                    key: col.id,
+                    label: col.label,
+                    ...(subject.valueKind === 'text' || col.type === 'select'
+                        ? { isText: true, options: col.options ?? behaviorOptions }
+                        : {}),
+                }
+            })
+        if (columns.length === 0) continue
+
+        const last = groups[groups.length - 1]
+        if (last && last.name === name) last.columns.push(...columns)
+        else groups.push({ name, color: palette[groups.length % palette.length], columns })
+    }
+
+    const extra: GridColumn[] = []
+    for (const sub of customSubjects) {
+        for (const col of sub.columns) {
+            if (seen.has(col.id)) continue
+            seen.add(col.id)
+            extra.push({ key: col.id, label: col.label })
+        }
+    }
+    if (extra.length > 0) {
+        groups.push({ name: 'មុខវិជ្ជាបន្ថែម', color: 'bg-brand-600', columns: extra })
+    }
+
+    return groups
 }

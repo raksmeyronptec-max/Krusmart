@@ -1,5 +1,6 @@
 import type { SheetCell, SheetRow } from '@/lib/utils/xlsx'
 import { letterOrDash } from '@/lib/utils/score-band'
+import { DEFAULT_SCHEME_CONFIG, type GradingSchemeConfig } from '@/lib/grading/scheme'
 import type { ColumnGroup, TotalledStudent } from './scoreTotalConfig'
 
 /**
@@ -51,6 +52,8 @@ export async function exportScoreTotal(
   rows: TotalledStudent[],
   groups: ColumnGroup[],
   fileLabel: string,
+  /** The class's grading scheme — the exported letter must match the screen's. */
+  scheme: GradingSchemeConfig = DEFAULT_SCHEME_CONFIG,
 ) {
   const XLSX = await import('xlsx-js-style')
   const columns = groups.flatMap(g => g.columns)
@@ -80,7 +83,7 @@ export async function exportScoreTotal(
         return bodyCell(Number.isFinite(numeric) ? numeric : String(raw))
       }),
       bodyCell(avg === null ? '' : Number(avg.toFixed(2)), { bold: true }),
-      bodyCell(letterOrDash(avg)),
+      bodyCell(letterOrDash(avg, scheme)),
       bodyCell(stu.rank || ''),
     ]
   })

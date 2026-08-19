@@ -27,15 +27,20 @@ import Select from '@/components/ui/forms/Select'
 import { getAllScoresByPeriod, getMonthlyScoresForYear, clearScoresForStudents } from './actions'
 import { saveScores } from '../enter/actions'
 import { useCustomSubjects } from '@/lib/hooks/useCustomSubjects'
+import { useScoreTemplate } from '@/lib/hooks/useScoreTemplate'
 import { getCurrentAcademicYear } from '@/lib/constants/academic'
 import { MONTHS_BY_ACADEMIC_YEAR, MONTH_LABEL_BY_ID } from '@/lib/constants/months'
-import { DEFAULT_SCHEME_CONFIG } from '@/lib/grading/scheme'
+import {
+    coefficientAverage, letterFor, type GradingSchemeConfig,
+} from '@/lib/grading/scheme'
+import { maxScoreByColumn, resolveTemplate } from '@/lib/scores/template'
+import { levelByKey, trackLabel } from '@/lib/onboarding/curriculum'
 import { scoreCellValue, scoreNumericValue } from '@/lib/utils/score-value'
-import { formatMark, letterOrDash, numericCell, styleFor } from '@/lib/utils/score-band'
+import { formatMark, letterOrDash, numericCell, styleFor, styleForMark } from '@/lib/utils/score-band'
 import { getDriveImageUrl } from '@/lib/utils/drive-image'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import {
-    filterGroups, flatten, groupsFor, type GridColumn,
+    filterGroups, flatten, groupsFor, groupsFromTemplate, type GridColumn,
     type TotalMode, type TotalledStudent,
 } from './scoreTotalConfig'
 import { Sparkline } from './Sparkline'
@@ -68,8 +73,6 @@ import type { Score, ScoreInput, Settings, Student } from '@/lib/types'
  *     the per-row sparkline.
  */
 
-const PASS_MARK = DEFAULT_SCHEME_CONFIG.passMark
-const MAX_SCORE = DEFAULT_SCHEME_CONFIG.maxScore
 
 const MODES: { id: TotalMode; label: string; icon: typeof Calendar }[] = [
     { id: 'monthly', label: 'ប្រចាំខែ', icon: Calendar },
@@ -86,12 +89,14 @@ function computeRows(
     columns: GridColumn[],
     mode: TotalMode,
     monthlyComponent: Record<string, number>,
+    scheme: GradingSchemeConfig,
+    maxByColumn: Record<string, number>,
 ): TotalledStudent[] {
     const rows: TotalledStudent[] = students.map(stu => {
         const scores = scoresByStudent[stu.id] ?? {}
 
         let sum = 0
-        let scored = 0
+        const entries: { score: number | null; maxScore: number }[] = []
         for (const col of columns) {
             // Behavioural ratings are words, not marks — they never enter an average.
             if (col.isText) continue
@@ -100,8 +105,12 @@ function computeRows(
             const value = Number(raw)
             if (!Number.isFinite(value)) continue
             sum += value
-            scored += 1
+            entries.push({ score: value, maxScore: maxByColumn[col.key] ?? scheme.maxScore })
         }
+        // Σscore ÷ Σcoefficient under a secondary scheme — the /50 average by
+        // construction; under the default it is the plain mean, digit for
+        // digit what this function always produced.
+        const weighted = coefficientAverage(entries, scheme)
 
         const row: TotalledStudent = {
             ...stu,
@@ -120,7 +129,7 @@ function computeRows(
 
         if (mode === 'monthly') {
             row.total = sum
-            row.average = scored > 0 ? (sum / scored).toFixed(2) : '0.00'
+            row.average = weighted === null ? '0.00' : weighted.toFixed(2)
             row.finalAverageForRank = parseFloat(row.average)
         } else if (mode === 'annual') {
             const s1 = parseFloat(String(scores['sem1_avg'] ?? '0'))
@@ -140,13 +149,14 @@ function computeRows(
             row.average = row.annualAverage
         } else {
             row.examTotal = sum
-            row.examAverage = scored > 0 ? (sum / scored).toFixed(2) : '0.00'
+            row.examAverage = weighted === null ? '0.00' : weighted.toFixed(2)
 
             const monthly = monthlyComponent[stu.id] ?? 0
             row.monthlyAverage = monthly.toFixed(2)
 
+            // Both halves already sit on the scheme's scale, so their mean does too.
             let semAvg = (parseFloat(row.examAverage) + monthly) / 2
-            if (scored === 0 && monthly === 0) semAvg = 0
+            if (weighted === null && monthly === 0) semAvg = 0
 
             row.semesterAverage = semAvg.toFixed(2)
             row.finalAverageForRank = semAvg
@@ -225,11 +235,52 @@ export default function ScoreTotalClient({
     const { subjects: customSubjects } = useCustomSubjects()
     const { confirm, dialog } = useConfirm()
 
+    /**
+     * The class's curriculum and grading scheme. Two worlds, decided by data:
+     *
+     *   fallback — the untagged primary curriculum. Columns come from this
+     *   file's hand-built layout (thirty columns, several the picker template
+     *   deliberately does not carry), the scheme is /10 simple, and every
+     *   figure is digit-for-digit what this screen always showed.
+     *
+     *   level curriculum — a class that resolves tagged rows (a grade-12
+     *   stream). Columns come from the template, the scheme is the level's
+     *   (/50, coefficient), and the annual mode keeps its derived sem_avg
+     *   columns since those are already on the scheme's scale.
+     */
+    const {
+        subjects: templateSubjects,
+        rows: templateRows,
+        context: templateContext,
+        scheme,
+        levelCurriculum,
+    } = useScoreTemplate(currentMode === 'annual' ? 'semester' : currentMode)
+
+    const PASS_MARK = scheme.passMark
+    const MAX_SCORE = scheme.maxScore
+
     const allGroups = useMemo(
-        () => groupsFor(currentMode, customSubjects),
-        [currentMode, customSubjects],
+        () =>
+            levelCurriculum && currentMode !== 'annual'
+                ? groupsFromTemplate(templateSubjects, customSubjects)
+                : groupsFor(currentMode, customSubjects),
+        [levelCurriculum, currentMode, templateSubjects, customSubjects],
     )
     const allColumns = useMemo(() => flatten(allGroups), [allGroups])
+
+    /** Full mark per column id, for weighting, validation and cell colours. */
+    const maxByColumn = useMemo(() => maxScoreByColumn(templateSubjects), [templateSubjects])
+
+    /** The class's curriculum said out loud (§24) — never from a route hint. */
+    const levelContextLabel = useMemo(() => {
+        const level = templateContext?.levelKey ? levelByKey(templateContext.levelKey) : undefined
+        if (!level) return null
+        const parts = [level.name]
+        if (templateContext?.gradeNumber) parts.push(`ថ្នាក់ទី${toKhmerNumber(templateContext.gradeNumber)}`)
+        const track = trackLabel(templateContext?.track)
+        if (track) parts.push(track)
+        return parts.join(' · ')
+    }, [templateContext])
 
     const loadRecords = useCallback(async () => {
         setLoading(true)
@@ -256,29 +307,50 @@ export default function ScoreTotalClient({
         return () => { alive = false }
     }, [academicYear])
 
+    /**
+     * Full mark per *monthly* column, for the semester's monthly component —
+     * the current mode may be semester, but the component is built from
+     * monthly rows and must weigh them by the monthly curriculum's maxima.
+     */
+    const monthlyMaxByColumn = useMemo(
+        () =>
+            maxScoreByColumn(
+                resolveTemplate(
+                    templateRows.length > 0 ? templateRows : [],
+                    'monthly',
+                    templateContext,
+                ),
+            ),
+        [templateRows, templateContext],
+    )
+
     /** studentId → monthId → that month's average across every marked subject. */
     const monthlyAverages = useMemo(() => {
-        const acc: Record<string, Record<string, { sum: number; count: number }>> = {}
+        const acc: Record<string, Record<string, { score: number; maxScore: number }[]>> = {}
         const source = yearMonthly?.year === academicYear ? yearMonthly.rows : []
         for (const r of source) {
             const value = scoreNumericValue(r)
             if (value === null) continue
             const monthId = r.score_period.slice(0, r.score_period.length - academicYear.length - 1)
             const forStudent = (acc[r.student_id] ??= {})
-            const bucket = (forStudent[monthId] ??= { sum: 0, count: 0 })
-            bucket.sum += value
-            bucket.count += 1
+            ;(forStudent[monthId] ??= []).push({
+                score: value,
+                maxScore: monthlyMaxByColumn[r.subject] ?? scheme.maxScore,
+            })
         }
 
         const out: Record<string, Record<string, number>> = {}
         for (const [sid, months] of Object.entries(acc)) {
             out[sid] = {}
-            for (const [mid, b] of Object.entries(months)) {
-                if (b.count > 0) out[sid][mid] = b.sum / b.count
+            for (const [mid, entries] of Object.entries(months)) {
+                // Plain mean under the default scheme — unchanged — and the
+                // /50 coefficient average under a secondary one.
+                const avg = coefficientAverage(entries, scheme)
+                if (avg !== null) out[sid][mid] = avg
             }
         }
         return out
-    }, [yearMonthly, academicYear])
+    }, [yearMonthly, academicYear, monthlyMaxByColumn, scheme])
 
     /** Class average per month — the trend line in the analysis panel. */
     const classTrend = useMemo(() => {
@@ -321,8 +393,8 @@ export default function ScoreTotalClient({
     }, [initialStudents, records, edits])
 
     const rows = useMemo(
-        () => computeRows(initialStudents, scoresByStudent, allColumns, currentMode, monthlyComponent),
-        [initialStudents, scoresByStudent, allColumns, currentMode, monthlyComponent],
+        () => computeRows(initialStudents, scoresByStudent, allColumns, currentMode, monthlyComponent, scheme, maxByColumn),
+        [initialStudents, scoresByStudent, allColumns, currentMode, monthlyComponent, scheme, maxByColumn],
     )
 
     // -------------------------------------------------------------- filtering
@@ -331,7 +403,10 @@ export default function ScoreTotalClient({
     const [gender, setGender] = useState('')
     const [onlyFailing, setOnlyFailing] = useState(false)
     const [minAvg, setMinAvg] = useState(0)
-    const [maxAvg, setMaxAvg] = useState(MAX_SCORE)
+    // `null` = no cap. The scheme resolves asynchronously (default /10 until
+    // the class context arrives), so seeding this with MAX_SCORE would freeze
+    // a 10 into the state and silently filter every /50 average out.
+    const [maxAvg, setMaxAvg] = useState<number | null>(null)
     const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set())
 
     const visibleKeys = useMemo(() => {
@@ -349,10 +424,10 @@ export default function ScoreTotalClient({
             if (gender && r.gender !== gender) return false
             const avg = r.finalAverageForRank
             if (onlyFailing && !(avg > 0 && avg < PASS_MARK)) return false
-            if (avg < minAvg || avg > maxAvg) return false
+            if (avg < minAvg || avg > (maxAvg ?? Infinity)) return false
             return true
         })
-    }, [rows, search, gender, onlyFailing, minAvg, maxAvg])
+    }, [rows, search, gender, onlyFailing, minAvg, maxAvg, PASS_MARK])
 
     const rowNumbers = useMemo(
         () => new Map(initialStudents.map((s, i) => [s.id, i + 1])),
@@ -360,14 +435,14 @@ export default function ScoreTotalClient({
     )
 
     const filtersActive = search !== '' || gender !== '' || onlyFailing
-        || minAvg !== 0 || maxAvg !== MAX_SCORE || hiddenColumns.size > 0
+        || minAvg !== 0 || maxAvg !== null || hiddenColumns.size > 0
 
     const clearFilters = () => {
         setSearch('')
         setGender('')
         setOnlyFailing(false)
         setMinAvg(0)
-        setMaxAvg(MAX_SCORE)
+        setMaxAvg(null)
         setHiddenColumns(new Set())
     }
 
@@ -385,7 +460,7 @@ export default function ScoreTotalClient({
             average,
             failing: scored.length - passing,
         }
-    }, [rows])
+    }, [rows, PASS_MARK])
 
     /** Per-subject rank, for the cell tooltip. Cheap: one pass per column. */
     const columnRanks = useMemo(() => {
@@ -504,7 +579,7 @@ export default function ScoreTotalClient({
             notify.error('គ្មានទិន្នន័យសម្រាប់នាំចេញ')
             return
         }
-        await exportScoreTotal(target, groups, scorePeriod)
+        await exportScoreTotal(target, groups, scorePeriod, scheme)
         notify.success('បាននាំចេញជាឯកសារ Excel')
     }
 
@@ -586,8 +661,13 @@ export default function ScoreTotalClient({
                     </span>
                     <div className="min-w-0">
                         <h1 className="kh-moul text-lg text-brand md:text-xl">តារាងពិន្ទុសិស្សសរុប</h1>
-                        <p className="mt-0.5 text-sm text-text-muted">
-                            ពិន្ទុ{modeLabel} {periodLabel} · ឆ្នាំសិក្សា {academicYear}
+                        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-sm text-text-muted">
+                            <span>ពិន្ទុ{modeLabel} {periodLabel} · ឆ្នាំសិក្សា {academicYear}</span>
+                            {levelContextLabel && (
+                                <span className="rounded-full bg-brand-100 px-2.5 py-0.5 text-xs font-bold text-brand-800 dark:bg-brand-900/40 dark:text-brand-300">
+                                    {levelContextLabel}
+                                </span>
+                            )}
                         </p>
                     </div>
                 </div>
@@ -672,9 +752,9 @@ export default function ScoreTotalClient({
                 <StatCard
                     label="មធ្យមភាគថ្នាក់"
                     value={
-                        <span className={styleFor(stats.average).text}>
+                        <span className={styleFor(stats.average, scheme).text}>
                             {formatMark(stats.average)}
-                            <span className="ml-1.5 text-base opacity-80">{letterOrDash(stats.average)}</span>
+                            <span className="ml-1.5 text-base opacity-80">{letterOrDash(stats.average, scheme)}</span>
                         </span>
                     }
                     hint={`ពិន្ទុពេញ ${toKhmerNumber(MAX_SCORE)}`}
@@ -794,7 +874,7 @@ export default function ScoreTotalClient({
 
                         <div className="md:col-span-2">
                             <p className="mb-1 text-[13px] font-bold text-text-body">
-                                ចន្លោះមធ្យមភាគ៖ <span className="text-brand tabular-nums">{formatMark(minAvg)} – {formatMark(maxAvg)}</span>
+                                ចន្លោះមធ្យមភាគ៖ <span className="text-brand tabular-nums">{formatMark(minAvg)} – {formatMark(maxAvg ?? MAX_SCORE)}</span>
                             </p>
                             <div className="flex flex-col gap-1.5">
                                 <label className="flex items-center gap-2 text-xs text-text-muted">
@@ -805,7 +885,7 @@ export default function ScoreTotalClient({
                                         max={MAX_SCORE}
                                         step={0.5}
                                         value={minAvg}
-                                        onChange={(e) => setMinAvg(Math.min(Number(e.target.value), maxAvg))}
+                                        onChange={(e) => setMinAvg(Math.min(Number(e.target.value), maxAvg ?? MAX_SCORE))}
                                         className="h-1.5 flex-1 accent-[var(--brand)]"
                                         aria-label="មធ្យមភាគអប្បបរមា"
                                     />
@@ -817,7 +897,7 @@ export default function ScoreTotalClient({
                                         min={0}
                                         max={MAX_SCORE}
                                         step={0.5}
-                                        value={maxAvg}
+                                        value={maxAvg ?? MAX_SCORE}
                                         onChange={(e) => setMaxAvg(Math.max(Number(e.target.value), minAvg))}
                                         className="h-1.5 flex-1 accent-[var(--brand)]"
                                         aria-label="មធ្យមភាគអតិបរមា"
@@ -834,10 +914,10 @@ export default function ScoreTotalClient({
                         {search && <FilterChip label={`ស្វែងរក៖ ${search}`} onClear={() => setSearch('')} />}
                         {gender && <FilterChip label={`ភេទ៖ ${gender}`} onClear={() => setGender('')} />}
                         {onlyFailing && <FilterChip label="តែសិស្សធ្លាក់" onClear={() => setOnlyFailing(false)} />}
-                        {(minAvg !== 0 || maxAvg !== MAX_SCORE) && (
+                        {(minAvg !== 0 || maxAvg !== null) && (
                             <FilterChip
-                                label={`មធ្យមភាគ ${formatMark(minAvg)}–${formatMark(maxAvg)}`}
-                                onClear={() => { setMinAvg(0); setMaxAvg(MAX_SCORE) }}
+                                label={`មធ្យមភាគ ${formatMark(minAvg)}–${formatMark(maxAvg ?? MAX_SCORE)}`}
+                                onClear={() => { setMinAvg(0); setMaxAvg(null) }}
                             />
                         )}
                         {hiddenColumns.size > 0 && (
@@ -970,7 +1050,7 @@ export default function ScoreTotalClient({
                             <tbody>
                                 {filteredRows.map((stu) => {
                                     const avg = stu.finalAverageForRank || null
-                                    const style = styleFor(avg)
+                                    const style = styleFor(avg, scheme)
                                     const isSelected = selected.has(stu.id)
 
                                     return (
@@ -1021,13 +1101,14 @@ export default function ScoreTotalClient({
                                                 // a wall of danger pills over a class that simply has no marks
                                                 // yet. score-band's own contract: missing is `none`, never `fail`.
                                                 const numeric = numericCell(raw)
+                                                const colMax = maxByColumn[col.key] ?? scheme.maxScore
                                                 const cellStyle = col.isText || numeric === null
                                                     ? styleFor(null)
-                                                    : styleFor(numeric)
+                                                    : styleForMark(numeric, colMax, scheme)
                                                 const rank = columnRanks.get(col.key)?.get(stu.id)
                                                 const tooltip = raw === '' ? 'មិនទាន់មានពិន្ទុ'
                                                     : col.isText ? String(raw)
-                                                    : `${formatMark(numeric)} · និទ្ទេស ${letterOrDash(numeric)}${rank ? ` · ចំណាត់ថ្នាក់ទី ${rank}` : ''}`
+                                                    : `${formatMark(numeric)}/${formatMark(colMax)} · និទ្ទេស ${letterFor(numeric, scheme, colMax)}${rank ? ` · ចំណាត់ថ្នាក់ទី ${rank}` : ''}`
 
                                                 if (isEditLocked || col.readOnly) {
                                                     return (
@@ -1057,7 +1138,7 @@ export default function ScoreTotalClient({
                                                                 type="number"
                                                                 step="0.25"
                                                                 min={0}
-                                                                max={MAX_SCORE}
+                                                                max={colMax}
                                                                 inputMode="decimal"
                                                                 aria-label={`ពិន្ទុ${col.label} សម្រាប់ ${stu.name_kh || stu.name_en}`}
                                                                 value={String(raw)}
@@ -1076,7 +1157,7 @@ export default function ScoreTotalClient({
                                                 </td>
                                             ))}
                                             <td className={`border border-divider p-1.5 text-center text-sm font-bold ${style.text}`}>
-                                                {letterOrDash(avg)}
+                                                {letterOrDash(avg, scheme)}
                                             </td>
                                             <td className="border border-divider p-0 text-center">
                                                 <RowMenu student={stu} enterHref={enterHref} />
@@ -1110,6 +1191,8 @@ export default function ScoreTotalClient({
                             columns={columns}
                             enterHref={enterHref}
                             rowNumbers={rowNumbers}
+                            scheme={scheme}
+                            maxByColumn={maxByColumn}
                         />
                     </div>
                 </>
@@ -1239,6 +1322,7 @@ export default function ScoreTotalClient({
                 groups={groups}
                 monthlyTrend={classTrend}
                 periodLabel={`ពិន្ទុ${modeLabel} ${periodLabel}`}
+                scheme={scheme}
             />
 
             <ScoreTotalPrint
@@ -1250,6 +1334,7 @@ export default function ScoreTotalClient({
                 periodLabel={periodLabel}
                 academicYear={academicYear}
                 modeLabel={modeLabel}
+                scheme={scheme}
             />
 
             {saving && (

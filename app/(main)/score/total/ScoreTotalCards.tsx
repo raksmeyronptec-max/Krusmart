@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { Eye, PencilLine } from 'lucide-react'
 import { getDriveImageUrl } from '@/lib/utils/drive-image'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
-import { formatMark, letterOrDash, numericCell, styleFor } from '@/lib/utils/score-band'
+import { formatMark, letterOrDash, numericCell, styleFor, styleForMark } from '@/lib/utils/score-band'
+import { DEFAULT_SCHEME_CONFIG, type GradingSchemeConfig } from '@/lib/grading/scheme'
 import type { GridColumn, TotalledStudent } from './scoreTotalConfig'
 
 /**
@@ -25,16 +26,23 @@ export interface ScoreTotalCardsProps {
   /** Link target for "edit scores", already carrying the period. */
   enterHref: string
   rowNumbers: Map<string, number>
+  /** The class's grading scheme; letters and colours follow it. */
+  scheme?: GradingSchemeConfig
+  /** Full mark per column id, so a mark pill bands on its own scale. */
+  maxByColumn?: Record<string, number>
 }
 
-export function ScoreTotalCards({ rows, columns, enterHref, rowNumbers }: ScoreTotalCardsProps) {
+export function ScoreTotalCards({
+  rows, columns, enterHref, rowNumbers,
+  scheme = DEFAULT_SCHEME_CONFIG, maxByColumn = {},
+}: ScoreTotalCardsProps) {
   return (
     <ul className="flex flex-col gap-2.5">
       {rows.map((stu) => {
         const avg = stu.finalAverageForRank || null
-        const style = styleFor(avg)
+        const style = styleFor(avg, scheme)
         const marks = columns
-          .map(c => ({ label: c.label, value: stu.scores[c.key] }))
+          .map(c => ({ key: c.key, label: c.label, value: stu.scores[c.key] }))
           .filter(m => m.value !== null && m.value !== undefined && m.value !== '')
 
         return (
@@ -69,7 +77,7 @@ export function ScoreTotalCards({ rows, columns, enterHref, rowNumbers }: ScoreT
               </div>
 
               <span className={`shrink-0 rounded-lg px-2.5 py-1 text-sm font-bold tabular-nums ${style.pill}`}>
-                ម.ភ {formatMark(avg)} · {letterOrDash(avg)}
+                ម.ភ {formatMark(avg)} · {letterOrDash(avg, scheme)}
               </span>
             </div>
 
@@ -79,7 +87,9 @@ export function ScoreTotalCards({ rows, columns, enterHref, rowNumbers }: ScoreT
                   // `numericCell`: `Number('')` is 0, which painted an unmarked
                   // chip as a fail on the phone cards too.
                   const numeric = numericCell(m.value)
-                  const cell = numeric !== null ? styleFor(numeric) : styleFor(null)
+                  const cell = numeric !== null
+                    ? styleForMark(numeric, maxByColumn[m.key] ?? scheme.maxScore, scheme)
+                    : styleFor(null)
                   return (
                     <li
                       key={m.label}

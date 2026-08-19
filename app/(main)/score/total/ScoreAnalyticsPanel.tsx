@@ -12,6 +12,7 @@ import { useIsClient } from '@/components/ui/overlay/useIsClient'
 import { useOverlay } from '@/components/ui/overlay/useOverlay'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import { formatMark, letterOrDash, styleFor } from '@/lib/utils/score-band'
+import { DEFAULT_SCHEME_CONFIG, type GradingSchemeConfig } from '@/lib/grading/scheme'
 import { MONTHS_BY_ACADEMIC_YEAR } from '@/lib/constants/months'
 import type { ColumnGroup, TotalledStudent } from './scoreTotalConfig'
 
@@ -35,15 +36,24 @@ export interface ScoreAnalyticsPanelProps {
   /** Per-month class average for the academic year, keyed by month id. */
   monthlyTrend: Record<string, number | null>
   periodLabel: string
+  /** The class's grading scheme; every axis, bucket and letter follows it. */
+  scheme?: GradingSchemeConfig
 }
 
-const BUCKETS = [
-  { label: '០–២', min: 0, max: 2 },
-  { label: '២–៤', min: 2, max: 4 },
-  { label: '៤–៦', min: 4, max: 6 },
-  { label: '៦–៨', min: 6, max: 8 },
-  { label: '៨–១០', min: 8, max: 10.01 },
-]
+/**
+ * Five equal bands of the scheme's scale. On /10 these are the 0–2 … 8–10
+ * histogram this panel always drew; on /50 they scale to 0–10 … 40–50 without
+ * anyone hardcoding either.
+ */
+function bucketsFor(scheme: GradingSchemeConfig) {
+  const step = scheme.maxScore / 5
+  return Array.from({ length: 5 }, (_, i) => ({
+    label: `${toKhmerNumber(Math.round(i * step))}–${toKhmerNumber(Math.round((i + 1) * step))}`,
+    min: i * step,
+    // The top band is inclusive of the maximum.
+    max: i === 4 ? scheme.maxScore + 0.01 : (i + 1) * step,
+  }))
+}
 
 export function ScoreAnalyticsPanel({
   open,
@@ -52,6 +62,7 @@ export function ScoreAnalyticsPanel({
   groups,
   monthlyTrend,
   periodLabel,
+  scheme = DEFAULT_SCHEME_CONFIG,
 }: ScoreAnalyticsPanelProps) {
   const panelRef = useRef<HTMLDivElement>(null)
   const isClient = useIsClient()
@@ -60,12 +71,14 @@ export function ScoreAnalyticsPanel({
   const data = useMemo(() => {
     const scored = rows.filter(r => r.finalAverageForRank > 0)
 
-    const distribution = BUCKETS.map(b => ({
+    const distribution = bucketsFor(scheme).map(b => ({
       name: b.label,
       value: scored.filter(r => r.finalAverageForRank >= b.min && r.finalAverageForRank < b.max).length,
-      fill: b.max <= 4 ? 'var(--color-danger)'
-        : b.max <= 6 ? 'var(--color-warning)'
-        : b.max <= 8 ? 'var(--color-success)'
+      // Same cut points as before, expressed as fractions of the scale so a
+      // /50 histogram colours the way the /10 one always did.
+      fill: b.max <= scheme.maxScore * 0.4 ? 'var(--color-danger)'
+        : b.max <= scheme.maxScore * 0.6 ? 'var(--color-warning)'
+        : b.max <= scheme.maxScore * 0.8 ? 'var(--color-success)'
         : 'var(--brand)',
     }))
 
@@ -98,7 +111,7 @@ export function ScoreAnalyticsPanel({
       trend,
       scoredCount: scored.length,
     }
-  }, [rows, groups, monthlyTrend])
+  }, [rows, groups, monthlyTrend, scheme])
 
   if (!isClient || !open) return null
 
@@ -174,14 +187,18 @@ export function ScoreAnalyticsPanel({
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={data.subjects} layout="vertical" margin={{ left: 8, right: 24 }}>
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--divider)" />
-                      <XAxis type="number" domain={[0, 10]} axisLine={false} tickLine={false} fontSize={11} />
+                      <XAxis type="number" domain={[0, scheme.maxScore]} axisLine={false} tickLine={false} fontSize={11} />
                       <YAxis type="category" dataKey="name" width={110} axisLine={false} tickLine={false} fontSize={10} />
                       <Tooltip formatter={(v) => [Number(v), 'មធ្យមភាគ']} />
                       <Bar dataKey="avg" radius={[0, 4, 4, 0]}>
                         {data.subjects.map((s, i) => (
                           <Cell
                             key={i}
-                            fill={s.avg < 5 ? 'var(--color-danger)' : s.avg < 7 ? 'var(--color-warning)' : 'var(--color-success)'}
+                            fill={s.avg < scheme.passMark
+                              ? 'var(--color-danger)'
+                              : s.avg < scheme.maxScore * 0.7
+                                ? 'var(--color-warning)'
+                                : 'var(--color-success)'}
                           />
                         ))}
                       </Bar>
@@ -196,11 +213,13 @@ export function ScoreAnalyticsPanel({
                   title="សិស្សពូកែ ៥ នាក់"
                   icon={<Trophy className="h-4 w-4 text-gold" aria-hidden="true" />}
                   students={data.top}
+                  scheme={scheme}
                 />
                 <RankList
                   title="សិស្សត្រូវការជំនួយ ៥ នាក់"
                   icon={<AlertTriangle className="h-4 w-4 text-danger" aria-hidden="true" />}
                   students={data.bottom}
+                  scheme={scheme}
                 />
               </section>
 
@@ -216,7 +235,7 @@ export function ScoreAnalyticsPanel({
                       <LineChart data={data.trend}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--divider)" />
                         <XAxis dataKey="name" axisLine={false} tickLine={false} fontSize={11} />
-                        <YAxis domain={[0, 10]} axisLine={false} tickLine={false} fontSize={11} />
+                        <YAxis domain={[0, scheme.maxScore]} axisLine={false} tickLine={false} fontSize={11} />
                         <Tooltip formatter={(v) => [Number(v), 'មធ្យមភាគ']} />
                         <Line
                           type="monotone"
@@ -252,10 +271,12 @@ function RankList({
   title,
   icon,
   students,
+  scheme = DEFAULT_SCHEME_CONFIG,
 }: {
   title: string
   icon: React.ReactNode
   students: TotalledStudent[]
+  scheme?: GradingSchemeConfig
 }) {
   return (
     <div className="rounded-xl border border-divider p-3">
@@ -272,8 +293,8 @@ function RankList({
               >
                 {s.name_kh || s.name_en}
               </Link>
-              <span className={`rounded-lg px-2 py-0.5 text-xs font-bold tabular-nums ${styleFor(avg).pill}`}>
-                {formatMark(avg)} {letterOrDash(avg)}
+              <span className={`rounded-lg px-2 py-0.5 text-xs font-bold tabular-nums ${styleFor(avg, scheme).pill}`}>
+                {formatMark(avg)} {letterOrDash(avg, scheme)}
               </span>
             </li>
           )
