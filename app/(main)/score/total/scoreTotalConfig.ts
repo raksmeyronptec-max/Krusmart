@@ -11,7 +11,9 @@
 
 import type { CustomSubjectRow, Student } from '@/lib/types'
 import type { EffectiveSubject } from '@/lib/scores/template'
-import { appliesTo } from '@/lib/storage/custom-subjects'
+// Relative and extension-qualified so the consistency harness can run this
+// module under plain node — same reason as lib/scores/template.ts.
+import { appliesTo } from '../../../../lib/storage/custom-subjects.ts'
 
 /**
  * A student decorated with the per-period scores and every derived total the

@@ -1,4 +1,7 @@
-import { STORAGE_KEYS } from '@/lib/constants/storage'
+// Relative and extension-qualified so the scripts/ harnesses can load this
+// module (via scoreTotalConfig) under plain node — same reason as
+// lib/scores/template.ts.
+import { STORAGE_KEYS } from '../constants/storage.ts'
 import type { CustomSubjectColumn, CustomSubjectScope } from '@/lib/types'
 
 /**

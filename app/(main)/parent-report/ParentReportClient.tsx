@@ -13,6 +13,9 @@ import type { AttendanceRecord, Score, Settings, Student } from '@/lib/types'
 import { ACADEMIC_MONTH_IDS, MONTHS_BY_CALENDAR, MONTH_LABEL_BY_ID, MONTH_NUM_BY_ID, isMonthId } from '@/lib/constants/months'
 import { calculateAge } from '@/lib/utils/date'
 import { letterFor } from '@/lib/grading/scheme'
+import { useScoreTemplate } from '@/lib/hooks/useScoreTemplate'
+import { maxScoreByColumn } from '@/lib/scores/template'
+import { numericColumnKeys, studentAverage } from '@/lib/scores/aggregate'
 
 const subjectsConfig = [
     { key: 'kh_listen', label: 'ភាសាខ្មែរ (ស្តាប់)' }, { key: 'kh_speak', label: 'ភាសាខ្មែរ (និយាយ)' },
@@ -36,6 +39,8 @@ interface DisplayScore {
     index: number
     label: string
     score: string
+    /** Full mark, shown as `…/៧៥` when the class's curriculum defines one (§12). */
+    max?: number
 }
 
 /** One point on the monthly trend chart. */
@@ -90,34 +95,48 @@ export default function ParentReportClient({ initialStudents, settings }: { init
         loadServerData()
     }, [academicYear, loadServerData])
 
+    /**
+     * The class's curriculum and scheme, resolved exactly as /score/total does.
+     * On the primary fallback the report keeps its historical shape: the same
+     * 29-key display list and the row-driven class rank. On a level curriculum
+     * both switch to the template's subjects, so the rank printed for a parent
+     * is the ranking screen's rank (§19).
+     */
+    const {
+        subjects: templateSubjects, scheme, levelCurriculum,
+    } = useScoreTemplate('monthly')
+
     const generateReport = useCallback((sid: string) => {
         const student = initialStudents.find(s => s.id === sid)
         if (!student) return
+
+        const maxByColumn = maxScoreByColumn(templateSubjects)
+        const templateKeys = levelCurriculum ? numericColumnKeys(templateSubjects) : null
 
         // Calculate rankings for the current month to find the rank
         const currentPeriod = `${month}-${academicYear}`
         const periodScores = allScores.filter(s => s.score_period === currentPeriod)
         
-        // Group by student for ranking
-        const scoresByStudent: Record<string, { total: number, count: number, avg: number }> = {}
-        initialStudents.forEach(stu => {
-            scoresByStudent[stu.id] = { total: 0, count: 0, avg: 0 }
-        })
-
+        // Group by student for ranking.
+        //
+        // Two worlds, deliberately different: on the primary fallback this
+        // keeps its historical row-driven denominator (every score row counts,
+        // including a teacher's custom subjects — which is not exactly the
+        // ranking screen's 29-key denominator; a pre-existing divergence left
+        // untouched rather than silently changing printed reports). On a level
+        // curriculum the denominator is the template's keys with coefficient
+        // weighting, identical to the ranking screen by construction.
+        const perStudent: Record<string, Record<string, number | string | null>> = {}
+        initialStudents.forEach(stu => { perStudent[stu.id] = {} })
         periodScores.forEach(ps => {
-            if (scoresByStudent[ps.student_id]) {
-                const val = parseFloat(String(ps.score_value))
-                if (!isNaN(val)) {
-                    scoresByStudent[ps.student_id].total += val
-                    scoresByStudent[ps.student_id].count += 1
-                }
-            }
+            if (perStudent[ps.student_id]) perStudent[ps.student_id][ps.subject] = ps.score_value
         })
 
-        const rankedList = Object.keys(scoresByStudent).map(id => {
-            const data = scoresByStudent[id]
-            data.avg = data.count > 0 ? data.total / data.count : 0
-            return { id, avg: data.avg }
+        const rankedList = initialStudents.map(stu => {
+            const scores = perStudent[stu.id]
+            const keys = templateKeys ?? Object.keys(scores)
+            const { average } = studentAverage(scores, keys, maxByColumn, scheme)
+            return { id: stu.id, avg: average ?? 0 }
         }).sort((a, b) => b.avg - a.avg)
 
         const rankMap: Record<string, number> = {}
@@ -127,37 +146,62 @@ export default function ParentReportClient({ initialStudents, settings }: { init
             rankMap[rankedList[i].id] = currRank
         }
 
-        // Student's scores for this month
-        const studentMonthScores = periodScores.filter(s => s.student_id === sid)
+        // Student's scores for this month. The display list is the class's
+        // curriculum when one is resolved; the historical 29-key list otherwise.
+        const studentScores = perStudent[sid] ?? {}
         const displayScores: DisplayScore[] = []
-        let stTotal = 0
-        let stCount = 0
 
-        subjectsConfig.forEach((subj, idx) => {
-            const found = studentMonthScores.find(s => s.subject === subj.key)
-            if (found && found.score_value !== null) {
-                const v = parseFloat(String(found.score_value))
-                if (!isNaN(v)) {
-                    stTotal += v
-                    stCount++
-                    displayScores.push({ index: idx + 1, label: subj.label, score: v.toFixed(2) })
+        if (templateKeys) {
+            let idx = 0
+            for (const subject of templateSubjects) {
+                if (subject.valueKind === 'text') continue
+                for (const col of subject.columns) {
+                    if (col.type === 'select') continue
+                    const raw = studentScores[col.id]
+                    const v = raw === null || raw === undefined ? NaN : Number(raw)
+                    if (!Number.isFinite(v)) continue
+                    idx += 1
+                    displayScores.push({
+                        index: idx,
+                        label: col.label,
+                        score: v.toFixed(2),
+                        max: subject.maxScore,
+                    })
                 }
             }
-        })
+        } else {
+            subjectsConfig.forEach((subj, idx) => {
+                const raw = studentScores[subj.key]
+                const v = raw === null || raw === undefined ? NaN : Number(raw)
+                if (Number.isFinite(v)) {
+                    displayScores.push({ index: idx + 1, label: subj.label, score: v.toFixed(2) })
+                }
+            })
+        }
 
-        const stAvg = stCount > 0 ? stTotal / stCount : 0
-        
-        // `stAvg` is 0 when nothing is marked, which the ladder grades as F —
-        // preserved here because the remark text below depends on it.
-        const grade = letterFor(stAvg)
+        const own = studentAverage(
+            studentScores,
+            templateKeys ?? subjectsConfig.map(sc => sc.key),
+            maxByColumn,
+            scheme,
+        )
+        const stTotal = own.total
+        // 0 when nothing is marked, which the ladder grades as F — preserved
+        // because the remark text below depends on it.
+        const stAvg = own.average ?? 0
 
+        const grade = letterFor(stAvg, scheme)
+
+        // Keyed on the letter, not on /10 thresholds, so the remark follows the
+        // class's scheme — on primary the mapping is identical to the old
+        // numeric chain (letters and those ranges coincide exactly).
         let remark = ""
         if (stAvg <= 0) remark = "គ្មាន"
-        else if (stAvg < 5) remark = "សិស្សបាននិទ្ទេសF សូមជួយជំរុញកូនឲ្យខិតខំរៀនសូត្របន្ថែមទៀត"
-        else if (stAvg < 6) remark = "សិស្សបាននិទ្ទេសE ត្រូវខិតខំប្រឹងប្រែងរៀនសូត្របន្ថែមទៀត"
-        else if (stAvg < 7) remark = "សិស្សបាននិទ្ទេសD ត្រូវខិតខំប្រឹងរៀនសូត្របន្ថែមទៀត"
-        else if (stAvg < 8) remark = "សិស្សបាននិទ្ទេសC មានវិន័យ និងសីលធម៌ល្អ"
-        else if (stAvg < 9) remark = "សិស្សបាននិទ្ទេសB មានវិន័យ និងសីលធម៌ល្អ"
+        else if (grade === 'F') remark = "សិស្សបាននិទ្ទេសF សូមជួយជំរុញកូនឲ្យខិតខំរៀនសូត្របន្ថែមទៀត"
+        else if (grade === 'E') remark = "សិស្សបាននិទ្ទេសE ត្រូវខិតខំប្រឹងប្រែងរៀនសូត្របន្ថែមទៀត"
+        else if (grade === 'D') remark = "សិស្សបាននិទ្ទេសD ត្រូវខិតខំប្រឹងរៀនសូត្របន្ថែមទៀត"
+        else if (grade === 'C') remark = "សិស្សបាននិទ្ទេសC មានវិន័យ និងសីលធម៌ល្អ"
+        else if (grade === 'B') remark = "សិស្សបាននិទ្ទេសB មានវិន័យ និងសីលធម៌ល្អ"
         else remark = "សិស្សបាននិទ្ទេសA មានវិន័យ និងសីលធម៌ល្អ"
         
         remark += "។ សូមជូនពរ មាតាបិតាឬអាណាព្យាបាល ព្រមទាំងកូន មានសុខភាពល្អ និងសំណាងល្អជានិច្ច។"
@@ -197,22 +241,22 @@ export default function ParentReportClient({ initialStudents, settings }: { init
             const mPeriod = `${m}-${academicYear}`
             const mScores = allScores.filter(s => s.score_period === mPeriod && s.student_id === sid)
             
-            let mSum = 0, mCount = 0
-            mScores.forEach(ms => {
-                const val = parseFloat(String(ms.score_value))
-                if (!isNaN(val)) {
-                    mSum += val
-                    mCount++
-                }
-            })
-            
+            const monthScores: Record<string, number | string | null> = {}
+            mScores.forEach(ms => { monthScores[ms.subject] = ms.score_value })
+            const { average } = studentAverage(
+                monthScores,
+                templateKeys ?? Object.keys(monthScores),
+                maxByColumn,
+                scheme,
+            )
+
             cData.push({
                 name: MONTH_LABEL_BY_ID[m],
-                average: mCount > 0 ? parseFloat((mSum / mCount).toFixed(2)) : null
+                average,
             })
         })
         setChartData(cData)
-    }, [academicYear, month, allScores, allAttendance, initialStudents])
+    }, [academicYear, month, allScores, allAttendance, initialStudents, templateSubjects, scheme, levelCurriculum])
 
     useEffect(() => {
         if (studentId) {
@@ -241,7 +285,7 @@ export default function ParentReportClient({ initialStudents, settings }: { init
         const wb = XLSX.utils.book_new()
         const wsData = [
             ["ល.រ", "មុខវិជ្ជាសិក្សា (Subjects)", "ពិន្ទុទទួលបាន"],
-            ...reportData.displayScores.map(s => [s.index, s.label, s.score]),
+            ...reportData.displayScores.map(s => [s.index, s.label, s.max !== undefined ? `${s.score} /${s.max}` : s.score]),
             ["", "ពិន្ទុសរុប៖", reportData.total],
             ["", "មធ្យមភាគ៖", reportData.average],
             ["", "ចំណាត់ថ្នាក់លេខ៖", reportData.rank],
@@ -407,7 +451,7 @@ export default function ParentReportClient({ initialStudents, settings }: { init
                                         <tr key={idx}>
                                             <td className="text-center font-bold text-gray-500 border border-slate-300 p-1">{idx + 1}</td>
                                             <td className="font-medium text-gray-800 border border-slate-300 p-1 px-2">{s.label}</td>
-                                            <td className={`text-center font-bold border border-slate-300 p-1 ${parseFloat(s.score) < 5 ? 'text-red-500' : 'text-[#0054a6]'}`}>{s.score}</td>
+                                            <td className={`text-center font-bold border border-slate-300 p-1 ${parseFloat(s.score) < (s.max !== undefined ? s.max * (scheme.passMark / scheme.maxScore) : scheme.passMark) ? 'text-red-500' : 'text-[#0054a6]'}`}>{s.score}{s.max !== undefined ? ` /${s.max}` : ''}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -426,7 +470,7 @@ export default function ParentReportClient({ initialStudents, settings }: { init
                                     </tr>
                                     <tr>
                                         <td colSpan={2} className="text-right font-bold text-gray-700 border border-slate-300 p-2">និទ្ទេស៖</td>
-                                        <td className={`text-center font-black text-[15px] print:text-[14px] border border-slate-300 p-2 ${parseFloat(reportData.average) < 5 ? 'text-red-600' : 'text-green-600'}`}>{reportData.grade}</td>
+                                        <td className={`text-center font-black text-[15px] print:text-[14px] border border-slate-300 p-2 ${parseFloat(reportData.average) < scheme.passMark ? 'text-red-600' : 'text-green-600'}`}>{reportData.grade}</td>
                                     </tr>
                                 </tfoot>
                             </table>
@@ -466,7 +510,7 @@ export default function ParentReportClient({ initialStudents, settings }: { init
                                         <LineChart data={chartData}>
                                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
                                             <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#6b7280' }} />
-                                            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#6b7280' }} domain={[0, 10]} ticks={[0, 2, 4, 6, 8, 10]} />
+                                            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#6b7280' }} domain={[0, scheme.maxScore]} ticks={[0, 1, 2, 3, 4, 5].map(t => t * (scheme.maxScore / 5))} />
                                             <Tooltip contentStyle={{ borderRadius: '8px', fontSize: '12px' }} />
                                             <Line type="monotone" dataKey="average" stroke="#0054a6" strokeWidth={3} dot={{ r: 4, fill: '#0054a6', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} connectNulls={true} />
                                         </LineChart>

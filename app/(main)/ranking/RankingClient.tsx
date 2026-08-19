@@ -148,9 +148,9 @@ export default function RankingClient({ initialStudents, settings}: { initialStu
     // Stats
     const totalSt = studentsData.length
     const totalF = studentsData.filter(s => s.gender === 'ស្រី' || s.gender === 'F').length
-    const passSt = studentsData.filter(s => parseFloat(s.average) >= 5.0)
+    const passSt = studentsData.filter(s => parseFloat(s.average) >= scheme.passMark)
     const passF = passSt.filter(s => s.gender === 'ស្រី' || s.gender === 'F').length
-    const failSt = studentsData.filter(s => parseFloat(s.average) > 0 && parseFloat(s.average) < 5.0)
+    const failSt = studentsData.filter(s => parseFloat(s.average) > 0 && parseFloat(s.average) < scheme.passMark)
     const failF = failSt.filter(s => s.gender === 'ស្រី' || s.gender === 'F').length
     
     return (

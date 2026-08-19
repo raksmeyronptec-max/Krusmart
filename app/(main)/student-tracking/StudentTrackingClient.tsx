@@ -8,6 +8,9 @@ import Select from '@/components/ui/forms/Select'
 import type { Score, Settings, Student } from '@/lib/types'
 import { MONTH_OPTIONS_BY_NUM } from '@/lib/constants/months'
 import { letterFor } from '@/lib/grading/scheme'
+import { useScoreTemplate } from '@/lib/hooks/useScoreTemplate'
+import { maxScoreByColumn } from '@/lib/scores/template'
+import { studentAverage } from '@/lib/scores/aggregate'
 
 export default function StudentTrackingClient({ initialStudents, scoresData, settings, academicYear }: { 
     initialStudents: Student[], scoresData: Score[], settings: Settings | null, academicYear: string 
@@ -17,8 +20,18 @@ export default function StudentTrackingClient({ initialStudents, scoresData, set
     const [reportType, setReportType] = useState('monthly')
     const [selectedMonth, setSelectedMonth] = useState('01')
 
-    // Shared grading engine; NaN and null both render '-'.
-    const getGrade = (avg: number | null) => letterFor(avg)
+    /**
+     * The class's scheme, resolved as every score surface resolves it. The
+     * tracking sheet is row-driven (it averages whatever monthly rows exist,
+     * custom subjects included) and stays so; under a level curriculum each
+     * row is weighted by its subject's full mark, so a secondary trend sits on
+     * /50 — never silently converted to another scale (§13).
+     */
+    const { subjects: templateSubjects, scheme } = useScoreTemplate('monthly')
+    const maxByColumn = maxScoreByColumn(templateSubjects)
+
+    // Shared grading engine on the class's scheme; NaN and null both render '-'.
+    const getGrade = (avg: number | null) => letterFor(avg, scheme)
 
     const filteredStudents = initialStudents.filter(s => 
         (s.name_kh || s.full_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -68,18 +81,12 @@ export default function StudentTrackingClient({ initialStudents, scoresData, set
 
         // Subject keys hold raw scores; `average` holds a formatted 2-dp string.
         const scoreObj: Record<string, number | string | null> = {}
-        let stSum = 0
-        let stCount = 0
+        studentScores.forEach(s => { scoreObj[s.subject] = s.score_value })
 
-        studentScores.forEach(s => {
-            scoreObj[s.subject] = s.score_value
-            stSum += s.score_value!
-            stCount++
-        })
-
-        if (stCount > 0) {
-            scoreObj.average = (stSum / stCount).toFixed(2)
-        }
+        // Coefficient-weighted through the shared engine; the plain mean this
+        // sheet always showed under the primary default.
+        const { average } = studentAverage(scoreObj, Object.keys(scoreObj), maxByColumn, scheme)
+        if (average !== null) scoreObj.average = average.toFixed(2)
 
         return scoreObj
     }
