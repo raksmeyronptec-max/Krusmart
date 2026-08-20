@@ -226,7 +226,10 @@ WITH probe(migration, what, present) AS (
     ('00025 homeroom key uniq',    'teacher_assignments_homeroom_key_uniq index',
       EXISTS (SELECT 1 FROM pg_indexes
                WHERE tablename='teacher_assignments'
-                 AND indexname='teacher_assignments_homeroom_key_uniq'))
+                 AND indexname='teacher_assignments_homeroom_key_uniq')),
+    ('00026 classroom curriculum', 'system rows for lower_secondary',
+      EXISTS (SELECT 1 FROM public.score_template_subjects
+               WHERE scope='system' AND level_key='lower_secondary'))
 )
 SELECT 'migration presence' AS section,
        migration,

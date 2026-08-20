@@ -140,6 +140,7 @@ The wizard state is **derived from `Actor`, never stored** — same principle as
 | `00023_secondary_grading_schemes.sql` | Corrects the two secondary levels' stored default schemes to /50 coefficient. Display truth only — no calculation reads these rows. |
 | `00024_assignment_subject_key.sql` | `teacher_assignments.subject_key` — the assignment names the subject by the score system's own identity. Header records why no `subjects` rows were minted. |
 | `00025_homeroom_uniqueness_subject_key.sql` | Re-keys homeroom uniqueness on *both* NULLs — without it a `subject_key` assignment collides with the teacher's homeroom row, and a second subject in one class is impossible. |
+| `00026_secondary_classroom_curriculum.sql` | Seeds the real classroom curriculum for grades 7–12 (105 rows, product owner's verified table) and converges 00021's BacII-weighted grade-12 seed to classroom values. BacII is deliberately out of the system — see `docs/score-system-design.md` §3.3. |
 
 `supabase/legacy/` holds superseded partial snapshots — **do not apply them**. `supabase/README.md` still describes the pre-V2 world in places (it claims the scores conflict key omits `teacher_id`, and that there is no classes table); the migrations and this file are the newer account. Verify against the live project before relying on any of it.
 
