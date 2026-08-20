@@ -80,11 +80,9 @@ export const EDUCATION_LEVELS: readonly EducationLevelSpec[] = [
     from: 7,
     to: 9,
     description: 'អនុវិទ្យាល័យ',
-    // No subjects or full marks are seeded for grades 7–9 yet, so a class here
-    // would fall back to the primary list and grade /10 — not the /50 the card
-    // would otherwise promise. Closed until the curriculum arrives.
-    curriculumStatus: 'pending',
-    seededNote: 'ឆាប់ៗនេះ',
+    // Grades 7–9 subjects and full marks are seeded by migration 00026 from
+    // the product owner's verified classroom table.
+    curriculumStatus: 'seeded',
   },
   {
     key: 'upper_secondary',
@@ -97,10 +95,11 @@ export const EDUCATION_LEVELS: readonly EducationLevelSpec[] = [
     // ថ្នាក់ទី១១–១២ stream; the same subject carries a different full mark per
     // stream (docs/score-system-design.md §6), so the class must declare one.
     tracksFromGrade: 11,
-    // Only ថ្នាក់ទី១២ is seeded (both streams, verified). Grades 10–11 fall back
-    // to the primary list until their full marks are confirmed.
-    curriculumStatus: 'partial',
-    seededNote: 'ថ្នាក់ទី១២ ប៉ុណ្ណោះ',
+    // Grades 10–12 are fully seeded by migration 00026 (grades 11–12 per
+    // stream). A grade 11–12 class whose stream is still unset deliberately
+    // keeps falling back to the primary list — that gate is
+    // `filterRowsForContext`, not this flag.
+    curriculumStatus: 'seeded',
   },
 ] as const
 
