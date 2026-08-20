@@ -49,7 +49,7 @@ export interface TemplateContext {
  *
  *   1. If the context names a level AND rows tagged with that level exist
  *      (matching grade and track where the row narrows them), those rows are
- *      the curriculum — a grade-12 science class sees `hs_math` at /125 and
+ *      the curriculum — a grade-12 science class sees `hs_math` at /100 and
  *      none of the primary skills.
  *   2. Otherwise the *untagged* rows apply: no context (legacy account,
  *      pre-00021 database, fallback constant), a level nothing has been

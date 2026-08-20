@@ -15,7 +15,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
 const DIR = 'supabase/migrations'
-const PENDING = /^000(1[89]|2[0-5])_/
+const PENDING = /^000(1[89]|2[0-6])_/
 
 let failures = 0
 let checks = 0
@@ -35,8 +35,8 @@ function executable(sql: string): string {
 }
 
 const files = readdirSync(DIR).filter(f => PENDING.test(f)).sort()
-if (files.length !== 8) {
-  console.log(`FAIL: expected 8 pending migrations, found ${files.length}`)
+if (files.length !== 9) {
+  console.log(`FAIL: expected 9 pending migrations, found ${files.length}`)
   process.exit(1)
 }
 
@@ -62,9 +62,12 @@ for (const file of files) {
   if (bareAddColumn) unguarded.push(`ADD COLUMN without IF NOT EXISTS (x${bareAddColumn.length})`)
   const bareFunction = sql.match(/\bCREATE\s+FUNCTION\b/gi)
   if (bareFunction) unguarded.push(`CREATE FUNCTION without OR REPLACE (x${bareFunction.length})`)
-  // A bare INSERT re-inserts on a second run.
+  // A bare INSERT re-inserts on a second run. Scan to the end of the
+  // STATEMENT, not a fixed window — 00026's VALUES list alone is ~20k chars,
+  // and a window that stops short reports its ON CONFLICT as missing.
   for (const m of sql.matchAll(/\bINSERT\s+INTO\s+public\.(\w+)/gi)) {
-    const after = sql.slice(m.index!, m.index! + 4000)
+    const semi = sql.indexOf(';', m.index!)
+    const after = sql.slice(m.index!, semi < 0 ? undefined : semi + 1)
     const guarded = /\bON\s+CONFLICT\b/i.test(after) || /\bWHERE\s+NOT\s+EXISTS\b/i.test(after)
     // Inserts inside a function body are runtime behaviour, not migration
     // behaviour — the body was blanked above, so anything reaching here is

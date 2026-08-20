@@ -38,6 +38,10 @@ function check(name: string, ok: boolean, detail = '') {
 
 // --- 1. coefficients ---------------------------------------------------------
 console.log('\ncoefficients (§3.2):')
+// Arbitrary denominators, not any seeded curriculum — /125 in particular is no
+// longer any real subject's max (00026 removed the BacII weighting), but the
+// coefficient formula must still be correct for a school that sets one via a
+// class override.
 for (const [max, expected] of [[25, 0.5], [50, 1], [75, 1.5], [100, 2], [125, 2.5]] as const) {
   const got = coefficientOf(max, SECONDARY_SCHEME_CONFIG)
   check(`/${max} → ${expected}`, got === expected, `got ${got}`)
@@ -47,7 +51,8 @@ check('simple weighting → every subject weighs 1', coefficientOf(125, DEFAULT_
 // --- 2. the coefficient average ----------------------------------------------
 console.log('\ncoefficient average:')
 {
-  // Grade-12 science, full marks: Σ475 ÷ Σ9.5 must be exactly 50.
+  // Synthetic full marks, chosen only to land on a round Σ475 ÷ Σ9.5 = 50 —
+  // not the real grade-12 seed (see scripts/verify-level-template.mts for that).
   const science = [125, 75, 75, 75, 75, 50].map((m) => ({ score: m, maxScore: m }))
   check('full marks land on /50', coefficientAverage(science, SECONDARY_SCHEME_CONFIG) === 50)
 

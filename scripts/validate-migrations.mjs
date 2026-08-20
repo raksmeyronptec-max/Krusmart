@@ -65,7 +65,7 @@ catch {
 const REPO = new URL('..', import.meta.url).pathname
 const MIG = join(REPO, 'supabase/migrations')
 const ADMIN = { host: '127.0.0.1', port: 54322, user: 'postgres', password: 'postgres', database: 'postgres' }
-const V2 = [18, 19, 20, 21, 22, 23, 24, 25]
+const V2 = [18, 19, 20, 21, 22, 23, 24, 25, 26]
 
 const log = (...a) => console.log(...a)
 const results = []
@@ -203,6 +203,14 @@ function rollback00019() {
   const i = src.indexOf('CREATE OR REPLACE FUNCTION'), j = src.indexOf('$$;', i)
   return src.slice(i, j + 3)
 }
+/** 00026's rollback step 2 is a pointer: re-run 00021's INSERT block verbatim. */
+function rollback00026() {
+  const step1 = extractRollback(fileFor(26))
+  const src = readMig(fileFor(21))
+  const i = src.indexOf('INSERT INTO public.score_template_subjects')
+  const j = src.indexOf('DO NOTHING;', i)
+  return step1.sql + '\n' + src.slice(i, j + 'DO NOTHING;'.length)
+}
 
 /** A school with the three national levels, each on the 00009 default scheme. */
 async function seedLevels(c) {
@@ -225,11 +233,11 @@ const main = async () => {
   log('auth.uid() copied verbatim from the running instance (not a stub)\n')
 
   // ---- 1 -----------------------------------------------------------------
-  log('===== TEST 1 : apply 00001–00025 in order =====')
+  log('===== TEST 1 : apply 00001–00026 in order =====')
   await createDb('v_all'); const c1 = await connect('v_all'); await bootstrap(c1, UID)
   const bad1 = await applyMany(c1, files())
   showBad(bad1); await c1.end()
-  record(1, 'Apply 00001–00025 in order', bad1.length === 0, `${bad1.length}/${files().length} files failed`)
+  record(1, 'Apply 00001–00026 in order', bad1.length === 0, `${bad1.length}/${files().length} files failed`)
 
   // ---- 2 -----------------------------------------------------------------
   log('===== TEST 2 : apply 00018–00024 twice =====')
@@ -242,7 +250,7 @@ const main = async () => {
   if (p2.length) { log('   SECOND pass:'); showBad(p2) }
   if (d2.length) log('   second pass changed: ' + JSON.stringify(d2).slice(0, 1200))
   await c2.end()
-  record(2, 'Apply 00018–00025 twice → second pass is a no-op',
+  record(2, 'Apply 00018–00026 twice → second pass is a no-op',
     p1.length === 0 && p2.length === 0 && d2.length === 0,
     `errors ${p1.length}/${p2.length}, differences ${d2.length}`)
 
@@ -290,7 +298,9 @@ const main = async () => {
   log('===== TEST 6 : roll back 00024 → 00018 in reverse =====')
   const rbErr = []
   for (const n of [...V2].reverse()) {
-    const rb = n === 19 ? { kind: 'sql', sql: rollback00019() } : extractRollback(fileFor(n))
+    const rb = n === 19 ? { kind: 'sql', sql: rollback00019() }
+      : n === 26 ? { kind: 'sql', sql: rollback00026() }
+      : extractRollback(fileFor(n))
     if (rb.kind !== 'sql') { rbErr.push({ n, note: 'pointer rollback, nothing executable' }); continue }
     for (const s of splitStatements(rb.sql)) {
       try { await c.query(s) } catch (e) { try { await c.query('ROLLBACK') } catch {} ; rbErr.push({ n, msg: e.message, s: s.slice(0, 170).replace(/\s+/g, ' ') }) }

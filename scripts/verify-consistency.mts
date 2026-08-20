@@ -58,23 +58,28 @@ for (const mode of ['monthly', 'semester'] as const) {
     `shared ${FALLBACK_NUMERIC_KEYS[mode].length} vs totals ${totalsKeys.length}`)
 }
 
-// --- grade-12 seeds, parsed from 00021 ------------------------------------------
+// --- the secondary curriculum, parsed from 00026 (which supersedes 00021's seed)
 const SQL = readFileSync(
-  fileURLToPath(new URL('../supabase/migrations/00021_score_template_levels.sql', import.meta.url)),
+  fileURLToPath(new URL('../supabase/migrations/00026_secondary_classroom_curriculum.sql', import.meta.url)),
   'utf8',
 )
+// Track is NULL for grades 7–10 and quoted for 11–12, hence the alternation.
 const TUPLE =
-  /\('system',\s*'([a-z_]+)',\s*(\d+),\s*'([a-z_]+)',\s*'([a-z_]+)',\s*'([^']*)',\s*NULL,\s*'([\s\S]*?)'::jsonb,\s*(\d+),\s*'([^']*)',\s*ARRAY\[([^\]]*)\]::TEXT\[\],\s*(\d+)\)/g
+  /\('system',\s*'([a-z_]+)',\s*(\d+),\s*(?:'([a-z_]+)'|NULL),\s*'([a-z_]+)',\s*'([^']*)',\s*NULL,\s*'([\s\S]*?)'::jsonb,\s*(\d+),\s*'([^']*)',\s*ARRAY\[([^\]]*)\]::TEXT\[\],\s*(\d+)\)/g
 const seeds: ScoreTemplateSubjectRow[] = [...SQL.matchAll(TUPLE)].map((m, i) => ({
   id: `seed:${i}`, scope: 'system' as const,
   level_key: m[1] as ScoreTemplateSubjectRow['level_key'],
-  grade_number: Number(m[2]), track: m[3] as ScoreTemplateSubjectRow['track'],
+  grade_number: Number(m[2]), track: (m[3] ?? null) as ScoreTemplateSubjectRow['track'],
   subject_key: m[4], label_km: m[5], group_label: null,
   columns: JSON.parse(m[6]), max_score: Number(m[7]),
   value_kind: m[8] as 'numeric' | 'text',
   score_types: m[9].split(',').map((v) => v.trim().replace(/^'|'$/g, '')),
   sort_order: Number(m[10]), hidden: false,
 }))
+if (seeds.length !== 105) {
+  console.error(`expected 105 seeded rows from 00026, parsed ${seeds.length}`)
+  process.exit(1)
+}
 const allRows = [...SYSTEM_PRIMARY_TEMPLATE, ...seeds]
 
 /**
@@ -153,21 +158,33 @@ assertConsistent(
 )
 
 // --- 2. grade-12 science, partial data ------------------------------------------
-// 100/125 + 60/75 + 60/75 + 60/75 + 40/50, biology missing:
-// Σscore 320 ÷ Σcoef (2.5+1.5+1.5+1.5+1) = 320/8 = 40 → B, ល្អណាស់.
+// 100/100 + 60/75 + 60/75 + 60/75 + 40/50, the other seven unmarked:
+// Σscore 320 ÷ Σcoef (2+1.5+1.5+1.5+1) = 320/7.5 = 42.67 → B, ល្អណាស់.
 assertConsistent(
-  'grade-12 science — partial data (biology missing)',
+  'grade-12 science — partial data (seven subjects unmarked)',
   { hs_math: 100, hs_physics: 60, hs_chemistry: 60, hs_khmer: 60, hs_history: 40, hs_biology: null },
   { levelKey: 'upper_secondary', gradeNumber: 12, track: 'science' },
-  { average: 40, letter: 'B', label: 'ល្អណាស់' },
+  { average: 42.67, letter: 'B', label: 'ល្អណាស់' },
 )
 
-// --- 3. grade-12 social science, full marks --------------------------------------
+// --- 3. grade-12 social science, full marks across all 13 subjects ---------------
+// Σ800 ÷ Σ16 = 50 exactly — the checksum row, as a pupil.
 assertConsistent(
   'grade-12 social science — full marks',
-  { hs_khmer: 125, hs_math: 75, hs_history: 75, hs_geography: 75, hs_moral_civics: 75, hs_earth: 50 },
+  { hs_khmer: 100, hs_math: 75, hs_physics: 50, hs_chemistry: 50, hs_biology: 50,
+    hs_earth: 50, hs_history: 75, hs_geography: 75, hs_moral_civics: 75,
+    hs_foreign: 50, hs_ict: 50, hs_pe: 50, hs_econ: 50 },
   { levelKey: 'upper_secondary', gradeNumber: 12, track: 'social_science' },
   { average: 50, letter: 'A', label: 'ល្អប្រសើរ' },
+)
+
+// --- 3b. grade-8 (lower secondary) — the fifth combination, real data now --------
+// 90/100 + 80/100 + 40/50: Σ210 ÷ Σcoef (2+2+1) = 42 → B on the /50 ladder.
+assertConsistent(
+  'grade-8 lower secondary — partial data',
+  { hs_khmer: 90, hs_math: 80, hs_physics: 40 },
+  { levelKey: 'lower_secondary', gradeNumber: 8, track: null },
+  { average: 42, letter: 'B', label: 'ល្អណាស់' },
 )
 
 // --- 4. missing ≠ zero ------------------------------------------------------------
@@ -219,14 +236,26 @@ console.log('\nequivalence (letter + percentage, not descriptor):')
     gradeFor(40, schemeForLevel('upper_secondary'))?.label === 'ល្អណាស់')
 }
 
-// --- 5c. lower secondary resolves the primary fallback until it is seeded ------------
-console.log('\nlower secondary (no curriculum seeded yet):')
+// --- 5c. lower secondary resolves its real curriculum; unset track still falls back
+console.log('\nlower secondary (seeded by 00026) and the unset-track gate:')
 {
   const ctx: TemplateContext = { levelKey: 'lower_secondary', gradeNumber: 8, track: null }
   const subjects = resolveTemplate(allRows, 'monthly', ctx)
-  check('falls back to the primary subject list — never empty', subjects.length > 0)
+  check('grade 8 resolves its real 14 subjects', subjects.length === 14,
+    `got ${subjects.length}`)
+  check('…totalling 800 marks (Σcoefficient 16)',
+    subjects.reduce((a, s) => a + s.maxScore, 0) === 800)
+  check('grade 7 has no chemistry and no economics',
+    resolveTemplate(allRows, 'monthly', { levelKey: 'lower_secondary', gradeNumber: 7, track: null })
+      .every((s) => s.subjectKey !== 'hs_chemistry' && s.subjectKey !== 'hs_econ'))
+
+  // A grade 11–12 class whose stream is unset must keep falling back to the
+  // primary list — every 11–12 row carries an explicit track on purpose, so a
+  // partial /50 curriculum can never leak into an unstreamed class.
+  const unset = resolveTemplate(allRows, 'monthly', { levelKey: 'upper_secondary', gradeNumber: 12, track: null })
+  check('grade 12 with no track falls back to the primary list — never empty', unset.length > 0)
   check('…and therefore grades on /10, not a half-applied /50',
-    subjects.every((s) => s.maxScore === DEFAULT_SCHEME_CONFIG.maxScore))
+    unset.every((s) => s.maxScore === DEFAULT_SCHEME_CONFIG.maxScore))
 }
 
 // --- 5d. MULTI-TEACHER: the same class, marks owned by different teachers ------------
@@ -243,21 +272,21 @@ console.log('\nmulti-teacher class:')
   const ctx: TemplateContext = { levelKey: 'upper_secondary', gradeNumber: 12, track: 'science' }
 
   const owned = [
-    { subject: 'hs_math', value: 125, teacherId: 'teacher-A' },      // coef 2.5
+    { subject: 'hs_math', value: 100, teacherId: 'teacher-A' },      // coef 2
     { subject: 'hs_physics', value: 45, teacherId: 'teacher-B' },    // coef 1.5
     { subject: 'hs_chemistry', value: 60, teacherId: 'teacher-B' },  // coef 1.5
     { subject: 'hs_khmer', value: 60, teacherId: 'teacher-C' },      // coef 1.5
     { subject: 'hs_history', value: 25, teacherId: 'teacher-D' },    // coef 1
   ]
 
-  // Σ315 ÷ Σ8 = 39.375 → 39.38, a C on the secondary ladder.
+  // Σ290 ÷ Σ7.5 = 38.666… → 38.67, a C on the secondary ladder.
   const asClass = Object.fromEntries(owned.map((m) => [m.subject, m.value]))
   const classResults = surfaceResults(asClass, ctx)
   const names = Object.keys(classResults)
   const classAvg = classResults.scoreTotal.average
 
-  check('every surface agrees on the multi-teacher average (39.38)',
-    classAvg === 39.38 && names.every((n) => classResults[n].average === classAvg),
+  check('every surface agrees on the multi-teacher average (38.67)',
+    classAvg === 38.67 && names.every((n) => classResults[n].average === classAvg),
     names.map((n) => `${n}=${classResults[n].average}`).join(' '))
   check('…and on the letter (C)', names.every((n) => classResults[n].letter === 'C'))
   check('…and on the descriptor',
@@ -283,16 +312,16 @@ console.log('\nmulti-teacher class:')
 
   // A subject nobody entered stays missing, not zero — the unassigned-subject
   // case /score/collect flags. Dropping history (25/50) lifts the average to
-  // Σ290 ÷ Σ7 = 41.43, which is the point: it is not dragged to zero.
+  // Σ265 ÷ Σ6.5 = 40.77, which is the point: it is not dragged to zero.
   const missingOne = { ...asClass }
   delete (missingOne as Record<string, number>).hs_history
   const withGap = surfaceResults(missingOne, ctx)
   check('an unentered subject drops out rather than scoring zero',
-    withGap.scoreTotal.average === 41.43, `got ${withGap.scoreTotal.average}`)
+    withGap.scoreTotal.average === 40.77, `got ${withGap.scoreTotal.average}`)
   check('…and every surface still agrees',
     Object.keys(withGap).every((n) => withGap[n].average === withGap.scoreTotal.average))
-  check('…and it is not the zero-filled figure (Σ290 ÷ Σ8 = 36.25)',
-    withGap.scoreTotal.average !== 36.25)
+  check('…and it is not the zero-filled figure (Σ265 ÷ Σ7.5 = 35.33)',
+    withGap.scoreTotal.average !== 35.33)
 }
 
 // --- 6. ranks: shared walk, ties share ---------------------------------------------
@@ -321,6 +350,7 @@ console.log('\nrank walk:')
 console.log('\nassignment picker vs /score/collect labels:')
 const CONTEXTS: [string, TemplateContext | null][] = [
   ['primary (context null)', null],
+  ['grade 8 lower secondary', { levelKey: 'lower_secondary', gradeNumber: 8, track: null }],
   ['grade 12 science', { levelKey: 'upper_secondary', gradeNumber: 12, track: 'science' }],
   ['grade 12 social', { levelKey: 'upper_secondary', gradeNumber: 12, track: 'social_science' }],
 ]
@@ -338,16 +368,18 @@ for (const [name, context] of CONTEXTS) {
   }
 }
 
-// Grade-12 science must offer that track's six subjects and nothing else — not
-// the primary list, not the other stream's. A picker offering a subject the
-// class does not teach is how a teacher gets assigned to an empty column.
+// Grade-12 science must offer that track's twelve subjects and nothing else —
+// not the primary list, not the other stream's. A picker offering a subject
+// the class does not teach is how a teacher gets assigned to an empty column.
 {
-  const sci = assignableSubjects(allRows, CONTEXTS[1][1])
+  const sci = assignableSubjects(allRows, CONTEXTS[2][1])
   const keys = sci.map((o) => o.subjectKey).sort()
-  const expected = seeds.filter((r) => r.track === 'science').map((r) => r.subject_key).sort()
-  check(`grade 12 science picker ≡ the six seeded science subjects`,
-    JSON.stringify(keys) === JSON.stringify(expected),
-    `got ${JSON.stringify(keys)}`)
+  const expected = seeds
+    .filter((r) => r.grade_number === 12 && r.track === 'science')
+    .map((r) => r.subject_key).sort()
+  check(`grade 12 science picker ≡ the twelve seeded science subjects`,
+    keys.length === 12 && JSON.stringify(keys) === JSON.stringify(expected),
+    `got ${keys.length}: ${JSON.stringify(keys)}`)
   check('grade 12 science picker offers no primary subject',
     !keys.some((k) => SYSTEM_PRIMARY_TEMPLATE.some((r) => r.subject_key === k)))
 }
