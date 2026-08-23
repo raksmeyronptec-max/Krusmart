@@ -9,9 +9,8 @@ import type { ScoreTemplateSubjectRow } from '@/lib/types'
  * The score template rows visible to the signed-in teacher.
  *
  * A thin server action so the client hook can reach `serverScope.ts`, which is
- * `server-only` and cannot be imported from the browser — the same arrangement
- * `useCustomSubjects` uses with `custom-subjects/actions.ts`. There is no page
- * in this directory; it exists solely to hold the action.
+ * `server-only` and cannot be imported from the browser. There is no page in
+ * this directory; it exists solely to hold the action.
  *
  * Returns the *rows*, not the resolved list. The client re-runs
  * `resolveTemplate()` whenever the teacher flips between monthly and semester,

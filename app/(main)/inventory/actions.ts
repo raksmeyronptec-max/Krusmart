@@ -149,8 +149,10 @@ export async function deleteInventoryItem(id: string): Promise<ActionResult> {
 /**
  * One-time import of a browser's `localStorage` inventory.
  *
- * Mirrors `importCustomSubjects`: runs only when the database is empty for this
- * teacher, and leaves the localStorage copy in place so a failure can be retried.
+ * Runs only when the database is empty for this teacher, and leaves the
+ * localStorage copy in place so a failure can be retried. This is the last
+ * localStorage importer left — the custom-subjects one it was modelled on went
+ * with migration 00027.
  */
 export async function importInventoryItems(
   items: { name: string; qty: number; note?: string | null }[],

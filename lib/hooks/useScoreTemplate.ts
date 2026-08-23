@@ -21,10 +21,11 @@ import { logger } from '@/lib/utils/logger'
 /**
  * The subjects the active class enters marks for.
  *
- * Same shape as `useCustomSubjects` — fetch, loading, reload — with one
- * difference that matters: the *rows* are fetched once and re-resolved on every
- * score-type change, so flipping between monthly and semester costs nothing.
- * The fetch depends only on which class is active.
+ * Fetch, loading, reload — with one property that matters: the *rows* are
+ * fetched once and re-resolved on every score-type change, so flipping between
+ * monthly and semester costs nothing. The fetch depends only on which class is
+ * active. Since 00027 this is the only source of a class's subject list; there
+ * is no second store to merge.
  *
  * Falls back to `SYSTEM_PRIMARY_TEMPLATE` whenever the fetch has not produced
  * rows: during the first render, while `TeacherContext` is still resolving,
