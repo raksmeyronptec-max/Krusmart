@@ -65,7 +65,7 @@ catch {
 const REPO = new URL('..', import.meta.url).pathname
 const MIG = join(REPO, 'supabase/migrations')
 const ADMIN = { host: '127.0.0.1', port: 54322, user: 'postgres', password: 'postgres', database: 'postgres' }
-const V2 = [18, 19, 20, 21, 22, 23, 24, 25, 26]
+const V2 = [18, 19, 20, 21, 22, 23, 24, 25, 26, 27]
 
 const log = (...a) => console.log(...a)
 const results = []
@@ -233,14 +233,14 @@ const main = async () => {
   log('auth.uid() copied verbatim from the running instance (not a stub)\n')
 
   // ---- 1 -----------------------------------------------------------------
-  log('===== TEST 1 : apply 00001–00026 in order =====')
+  log('===== TEST 1 : apply 00001–00027 in order =====')
   await createDb('v_all'); const c1 = await connect('v_all'); await bootstrap(c1, UID)
   const bad1 = await applyMany(c1, files())
   showBad(bad1); await c1.end()
-  record(1, 'Apply 00001–00026 in order', bad1.length === 0, `${bad1.length}/${files().length} files failed`)
+  record(1, 'Apply 00001–00027 in order', bad1.length === 0, `${bad1.length}/${files().length} files failed`)
 
   // ---- 2 -----------------------------------------------------------------
-  log('===== TEST 2 : apply 00018–00024 twice =====')
+  log('===== TEST 2 : apply 00018–00027 twice =====')
   await createDb('v_twice'); const c2 = await connect('v_twice'); await bootstrap(c2, UID)
   await applyMany(c2, upTo17()); await seedLevels(c2)
   const p1 = await applyMany(c2, pending()); const sA = await snapshot(c2)
@@ -250,7 +250,7 @@ const main = async () => {
   if (p2.length) { log('   SECOND pass:'); showBad(p2) }
   if (d2.length) log('   second pass changed: ' + JSON.stringify(d2).slice(0, 1200))
   await c2.end()
-  record(2, 'Apply 00018–00026 twice → second pass is a no-op',
+  record(2, 'Apply 00018–00027 twice → second pass is a no-op',
     p1.length === 0 && p2.length === 0 && d2.length === 0,
     `errors ${p1.length}/${p2.length}, differences ${d2.length}`)
 
@@ -295,7 +295,7 @@ const main = async () => {
   }
   record(5, 'Verification queries pass after, differ before', t5)
 
-  log('===== TEST 6 : roll back 00024 → 00018 in reverse =====')
+  log('===== TEST 6 : roll back 00027 → 00018 in reverse =====')
   const rbErr = []
   for (const n of [...V2].reverse()) {
     const rb = n === 19 ? { kind: 'sql', sql: rollback00019() }
@@ -362,7 +362,94 @@ const main = async () => {
     e8.length === 0 && JSON.stringify(b8) === JSON.stringify(a8) && namesRisk && !namesControl)
   await ca.end()
 
-  for (const d of ['v_all', 'v_twice', 'v_run', 'v_audit']) await dropDb(d)
+  // ---- 9 -----------------------------------------------------------------
+  // 00027 converts custom_subjects rows and is a no-op on an empty database,
+  // so like tests 7 and 8 it needs a fixture or it proves nothing. The shapes
+  // that matter: a teacher on TWO classes (the conversion fans out), a SECOND
+  // teacher on one of those classes with a same-named subject (they must not
+  // merge — different column ids mean different marks), and a legacy teacher
+  // with no assignment at all (nowhere to put a class-scope row).
+  log('===== TEST 9 : 00027 converts custom_subjects, with a fixture =====')
+  await createDb('v_custom'); const cc = await connect('v_custom'); await bootstrap(cc, UID)
+  await applyMany(cc, files().filter(f => parseInt(f.slice(0, 5), 10) <= 26))
+  const one9 = async (q, p) => (await cc.query(q, p)).rows[0]
+
+  const csT1 = (await one9(`INSERT INTO auth.users (email) VALUES ('cs-t1@example.com') RETURNING id`)).id
+  const csT2 = (await one9(`INSERT INTO auth.users (email) VALUES ('cs-t2@example.com') RETURNING id`)).id
+  const csT3 = (await one9(`INSERT INTO auth.users (email) VALUES ('cs-legacy@example.com') RETURNING id`)).id
+  const csSchool = (await one9(`INSERT INTO public.schools (name) VALUES ('សាលាមុខវិជ្ជា') RETURNING id`)).id
+  const csYear = (await one9(`INSERT INTO public.academic_years (school_id,name) VALUES ($1,'2025-2026') RETURNING id`, [csSchool])).id
+  const csLevel = (await one9(`INSERT INTO public.education_levels (school_id,name) VALUES ($1,'បឋមសិក្សា') RETURNING id`, [csSchool])).id
+  const csGrade = (await one9(`INSERT INTO public.grades (education_level_id,name) VALUES ($1,'ថ្នាក់ទី៤') RETURNING id`, [csLevel])).id
+  const csK1 = (await one9(`INSERT INTO public.classes (grade_id,academic_year_id,name) VALUES ($1,$2,'៤ក') RETURNING id`, [csGrade, csYear])).id
+  const csK2 = (await one9(`INSERT INTO public.classes (grade_id,academic_year_id,name) VALUES ($1,$2,'៤ខ') RETURNING id`, [csGrade, csYear])).id
+  const csAssign = async (tid, kid, hr) => cc.query(
+    `INSERT INTO public.teacher_assignments (teacher_id,class_id,academic_year_id,is_homeroom,status)
+     VALUES ($1,$2,$3,$4,'active')`, [tid, kid, csYear, hr])
+  await csAssign(csT1, csK1, true); await csAssign(csT1, csK2, false); await csAssign(csT2, csK1, false)
+
+  // Exactly what createCustomSubject wrote: class_id omitted, ids minted client-side.
+  const csAdd = async (tid, nm, scope, cols, ord) => (await one9(
+    `INSERT INTO public.custom_subjects (teacher_id,name,scope,columns,order_index)
+     VALUES ($1,$2,$3,$4::jsonb,$5) RETURNING id`, [tid, nm, scope, JSON.stringify(cols), ord])).id
+  await csAdd(csT1, 'អង់គ្លេសបន្ថែម', 'both',
+    [{ id: 'custom_1700000000000_0', label: 'អាន', width: '120px' },
+     { id: 'custom_1700000000000_1', label: 'សរសេរ', width: '120px' }], 0)
+  await csAdd(csT1, 'កីឡាបន្ថែម', 'monthly', [{ id: 'custom_1700000000111_0', label: 'កីឡា', width: '120px' }], 1)
+  await csAdd(csT2, 'អង់គ្លេសបន្ថែម', 'both', [{ id: 'custom_1700000000999_0', label: 'អាន', width: '120px' }], 0)
+  await csAdd(csT3, 'ចំណេះទូទៅ', 'semester', [{ id: 'custom_1700000000777_0', label: 'ចំណេះ', width: '120px' }], 0)
+
+  const csStu = (await one9(`INSERT INTO public.students (teacher_id,student_id,grade,name_kh,gender,dob)
+      VALUES ($1,'S-CS','ថ្នាក់ទី៤','សិស្សសាកល្បង','ស្រី','2015-01-01') RETURNING id`, [csT1])).id
+  for (const col of ['custom_1700000000000_0', 'custom_1700000000000_1', 'custom_1700000000111_0']) {
+    await cc.query(`INSERT INTO public.scores (teacher_id,student_id,subject,score_type,score_period,score_value)
+                    VALUES ($1,$2,$3,'monthly','nov-2025-2026',8)`, [csT1, csStu, col])
+  }
+
+  const q9 = async (sql) => (await cc.query(sql)).rows
+  const errs9 = await applyMany(cc, [fileFor(27)])
+  const after9 = await q9(`SELECT count(*)::int n FROM public.score_template_subjects WHERE subject_key LIKE 'cs\\_%'`)
+  // csT1: 2 subjects x 2 classes = 4;  csT2: 1 x 1 = 1;  csT3: legacy, 0.  Total 5.
+  const fanOut = after9[0].n === 5
+  const verbatim = (await q9(`SELECT count(*)::int n FROM public.custom_subjects c
+      JOIN public.score_template_subjects s ON s.subject_key = 'cs_' || replace(c.id::text,'-','')
+     WHERE s.columns IS DISTINCT FROM c.columns`))[0].n === 0
+  const orphans = (await q9(`SELECT count(*)::int n FROM public.scores s WHERE s.subject LIKE 'custom\\_%'
+     AND NOT EXISTS (SELECT 1 FROM public.score_template_subjects t, jsonb_array_elements(t.columns) e
+                      WHERE e->>'id' = s.subject)`))[0].n === 0
+  // Both teachers' same-named subjects survive as two rows on the shared class.
+  const bothKept = (await q9(`SELECT count(*)::int n FROM public.score_template_subjects
+     WHERE scope='class' AND class_id='${csK1}' AND label_km='អង់គ្លេសបន្ថែម'`))[0].n === 2
+  // 'both' becomes two score_types entries, not two rows.
+  const bothScope = (await q9(`SELECT count(*)::int n FROM public.score_template_subjects
+     WHERE subject_key LIKE 'cs\\_%' AND score_types @> ARRAY['monthly','semester']::text[]`))[0].n === 3
+  const legacyLeft = (await q9(`SELECT count(*)::int n FROM public.custom_subjects c
+     WHERE NOT EXISTS (SELECT 1 FROM public.teacher_assignments a
+                        WHERE a.teacher_id=c.teacher_id AND a.status='active')`))[0].n === 1
+
+  const twice = await applyMany(cc, [fileFor(27)])
+  const afterTwice = (await q9(`SELECT count(*)::int n FROM public.score_template_subjects WHERE subject_key LIKE 'cs\\_%'`))[0].n === 5
+
+  const rb9 = extractRollback(fileFor(27))
+  let rbOk = rb9.kind === 'sql'
+  if (rbOk) for (const st of splitStatements(rb9.sql)) {
+    try { await cc.query(st) } catch (e) { try { await cc.query('ROLLBACK') } catch {} ; rbOk = false; log('     rollback: ' + e.message) }
+  }
+  const restored = rbOk
+    && (await q9(`SELECT count(*)::int n FROM public.score_template_subjects WHERE subject_key LIKE 'cs\\_%'`))[0].n === 0
+    && (await q9(`SELECT count(*)::int n FROM public.custom_subjects`))[0].n === 4
+    && (await q9(`SELECT count(*)::int n FROM public.scores`))[0].n === 3
+
+  log(`     fan-out 5 rows ${fanOut} | columns verbatim ${verbatim} | no orphaned mark ${orphans}`)
+  log(`     both teachers kept ${bothKept} | 'both'->2 score_types ${bothScope} | legacy left in place ${legacyLeft}`)
+  log(`     second apply no-op ${afterTwice} | rollback restores ${restored}`)
+  showBad(errs9); showBad(twice)
+  await cc.end()
+  record(9, '00027 converts custom_subjects: fan-out, verbatim ids, idempotent, reversible',
+    errs9.length === 0 && twice.length === 0 && fanOut && verbatim && orphans
+    && bothKept && bothScope && legacyLeft && afterTwice && restored)
+
+  for (const d of ['v_all', 'v_twice', 'v_run', 'v_audit', 'v_custom']) await dropDb(d)
   log('================== SUMMARY ==================')
   results.forEach(r => log(`  ${r.pass ? 'PASS' : 'FAIL'}  test ${r.n} — ${r.name}`))
   const ok = results.filter(r => r.pass).length

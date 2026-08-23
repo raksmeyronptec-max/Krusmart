@@ -26,7 +26,6 @@ import Select from '@/components/ui/forms/Select'
 
 import { getAllScoresByPeriod, getMonthlyScoresForYear, clearScoresForStudents } from './actions'
 import { saveScores } from '../enter/actions'
-import { useCustomSubjects } from '@/lib/hooks/useCustomSubjects'
 import { useScoreTemplate } from '@/lib/hooks/useScoreTemplate'
 import { getCurrentAcademicYear } from '@/lib/constants/academic'
 import { MONTHS_BY_ACADEMIC_YEAR, MONTH_LABEL_BY_ID } from '@/lib/constants/months'
@@ -232,7 +231,6 @@ export default function ScoreTotalClient({
 
     const [selectedSemesterMonths, setSelectedSemesterMonths] = useState(['nov', 'dec', 'jan', 'feb', 'mar'])
 
-    const { subjects: customSubjects } = useCustomSubjects()
     const { confirm, dialog } = useConfirm()
 
     /**
@@ -262,9 +260,11 @@ export default function ScoreTotalClient({
     const allGroups = useMemo(
         () =>
             levelCurriculum && currentMode !== 'annual'
-                ? groupsFromTemplate(templateSubjects, customSubjects)
-                : groupsFor(currentMode, customSubjects),
-        [levelCurriculum, currentMode, templateSubjects, customSubjects],
+                ? groupsFromTemplate(templateSubjects)
+                // The hand-built primary layout, plus whatever the template adds
+                // on top of it — a teacher's own subjects among them since 00027.
+                : groupsFor(currentMode, templateSubjects),
+        [levelCurriculum, currentMode, templateSubjects],
     )
     const allColumns = useMemo(() => flatten(allGroups), [allGroups])
 

@@ -256,6 +256,20 @@ export interface NewClassSubject {
   label_km: string
   max_score: number
   score_type: TemplateScoreType
+  /**
+   * Grids the subject appears in, when it is more than one. `/score/subjects`
+   * offers a single grid and leaves this unset; the add-subject dialog on
+   * `/score/enter` offers "monthly and semester" as one choice, which is the
+   * shape `custom_subjects.scope = 'both'` had before 00027 retired it.
+   */
+  score_types?: TemplateScoreType[]
+  /**
+   * Picker heading. Defaults to the per-class heading. `/score/enter` passes
+   * `មុខវិជ្ជាបន្ថែម` so a teacher's own additions keep grouping where they
+   * always have — that heading is now the only thing carrying their provenance,
+   * since the layer a row resolves at is what marks it teacher-added.
+   */
+  group_label?: string
   /** Optional sub-columns, as the teacher typed them, comma separated. */
   column_labels?: string[]
 }
@@ -293,7 +307,8 @@ export async function addClassSubject(
       : [{ id: subjectKey, label, width: '120px' }]
 
   // New subjects go to the end of the list they belong to.
-  const sameType = ctx.rows.filter((r) => r.score_types.includes(input.score_type))
+  const wanted: string[] = input.score_types ?? [input.score_type]
+  const sameType = ctx.rows.filter((r) => r.score_types.some((t) => wanted.includes(t)))
   const sortOrder = sameType.reduce((max, r) => Math.max(max, r.sort_order), 0) + 10
 
   const supabase = await createClient()
@@ -304,11 +319,11 @@ export async function addClassSubject(
       class_id: ctx.classId,
       subject_key: subjectKey,
       label_km: label,
-      group_label: 'មុខវិជ្ជាថ្នាក់',
+      group_label: input.group_label ?? 'មុខវិជ្ជាថ្នាក់',
       columns,
       max_score: input.max_score,
       value_kind: 'numeric',
-      score_types: [input.score_type],
+      score_types: input.score_types ?? [input.score_type],
       sort_order: sortOrder,
       hidden: false,
     })

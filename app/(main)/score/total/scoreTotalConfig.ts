@@ -9,11 +9,8 @@
  * disagree with the body.
  */
 
-import type { CustomSubjectRow, Student } from '@/lib/types'
+import type { Student } from '@/lib/types'
 import type { EffectiveSubject } from '@/lib/scores/template'
-// Relative and extension-qualified so the consistency harness can run this
-// module under plain node — same reason as lib/scores/template.ts.
-import { appliesTo } from '../../../../lib/storage/custom-subjects.ts'
 
 /**
  * A student decorated with the per-period scores and every derived total the
@@ -168,24 +165,32 @@ const GROUPS: Record<TotalMode, ColumnGroup[]> = {
 }
 
 /**
- * The groups for a mode, with the teacher's own subjects appended.
+ * The groups for a mode, with anything the template adds appended.
  *
- * Pure: the caller memoises on `mode` + the custom-subject list, and nothing is
- * written back into `GROUPS`.
+ * `extras` is whatever the resolved template carries beyond this file's
+ * hand-built primary layout — the teacher's own subjects among them, since
+ * 00027 moved those out of `custom_subjects` into class-scope template rows.
+ * The caller resolves and score-type-filters them; this stays a pure merge, and
+ * nothing is written back into `GROUPS`.
  */
-export function groupsFor(mode: TotalMode, customSubjects: CustomSubjectRow[]): ColumnGroup[] {
+export function groupsFor(mode: TotalMode, extras: EffectiveSubject[] = []): ColumnGroup[] {
     const base = GROUPS[mode]
-    if (mode === 'annual' || customSubjects.length === 0) return base
+    if (mode === 'annual' || extras.length === 0) return base
 
     const known = new Set(base.flatMap(g => g.columns.map(c => c.key)))
     const extra: GridColumn[] = []
 
-    for (const sub of customSubjects) {
-        if (!appliesTo(sub, mode)) continue
+    for (const sub of extras) {
         for (const col of sub.columns) {
             if (known.has(col.id)) continue
             known.add(col.id)
-            extra.push({ key: col.id, label: col.label })
+            extra.push({
+                key: col.id,
+                label: col.label,
+                ...(sub.valueKind === 'text' || col.type === 'select'
+                    ? { isText: true, options: col.options ?? behaviorOptions }
+                    : {}),
+            })
         }
     }
 
@@ -216,13 +221,11 @@ export function filterGroups(groups: ColumnGroup[], visible: Set<string> | null)
  * (consecutive subjects sharing a label share a band, matching how the picker
  * groups); a subject with no label falls under a generic heading. Text-kind
  * subjects mark every column `isText` so they stay out of the averages, same
- * contract as the hand-built config. The teacher's own `custom_subjects` still
- * append under មុខវិជ្ជាបន្ថែម exactly as on the fallback path.
+ * contract as the hand-built config. A teacher's own subjects need no special
+ * case any more: since 00027 they are ordinary class-scope rows in `subjects`,
+ * carrying the `មុខវិជ្ជាបន្ថែម` group label that gives them their own band.
  */
-export function groupsFromTemplate(
-    subjects: EffectiveSubject[],
-    customSubjects: CustomSubjectRow[],
-): ColumnGroup[] {
+export function groupsFromTemplate(subjects: EffectiveSubject[]): ColumnGroup[] {
     const groups: ColumnGroup[] = []
     const seen = new Set<string>()
     const palette = ['bg-brand-800', 'bg-brand-700']
@@ -246,18 +249,6 @@ export function groupsFromTemplate(
         const last = groups[groups.length - 1]
         if (last && last.name === name) last.columns.push(...columns)
         else groups.push({ name, color: palette[groups.length % palette.length], columns })
-    }
-
-    const extra: GridColumn[] = []
-    for (const sub of customSubjects) {
-        for (const col of sub.columns) {
-            if (seen.has(col.id)) continue
-            seen.add(col.id)
-            extra.push({ key: col.id, label: col.label })
-        }
-    }
-    if (extra.length > 0) {
-        groups.push({ name: 'មុខវិជ្ជាបន្ថែម', color: 'bg-brand-600', columns: extra })
     }
 
     return groups

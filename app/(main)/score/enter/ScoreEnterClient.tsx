@@ -23,9 +23,7 @@ import { ScoreEntryList } from './ScoreEntryList'
 import { ScoreEntryGrid } from './ScoreEntryGrid'
 
 import { getScores, saveScores } from './actions'
-import { createCustomSubject } from '@/app/(main)/score/custom-subjects/actions'
-import { useCustomSubjects } from '@/lib/hooks/useCustomSubjects'
-import { appliesTo } from '@/lib/storage/custom-subjects'
+import { addClassSubject } from '@/app/(main)/score/subjects/actions'
 import { scoreCellValue } from '@/lib/utils/score-value'
 import { formatMark, letterOrDash, numericCell, styleFor } from '@/lib/utils/score-band'
 import { levelByKey, trackLabel } from '@/lib/onboarding/curriculum'
@@ -40,7 +38,7 @@ import { useScoreTemplate } from '@/lib/hooks/useScoreTemplate'
 import {
     columnsFor, maxScoreByColumn, toSubjectOptions, type SubjectColumn,
 } from '@/lib/scores/template'
-import type { CustomSubjectScope, Score, ScoreInput, Student } from '@/lib/types'
+import type { Score, ScoreInput, Student } from '@/lib/types'
 
 /**
  * បញ្ចូលពិន្ទុសិស្ស — the score entry screen.
@@ -129,10 +127,6 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
 
     const { confirm, dialog } = useConfirm()
 
-    // Supabase-backed since migration 00012; the hook imports a browser's old
-    // localStorage copy once, then reads from the database.
-    const { subjects: customSubjects, reload: reloadCustomSubjects } = useCustomSubjects()
-
     // The subject list for the active class, resolved system < school < class
     // from `score_template_subjects` (migration 00016). Falls back to the
     // seeded national default while the class context resolves, so the picker
@@ -140,7 +134,7 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
     // `mySubjects` — a subject teacher may only enter their own subjects. The
     // full template (`subjects`) is what aggregation weighs and is deliberately
     // not what this picker offers.
-    const { mySubjects: templateSubjects, role, context, scheme } = useScoreTemplate(scoreType)
+    const { mySubjects: templateSubjects, role, context, scheme, reload: reloadTemplate } = useScoreTemplate(scoreType)
 
     const scorePeriod = scoreType === 'monthly' ? `${month}-${academicYear}` : `${semester}-${academicYear}`
 
@@ -178,11 +172,6 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
         : scoreType === 'semester' && !selectedSubject.startsWith('sem_') ? 'sem_math'
         : selectedSubject
 
-    // `subjectConfigs` is the grid's column lookup, keyed by picker value.
-    useEffect(() => {
-        customSubjects.forEach(s => { subjectConfigs[s.id] = s.columns })
-    }, [customSubjects])
-
     /**
      * Columns for the picked subject.
      *
@@ -195,16 +184,27 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
      */
     const subjectCols: SubjectColumn[] = useMemo(
         () => columnsFor(templateSubjects, subject) ?? subjectConfigs[subject] ?? [],
-        // `subjectConfigs` is mutated by the effect above, so the custom-subject
-        // list is the signal that a new key may now resolve.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        [subject, customSubjects, templateSubjects],
+        [subject, templateSubjects],
     )
 
-    const customCols = useMemo(
-        () => customSubjects.filter(s => appliesTo(s, scoreType)).flatMap(s => s.columns),
-        [customSubjects, scoreType],
-    )
+    /**
+     * Columns the template adds beyond this file's hand-built primary layout —
+     * a teacher's own subjects among them, since 00027 moved those out of
+     * `custom_subjects` and into the template at `scope='class'`.
+     *
+     * Deduplicated against the built-in list because the two overlap for every
+     * key 00016 seeded from it.
+     */
+    const templateExtraCols = useMemo(() => {
+        const known = new Set(allColumnsFor(scoreType).map(c => c.id))
+        const extra: SubjectColumn[] = []
+        for (const col of templateSubjects.flatMap(s => s.columns)) {
+            if (known.has(col.id)) continue
+            known.add(col.id)
+            extra.push(col)
+        }
+        return extra
+    }, [templateSubjects, scoreType])
 
     /**
      * Full mark per column, from the resolved template.
@@ -223,9 +223,9 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
 
     /** Columns the current view actually edits. */
     const cols: SubjectColumn[] = useMemo(() => {
-        if (view === 'grid' && gridScope === 'all') return [...allColumnsFor(scoreType), ...customCols]
+        if (view === 'grid' && gridScope === 'all') return [...allColumnsFor(scoreType), ...templateExtraCols]
         return subjectCols
-    }, [view, gridScope, scoreType, customCols, subjectCols])
+    }, [view, gridScope, scoreType, templateExtraCols, subjectCols])
 
     /**
      * Subject list for the picker.
@@ -234,19 +234,12 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
      * the product, which a lower-secondary school had no way to change. It now
      * comes from `score_template_subjects` via `useScoreTemplate`.
      *
-     * The teacher's own subjects are still appended under `មុខវិជ្ជាបន្ថែម`
-     * from `custom_subjects`; folding those into the template table is a later
-     * phase, and doing it here would mean two sources writing the same list.
+     * The teacher's own subjects come from the same place since 00027 retired
+     * `custom_subjects`: they are class-scope template rows, and they still
+     * group under `មុខវិជ្ជាបន្ថែម` because that is the `group_label` both the
+     * conversion and the add dialog below write. One source writes this list.
      */
-    const subjectOptions = useMemo(() => {
-        const base = toSubjectOptions(templateSubjects)
-
-        const custom = customSubjects
-            .filter(s => appliesTo(s, scoreType))
-            .map(s => ({ value: s.id, label: s.name, group: 'មុខវិជ្ជាបន្ថែម' }))
-
-        return [...base, ...custom]
-    }, [templateSubjects, scoreType, customSubjects])
+    const subjectOptions = useMemo(() => toSubjectOptions(templateSubjects), [templateSubjects])
 
     // ---------------------------------------------------------------- loading
 
@@ -538,39 +531,56 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
 
     // ------------------------------------------------------- custom subjects
 
+    /** Which grids a newly added subject appears in. `both` writes two score_types. */
+    type NewSubjectGrids = 'monthly' | 'semester' | 'both'
+
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
     const [newSubName, setNewSubName] = useState('')
-    const [newSubType, setNewSubType] = useState<CustomSubjectScope>('both')
+    const [newSubType, setNewSubType] = useState<NewSubjectGrids>('both')
     const [newSubCols, setNewSubCols] = useState('')
 
+    /**
+     * Add a subject of the teacher's own.
+     *
+     * Writes a class-scope `score_template_subjects` row through the same
+     * action `/score/subjects` uses, rather than the retired `custom_subjects`
+     * table (00027). Two consequences worth knowing: the subject is visible to
+     * every colleague on the class instead of only its author — which is the
+     * defect 00027 exists to fix — and the server mints both the subject key
+     * and the column ids, so nothing here can coin an id that collides with the
+     * national key space.
+     *
+     * An account with no class cannot hold a class-scope row at all; the action
+     * returns a Khmer explanation, which is surfaced unchanged.
+     */
     const submitNewSubject = async () => {
         if (!newSubName.trim()) {
             notify.error('សូមបញ្ចូលឈ្មោះមុខវិជ្ជា')
             return
         }
 
-        const id = 'custom_' + Date.now()
-        let columns: { id: string; label: string; width: string }[] = []
-        if (newSubCols.trim()) {
-            const colNames = newSubCols.split(',').map(s => s.trim()).filter(Boolean)
-            columns = colNames.map((n, i) => ({ id: `${id}_${i}`, label: n, width: '120px' }))
-        } else {
-            columns = [{ id: `${id}_0`, label: newSubName.trim(), width: '120px' }]
-        }
+        const res = await addClassSubject({
+            label_km: newSubName.trim(),
+            max_score: scheme.maxScore,
+            score_type: newSubType === 'both' ? 'monthly' : newSubType,
+            score_types: newSubType === 'both' ? ['monthly', 'semester'] : [newSubType],
+            group_label: 'មុខវិជ្ជាបន្ថែម',
+            column_labels: newSubCols.trim()
+                ? newSubCols.split(',').map(c => c.trim()).filter(Boolean)
+                : undefined,
+        })
 
-        const res = await createCustomSubject(newSubName.trim(), newSubType, columns)
-        if (res.error || !res.data) {
+        if (res.error || !res.subjectKey) {
             notify.error(res.error ?? 'រក្សាទុកមុខវិជ្ជាមិនបានសម្រេច')
             return
         }
 
-        // Key the column lookup by the row's real id — the local `id` above only
-        // ever seeded the column ids, which the server stored verbatim.
-        subjectConfigs[res.data.id] = res.data.columns
-        await reloadCustomSubjects()
+        await reloadTemplate()
 
         setIsAddModalOpen(false)
-        setSubject(res.data.id)
+        setSubject(res.subjectKey)
+        setNewSubName('')
+        setNewSubCols('')
         notify.success('បានបន្ថែមមុខវិជ្ជាថ្មី')
     }
 
@@ -1172,7 +1182,7 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
                     <Select
                         label="ប្រើសម្រាប់"
                         value={newSubType}
-                        onChange={v => setNewSubType(v as CustomSubjectScope)}
+                        onChange={v => setNewSubType(v as NewSubjectGrids)}
                         options={[
                             { value: 'monthly', label: 'ប្រចាំខែ ប៉ុណ្ណោះ' },
                             { value: 'semester', label: 'ប្រចាំឆមាស ប៉ុណ្ណោះ' },
