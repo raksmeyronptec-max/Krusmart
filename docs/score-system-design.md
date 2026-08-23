@@ -195,9 +195,22 @@ const pct = (average / config.maxScore) * 100
 
 សម្រាប់បឋមសិក្សា (`maxScore: 10`) នេះ**មិនប្តូរឥរិយាបថទាល់តែសោះ** — 9/10 = 90% ដដែល។ ជា refactor សុទ្ធ។
 
-### 3.4 អ្វីដែលត្រូវលុបចោល
+### 3.4 អ្វីដែលត្រូវលុបចោល — ✅ រួចរាល់ (`00027`)
 
-`custom_subjects` (migration 00012) ត្រូវជំនួសដោយ row `scope='class', source='custom'`។ ធ្វើជា migration បម្លែងម្តង រួច `useCustomSubjects` ក្លាយជា wrapper លើ resolver ថ្មី។ កុំទុកឲ្យប្រព័ន្ធពីរដំណើរការជាមួយគ្នា — នោះជាកំហុសដដែលដែល scoping legacy/v2 កំពុងជួប។
+`custom_subjects` (migration 00012) ត្រូវជំនួសដោយ row `scope='class'`។ `00027` បម្លែងម្តង
+រួច `useCustomSubjects`, `lib/storage/custom-subjects.ts` និង
+`score/custom-subjects/actions.ts` ត្រូវលុបចោលទាំងស្រុង។
+
+**ក្បួនបម្លែង** — `SubjectColumn.id` ចម្លងដដែលបេះបិទ (វាជាអ្វីដែល `scores.subject` ផ្ទុក)។
+រាល់ row របស់ `custom_subjects` មាន `class_id IS NULL` ទាំងអស់ (គ្មាន writer ណាដែលធ្លាប់
+សរសេរវា) ដែលមានន័យថា "មុខវិជ្ជារបស់គ្រូនេះ លើថ្នាក់ណាក៏បាន" — ដូច្នេះ ១ row ក្លាយជា
+១ row ក្នុងមួយថ្នាក់ដែលគ្រូកាន់។ `scores` keyed លើ (teacher_id, student_id, subject, …)
+មិនមែនលើថ្នាក់ ដូច្នេះការចម្លងនិយមន័យទៅច្រើនថ្នាក់មិនអាចធ្វើឲ្យពិន្ទុកំព្រាបានទេ។
+
+**គ្រូគណនីចាស់ (គ្មានថ្នាក់) មិនអាចបម្លែងបាន** — `scope_ck` តម្រូវ `class_id NOT NULL`។
+Row ទាំងនោះនៅដដែលក្នុង `custom_subjects` ហើយដោយសារ code អានលែងមាន មុខវិជ្ជារបស់ពួកគេ
+លែងបង្ហាញក្នុង picker (ពិន្ទុនៅដដែលក្នុង `scores`)។ នេះជា**ការសម្រេចផលិតផលដោយចេតនា** —
+សូមមើលសំណួរ verification ក្នុង `00027` ដែលរាយគណនីទាំងនោះមុនពេល deploy។
 
 ---
 
@@ -385,7 +398,7 @@ track NULL ថាត្រូវនឹង**គ្រប់** track រួមទ�
 | **2** | Seed អនុ + វិទ្យាល័យ template (ក្រោយអ្នកបញ្ជាក់មេគុណ) | ទាប | ✅ រួច — `00026` seed ទី៧–១២ ទាំង ១០៥ ជួរ ពីតារាងម្ចាស់ផលិតផល (§៦); កែ seed ទី១២ ចាស់ដែលច្រឡំតារាងបាក់ឌុប |
 | **3** | `weighting: 'coefficient'` ក្នុង grading scheme + `/score/total` គោរពមេគុណ | **ខ្ពស់** — ប៉ះមធ្យមភាគ, ចំណាត់ថ្នាក់, សញ្ញាបត្រ | ✅ រួច — engine + `/score/total`, ranking, certificate, parent-report, tracking ទាំងអស់ scheme-aware (Prompt 4A); ផ្ទៀងដោយ `scripts/verify-consistency.mts` |
 | **4** | `/score/subjects` — ស្រទាប់ ៣ (គ្រូ customize) | ទាប | ✅ រួច — delta-only, hide/rename/reorder/max/add/reset, ផ្ទៀងដោយ `scripts/verify-class-template.mts` |
-| **5** | បម្លែង `custom_subjects` → template rows, លុប code ចាស់ | មធ្យម | ⬜ មិនទាន់ |
+| **5** | បម្លែង `custom_subjects` → template rows, លុប code ចាស់ | មធ្យម | ✅ រួច — `00027`; fan-out ក្នុងមួយថ្នាក់, column id ដដែលបេះបិទ, ផ្ទៀងដោយ `verify-class-template.mts` + `validate-migrations.mjs` test 9 |
 | **6** | Workflow គ្រូមុខវិជ្ជា (`/score/collect`, filter តាម assignment) | ខ្ពស់ — feature ថ្មីទាំងស្រុង | ✅ រួច — Prompt 4B: `subject_key` លើ assignment (00024/00025), `/score/collect`, picker filter តាមតួនាទី |
 | **7** | ក្រុមវិទ្យាសាស្ត្រ/សង្គម (`track`) | មធ្យម | ✅ រួច — `track` ក្នុង resolution (00021) + UI ជ្រើសក្រុមពេលបង្កើតថ្នាក់ ទី១១–១២ |
 

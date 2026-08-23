@@ -224,6 +224,27 @@ async function seedLevels(c) {
   return school
 }
 
+/**
+ * One teacher with a class and one custom subject, so 00027 has something to
+ * convert. Without it the runbook's 00027 preflight and verification answer a
+ * different question than they were written for — the same trap seedLevels
+ * exists for on 00023. Returns the class id.
+ */
+async function seedCustomSubject(c, school) {
+  const q = async (sql, p) => (await c.query(sql, p)).rows[0]
+  const t = (await q(`INSERT INTO auth.users (email) VALUES ('runbook-cs@example.com') RETURNING id`)).id
+  const yr = (await q(`INSERT INTO public.academic_years (school_id,name) VALUES ($1,'2025-2026') RETURNING id`, [school])).id
+  const lv = (await q(`SELECT id FROM public.education_levels WHERE school_id=$1 ORDER BY name LIMIT 1`, [school])).id
+  const gr = (await q(`INSERT INTO public.grades (education_level_id,name) VALUES ($1,'ថ្នាក់ទី៤') RETURNING id`, [lv])).id
+  const kl = (await q(`INSERT INTO public.classes (grade_id,academic_year_id,name) VALUES ($1,$2,'៤ក') RETURNING id`, [gr, yr])).id
+  await c.query(`INSERT INTO public.teacher_assignments (teacher_id,class_id,academic_year_id,is_homeroom,status)
+                 VALUES ($1,$2,$3,true,'active')`, [t, kl, yr])
+  await c.query(`INSERT INTO public.custom_subjects (teacher_id,name,scope,columns,order_index)
+                 VALUES ($1,'អង់គ្លេសបន្ថែម','both',
+                   '[{"id":"custom_1700000000000_0","label":"អាន","width":"120px"}]'::jsonb,0)`, [t])
+  return kl
+}
+
 let UID
 const main = async () => {
   const c0 = await connect('postgres')
@@ -242,7 +263,7 @@ const main = async () => {
   // ---- 2 -----------------------------------------------------------------
   log('===== TEST 2 : apply 00018–00027 twice =====')
   await createDb('v_twice'); const c2 = await connect('v_twice'); await bootstrap(c2, UID)
-  await applyMany(c2, upTo17()); await seedLevels(c2)
+  await applyMany(c2, upTo17()); await seedCustomSubject(c2, await seedLevels(c2))
   const p1 = await applyMany(c2, pending()); const sA = await snapshot(c2)
   const p2 = await applyMany(c2, pending()); const sB = await snapshot(c2)
   const d2 = diff(sA, sB)
@@ -256,7 +277,7 @@ const main = async () => {
 
   // ---- 3,4,5,6 -----------------------------------------------------------
   await createDb('v_run'); const c = await connect('v_run'); await bootstrap(c, UID)
-  await applyMany(c, upTo17()); await seedLevels(c)
+  await applyMany(c, upTo17()); await seedCustomSubject(c, await seedLevels(c))
   const snap17 = await snapshot(c)
   const pre = runbookQueries('Preflight'), ver = runbookQueries('Verify')
   const run = async (s) => { try { return { ok: true, txt: JSON.stringify((await c.query(s)).rows) } } catch (e) { try { await c.query('ROLLBACK') } catch {} ; return { ok: false, txt: 'ERROR: ' + e.message } } }

@@ -750,11 +750,15 @@ export interface CustomSubjectColumn {
 }
 
 /**
- * `custom_subjects` row — a teacher-defined subject group.
+ * `custom_subjects` row — a teacher-defined subject group. **RETIRED.**
  *
- * Replaces the `custom_subjects` localStorage key. `columns` keeps the legacy
- * JSON shape so an existing browser's value imports verbatim; rewriting a
- * column id would orphan every score already recorded against it.
+ * Migration 00027 converted these into `score_template_subjects` rows at
+ * `scope='class'`, and no application code reads or writes this table any more.
+ * The type stays because the table stays (see the migration header for why it
+ * is not dropped), so anyone diffing this file against the live schema still
+ * finds it — not because anything should start using it again. New
+ * teacher-added subjects go through `addClassSubject` in
+ * `app/(main)/score/subjects/actions.ts`.
  */
 export interface CustomSubjectRow {
   id: string

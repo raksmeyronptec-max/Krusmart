@@ -8,8 +8,6 @@
 export const STORAGE_KEYS = {
   /** Inventory rows for `/inventory`. */
   inventoryItems: 'inventoryItems',
-  /** User-defined subject groups, shared by `score/enter` and `score/total`. */
-  customSubjects: 'custom_subjects',
   /** Seating grid dimensions for `attendance/layout`. */
   seatingConfig: 'seatingConfig',
   /** Seat id → student id assignments for `attendance/layout`. */

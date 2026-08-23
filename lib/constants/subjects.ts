@@ -2,10 +2,10 @@
  * Khmer labels for the standard subject keys the teacher app writes into
  * `scores.subject`.
  *
- * Custom subjects are deliberately absent: they live in the teacher's
- * `localStorage` (`custom_subjects`) and are not readable by anyone else, so the
- * portal falls back to showing the raw key. This resolves once that store moves
- * to Supabase.
+ * Teacher-added subjects are deliberately absent: their labels are per class,
+ * so they cannot be a compile-time constant. They resolve from
+ * `score_template_subjects` (migration 00027 moved the last of them there);
+ * a caller with no template to hand falls back to showing the raw key.
  */
 export const STANDARD_SUBJECT_LABELS: Record<string, string> = {
   kh_listen: 'ភាសាខ្មែរ (ស្តាប់)',
@@ -55,9 +55,10 @@ export const STANDARD_SUBJECT_LABELS: Record<string, string> = {
 /**
  * The label to show for a stored subject key.
  *
- * Falls back to the key itself, which is what a custom subject looks like — it
- * lives in the teacher's `localStorage`, so a server component has no way to
- * resolve it and the raw key is more useful than a blank cell.
+ * Falls back to the key itself, which is what a teacher-added subject looks
+ * like here — its label lives on the class's template row, so a caller without
+ * that row loaded has no way to resolve it and the raw key is more useful than
+ * a blank cell.
  */
 export function subjectLabel(key: string): string {
   return STANDARD_SUBJECT_LABELS[key] ?? key

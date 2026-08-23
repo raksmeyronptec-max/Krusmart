@@ -141,6 +141,7 @@ The wizard state is **derived from `Actor`, never stored** — same principle as
 | `00024_assignment_subject_key.sql` | `teacher_assignments.subject_key` — the assignment names the subject by the score system's own identity. Header records why no `subjects` rows were minted. |
 | `00025_homeroom_uniqueness_subject_key.sql` | Re-keys homeroom uniqueness on *both* NULLs — without it a `subject_key` assignment collides with the teacher's homeroom row, and a second subject in one class is impossible. |
 | `00026_secondary_classroom_curriculum.sql` | Seeds the real classroom curriculum for grades 7–12 (105 rows, product owner's verified table) and converges 00021's BacII-weighted grade-12 seed to classroom values. BacII is deliberately out of the system — see `docs/score-system-design.md` §3.3. |
+| `00027_custom_subjects_to_template.sql` | Retires `custom_subjects` into `score_template_subjects` at `scope='class'`, copying every `SubjectColumn.id` verbatim. One source row fans out to one row per class the teacher holds, because `class_id` was never written and the subject already showed on every class. A teacher with no class cannot hold a class-scope row, so those rows stay put — and their subjects stop appearing, a recorded product decision. |
 
 `supabase/legacy/` holds superseded partial snapshots — **do not apply them**. `supabase/README.md` still describes the pre-V2 world in places (it claims the scores conflict key omits `teacher_id`, and that there is no classes table); the migrations and this file are the newer account. Verify against the live project before relying on any of it.
 
@@ -180,6 +181,7 @@ The third level, `subject_id` UUID → `public.subjects`, never reconciled with 
 - **Assignments carry `subject_key`** (00024/00025). Both writers — the admin console's `assignTeacher` and `/score/collect`'s `assignSubjectTeacher` — validate the key against the class's *resolved* template, and both pickers label subjects through `assignableSubjects()` in [lib/scores/template.ts](lib/scores/template.ts), so the two surfaces cannot name a subject differently. Do not add a third subject picker that reads `public.subjects`.
 - **`teacher_assignments.subject_id` is legacy**: still selected (reads tolerate it), never written. Nothing ever wrote a non-NULL value outside the old admin form, and the app was never deployed, so no rows need migrating; a hypothetical old row (`subject_key` NULL) resolves as whole-class — exactly its pre-00024 meaning. Do not backfill `subject_key` from `subjects.code` — the mapping is ambiguous by construction.
 - **`public.subjects` / `class_subjects` remain** as the admin catalogue (`/admin/subjects`) and 00004's backfill target; neither is load-bearing for grading or assignment.
+- **A teacher's own subjects are ordinary class-scope template rows** since 00027. There is no second store: `/score/enter`'s add-subject dialog and `/score/subjects` both call `addClassSubject`, which mints the key server-side (`cls_`) and never lets the browser coin one. Converted rows carry the `cs_` prefix, which is what makes 00027's rollback able to find exactly its own rows. Three prefixes, three origins — `hs_`/`kh_`/`math_`/`sem_` national, `cls_` teacher-added, `cs_` converted — and none of them collide.
 - **The `assessments` feature was removed, not migrated.** The table (00003) and `scores.assessment_id` exist, but nothing ever wrote a score against an assessment and no report read one; for self-serve schools the creation form's `class_subjects` picker was empty, so it could not even be used. The admin UI, action and queries are gone; the tables stay untouched. If assessment-style grading is ever built, key it on `subject_key`, not `class_subject_id`.
 
 ### localStorage
@@ -190,7 +192,8 @@ The third level, `subject_id` UUID → `public.subjects`, never reconciled with 
 | --- | --- |
 | `seatingConfig` / `seatingLayout` | Live store for `attendance/layout`. |
 | `lastTutorialPage`, `studentsCache` | Live. |
-| `customSubjects`, `inventoryItems` | **Migrated to Supabase** (`custom_subjects`, `inventory_items`, migration 00012). The localStorage readers survive only for the one-time import: [lib/storage/custom-subjects.ts](lib/storage/custom-subjects.ts) exposes `readLegacyCustomSubjects()` / `toImportPayload()`, and [lib/hooks/useCustomSubjects.ts](lib/hooks/useCustomSubjects.ts) owns the fetch → import-once → refetch sequence. Nothing writes to those keys any more. |
+| `inventoryItems` | **Migrated to Supabase** (`inventory_items`, migration 00012); the localStorage reader survives only for the one-time import. Nothing writes to the key any more. |
+| `customSubjects` | **Gone.** 00012 moved it to the `custom_subjects` table; 00027 then moved that into `score_template_subjects` and deleted the reader, the hook and the actions. The key is no longer read by anything. |
 
 ## Shared constants and utilities
 

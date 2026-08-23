@@ -229,7 +229,18 @@ WITH probe(migration, what, present) AS (
                  AND indexname='teacher_assignments_homeroom_key_uniq')),
     ('00026 classroom curriculum', 'system rows for lower_secondary',
       EXISTS (SELECT 1 FROM public.score_template_subjects
-               WHERE scope='system' AND level_key='lower_secondary'))
+               WHERE scope='system' AND level_key='lower_secondary')),
+    -- 00027 converts custom_subjects; on a project where no teacher ever added
+    -- one there is nothing to convert, so absence of `cs_` rows does NOT mean
+    -- the migration has not run. NULL (INDETERMINATE) unless custom_subjects
+    -- still holds a row that a class-scope row does not yet answer for.
+    ('00027 custom subjects retired', 'cs_ rows, or nothing left to convert',
+      CASE WHEN EXISTS (SELECT 1 FROM public.score_template_subjects
+                         WHERE scope='class' AND subject_key LIKE 'cs\_%') THEN true
+           WHEN EXISTS (SELECT 1 FROM public.custom_subjects c
+                         JOIN public.teacher_assignments a
+                           ON a.teacher_id = c.teacher_id AND a.status='active') THEN false
+           ELSE NULL END)
 )
 SELECT 'migration presence' AS section,
        migration,

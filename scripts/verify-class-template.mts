@@ -17,6 +17,7 @@
  */
 
 import {
+  columnsFor,
   maxScoreByColumn,
   overrideDiffers,
   resolveTemplate,
@@ -25,6 +26,7 @@ import {
   toSubjectOptions,
   type OverridableFields,
 } from '../lib/scores/template.ts'
+import { flatten, groupsFor } from '../app/(main)/score/total/scoreTotalConfig.ts'
 import type { ScoreTemplateSubjectRow } from '../lib/types.ts'
 
 const CLASS_ID = '11111111-2222-3333-4444-555555555555'
@@ -203,6 +205,164 @@ console.log('\nredundant overrides:')
   check('an override equal to its parent is redundant', !overrideDiffers(identical, inherited))
   check('one changed field makes it real', overrideDiffers({ ...identical, hidden: true }, inherited))
   check('a subject with no parent always differs', overrideDiffers(identical, null))
+}
+
+// ---------------------------------------------------------------------------
+// Retiring `custom_subjects` (migration 00027)
+// ---------------------------------------------------------------------------
+// A teacher's own subjects used to live in `custom_subjects`, keyed on
+// teacher_id and merged into the picker by ScoreEnterClient. 00027 converts
+// them into class-scope template rows. The property that matters is that the
+// teacher cannot tell: same subjects, same order, same column ids — and the
+// column ids are what `scores.subject` holds, so a change there detaches marks.
+//
+// The pre-00027 merge is reproduced here rather than imported, because the code
+// that did it is deleted. That is the point: this is the reference behaviour the
+// new path has to reproduce.
+{
+  interface LegacyCustom {
+    id: string
+    name: string
+    scope: 'monthly' | 'semester' | 'both'
+    columns: { id: string; label: string; width?: string }[]
+  }
+
+  const legacy: LegacyCustom[] = [
+    {
+      id: '11111111-2222-3333-4444-555555555551',
+      name: 'អង់គ្លេសបន្ថែម',
+      scope: 'both',
+      columns: [
+        { id: 'custom_1700000000000_0', label: 'អាន', width: '120px' },
+        { id: 'custom_1700000000000_1', label: 'សរសេរ', width: '120px' },
+      ],
+    },
+    {
+      id: '11111111-2222-3333-4444-555555555552',
+      name: 'កីឡាបន្ថែម',
+      scope: 'monthly',
+      columns: [{ id: 'custom_1700000000111_0', label: 'កីឡា', width: '120px' }],
+    },
+  ]
+
+  /** The pre-00027 reader: teacher-keyed, appended under its own group. */
+  const appliesTo = (c: LegacyCustom, t: 'monthly' | 'semester') =>
+    c.scope === 'both' || c.scope === t
+  const oldPicker = (t: 'monthly' | 'semester') => [
+    ...toSubjectOptions(resolveTemplate(system, t)),
+    ...legacy.filter((c) => appliesTo(c, t)).map((c) => ({ value: c.id, label: c.name, group: 'មុខវិជ្ជាបន្ថែម' })),
+  ]
+
+  /** Exactly the row 00027 writes, including the key it mints. */
+  const migrated = (c: LegacyCustom, classId: string): ScoreTemplateSubjectRow => ({
+    id: `row-${c.id}-${classId}`,
+    scope: 'class',
+    class_id: classId,
+    subject_key: `cs_${c.id.replace(/-/g, '')}`,
+    label_km: c.name,
+    group_label: 'មុខវិជ្ជាបន្ថែម',
+    columns: c.columns,
+    max_score: 10,
+    value_kind: 'numeric',
+    score_types: c.scope === 'both' ? ['monthly', 'semester'] : [c.scope],
+    sort_order: 1000 + legacy.indexOf(c) * 10,
+    hidden: false,
+  })
+
+  const converted = legacy.map((c) => migrated(c, CLASS_ID))
+  const newRows = [...system, ...converted]
+  const newPicker = (t: 'monthly' | 'semester') => toSubjectOptions(resolveTemplate(newRows, t))
+
+  // ---- scenario 1: the teacher's list is unchanged, before vs after --------
+  for (const t of ['monthly', 'semester'] as const) {
+    const before = oldPicker(t).map((o) => `${o.group ?? ''}|${o.label}`)
+    const after = newPicker(t).map((o) => `${o.group ?? ''}|${o.label}`)
+    check(
+      `${t}: picker list and order are identical before/after 00027`,
+      JSON.stringify(before) === JSON.stringify(after),
+      `before ${JSON.stringify(before.slice(-3))}\n      after  ${JSON.stringify(after.slice(-3))}`,
+    )
+  }
+
+  // ---- scenario 1 (cont): every column id survives verbatim ---------------
+  const beforeIds = legacy.flatMap((c) => c.columns.map((col) => col.id)).sort()
+  const afterIds = converted.flatMap((r) => r.columns!.map((col) => col.id)).sort()
+  check(
+    'every SubjectColumn.id is preserved verbatim — no mark detaches',
+    JSON.stringify(beforeIds) === JSON.stringify(afterIds),
+    `before ${JSON.stringify(beforeIds)}\n      after  ${JSON.stringify(afterIds)}`,
+  )
+
+  // A subject's columns must still be reachable from its key, or the grid is empty.
+  check(
+    'columnsFor() finds the converted subject by its new key',
+    JSON.stringify(columnsFor(resolveTemplate(newRows, 'monthly'), converted[0].subject_key)?.map((c) => c.id))
+      === JSON.stringify(legacy[0].columns.map((c) => c.id)),
+  )
+
+  // ---- scenario 1 (cont): 'both' is two score_types, not two rows ---------
+  check("scope 'both' resolves in monthly AND semester",
+    newPicker('monthly').some((o) => o.label === 'អង់គ្លេសបន្ថែម')
+    && newPicker('semester').some((o) => o.label === 'អង់គ្លេសបន្ថែម'))
+  check("scope 'monthly' resolves in monthly ONLY",
+    newPicker('monthly').some((o) => o.label === 'កីឡាបន្ថែម')
+    && !newPicker('semester').some((o) => o.label === 'កីឡាបន្ថែម'))
+
+  // ---- scenario 2: /score/total counts the same columns -------------------
+  for (const mode of ['monthly', 'semester'] as const) {
+    const extras = resolveTemplate(newRows, mode)
+    const totalKeys = flatten(groupsFor(mode, extras)).map((c) => c.key)
+    const wanted = legacy.filter((c) => appliesTo(c, mode)).flatMap((c) => c.columns.map((col) => col.id))
+    check(
+      `${mode}: /score/total carries every custom column exactly once`,
+      wanted.every((k) => totalKeys.filter((x) => x === k).length === 1),
+      `missing/duplicated among ${JSON.stringify(wanted)}`,
+    )
+    const band = groupsFor(mode, extras).find((g) => g.name === 'មុខវិជ្ជាបន្ថែម')
+    check(`${mode}: they stay under the មុខវិជ្ជាបន្ថែម band`, band !== undefined && band.columns.length > 0)
+  }
+
+  // ---- scenario 3: two teachers on one class, same subject name -----------
+  // Different column ids mean genuinely different subjects; merging them by
+  // name would repoint one teacher's marks at the other's column.
+  const colleague = migrated(
+    {
+      id: '11111111-2222-3333-4444-555555555553',
+      name: 'អង់គ្លេសបន្ថែម',
+      scope: 'both',
+      columns: [{ id: 'custom_1700000000999_0', label: 'អាន', width: '120px' }],
+    },
+    CLASS_ID,
+  )
+  const shared = resolveTemplate([...newRows, colleague], 'monthly')
+  const named = shared.filter((s) => s.labelKm === 'អង់គ្លេសបន្ថែម')
+  check('both teachers’ same-named subjects survive as two subjects', named.length === 2)
+  check('and they keep their own column ids',
+    JSON.stringify(named.flatMap((s) => s.columns.map((c) => c.id)).sort())
+    === JSON.stringify(['custom_1700000000000_0', 'custom_1700000000000_1', 'custom_1700000000999_0']))
+
+  // ---- scenario 8: a subject added AFTER the change ------------------------
+  // addClassSubject mints `cls_` server-side and passes group_label through.
+  const added: ScoreTemplateSubjectRow = {
+    id: 'row-new', scope: 'class', class_id: CLASS_ID,
+    subject_key: 'cls_ab12cd34ef', label_km: 'កុំព្យូទ័រ', group_label: 'មុខវិជ្ជាបន្ថែម',
+    columns: [{ id: 'cls_ab12cd34ef', label: 'កុំព្យូទ័រ', width: '120px' }],
+    max_score: 10, value_kind: 'numeric', score_types: ['monthly'], sort_order: 1020, hidden: false,
+  }
+  const withAdded = toSubjectOptions(resolveTemplate([...newRows, added], 'monthly'))
+  check('a newly added subject lands in the template picker',
+    withAdded.some((o) => o.value === 'cls_ab12cd34ef' && o.group === 'មុខវិជ្ជាបន្ថែម'))
+  check('its key is clear of the national key space',
+    !system.some((r) => r.subject_key === 'cls_ab12cd34ef'))
+
+  // ---- scenario 5: a legacy account is untouched ---------------------------
+  // No class means no class-scope row can exist at all; the fallback is the
+  // seeded national list, exactly as it was before 00027.
+  const legacyView = toSubjectOptions(resolveTemplate(system, 'monthly'))
+  check('legacy account (no class rows) sees the unchanged national list',
+    JSON.stringify(legacyView) === JSON.stringify(toSubjectOptions(resolveTemplate(SYSTEM_PRIMARY_TEMPLATE, 'monthly'))))
+  check('and no custom subject leaks into it',
+    !legacyView.some((o) => o.group === 'មុខវិជ្ជាបន្ថែម'))
 }
 
 if (failures > 0) {
