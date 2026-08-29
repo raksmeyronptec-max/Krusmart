@@ -149,7 +149,7 @@ accounts ever do overlap in time, phases in different lanes share no files.
       its `.or()` string with the same UUID regex as `serverScope.ts`. Build,
       lint, all four verify scripts green.
 
-- [ ] **P4 · Lane B — `វគ្គពិន្ទុ` tab + calendar actions**
+- [x] **P4 · Lane B — `វគ្គពិន្ទុ` tab + calendar actions**
       **Needs:** P2, P3
       **Files:** `app/(main)/score/subjects/ScoreSubjectsClient.tsx`,
       `app/(main)/score/subjects/calendarActions.ts` (new)
@@ -166,7 +166,27 @@ accounts ever do overlap in time, phases in different lanes share no files.
       calendar re-grades every semester average for the class. Should an
       ordinary assigned teacher be allowed to, or only a homeroom teacher /
       school admin?
-      **Notes:**
+      **Notes:** Question (b) was put to the product owner and answered —
+      see the decisions log. The timeline lives in a colocated
+      `ScoreCalendarSection.tsx` (not on the P4 file list, but
+      `ScoreSubjectsClient.tsx` is already 890 lines and P6's file list says
+      `score/subjects/*`); the section switch in `ScoreSubjectsClient` is a
+      top-level tablist above the score-type one, per Watch (a). The editor
+      stages every change in a local draft and saves the whole set once
+      (INV-3); merge/disable confirm with the real orphan-mark count from
+      `countScoresForMonths`; a cross-boundary merge proposes the boundary
+      move automatically (rule 1); the anchor is never a choice (rule 2 —
+      `normalise()` client-side, refused server-side if wrong). The server
+      action re-validates with `validateCalendar` and preserves `locked_at`/
+      `locked_by` across the copy-on-write (a save must not clear a lock).
+      Year handling: the tab edits the year `useScoreCalendar` resolves (the
+      app's current year) — the mock's year *selector* is not built; follow-up
+      if teachers need to pre-configure next year. ⚠ Browser acceptance
+      (merge persists, `score_period` stays `mar-<year>`, April's marks
+      hidden-not-deleted) still needs a running stack with 00029 applied —
+      same blocker P3 recorded. The refusal path (overlapping partition posted
+      straight to the action) is enforced by `periodsFromInput` →
+      `validateCalendar`. Build, lint, all four verify scripts green.
 
 - [ ] **P5a · Lane A — Calendar into totals and reporting**
       **Needs:** P2, P3
@@ -215,4 +235,5 @@ and name the phase it came out of.
 | Date | Phase | Decision |
 |---|---|---|
 | 2026-08-29 | harness | **No commit shas in this ledger.** The first draft asked each phase to write its sha into its row and amend it in — which rotates the sha and makes the recorded one wrong immediately. The `P<n>:` subject line is the link instead: `git log --oneline --grep '^P4:'`. |
+| 2026-08-29 | P4 | **Only the homeroom teacher or a school admin may edit a class's period calendar** — product owner's decision, asked and answered during P4. A subject teacher sees the `វគ្គពិន្ទុ` tab read-only: rewriting the calendar re-grades every pupil's semester average across all subjects, including colleagues'. Enforced in `calendarActions.ts` (`calendarEditContext`, fail-closed). Note: 00029's RLS still allows any actively-assigned teacher to write class rows (the 00028 shape) — the action is the enforced boundary, like `requirePermission` everywhere else; tightening RLS to homeroom-only would be a follow-up migration if direct-PostgREST writes ever matter. |
 | 2026-08-29 | P1 | **The server clamp skips columns the template does not define.** `saveScores` also serves homework (`/homework/enter` imports it), and over-maximum homework marks are a *documented product decision* — a warning, not an error (`markIssue` in `homework/enter/scores.ts`: "a school marking homework out of twenty is not doing anything illegal"). `hw_*` columns resolve no template max, so they pass through unclamped; every monthly/semester template column — the actual bug — is clamped. The client keeps its 10-point UI fallback for unknown columns, unchanged from the existing `max` attribute behaviour. |

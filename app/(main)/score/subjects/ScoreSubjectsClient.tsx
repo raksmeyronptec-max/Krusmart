@@ -3,8 +3,8 @@
 import { useCallback, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
-  ArrowDown, ArrowUp, AlertTriangle, Eye, EyeOff, Info, Loader2, ListChecks,
-  Pencil, Plus, RotateCcw, SlidersHorizontal, Sparkles, Table2, Trash2,
+  ArrowDown, ArrowUp, AlertTriangle, CalendarDays, Eye, EyeOff, Info, Loader2,
+  ListChecks, Pencil, Plus, RotateCcw, SlidersHorizontal, Sparkles, Table2, Trash2,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/actions/Button'
@@ -35,6 +35,7 @@ import {
 } from './selectionActions'
 import { CurriculumPicker } from './CurriculumPicker'
 import { ComponentPicker } from './ComponentPicker'
+import { ScoreCalendarSection } from './ScoreCalendarSection'
 
 /**
  * មុខវិជ្ជាតាមថ្នាក់ — the class layer of the score template.
@@ -96,6 +97,13 @@ export default function ScoreSubjectsClient({
 }) {
   const [rows, setRows] = useState(initialRows)
   const [selection, setSelection] = useState(initialSelection)
+  /**
+   * Top-level section: subjects (the original page) or the period calendar.
+   * A *section* switch above the score-type tablist, not a third tab inside
+   * it — periods are not score-type-specific, and putting them beside
+   * monthly/semester would imply a monthly calendar and a semester calendar.
+   */
+  const [section, setSection] = useState<'subjects' | 'calendar'>('subjects')
   const [scoreType, setScoreType] = useState<TemplateScoreType>('monthly')
   const [busyKey, setBusyKey] = useState<string | null>(null)
   const { confirm, dialog } = useConfirm()
@@ -387,6 +395,35 @@ export default function ScoreSubjectsClient({
         }
       />
 
+      {/* ----------------------------------------------------------- section */}
+      <div
+        role="tablist"
+        aria-label="ផ្នែក"
+        className="mb-4 inline-flex w-full gap-1 rounded-xl border border-divider bg-bg-surface p-1 sm:w-auto"
+      >
+        {([
+          { id: 'subjects' as const, label: 'មុខវិជ្ជា', icon: SlidersHorizontal },
+          { id: 'calendar' as const, label: 'វគ្គពិន្ទុ', icon: CalendarDays },
+        ]).map(({ id, label, icon: SectionIcon }) => (
+          <button
+            key={id}
+            role="tab"
+            type="button"
+            aria-selected={section === id}
+            onClick={() => setSection(id)}
+            className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg px-4 text-[13px] font-bold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${
+              section === id ? 'bg-brand text-brand-contrast shadow-md' : 'text-text-muted hover:text-brand'
+            }`}
+          >
+            <SectionIcon className="h-4 w-4" aria-hidden="true" />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {section === 'calendar' && <ScoreCalendarSection classId={classId} />}
+
+      {section === 'subjects' && (<>
       {/* -------------------------------------------------------- score type */}
       <div
         role="tablist"
@@ -670,6 +707,7 @@ export default function ScoreSubjectsClient({
           <RotateCcw className="h-4 w-4" aria-hidden="true" /> ត្រឡប់ទៅលំនាំដើម
         </Button>
       </div>
+      </>)}
 
       {/* ------------------------------------------------ curriculum picker */}
       <CurriculumPicker
