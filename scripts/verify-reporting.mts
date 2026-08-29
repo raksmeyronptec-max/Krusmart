@@ -34,6 +34,8 @@ import { assignRanks, studentAverage } from '../lib/scores/aggregate.ts'
 import {
   isSemesterId, monthlyComponent, monthsForSemester, semesterAverage, semesterLabel,
 } from '../lib/scores/semester.ts'
+import { DEFAULT_CALENDAR, periodKeysForSemester } from '../lib/scores/calendar.ts'
+import type { MonthId } from '../lib/constants/months.ts'
 import {
   defaultHonorCriteria, evaluateHonor, HONOR_CRITERIA_PROVENANCE,
 } from '../lib/scores/honor.ts'
@@ -620,6 +622,59 @@ console.log('\nsemester calculation — the canonical definition (§8/§23)')
 
   check('semester ids are validated', isSemesterId('sem1') && !isSemesterId('sem3'))
   check('labels are Khmer', semesterLabel('sem2') === 'ឆមាសទី២')
+}
+
+// ---------------------------------------------------------------------------
+console.log('\nperiod calendar — screen ≡ paper on a customised calendar (§11)')
+{
+  // /score/total seeds its month set from periodKeysForSemester(calendar, s)
+  // and ranking_semester reads the same keys through fetchScoreCalendar. This
+  // section pins the pure halves of both paths to one another.
+
+  // A class with no calendar rows resolves the default — every key identical
+  // to what monthsForSemester always answered, so no number can move.
+  check('the default calendar reproduces monthsForSemester for both semesters',
+    periodKeysForSemester(DEFAULT_CALENDAR, 'sem1').join(',') === monthsForSemester('sem1').join(',') &&
+    periodKeysForSemester(DEFAULT_CALENDAR, 'sem2').join(',') === monthsForSemester('sem2').join(','))
+
+  // The user's scenario: the semester boundary moved past មេសា, then mar+apr
+  // merged into one period anchored at 'mar' (INV-1: no invented key).
+  const merged = DEFAULT_CALENDAR
+    .filter((p) => p.key !== 'apr')
+    .map((p) => (p.key === 'mar' ? { ...p, members: ['mar', 'apr'] as MonthId[] } : p))
+
+  const s1 = periodKeysForSemester(merged, 'sem1')
+  const s2 = periodKeysForSemester(merged, 'sem2')
+  check("merged sem1 keys are the anchors — 'apr' is absorbed, not renamed",
+    s1.join(',') === 'nov,dec,jan,feb,mar', s1.join(','))
+  check('merged sem2 drops to six periods (the denominator change)',
+    s2.join(',') === 'may,jun,jul,aug,sep,oct', s2.join(','))
+
+  // A pupil with marks in every month, apr included. The merged calendar
+  // reads only anchor keys, so apr's 2 vanishes from BOTH surfaces at once —
+  // hidden, not moved.
+  const averages = { nov: 8, dec: 8, jan: 8, feb: 8, mar: 8, apr: 2, may: 6 }
+
+  // The screen's inline seed computation (ScoreTotalClient monthlyComponent
+  // memo), verbatim: mean over the selected keys, skipping missing months.
+  const screenComponent = (keys: string[]) => {
+    const values = keys
+      .map((m) => (averages as Record<string, number>)[m])
+      .filter((v): v is number => typeof v === 'number')
+    return values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : null
+  }
+
+  for (const s of ['sem1', 'sem2'] as const) {
+    const keys = periodKeysForSemester(merged, s)
+    check(`${s}: the screen's seeded component equals the report's monthlyComponent`,
+      screenComponent(keys) === monthlyComponent(averages, keys))
+  }
+
+  check("apr's mark is hidden from the merged sem1 coursework, not re-counted",
+    monthlyComponent(averages, s1) === 8)
+  check('the same pupil, same marks, same exam produces one semester average',
+    semesterAverage(7, monthlyComponent(averages, s1)) ===
+    semesterAverage(7, screenComponent(s1)))
 }
 
 // ---------------------------------------------------------------------------

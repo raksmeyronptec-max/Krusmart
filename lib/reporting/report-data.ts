@@ -3,11 +3,14 @@ import 'server-only'
 import { createClient } from '@/lib/supabase/server'
 import {
   fetchClassSelection,
+  fetchScoreCalendar,
   fetchScoreTemplate,
   fetchStudentsForScope,
   resolveServerScope,
   rosterIdsForScope,
 } from '@/lib/utils/serverScope'
+import type { QueryScope } from '@/lib/utils/queryFilter'
+import { periodKeysForSemester } from '@/lib/scores/calendar'
 import { resolveTemplate } from '@/lib/scores/template'
 import { applySelection } from '@/lib/scores/selection'
 import { assignRanks, numericColumnKeys, studentAverage } from '@/lib/scores/aggregate'
@@ -17,7 +20,7 @@ import { scoreCellValue } from '@/lib/utils/score-value'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import { MONTH_LABEL_BY_ID } from '@/lib/constants/months'
 import {
-  isSemesterId, monthlyComponent, monthsForSemester, semesterAverage, semesterLabel,
+  isSemesterId, monthlyComponent, semesterAverage, semesterLabel,
   type SemesterId,
 } from '@/lib/scores/semester'
 import {
@@ -114,6 +117,7 @@ export interface MonthlyClassData {
   /** Carried so a caller can run a second, related query without re-scoping. */
   rosterIds: string[] | null
   teacherId: string
+  scope: QueryScope
   /** The numeric denominator this class's curriculum resolves to. */
   numericKeys: string[]
 }
@@ -247,6 +251,7 @@ async function resolveMonthlyClass(
     periodLabel,
     rosterIds,
     teacherId: scope.teacherId,
+    scope,
     numericKeys: keys,
   }
 }
@@ -474,8 +479,9 @@ async function fetchMonthlyAverages(
  * report for free (§5/§12).
  *
  * What it adds is the semester's own arithmetic, and all of it is delegated:
- * `semesterAverage` and `monthsForSemester` in `lib/scores/semester.ts` are the
- * definitions `/score/total` itself now uses, so the printed sheet and the
+ * `semesterAverage` (`lib/scores/semester.ts`) and the class's own period
+ * calendar via `periodKeysForSemester` (`lib/scores/calendar.ts`) are the
+ * definitions `/score/total` itself seeds from, so the printed sheet and the
  * screen cannot disagree (§4/§23).
  *
  * A semester average is half exam, half coursework. Note the deliberate
@@ -506,7 +512,14 @@ export async function resolveRankingSemester(
     base.numericKeys, maxByColumn, base.scheme,
   )
 
-  const months = monthsForSemester(semester)
+  // The class's own period calendar (00029), resolved through the scope the
+  // base resolver already validated. A merged period contributes its anchor
+  // key once, so the coursework denominator here is the same one `/score/total`
+  // seeds from — the screen-vs-paper divergence this closes. A class with no
+  // calendar rows resolves the default, which is byte-identical to the old
+  // `monthsForSemester(semester)`.
+  const calendar = await fetchScoreCalendar(base.scope, request.academicYear)
+  const months = periodKeysForSemester(calendar, semester)
 
   const computed = base.students.map((c) => {
     const monthly = monthlyComponent(monthlyAverages[c.student.id], months)

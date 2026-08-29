@@ -188,7 +188,7 @@ accounts ever do overlap in time, phases in different lanes share no files.
       straight to the action) is enforced by `periodsFromInput` →
       `validateCalendar`. Build, lint, all four verify scripts green.
 
-- [ ] **P5a · Lane A — Calendar into totals and reporting**
+- [x] **P5a · Lane A — Calendar into totals and reporting**
       **Needs:** P2, P3
       **Files:** `lib/reporting/report-data.ts:509`,
       `app/(main)/score/total/ScoreTotalClient.tsx:255`,
@@ -200,7 +200,23 @@ accounts ever do overlap in time, phases in different lanes share no files.
       **Watch:** this closes the existing screen-vs-paper divergence. Do **not**
       make legacy `/ranking` read the calendar — it keeps `sem1 = nov–mar` on
       purpose; half-migrating it spreads the disagreement.
-      **Notes:**
+      **Notes:** `MonthlyClassData` now carries `scope` (joining
+      `rosterIds`/`teacherId` under the existing "carried so a caller can run a
+      second query without re-scoping" contract) so `resolveRankingSemester`
+      calls `fetchScoreCalendar(base.scope, year)` without re-resolving.
+      `/score/total` seeds `selectedSemesterMonths` from
+      `periodKeysForSemester(calendar, semester)`, with the re-seed keyed on
+      the seeded *value* (`semester:keys`) — the calendar arrives async, so a
+      configured class re-seeds once its rows resolve, while an unconfigured
+      class resolves the default (same keys as the initial state) and never
+      re-seeds; the teacher's temporary view-override (ខែបូកបញ្ចូល dialog)
+      survives until semester or calendar changes, as before. The dialog still
+      lists all 12 months deliberately — it is a *view* override, so a teacher
+      can peek at an absorbed month's coursework without editing the calendar.
+      Legacy `/ranking` and `homework/enter/period.ts` untouched, per Watch.
+      New verify-reporting section pins screen ≡ paper: the screen's inline
+      seed computation replicated verbatim against `monthlyComponent` on a
+      merged calendar. Build, lint, all four verify scripts green.
 
 - [ ] **P5b · Lane B — Calendar into the entry picker**
       **Needs:** P2, P3

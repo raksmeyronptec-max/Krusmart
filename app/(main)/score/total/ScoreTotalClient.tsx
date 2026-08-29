@@ -49,6 +49,8 @@ import {
     RESULT_SORTS, type ResultSort,
 } from '@/lib/scores/totals'
 import { monthsForSemester, semesterAverage } from '@/lib/scores/semester'
+import { periodKeysForSemester } from '@/lib/scores/calendar'
+import { useScoreCalendar } from '@/lib/hooks/useScoreCalendar'
 import { ScoreAnalyticsPanel } from './ScoreAnalyticsPanel'
 import { ScoreTotalResultsTable } from './ScoreTotalResultsTable'
 import { ScoreTotalSubjectPerformance } from './ScoreTotalSubjectPerformance'
@@ -248,15 +250,29 @@ export default function ScoreTotalClient({
      *
      * Was a fixed ['nov'…'mar'] for BOTH semesters, so semester 2 averaged its
      * own exams against semester 1's coursework. Now seeded per semester from
-     * `monthsForSemester`, and re-seeded when the teacher switches semester —
-     * they can still override the set, which is what the ខែបូកបញ្ចូល dialog is.
+     * the class's own period calendar (00029) — the anchor keys, so a merged
+     * មីនា-មេសា counts once — and re-seeded when the semester or the calendar
+     * changes. `ranking_semester` reads the same calendar server-side, which is
+     * what makes screen and paper agree. The teacher can still override the
+     * set temporarily for *viewing* — that is what the ខែបូកបញ្ចូល dialog is.
      */
+    const { calendar } = useScoreCalendar()
+    const calendarSemesterKeys = useMemo(
+        () => periodKeysForSemester(calendar, semester === 'sem2' ? 'sem2' : 'sem1'),
+        [calendar, semester],
+    )
     const [selectedSemesterMonths, setSelectedSemesterMonths] =
         useState<string[]>(() => monthsForSemester('sem1'))
-    const [monthsSeededFor, setMonthsSeededFor] = useState<string>('sem1')
-    if (monthsSeededFor !== semester) {
-        setMonthsSeededFor(semester)
-        setSelectedSemesterMonths(monthsForSemester(semester === 'sem2' ? 'sem2' : 'sem1'))
+    // Keyed on the seeded VALUE, not just the semester: the calendar arrives
+    // async, so a configured class re-seeds once its own periods resolve. An
+    // unconfigured class resolves the default — the same keys as the initial
+    // state — and never re-seeds, keeping every number identical.
+    const [monthsSeededFor, setMonthsSeededFor] =
+        useState<string>(() => `sem1:${monthsForSemester('sem1').join(',')}`)
+    const seedKey = `${semester}:${calendarSemesterKeys.join(',')}`
+    if (monthsSeededFor !== seedKey) {
+        setMonthsSeededFor(seedKey)
+        setSelectedSemesterMonths(calendarSemesterKeys)
     }
 
     const { confirm, dialog } = useConfirm()
