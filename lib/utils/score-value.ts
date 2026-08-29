@@ -45,6 +45,36 @@ export function splitScoreCell(raw: string | number | null | undefined): {
     : { score_value: null, score_text: trimmed }
 }
 
+/**
+ * Clamp a raw cell into `[0, maxScore]`, returning the value to keep.
+ *
+ * `<input type="number" max>` is a validation constraint, not an input filter:
+ * typing `11` into a /10 cell still delivers `'11'` to onChange, and it used to
+ * reach the database under a success toast. Every path a mark travels — typing,
+ * pasting, bulk fill, copy-from-last-month, and `saveScores` itself — runs the
+ * value through here before it is kept.
+ *
+ * Text passes through untouched, decided by the same rule `splitScoreCell`
+ * uses: `Number`, not `parseFloat`, so a Khmer rating (`ល្អ`) is NaN and is
+ * returned as-is rather than coerced — a bare parseFloat here would re-create
+ * the NULL-under-a-success-toast bug migration 00012 fixed.
+ *
+ * A value already in range comes back exactly as typed — `'1.'` parses as 1,
+ * so an in-progress decimal keeps its trailing point instead of being
+ * normalised out from under the teacher's cursor.
+ */
+export function clampScoreCell(raw: string, maxScore: number): string {
+  const trimmed = raw.trim()
+  if (trimmed === '') return raw
+
+  const num = Number(trimmed)
+  if (!Number.isFinite(num)) return raw
+
+  if (num > maxScore) return String(maxScore)
+  if (num < 0) return '0'
+  return raw
+}
+
 /** The value to display in a cell, whichever column it landed in. */
 export function scoreCellValue(row: Pick<Score, 'score_value' | 'score_text'>): number | string | null {
   if (row.score_value !== null && row.score_value !== undefined) return row.score_value

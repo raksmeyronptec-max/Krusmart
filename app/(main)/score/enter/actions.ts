@@ -4,9 +4,10 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { ActionResult, Score, ScoreInput } from '@/lib/types'
 import { logger } from '@/lib/utils/logger'
-import { resolveServerScope, rosterIdsForScope } from '@/lib/utils/serverScope'
+import { resolveServerScope, rosterIdsForScope, resolveServerGradingContext } from '@/lib/utils/serverScope'
 import { auditLogBatch } from '@/lib/audit/log'
-import { splitScoreCell } from '@/lib/utils/score-value'
+import { clampScoreCell, splitScoreCell } from '@/lib/utils/score-value'
+import type { TemplateScoreType } from '@/lib/scores/template'
 
 /**
  * `classId` is optional and mirrors `saveScores` below: omitted, the scope
@@ -68,10 +69,32 @@ export async function saveScores(scoreType: string, scorePeriod: string, scoresD
         ? { class_id: scope.classId, academic_year_id: scope.academicYearId }
         : {}
 
+    // The clamp's server half: the client snaps 11 to 10 as it is typed, but a
+    // direct call to this action is the real boundary. The maximum comes from
+    // the same template resolver the entry grid reads (`maxByColumn`), so the
+    // two cannot drift. A column the resolved template does not define passes
+    // through unclamped — that is deliberate, not a gap: homework saves through
+    // here too, and over-maximum homework marks are a documented warning, not
+    // an error (see markIssue in homework/enter/scores.ts — a school marking
+    // homework out of twenty is not doing anything illegal).
+    const templateScoreType: TemplateScoreType =
+        scoreType === 'semester' || scoreType === 'annual' || scoreType === 'homework'
+            ? scoreType
+            : 'monthly'
+    const { maxByColumn } = await resolveServerGradingContext(user.id, classId, templateScoreType)
+
+    const clampCell = (s: ScoreInput): string | number | null => {
+        const max = maxByColumn[s.subject]
+        if (max === undefined || s.score_value === null) return s.score_value
+        return clampScoreCell(String(s.score_value), max)
+    }
+
     // `splitScoreCell` decides which column the cell belongs in. This used to be
     // a bare `parseFloat`, which silently destroyed every behavioural rating:
     // parseFloat('ល្អ') is NaN, JSON.stringify turns NaN into null, and the row
     // was written as NULL with a 201 and a success toast. See migration 00012.
+    // (`clampScoreCell` uses the same number-or-text rule, so a Khmer rating
+    // passes through both untouched.)
     const upsertPayload = scoresData.map(s => ({
         ...scopeCols,
         teacher_id: user.id,
@@ -79,7 +102,7 @@ export async function saveScores(scoreType: string, scorePeriod: string, scoresD
         subject: s.subject,
         score_type: scoreType,
         score_period: scorePeriod,
-        ...splitScoreCell(s.score_value),
+        ...splitScoreCell(clampCell(s)),
         updated_at: new Date().toISOString()
     }))
 

@@ -62,7 +62,7 @@ accounts ever do overlap in time, phases in different lanes share no files.
       `getCurrentAcademicYear()`. The export stays with a `@deprecated` JSDoc.
       No surprises; build and lint green.
 
-- [ ] **P1 · Lane B — `clampScoreCell` + four call sites**
+- [x] **P1 · Lane B — `clampScoreCell` + four call sites**
       **Needs:** —
       **Files:** `lib/utils/score-value.ts` (new function beside `splitScoreCell`),
       `app/(main)/score/enter/ScoreEnterClient.tsx` (`handleScoreChange:357`,
@@ -77,7 +77,17 @@ accounts ever do overlap in time, phases in different lanes share no files.
       `verify-clamp.mts` green.
       **Watch:** a bare `parseFloat` here re-creates the exact bug migration
       00012 fixed — NULL written under a success toast.
-      **Notes:**
+      **Notes:** `clampScoreCell` uses the same `Number`-not-`parseFloat` rule
+      as `splitScoreCell`, so Khmer ratings pass through; in-range values come
+      back exactly as typed (`'1.'` keeps its point). One deliberate narrowing
+      on the server side, recorded in the decisions log: `saveScores` clamps
+      only columns the resolved template defines a max for — homework saves
+      through the same action, and over-max homework marks are a documented
+      warning, not an error (`markIssue` in `homework/enter/scores.ts`).
+      `onPaste` on the numeric cells intercepts Excel's trailing tab/newline
+      (which a number input silently rejects) and routes the first cell's text
+      through the same clamped `onChange`. `verify-clamp.mts`: 18/18 green;
+      build, lint, `verify-score-total.mts` all green.
 
 - [ ] **P2 · Lane A — `lib/scores/calendar.ts` (pure, no behaviour change)**
       **Needs:** —
@@ -173,3 +183,4 @@ and name the phase it came out of.
 | Date | Phase | Decision |
 |---|---|---|
 | 2026-08-29 | harness | **No commit shas in this ledger.** The first draft asked each phase to write its sha into its row and amend it in — which rotates the sha and makes the recorded one wrong immediately. The `P<n>:` subject line is the link instead: `git log --oneline --grep '^P4:'`. |
+| 2026-08-29 | P1 | **The server clamp skips columns the template does not define.** `saveScores` also serves homework (`/homework/enter` imports it), and over-maximum homework marks are a *documented product decision* — a warning, not an error (`markIssue` in `homework/enter/scores.ts`: "a school marking homework out of twenty is not doing anything illegal"). `hw_*` columns resolve no template max, so they pass through unclamped; every monthly/semester template column — the actual bug — is clamped. The client keeps its 10-point UI fallback for unknown columns, unchanged from the existing `max` attribute behaviour. |

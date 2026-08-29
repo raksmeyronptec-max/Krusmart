@@ -24,7 +24,7 @@ import { ScoreEntryGrid } from './ScoreEntryGrid'
 
 import { getScores, saveScores } from './actions'
 import { addClassSubject } from '@/app/(main)/score/subjects/actions'
-import { scoreCellValue } from '@/lib/utils/score-value'
+import { clampScoreCell, scoreCellValue } from '@/lib/utils/score-value'
 import { formatMark, letterOrDash, numericCell, styleFor } from '@/lib/utils/score-band'
 import { levelByKey, trackLabel } from '@/lib/onboarding/curriculum'
 import { coefficientAverage, coefficientOf, simpleAverage, DEFAULT_SCHEME_CONFIG } from '@/lib/grading/scheme'
@@ -355,6 +355,10 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
     useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current) }, [])
 
     const handleScoreChange = useCallback((studentId: string, columnId: string, value: string) => {
+        // The input's `max` attribute validates but does not filter — typing 11
+        // in a /10 cell still delivers '11' here, so the cell snaps to 10 now.
+        // Khmer ratings pass through the clamp untouched.
+        const clamped = clampScoreCell(value, maxScoreFor(columnId))
         const key = cellKey(studentId, columnId)
         pendingRef.current.add(key)
         setPendingCells(new Set(pendingRef.current))
@@ -365,12 +369,12 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
             return next
         })
         setScoresData(prev => {
-            const next = { ...prev, [studentId]: { ...(prev[studentId] || {}), [columnId]: value } }
+            const next = { ...prev, [studentId]: { ...(prev[studentId] || {}), [columnId]: clamped } }
             scoresRef.current = next
             return next
         })
         scheduleAutoSave()
-    }, [scheduleAutoSave])
+    }, [scheduleAutoSave, maxScoreFor])
 
     const dirty = pendingCells.size > 0
 
@@ -496,7 +500,9 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
                 const row = { ...(next[r.student_id] ?? {}) }
                 const current = row[r.subject]
                 if (current !== undefined && current !== null && current !== '') continue
-                row[r.subject] = value
+                // Last month's mark may exceed this month's maximum if the
+                // template changed in between — clamp on the way in.
+                row[r.subject] = clampScoreCell(String(value), maxScoreFor(r.subject))
                 next[r.student_id] = row
                 pendingRef.current.add(cellKey(r.student_id, r.subject))
                 filled += 1
@@ -515,7 +521,7 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
         } finally {
             setCopying(false)
         }
-    }, [previousMonth, academicYear, cols, scheduleAutoSave])
+    }, [previousMonth, academicYear, cols, scheduleAutoSave, maxScoreFor])
 
     // ------------------------------------------------------------ bulk assign
 
@@ -538,13 +544,14 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
             return
         }
 
+        const clamped = clampScoreCell(bulkValue, maxScoreFor(col.id))
         const next = { ...scoresRef.current }
         let applied = 0
         for (const stu of visibleStudents) {
             const row = { ...(next[stu.id] ?? {}) }
             const current = row[col.id]
             if (bulkOnlyEmpty && current !== undefined && current !== null && current !== '') continue
-            row[col.id] = bulkValue
+            row[col.id] = clamped
             next[stu.id] = row
             pendingRef.current.add(cellKey(stu.id, col.id))
             applied += 1

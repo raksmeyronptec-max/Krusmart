@@ -161,6 +161,14 @@ export function ScoreEntryGrid({
                           aria-label={`ពិន្ទុសម្រាប់ ${stu.name_kh || stu.name_en} — ${col.label}`}
                           value={raw as string | number}
                           onChange={(e) => onChange(stu.id, col.id, e.target.value)}
+                          // A copy out of Excel carries a trailing tab or
+                          // newline, which a number input silently rejects —
+                          // take the first cell's text and let `onChange`'s
+                          // clamp judge it like a typed value.
+                          onPaste={(e) => {
+                            e.preventDefault()
+                            onChange(stu.id, col.id, e.clipboardData.getData('text').split(/[\t\r\n]/)[0].trim())
+                          }}
                           onKeyDown={(e) => handleCellKeyDown(e, scrollRef.current, students.length)}
                           onFocus={(e) => e.currentTarget.select()}
                           {...cellAttrs(rowIndex, colIndex)}
