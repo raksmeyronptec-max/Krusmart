@@ -89,7 +89,7 @@ accounts ever do overlap in time, phases in different lanes share no files.
       through the same clamped `onChange`. `verify-clamp.mts`: 18/18 green;
       build, lint, `verify-score-total.mts` all green.
 
-- [ ] **P2 · Lane A — `lib/scores/calendar.ts` (pure, no behaviour change)**
+- [x] **P2 · Lane A — `lib/scores/calendar.ts` (pure, no behaviour change)**
       **Needs:** —
       **Files:** `lib/scores/calendar.ts` (new),
       `lib/scores/semester.ts` (`monthsForSemester` becomes one line),
@@ -101,7 +101,21 @@ accounts ever do overlap in time, phases in different lanes share no files.
       **Watch:** derive the split from `MONTHS_BY_ACADEMIC_YEAR`, never a
       hand-typed list — that is how the original both-semesters bug happened
       (see the header of `semester.ts`). No caller changes in this phase.
-      **Notes:**
+      **Notes:** Three things P3 needs to know. (1) **`ScoreCalendarPeriodRow`
+      is defined and exported in `calendar.ts`**, not `lib/types.ts` — the pure
+      module cannot wait for the migration phase; P3 should *re-export* it from
+      `lib/types.ts` (`export type { ScoreCalendarPeriodRow } from
+      './scores/calendar'`), not redefine it. (2) `calendar.ts` imports
+      `SemesterId` from `semester.ts` **type-only**, and `semester.ts` imports
+      `DEFAULT_CALENDAR` back at value level — the cycle is safe precisely
+      because the first edge is erased at runtime; keep it type-only. (3)
+      `FIRST_SEMESTER_LENGTH` moved into `calendar.ts` (module-local, nothing
+      else imported it). `rowToPeriod` drops only rows with an unusable anchor
+      (impossible via the app-write path — Postgres `anchor_is_member` +
+      `validateCalendar` guard it); a valid period is never dropped, since that
+      would hide its months' marks. `verify-calendar.mts` 29/29;
+      `verify-score-total` / `verify-reporting` / `verify-clamp` untouched and
+      green; build + lint green.
 
 - [ ] **P3 · Lane A — Migration 00029 + server resolver + hook**
       **Needs:** P2

@@ -24,29 +24,23 @@
 // Relative and extension-qualified on purpose: the verify scripts run this
 // module under plain node, which neither rewrites the `@/` alias nor resolves
 // extensionless specifiers. Same reason `lib/scores/template.ts` does it.
-import { MONTHS_BY_ACADEMIC_YEAR } from '../constants/months.ts'
 import type { MonthId } from '../constants/months.ts'
+import { DEFAULT_CALENDAR, periodKeysForSemester } from './calendar.ts'
 
 export type SemesterId = 'sem1' | 'sem2'
 
 /**
- * The Cambodian academic year runs វិច្ឆិកា → តុលា, and splits in half.
+ * Which months belong to a semester, on the DEFAULT calendar.
  *
- * `MONTHS_BY_ACADEMIC_YEAR` is already in that order, so the split is taken
- * from it rather than written out — a hand-typed list is how the two halves
- * drift apart, and how the original bug (one list for both semesters) happened
- * in the first place.
- *
- * Five months in the first half (វិច្ឆិកា–មីនា) preserves the set
- * `/score/total` has always defaulted to; the remainder is the second.
+ * The split itself now lives in `lib/scores/calendar.ts` (`DEFAULT_CALENDAR`:
+ * twelve periods, sem1 = the first five, derived from
+ * `MONTHS_BY_ACADEMIC_YEAR`) so a class can override it with its own periods.
+ * This delegate keeps the historic signature and, by construction, the exact
+ * historic result — callers that should follow a class's own calendar migrate
+ * to `periodKeysForSemester(resolveCalendar(...), s)` instead.
  */
-const FIRST_SEMESTER_LENGTH = 5
-
 export function monthsForSemester(semester: SemesterId): MonthId[] {
-  const ids = MONTHS_BY_ACADEMIC_YEAR.map((m) => m.id)
-  return semester === 'sem1'
-    ? ids.slice(0, FIRST_SEMESTER_LENGTH)
-    : ids.slice(FIRST_SEMESTER_LENGTH)
+  return periodKeysForSemester(DEFAULT_CALENDAR, semester)
 }
 
 /** Khmer label for a semester. */
