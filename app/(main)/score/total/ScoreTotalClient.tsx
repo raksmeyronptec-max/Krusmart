@@ -9,7 +9,7 @@ import {
     Lock, Unlock, Printer, CloudUpload, Table2, Check, X, Search,
     Users, TrendingUp, Gauge, AlertTriangle, SlidersHorizontal, ChevronDown,
     MoreVertical, Eye, PencilLine, FileSpreadsheet, PieChart, Trash2, FileText,
-    Columns3, PlusCircle,
+    Columns3, PlusCircle, Trophy, LayoutList, Grid3x3, ArrowUpDown,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -27,6 +27,7 @@ import Select from '@/components/ui/forms/Select'
 import { getAllScoresByPeriod, getMonthlyScoresForYear, clearScoresForStudents } from './actions'
 import { saveScores } from '../enter/actions'
 import { useScoreTemplate } from '@/lib/hooks/useScoreTemplate'
+import { useActiveClass } from '@/lib/hooks/useActiveClass'
 import { getCurrentAcademicYear } from '@/lib/constants/academic'
 import { MONTHS_BY_ACADEMIC_YEAR, MONTH_LABEL_BY_ID } from '@/lib/constants/months'
 import {
@@ -43,7 +44,15 @@ import {
     type TotalMode, type TotalledStudent,
 } from './scoreTotalConfig'
 import { Sparkline } from './Sparkline'
+import {
+    attentionList, sortRows, subjectPerformance, topPerformer,
+    RESULT_SORTS, type ResultSort,
+} from '@/lib/scores/totals'
 import { ScoreAnalyticsPanel } from './ScoreAnalyticsPanel'
+import { ScoreTotalResultsTable } from './ScoreTotalResultsTable'
+import { ScoreTotalSubjectPerformance } from './ScoreTotalSubjectPerformance'
+import { ScoreTotalAttention } from './ScoreTotalAttention'
+import { ScoreTotalStudentDetail } from './ScoreTotalStudentDetail'
 import { ScoreTotalCards } from './ScoreTotalCards'
 import { ScoreTotalPrint } from './ScoreTotalPrint'
 import { FullscreenGrid } from '@/components/ui/data/FullscreenGrid'
@@ -247,12 +256,20 @@ export default function ScoreTotalClient({
      *   columns since those are already on the scheme's scale.
      */
     const {
-        subjects: templateSubjects,
+        // `classSubjects`, not `subjects`: the class's template narrowed by what
+        // it has actually chosen to teach (00028), but NOT by who is looking.
+        // Narrowing by role would make a subject teacher's ranking divide by
+        // their own subject alone — see the hook's own note.
+        classSubjects: templateSubjects,
         rows: templateRows,
         context: templateContext,
         scheme,
         levelCurriculum,
+        loading: templateLoading,
     } = useScoreTemplate(currentMode === 'annual' ? 'semester' : currentMode)
+    // The template screen is a server component, so the class it should open on
+    // has to travel in the URL — client state cannot reach it.
+    const { classId: activeClassId } = useActiveClass()
 
     const PASS_MARK = scheme.passMark
     const MAX_SCORE = scheme.maxScore
@@ -408,6 +425,21 @@ export default function ScoreTotalClient({
     // a 10 into the state and silently filter every /50 average out.
     const [maxAvg, setMaxAvg] = useState<number | null>(null)
     const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set())
+    /**
+     * Which view the table is in.
+     *
+     * `results` is the redesign's default — name, subject summary, average,
+     * rank. `matrix` is the twenty-nine column editable grid this screen has
+     * always been, kept because "fix one mark without leaving the totals" is a
+     * real workflow; it is one toggle away rather than the thing every visit
+     * opens on. Annual has only two derived columns, so the matrix is the
+     * clearer view there and it opens on that.
+     */
+    const [view, setView] = useState<'results' | 'matrix'>('results')
+    /** Filter the table to one subject band. Names a `ColumnGroup`, not a key. */
+    const [subjectFilter, setSubjectFilter] = useState<string | null>(null)
+    const [sort, setSort] = useState<ResultSort>('rank')
+    const [detailStudent, setDetailStudent] = useState<TotalledStudent | null>(null)
 
     const visibleKeys = useMemo(() => {
         if (hiddenColumns.size === 0) return null
@@ -416,6 +448,21 @@ export default function ScoreTotalClient({
 
     const groups = useMemo(() => filterGroups(allGroups, visibleKeys), [allGroups, visibleKeys])
     const columns = useMemo(() => flatten(groups), [groups])
+
+    /**
+     * The groups the results view shows, after the subject filter.
+     *
+     * Deliberately NOT fed into `columns`, and therefore not into the averages.
+     * Picking "show me Khmer" is a question about where to look, not a claim
+     * that the class only studies Khmer, so the average and the rank beside it
+     * must keep meaning what they meant a click earlier. The matrix view and
+     * the column-hiding control keep their existing relationship with the
+     * arithmetic; this one is presentation only.
+     */
+    const displayGroups = useMemo(
+        () => (subjectFilter ? groups.filter(g => g.name === subjectFilter) : groups),
+        [groups, subjectFilter],
+    )
 
     const filteredRows = useMemo(() => {
         const q = search.trim().toLowerCase()
@@ -436,6 +483,7 @@ export default function ScoreTotalClient({
 
     const filtersActive = search !== '' || gender !== '' || onlyFailing
         || minAvg !== 0 || maxAvg !== null || hiddenColumns.size > 0
+        || subjectFilter !== null || sort !== 'rank'
 
     const clearFilters = () => {
         setSearch('')
@@ -444,6 +492,8 @@ export default function ScoreTotalClient({
         setMinAvg(0)
         setMaxAvg(null)
         setHiddenColumns(new Set())
+        setSubjectFilter(null)
+        setSort('rank')
     }
 
     // ------------------------------------------------------------- statistics
@@ -461,6 +511,45 @@ export default function ScoreTotalClient({
             failing: scored.length - passing,
         }
     }, [rows, PASS_MARK])
+
+    /** Best average in the class — the fourth summary card (§9). */
+    const top = useMemo(() => topPerformer(rows), [rows])
+
+    /**
+     * Subject and attention derivations.
+     *
+     * Both read `groups` — the class's template after column hiding — rather
+     * than `displayGroups`, so the subject list does not collapse to one row
+     * the moment a teacher filters the table to that subject.
+     *
+     * `filteredRows`, not `rows`: the sections describe what is on screen, so
+     * "show only failing" narrows them the same way it narrows the table. That
+     * is the existing contract of the analytics drawer, kept.
+     */
+    const subjects = useMemo(
+        () => subjectPerformance(groups, filteredRows, maxByColumn, MAX_SCORE),
+        [groups, filteredRows, maxByColumn, MAX_SCORE],
+    )
+    const attention = useMemo(
+        () => attentionList(filteredRows, groups, scheme, maxByColumn),
+        [filteredRows, groups, scheme, maxByColumn],
+    )
+
+    /** Row order for the results view. The matrix keeps roster order. */
+    const sortedRows = useMemo(
+        () => sortRows(filteredRows, sort, rowNumbers),
+        [filteredRows, sort, rowNumbers],
+    )
+
+    /**
+     * Has this class got a subject list to show at all?
+     *
+     * Distinguishes "no marks yet" from "nothing configured": the second needs
+     * a trip to the template screen, the first does not (§22). Annual is
+     * exempt — its two columns are derived from the semester averages and exist
+     * whatever the template says.
+     */
+    const noSubjects = !templateLoading && currentMode !== 'annual' && allGroups.length === 0
 
     /** Per-subject rank, for the cell tooltip. Cheap: one pass per column. */
     const columnRanks = useMemo(() => {
@@ -735,20 +824,10 @@ export default function ScoreTotalClient({
 
             {/* ------------------------------------------------------ stat cards */}
             <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-                <StatCard
-                    label="ចំនួនសិស្សសរុប"
-                    value={`${toKhmerNumber(stats.total)} នាក់`}
-                    hint={`មានពិន្ទុ ${toKhmerNumber(stats.scored)} នាក់`}
-                    icon={Users}
-                    tone="brand"
-                />
-                <StatCard
-                    label="អត្រាជាប់"
-                    value={`${toKhmerNumber(stats.passRate)}%`}
-                    hint={`មធ្យមភាគ ≥ ${toKhmerNumber(PASS_MARK)}`}
-                    icon={TrendingUp}
-                    tone="success"
-                />
+                {/* The four figures §9 asks for, in the order a teacher reads
+                    them: how did the class do, how many passed, who did best,
+                    who needs help. The roster size moved to a hint on the
+                    pass card — it is context for that number, not a result. */}
                 <StatCard
                     label="មធ្យមភាគថ្នាក់"
                     value={
@@ -757,9 +836,29 @@ export default function ScoreTotalClient({
                             <span className="ml-1.5 text-base opacity-80">{letterOrDash(stats.average, scheme)}</span>
                         </span>
                     }
-                    hint={`ពិន្ទុពេញ ${toKhmerNumber(MAX_SCORE)}`}
+                    hint={`ពិន្ទុពេញ ${toKhmerNumber(MAX_SCORE)} · មានពិន្ទុ ${toKhmerNumber(stats.scored)}/${toKhmerNumber(stats.total)} នាក់`}
                     icon={Gauge}
                     tone="gold"
+                />
+                <StatCard
+                    label="ចំនួនសិស្សជាប់"
+                    value={`${toKhmerNumber(stats.scored - stats.failing)} នាក់`}
+                    hint={`${toKhmerNumber(stats.passRate)}% · មធ្យមភាគ ≥ ${toKhmerNumber(PASS_MARK)}`}
+                    icon={TrendingUp}
+                    tone="success"
+                />
+                <StatCard
+                    label="ពិន្ទុខ្ពស់បំផុត"
+                    value={
+                        top ? (
+                            <span className={styleFor(top.average, scheme).text}>
+                                {formatMark(top.average)}
+                            </span>
+                        ) : '—'
+                    }
+                    hint={top ? (top.student.name_kh || top.student.name_en || '—') : 'មិនទាន់មានពិន្ទុ'}
+                    icon={Trophy}
+                    tone="brand"
                 />
                 {/* Clickable: the figure and the filter that isolates it are the
                     same thought, so they are the same control. */}
@@ -770,7 +869,7 @@ export default function ScoreTotalClient({
                     className={`rounded-xl border p-4 text-left shadow-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${onlyFailing ? 'border-danger bg-danger/5' : 'border-divider bg-bg-surface hover:border-danger'}`}
                 >
                     <div className="flex items-start justify-between gap-3">
-                        <p className="text-[13px] font-bold text-text-muted">សិស្សធ្លាក់</p>
+                        <p className="text-[13px] font-bold text-text-muted">សិស្សត្រូវការជំនួយ</p>
                         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-danger/10 text-danger">
                             <AlertTriangle className="h-[18px] w-[18px]" aria-hidden="true" />
                         </span>
@@ -853,10 +952,58 @@ export default function ScoreTotalClient({
                         />
                     </div>
 
+                    {/* Subject filter — the class's template only (§8). Never
+                        the whole curriculum: offering a subject this class does
+                        not teach is the defect the redesign exists to fix. */}
+                    {currentMode !== 'annual' && allGroups.length > 1 && (
+                        <Select
+                            ariaLabel="មុខវិជ្ជា"
+                            value={subjectFilter ?? ''}
+                            onChange={(v) => setSubjectFilter(v || null)}
+                            options={[
+                                { value: '', label: 'មុខវិជ្ជាទាំងអស់' },
+                                ...allGroups.map(g => ({ value: g.name, label: g.name })),
+                            ]}
+                            leadingIcon={<Bookmark />}
+                            wrapperClassName="w-auto"
+                        />
+                    )}
+
+                    {view === 'results' && (
+                        <Select
+                            ariaLabel="តម្រៀប"
+                            value={sort}
+                            onChange={(v) => setSort(v as ResultSort)}
+                            options={RESULT_SORTS.map(o => ({ value: o.id, label: o.label }))}
+                            leadingIcon={<ArrowUpDown />}
+                            wrapperClassName="w-auto"
+                        />
+                    )}
+
                     <Button size="sm" variant="secondary" printHidden={false} onClick={() => setFiltersOpen(v => !v)} aria-expanded={filtersOpen}>
                         <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" /> តម្រង
                         <ChevronDown className={`h-3.5 w-3.5 transition ${filtersOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
                     </Button>
+
+                    {/* Results vs matrix. Last in the row because it changes
+                        what the table IS, not what it contains. */}
+                    <div role="tablist" aria-label="ទម្រង់តារាង" className="ml-auto flex rounded-lg bg-paper p-1">
+                        {([
+                            { id: 'results' as const, label: 'លទ្ធផល', icon: LayoutList },
+                            { id: 'matrix' as const, label: 'តារាងពេញ', icon: Grid3x3 },
+                        ]).map(({ id, label, icon: Icon }) => (
+                            <button
+                                key={id}
+                                role="tab"
+                                type="button"
+                                aria-selected={view === id}
+                                onClick={() => setView(id)}
+                                className={`flex min-h-9 items-center gap-1.5 rounded-md px-3 text-xs font-bold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${view === id ? 'bg-brand text-brand-contrast shadow-sm' : 'text-text-muted hover:text-brand'}`}
+                            >
+                                <Icon className="h-3.5 w-3.5" aria-hidden="true" /> {label}
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
                 {filtersOpen && (
@@ -961,6 +1108,26 @@ export default function ScoreTotalClient({
                         }
                     />
                 </div>
+            ) : noSubjects ? (
+                /* §22: the class has no subject list at all, so there is
+                   nothing for a results table to be about. Distinct from "no
+                   marks yet" — that one is fixed at /score/enter, this one at
+                   the template screen, and sending a teacher to the wrong one
+                   wastes the trip. */
+                <div className="rounded-xl border border-divider bg-bg-surface">
+                    <EmptyState
+                        title="មិនទាន់មានមុខវិជ្ជាត្រូវបានកំណត់សម្រាប់ Template នេះ"
+                        description="ជ្រើសរើសមុខវិជ្ជាដែលថ្នាក់នេះកំពុងបង្រៀនជាមុនសិន រួចលទ្ធផលនឹងបង្ហាញតាមមុខវិជ្ជាទាំងនោះ។"
+                        action={
+                            <Link
+                                href={activeClassId ? `/score/template?class=${encodeURIComponent(activeClassId)}` : '/score/template'}
+                                className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand px-4 text-sm font-bold text-brand-contrast transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                            >
+                                <Columns3 className="h-4 w-4" aria-hidden="true" /> កំណត់មុខវិជ្ជា
+                            </Link>
+                        }
+                    />
+                </div>
             ) : filteredRows.length === 0 ? (
                 <div className="rounded-xl border border-divider bg-bg-surface">
                     <EmptyState
@@ -988,6 +1155,46 @@ export default function ScoreTotalClient({
                             </Link>
                         }
                     />
+                </div>
+            ) : view === 'results' ? (
+                /* The redesign's default: a results table on every width, with
+                   the analysis sections beneath it. The matrix is one toggle
+                   away for anyone who wants to read or fix a single cell. */
+                <div className="flex flex-col gap-4">
+                    <div className="hidden md:block">
+                        <ScoreTotalResultsTable
+                            rows={sortedRows}
+                            groups={displayGroups}
+                            scheme={scheme}
+                            maxByColumn={maxByColumn}
+                            rowNumbers={rowNumbers}
+                            onSelect={setDetailStudent}
+                        />
+                    </div>
+                    <div className="md:hidden">
+                        <ScoreTotalCards
+                            rows={sortedRows}
+                            columns={flatten(displayGroups)}
+                            enterHref={enterHref}
+                            rowNumbers={rowNumbers}
+                            scheme={scheme}
+                            maxByColumn={maxByColumn}
+                        />
+                    </div>
+
+                    <div className="grid gap-4 lg:grid-cols-2">
+                        <ScoreTotalSubjectPerformance
+                            subjects={subjects}
+                            scheme={scheme}
+                            onSelectSubject={setSubjectFilter}
+                            activeSubject={subjectFilter}
+                        />
+                        <ScoreTotalAttention
+                            students={attention}
+                            scheme={scheme}
+                            onSelect={setDetailStudent}
+                        />
+                    </div>
                 </div>
             ) : (
                 <>
@@ -1323,6 +1530,17 @@ export default function ScoreTotalClient({
                 monthlyTrend={classTrend}
                 periodLabel={`ពិន្ទុ${modeLabel} ${periodLabel}`}
                 scheme={scheme}
+            />
+
+            <ScoreTotalStudentDetail
+                student={detailStudent}
+                onClose={() => setDetailStudent(null)}
+                groups={groups}
+                scheme={scheme}
+                maxByColumn={maxByColumn}
+                enterHref={enterHref}
+                periodLabel={`ពិន្ទុ${modeLabel} ${periodLabel}`}
+                rowNumber={detailStudent ? rowNumbers.get(detailStudent.id) : undefined}
             />
 
             <ScoreTotalPrint

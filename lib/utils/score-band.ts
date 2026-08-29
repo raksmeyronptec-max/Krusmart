@@ -29,6 +29,8 @@ export interface ScoreBandStyle {
   text: string
   /** Left rail on a table row. */
   rail: string
+  /** Fill for a progress bar drawn at this band. */
+  bar: string
 }
 
 const STYLES: Record<ScoreBand, ScoreBandStyle> = {
@@ -37,30 +39,35 @@ const STYLES: Record<ScoreBand, ScoreBandStyle> = {
     field: 'border-brand bg-brand-100/70 text-brand-800 dark:bg-brand-900/30 dark:text-brand-300',
     text: 'text-brand',
     rail: 'border-l-4 border-l-brand',
+    bar: 'bg-brand',
   },
   good: {
     pill: 'bg-success/10 text-success',
     field: 'border-success bg-success/10 text-success',
     text: 'text-success',
     rail: 'border-l-4 border-l-success',
+    bar: 'bg-success',
   },
   pass: {
     pill: 'bg-warning/10 text-warning',
     field: 'border-warning bg-warning/10 text-warning',
     text: 'text-warning',
     rail: 'border-l-4 border-l-warning',
+    bar: 'bg-warning',
   },
   fail: {
     pill: 'bg-danger/10 text-danger',
     field: 'border-danger bg-danger/10 text-danger',
     text: 'text-danger',
     rail: 'border-l-4 border-l-danger',
+    bar: 'bg-danger',
   },
   none: {
     pill: 'bg-paper text-text-muted',
     field: 'border-divider bg-bg-surface text-text-heading',
     text: 'text-text-muted',
     rail: 'border-l-4 border-l-transparent',
+    bar: 'bg-divider',
   },
 }
 

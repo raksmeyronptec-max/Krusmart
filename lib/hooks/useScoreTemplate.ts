@@ -43,6 +43,17 @@ import { logger } from '@/lib/utils/logger'
 export function useScoreTemplate(scoreType: TemplateScoreType): {
   /** The class's whole effective template — what every aggregation must weigh. */
   subjects: EffectiveSubject[]
+  /**
+   * What the CLASS teaches — the template narrowed by its own selection, but
+   * NOT by who is looking.
+   *
+   * This is the list every results and aggregation surface wants: `/score/total`
+   * must show the class's whole configured curriculum whether a homeroom
+   * teacher or a subject teacher opens it, because a ranking that divides by
+   * one teacher's own subject is not the class's ranking. `mySubjects` narrows
+   * further, by role, and only score *entry* wants that.
+   */
+  classSubjects: EffectiveSubject[]
   /** The subset this teacher may enter marks for. Score entry uses this. */
   mySubjects: EffectiveSubject[]
   /** The class's chosen subjects (00028). Empty when it has not configured any. */
@@ -155,15 +166,19 @@ export function useScoreTemplate(scoreType: TemplateScoreType): {
    * full template. The mode comes from the assignments, never from the
    * education level.
    */
+  // Narrow to what the class teaches. `applySelection` returns the full list
+  // untouched when the class has configured nothing, so an account that never
+  // opens the configuration screen keeps exactly today's list.
+  const classSubjects = useMemo(
+    () => applySelection(subjects, selection),
+    [subjects, selection],
+  )
+
   const mySubjects = useMemo(() => {
-    // Narrow to what the class teaches first. `applySelection` returns the full
-    // list untouched when the class has configured nothing, so an account that
-    // never opens the configuration screen keeps exactly today's picker.
-    const taught = applySelection(subjects, selection)
-    if (role.coversWholeClass) return taught
+    if (role.coversWholeClass) return classSubjects
     const mine = new Set(role.subjectKeys)
-    return taught.filter((s) => mine.has(s.subjectKey))
-  }, [subjects, role, selection])
+    return classSubjects.filter((s) => mine.has(s.subjectKey))
+  }, [classSubjects, role])
 
   /**
    * Whether the class has configured *this* score type.
@@ -188,7 +203,7 @@ export function useScoreTemplate(scoreType: TemplateScoreType): {
   )
 
   return {
-    subjects, mySubjects, selection, configured, rows, context, role, scheme,
-    levelCurriculum, loading: loading || classLoading, reload,
+    subjects, classSubjects, mySubjects, selection, configured, rows, context,
+    role, scheme, levelCurriculum, loading: loading || classLoading, reload,
   }
 }

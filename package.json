@@ -4,15 +4,19 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node scripts/build-report-templates.mts",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "build:templates": "node scripts/build-report-templates.mts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1121.0",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.106.2",
     "@types/three": "^0.184.1",
+    "easy-template-x": "^7.2.8",
+    "exceljs": "^4.4.0",
     "html2pdf.js": "^0.14.0",
     "jspdf": "^4.2.1",
     "khmer-chhankitek-calendar": "^1.2.0",

@@ -46,3 +46,8 @@ next-env.d.ts
 # supabase cli local state (not the migrations — those are tracked)
 supabase/.branches
 supabase/.temp
+
+# Report document templates are build artefacts of scripts/build-report-templates.mts.
+# A .xlsx is a zip: committing one gives reviewers a blob they cannot diff.
+lib/reporting/templates/*.xlsx
+lib/reporting/templates/*.docx

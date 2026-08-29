@@ -165,6 +165,8 @@ The `homework_scores` table defined in SQL is unused by the app.
 
 **Two questions, two tables.** `score_template_subjects` answers *what subjects exist* for a class; `class_template_subjects` (00028) answers *which of them the class teaches*. Keeping them apart is load-bearing: a `scope='class'` row in the first table is a **definition override**, and `updateClassSubject` deletes one the moment it stops differing from what it inherits (so inheritance stays live). A selection carries no definition difference — "I teach Khmer" says nothing about what Khmer is — so stored in that layer it would be deleted as redundant. `applySelection` in [lib/scores/selection.ts](lib/scores/selection.ts) narrows the entry picker; **a class with no selection resolves the full template**, so an account that never configures anything behaves exactly as before. Aggregation surfaces (totals, ranking, certificates, reports, `resolveServerGradingContext`) always read the *unnarrowed* resolution — narrowing a template must never narrow an average.
 
+**`/score/total` is a results dashboard, not a second entry grid.** It opens on a compact results table (name · per-subject average · average · rank), with the twenty-nine column editable matrix one toggle away for fixing a single cell. Subjects come from `classSubjects` — the class's template narrowed by its selection but **not** by the viewer's role, so a subject teacher still sees the class's whole configured curriculum. The derivations (`subjectPerformance`, `attentionList`, `topPerformer`, `sortRows`) live in [lib/scores/totals.ts](lib/scores/totals.ts), pure and tested by `scripts/verify-score-total.mts`. Two subtleties: the *subject filter* narrows `displayGroups` only and never the averages (picking "show me Khmer" is about where to look, not a claim the class studies only Khmer), whereas the *column-hiding* control does feed the averages, which is its long-standing behaviour. And because `computeRows` skips empty cells, narrowing to the taught subjects moves no number unless a mark exists under a subject the class has since removed.
+
 The score grid's subject picker used to be a literal array (the Cambodian *primary* curriculum, compiled in). It now resolves from `score_template_subjects` (migration 00016) in three layers — `system` (national default, seeded, read-only), `school` (admin amendments), `class` (assigned-teacher amendments) — where the lowest layer present wins per `subject_key`. The merge lives in [lib/scores/template.ts](lib/scores/template.ts) (pure, no server-only imports — a client hook consumes it) with [lib/hooks/useScoreTemplate.ts](lib/hooks/useScoreTemplate.ts) on the browser side. This changes only which columns the UI *offers*: `scores.subject` stays a TEXT key, `scores_owner_period_uniq` is untouched, and every already-entered mark keeps resolving. `SubjectColumn.id` is what `scores.subject` stores — it is schema, never rename one.
 
 ### Subject identity: three levels, one live key space per level
@@ -189,7 +191,28 @@ The third level, `subject_id` UUID → `public.subjects`, never reconciled with 
 - **A teacher's own subjects are ordinary class-scope template rows** since 00027. There is no second store: `/score/enter`'s add-subject dialog and `/score/subjects` both call `addClassSubject`, which mints the key server-side (`cls_`) and never lets the browser coin one. Converted rows carry the `cs_` prefix, which is what makes 00027's rollback able to find exactly its own rows. Three prefixes, three origins — `hs_`/`kh_`/`math_`/`sem_` national, `cls_` teacher-added, `cs_` converted — and none of them collide.
 - **The `assessments` feature was removed, not migrated.** The table (00003) and `scores.assessment_id` exist, but nothing ever wrote a score against an assessment and no report read one; for self-serve schools the creation form's `class_subjects` picker was empty, so it could not even be used. The admin UI, action and queries are gone; the tables stay untouched. If assessment-style grading is ever built, key it on `subject_key`, not `class_subject_id`.
 
-### localStorage
+### Reporting: the Print Center and the document engine
+
+`/print-center` is the index for every printable document; the sixteen report routes it links keep working untouched (`/score/print`, `/ranking`, `/honor-roll`, `/certificate`, `/yearly-report/*`, `/record-book`, …). A card either **generates through the shared engine** or **opens its existing screen**, and says which — nothing was migrated by deleting it.
+
+**`score template` ≠ `document template`.** The first is which subjects a class assesses (`score_template_subjects`); the second is which *file* results are printed onto ([lib/reporting/report-template.ts](lib/reporting/report-template.ts)). Never merge them: a class adding a subject must not reformat a ministry document.
+
+| Module | Responsibility |
+| --- | --- |
+| [report-types.ts](lib/reporting/report-types.ts) | `ReportType` identifiers (**schema** — recorded in audit metadata), categories, per-report period/format/legacy route |
+| [report-template.ts](lib/reporting/report-template.ts) | The versioned registry of template files, and `GenerationMetadata` |
+| [report-mapper.ts](lib/reporting/report-mapper.ts) | The `{{token}}` model and `ReportPayload` — the contract between resolvers and writers |
+| [report-data.ts](lib/reporting/report-data.ts) | `server-only`. Resolvers: database → payload, through the *same* scope/template/scheme helpers the score screens use |
+| [xlsx-writer.ts](lib/reporting/xlsx-writer.ts) / [docx-writer.ts](lib/reporting/docx-writer.ts) | Pure Buffer→Buffer template filling |
+| [report-storage.ts](lib/reporting/report-storage.ts) | `server-only`. Reads template files off disk |
+
+**Cell addresses appear in no TypeScript file.** Templates carry `{{class.name}}`, `{{#rows}}`, `{{#subjects}}`; the writer finds the markers and fills them, so moving a column is an edit to the .xlsx alone.
+
+**exceljs, not `xlsx-js-style`, for template filling.** SheetJS's community build drops images, headers/footers and page setup on a read→write round trip — exactly what must be preserved. Both libraries stay: `xlsx-js-style` constructs sheets from nothing, exceljs round-trips existing ones. **Merges are handled by hand** in `expandSubjectColumns`: `spliceColumns` neither shifts merge ranges nor preserves merged masters' values, which silently blanks the letterhead — see `scripts/verify-reporting.mts`.
+
+Template files are **build artefacts**, not committed blobs: `npm run build:templates` regenerates them from [scripts/build-report-templates.mts](scripts/build-report-templates.mts), which is the reviewable source. `score_monthly_v1` is `provenance: 'derived'` — built from what `/score/print` and `/score/total` already render, **not** a transcription of a ministry file, and the Print Center says so on the card.
+
+## localStorage
 
 `localStorage` is still the real store for seating and tutorial state. **Never type the key as a literal** — all of them are in [lib/constants/storage.ts](lib/constants/storage.ts) as `STORAGE_KEYS`.
 
