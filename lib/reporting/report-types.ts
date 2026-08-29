@@ -86,10 +86,14 @@ export interface ReportDefinition {
    */
   legacyHref: string | null
   /**
-   * True once the report generates through `lib/reporting`. Until then the
-   * card offers the legacy screen and says so, rather than pretending.
+   * A data resolver exists for this report in `report-data.ts`.
+   *
+   * NOT the same as "can be generated" (§11). A resolver with no document
+   * template produces a payload with nothing to print it onto. The four states
+   * are derived together by `reportAvailability` in `report-template.ts`,
+   * which is the only place allowed to decide what a card may claim.
    */
-  engine: boolean
+  resolver: boolean
 }
 
 /**
@@ -109,7 +113,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     period: 'month',
     formats: ['xlsx'],
     legacyHref: '/score/print',
-    engine: true,
+    resolver: true,
   },
   {
     type: 'score_semester',
@@ -119,7 +123,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     period: 'semester',
     formats: ['xlsx'],
     legacyHref: '/score/print',
-    engine: false,
+    resolver: false,
   },
   {
     type: 'score_annual',
@@ -129,7 +133,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     period: 'year',
     formats: ['xlsx'],
     legacyHref: '/score/total',
-    engine: false,
+    resolver: false,
   },
 
   // --------------------------------------------------------------- ranking
@@ -137,21 +141,21 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     type: 'ranking_monthly',
     category: 'ranking',
     label: 'ចំណាត់ថ្នាក់ប្រចាំខែ',
-    description: 'លំដាប់សិស្សតាមមធ្យមភាគប្រចាំខែ',
+    description: 'លំដាប់សិស្សតាមមធ្យមភាគប្រចាំខែ ព្រមទាំងនិទ្ទេស និងលទ្ធផល',
     period: 'month',
     formats: ['xlsx'],
     legacyHref: '/ranking',
-    engine: false,
+    resolver: true,
   },
   {
     type: 'ranking_semester',
     category: 'ranking',
     label: 'ចំណាត់ថ្នាក់ឆមាស',
-    description: 'លំដាប់សិស្សតាមមធ្យមភាគឆមាស',
+    description: 'លំដាប់សិស្សតាមមធ្យមភាគឆមាស (ប្រឡង + ប្រចាំខែ)',
     period: 'semester',
     formats: ['xlsx'],
     legacyHref: '/ranking',
-    engine: false,
+    resolver: true,
   },
   {
     type: 'ranking_annual',
@@ -161,7 +165,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     period: 'year',
     formats: ['xlsx'],
     legacyHref: '/ranking',
-    engine: false,
+    resolver: false,
   },
 
   // ----------------------------------------------------------------- honor
@@ -169,11 +173,11 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     type: 'honor',
     category: 'honor',
     label: 'តារាងកិត្តិយស',
-    description: 'សិស្សពូកែតាមលំដាប់ សម្រាប់បិទផ្សាយ',
+    description: 'សិស្សដែលឈានដល់លក្ខណៈវិនិច្ឆ័យកិត្តិយស (បណ្ដោះអាសន្ន)',
     period: 'month',
-    formats: ['html'],
+    formats: ['xlsx'],
     legacyHref: '/honor-roll',
-    engine: false,
+    resolver: true,
   },
 
   // ----------------------------------------------------------- certificate
@@ -185,7 +189,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     period: 'year',
     formats: ['docx', 'html'],
     legacyHref: '/certificate',
-    engine: false,
+    resolver: false,
   },
 
   // ---------------------------------------------------------------- yearly
@@ -197,7 +201,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     period: 'year',
     formats: ['xlsx'],
     legacyHref: '/yearly-report',
-    engine: false,
+    resolver: false,
   },
   {
     type: 'annual_monthly_ranking',
@@ -207,7 +211,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     period: 'year',
     formats: ['xlsx'],
     legacyHref: '/yearly-report',
-    engine: false,
+    resolver: false,
   },
   {
     type: 'annual_monthly_average',
@@ -217,7 +221,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     period: 'year',
     formats: ['xlsx'],
     legacyHref: '/yearly-report',
-    engine: false,
+    resolver: false,
   },
   {
     type: 'annual_subject',
@@ -227,7 +231,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     period: 'year',
     formats: ['xlsx'],
     legacyHref: '/yearly-report',
-    engine: false,
+    resolver: false,
   },
   {
     type: 'annual_subject_results',
@@ -237,7 +241,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     period: 'year',
     formats: ['xlsx'],
     legacyHref: '/yearly-report/subject-results',
-    engine: false,
+    resolver: false,
   },
   {
     type: 'annual_promoted_students',
@@ -247,7 +251,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     period: 'year',
     formats: ['xlsx'],
     legacyHref: '/yearly-report/promoted',
-    engine: false,
+    resolver: false,
   },
   {
     type: 'annual_repeated_students',
@@ -257,7 +261,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     period: 'year',
     formats: ['xlsx'],
     legacyHref: '/yearly-report/repeated',
-    engine: false,
+    resolver: false,
   },
 
   // -------------------------------------------------------------- tracking
@@ -269,7 +273,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     period: 'year',
     formats: ['html'],
     legacyHref: '/record-book',
-    engine: false,
+    resolver: false,
   },
 ]
 

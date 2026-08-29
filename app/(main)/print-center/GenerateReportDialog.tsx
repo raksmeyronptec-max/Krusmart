@@ -51,6 +51,7 @@ export function GenerateReportDialog({
   const [summary, setSummary] = useState<{
     studentCount: number; subjectCount: number; average: number | null
     periodLabel: string; className: string
+    honorCount?: number; criteriaLabel?: string; criteriaProvisional?: boolean
   } | null>(null)
   const [loading, setLoading] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -240,9 +241,29 @@ export function GenerateReportDialog({
                 value={summary.average === null ? '—' : summary.average.toFixed(2)}
               />
               <Stat label="គ្រា" value={summary.periodLabel} />
+              {/* §14: an honour report's headline figure is how many qualified,
+                  which is not derivable from the other three. */}
+              {summary.honorCount !== undefined && (
+                <Stat label="ទទួលកិត្តិយស" value={`${toKhmerNumber(summary.honorCount)} នាក់`} />
+              )}
             </dl>
           ) : (
             <p className="text-xs text-text-muted">មិនអាចពិនិត្យទិន្នន័យបានទេ។</p>
+          )}
+
+          {/* The rule, and whether it is official — stated before the teacher
+              generates, not discovered on the printed sheet (§14/§25). */}
+          {!loading && summary?.criteriaLabel && (
+            <div className="mt-2 rounded-md border border-warning/40 bg-warning/5 p-2">
+              <p className="text-[11px] text-text-body">
+                លក្ខណៈវិនិច្ឆ័យ៖ {summary.criteriaLabel}
+              </p>
+              {summary.criteriaProvisional && (
+                <p className="mt-0.5 text-[11px] font-bold text-warning">
+                  លក្ខណៈវិនិច្ឆ័យនេះជាបណ្ដោះអាសន្ន — មិនមែនច្បាប់ផ្លូវការពីក្រសួងទេ។
+                </p>
+              )}
+            </div>
           )}
 
           {!loading && summary && !hasData && (

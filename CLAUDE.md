@@ -193,7 +193,7 @@ The third level, `subject_id` UUID → `public.subjects`, never reconciled with 
 
 ### Reporting: the Print Center and the document engine
 
-`/print-center` is the index for every printable document; the sixteen report routes it links keep working untouched (`/score/print`, `/ranking`, `/honor-roll`, `/certificate`, `/yearly-report/*`, `/record-book`, …). A card either **generates through the shared engine** or **opens its existing screen**, and says which — nothing was migrated by deleting it.
+`/print-center` (មជ្ឈមណ្ឌលរបាយការណ៍ និងបោះពុម្ព) is the index for every printable document — a two-level browse (category overview → report cards) with search across both; the sixteen report routes it links keep working untouched (`/score/print`, `/ranking`, `/honor-roll`, `/certificate`, `/yearly-report/*`, `/record-book`, …). A card either **generates through the shared engine** or **opens its existing screen**, and says which — nothing was migrated by deleting it.
 
 **`score template` ≠ `document template`.** The first is which subjects a class assesses (`score_template_subjects`); the second is which *file* results are printed onto ([lib/reporting/report-template.ts](lib/reporting/report-template.ts)). Never merge them: a class adding a subject must not reformat a ministry document.
 
@@ -205,6 +205,16 @@ The third level, `subject_id` UUID → `public.subjects`, never reconciled with 
 | [report-data.ts](lib/reporting/report-data.ts) | `server-only`. Resolvers: database → payload, through the *same* scope/template/scheme helpers the score screens use |
 | [xlsx-writer.ts](lib/reporting/xlsx-writer.ts) / [docx-writer.ts](lib/reporting/docx-writer.ts) | Pure Buffer→Buffer template filling |
 | [report-storage.ts](lib/reporting/report-storage.ts) | `server-only`. Reads template files off disk |
+
+**A semester average is defined once**, in [lib/scores/semester.ts](lib/scores/semester.ts): `(examAverage + monthlyComponent) / 2`, where the coursework half averages the pupil's per-month averages across `monthsForSemester()`. `/score/total` and `ranking_semester` both call it, so they cannot disagree. Two properties are deliberate and asserted: a missing *subject* is skipped inside each half, but a missing *half* counts as **zero** (exam 8 with no coursework → 4.0) — the product's existing definition, preserved; and the month split is now semester-aware (sem1 = nov–mar, sem2 = apr–oct), fixing a bug where `/score/total` applied nov–mar to **both** semesters.
+
+**There is no official honour criterion.** `/honor-roll` selects `.slice(0, 5)` after ranking — that is its podium layout (five cards), not a policy, and no document defines one. [lib/scores/honor.ts](lib/scores/honor.ts) therefore does **not** reproduce top-N: it evaluates configurable criteria whose defaults are read from the class's own grading scheme (`minAverage` = the scheme's ល្អ/B band — 8 on /10, 40 on /50; `noFailingSubject` = the scheme's `passMark`), so nothing is a number someone typed. `HONOR_CRITERIA_PROVENANCE = 'derived'` travels into the payload and is **printed on the sheet** alongside the rule. A strong class can honour everyone; a weak one honours nobody — which a top-N rule cannot express. Legacy `/honor-roll` keeps its top-5 behaviour and therefore disagrees with the report; that is documented, not reconciled.
+
+Four reports run on the engine today: **`score_monthly`** (marks grid, register order), **`ranking_monthly`** / **`ranking_semester`** (league tables, rank order) and **`honor`** (criteria-based). All come out of one `resolveMonthlyClass()` in `report-data.ts` — same class, same subjects, same averages, same ranks — so a ranking sheet cannot disagree with the score sheet it derives from. Ranking semantics are `assignRanks`': **ties share a rank and the next rank skips (1,2,2,4)**, and an unmarked pupil has a `null` average, prints no rank, and sorts last. Note legacy `/ranking` reads the **full** template while the engine and `/score/total` read the **selection-narrowed** one — a pre-existing divergence, not introduced here.
+
+`scripts/verify-ranking-live.mts` is opt-in and needs a running local stack plus `supabase/fixtures/primary_ranking_teacher.sql`; it is the only test that exercises a real JWT, RLS and the class scope rather than stubbing the data.
+
+**One place decides what a card may claim.** `reportAvailability()` in `report-template.ts` derives four states — `engine_ready` (resolver + active template), `needs_template` (resolver, nothing to print onto), `legacy_only` (no resolver, but a working screen), `not_implemented` — and returns the badge, tone, action and template together. The Print Center renders that verdict; it never recomputes "ready" itself. `ReportDefinition.resolver` says only that a data resolver exists, which is deliberately *not* the same as "can be generated".
 
 **Cell addresses appear in no TypeScript file.** Templates carry `{{class.name}}`, `{{#rows}}`, `{{#subjects}}`; the writer finds the markers and fills them, so moving a column is an edit to the .xlsx alone.
 

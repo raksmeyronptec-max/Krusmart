@@ -48,6 +48,7 @@ import {
     attentionList, sortRows, subjectPerformance, topPerformer,
     RESULT_SORTS, type ResultSort,
 } from '@/lib/scores/totals'
+import { monthsForSemester, semesterAverage } from '@/lib/scores/semester'
 import { ScoreAnalyticsPanel } from './ScoreAnalyticsPanel'
 import { ScoreTotalResultsTable } from './ScoreTotalResultsTable'
 import { ScoreTotalSubjectPerformance } from './ScoreTotalSubjectPerformance'
@@ -159,12 +160,16 @@ function computeRows(
             row.examTotal = sum
             row.examAverage = weighted === null ? '0.00' : weighted.toFixed(2)
 
-            const monthly = monthlyComponent[stu.id] ?? 0
-            row.monthlyAverage = monthly.toFixed(2)
+            // `monthlyComponent` is keyed by pupil and already null-free; a
+            // pupil absent from it has no monthly marks in this semester.
+            const monthly = monthlyComponent[stu.id] ?? null
+            row.monthlyAverage = (monthly ?? 0).toFixed(2)
 
-            // Both halves already sit on the scheme's scale, so their mean does too.
-            let semAvg = (parseFloat(row.examAverage) + monthly) / 2
-            if (weighted === null && monthly === 0) semAvg = 0
+            // Both halves already sit on the scheme's scale, so their mean does
+            // too. The arithmetic moved to `lib/scores/semester.ts` so the
+            // printed ranking report computes it from the same definition —
+            // behaviour here is unchanged.
+            const semAvg = semesterAverage(weighted, monthly) ?? 0
 
             row.semesterAverage = semAvg.toFixed(2)
             row.finalAverageForRank = semAvg
@@ -238,7 +243,21 @@ export default function ScoreTotalClient({
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
 
-    const [selectedSemesterMonths, setSelectedSemesterMonths] = useState(['nov', 'dec', 'jan', 'feb', 'mar'])
+    /**
+     * Which months feed the semester's monthly half.
+     *
+     * Was a fixed ['nov'…'mar'] for BOTH semesters, so semester 2 averaged its
+     * own exams against semester 1's coursework. Now seeded per semester from
+     * `monthsForSemester`, and re-seeded when the teacher switches semester —
+     * they can still override the set, which is what the ខែបូកបញ្ចូល dialog is.
+     */
+    const [selectedSemesterMonths, setSelectedSemesterMonths] =
+        useState<string[]>(() => monthsForSemester('sem1'))
+    const [monthsSeededFor, setMonthsSeededFor] = useState<string>('sem1')
+    if (monthsSeededFor !== semester) {
+        setMonthsSeededFor(semester)
+        setSelectedSemesterMonths(monthsForSemester(semester === 'sem2' ? 'sem2' : 'sem1'))
+    }
 
     const { confirm, dialog } = useConfirm()
 

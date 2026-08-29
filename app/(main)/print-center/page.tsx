@@ -2,12 +2,13 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import {
   classIdFromSearchParams,
+  resolveClassTemplateContext,
   resolveServerScope,
 } from '@/lib/utils/serverScope'
 import { getCurrentAcademicYear } from '@/lib/constants/academic'
 import PrintCenterClient from './PrintCenterClient'
 
-export const metadata = { title: 'មជ្ឈមណ្ឌលបោះពុម្ព' }
+export const metadata = { title: 'មជ្ឈមណ្ឌលរបាយការណ៍ និងបោះពុម្ព' }
 
 /**
  * មជ្ឈមណ្ឌលបោះពុម្ព — one place for every printable document.
@@ -36,20 +37,24 @@ export default async function PrintCenterPage({
   const requestedClassId = await classIdFromSearchParams(searchParams)
   const scope = await resolveServerScope(user.id, requestedClassId)
 
+  // Class name and grade for the header (§6). Both are context, not report
+  // data: the centre must not fetch a single mark to render itself (§30).
   let className = ''
+  let gradeNumber: number | null = null
   if (scope.mode === 'v2') {
-    const { data } = await supabase
-      .from('classes')
-      .select('name')
-      .eq('id', scope.classId)
-      .maybeSingle()
+    const [{ data }, context] = await Promise.all([
+      supabase.from('classes').select('name').eq('id', scope.classId).maybeSingle(),
+      resolveClassTemplateContext(scope.classId),
+    ])
     className = data?.name ?? ''
+    gradeNumber = context?.gradeNumber ?? null
   }
 
   return (
     <PrintCenterClient
       classId={scope.mode === 'v2' ? scope.classId : null}
       className={className}
+      gradeNumber={gradeNumber}
       academicYear={getCurrentAcademicYear()}
     />
   )

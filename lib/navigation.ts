@@ -186,7 +186,7 @@ export const NAV_SECTIONS: NavSection[] = [
           // The index for every printable document. Listed first because it is
           // the way in to the other sixteen; those keep their own routes so
           // nothing that works today depends on this page (§27).
-          { label: "មជ្ឈមណ្ឌលបោះពុម្ព", href: "/print-center", primary: true, alias: "print center report document" },
+          { label: "មជ្ឈមណ្ឌលរបាយការណ៍", href: "/print-center", primary: true, alias: "print center report document ergaya" },
           { label: "របាយការណ៍មាតាបិតា", href: "/parent-report", alias: "parent report" },
           { label: "លទ្ធផលប្រចាំឆ្នាំ", href: "/yearly-report", alias: "yearly report result" },
           { label: "តារាងកិត្តិយស", href: "/honor-roll", alias: "honor roll" },

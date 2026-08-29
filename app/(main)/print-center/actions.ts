@@ -64,6 +64,7 @@ export async function previewReport(
 ): Promise<{ error?: string; summary?: {
   studentCount: number; subjectCount: number; average: number | null
   periodLabel: string; className: string
+  honorCount?: number; criteriaLabel?: string; criteriaProvisional?: boolean
 } }> {
   if (!isReportType(request.reportType)) return { error: 'របាយការណ៍មិនត្រឹមត្រូវ' }
 

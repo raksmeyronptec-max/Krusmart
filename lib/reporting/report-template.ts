@@ -31,7 +31,7 @@
  * the filesystem.
  */
 
-import type { ReportFormat, ReportType } from './report-types.ts'
+import type { ReportDefinition, ReportFormat, ReportType } from './report-types.ts'
 
 /**
  * One version of one report's document template.
@@ -93,6 +93,48 @@ export const TEMPLATE_REGISTRY: DocumentTemplate[] = [
     notes:
       'បង្កើតចេញពីទម្រង់ដែល /score/print បង្ហាញរួចហើយ — មិនមែនចម្លងផ្ទាល់ពីឯកសារក្រសួងទេ។',
   },
+  {
+    id: 'ranking_monthly_v1',
+    reportType: 'ranking_monthly',
+    version: 1,
+    label: 'តារាងចំណាត់ថ្នាក់ប្រចាំខែ (v1)',
+    format: 'xlsx',
+    file: 'ranking_monthly_v1.xlsx',
+    educationLevel: 'primary',
+    grades: [],
+    isActive: true,
+    provenance: 'derived',
+    notes:
+      'បង្កើតចេញពីទម្រង់ដែល /ranking បង្ហាញរួចហើយ — មិនមែនចម្លងផ្ទាល់ពីឯកសារក្រសួងទេ។',
+  },
+  {
+    id: 'ranking_semester_v1',
+    reportType: 'ranking_semester',
+    version: 1,
+    label: 'តារាងចំណាត់ថ្នាក់ឆមាស (v1)',
+    format: 'xlsx',
+    file: 'ranking_semester_v1.xlsx',
+    educationLevel: 'primary',
+    grades: [],
+    isActive: true,
+    provenance: 'derived',
+    notes:
+      'បង្ហាញម.ភាគប្រឡង និងម.ភាគប្រចាំខែដាច់ដោយឡែក — មិនមែនចម្លងផ្ទាល់ពីឯកសារក្រសួងទេ។',
+  },
+  {
+    id: 'honor_v1',
+    reportType: 'honor',
+    version: 1,
+    label: 'តារាងកិត្តិយស (v1)',
+    format: 'xlsx',
+    file: 'honor_v1.xlsx',
+    educationLevel: 'primary',
+    grades: [],
+    isActive: true,
+    provenance: 'derived',
+    notes:
+      'ទាំងទម្រង់ និងលក្ខណៈវិនិច្ឆ័យជាបណ្ដោះអាសន្ន — ក្រសួងមិនទាន់មានច្បាប់កិត្តិយសផ្លូវការក្នុងប្រព័ន្ធនេះទេ។',
+  },
 ]
 
 /** Templates available for a report, newest first. */
@@ -121,6 +163,86 @@ export function templateById(id: string): DocumentTemplate | undefined {
  */
 export function hasTemplate(reportType: ReportType): boolean {
   return TEMPLATE_REGISTRY.some((t) => t.reportType === reportType && t.isActive)
+}
+
+// ----------------------------------------------------------- availability
+
+/**
+ * What a report can actually do right now (§10/§11).
+ *
+ * Four states, not two, because "definition exists" and "can be generated" are
+ * different claims and a card that conflates them lies to the teacher:
+ *
+ *   engine_ready     resolver + active template  -> generates a document
+ *   needs_template   resolver, no template       -> nothing to print onto
+ *   legacy_only      no resolver, but a screen   -> opens what works today
+ *   not_implemented  definition only             -> honest "not yet"
+ *
+ * Derived HERE and nowhere else. The Print Center previously computed
+ * `report.engine && template !== undefined` inside a React component, which is
+ * how a second, drifting definition of "ready" gets born the first time another
+ * surface needs the same answer (§12/§13).
+ */
+export type ReportStatus = 'engine_ready' | 'needs_template' | 'legacy_only' | 'not_implemented'
+
+export interface ReportAvailability {
+  status: ReportStatus
+  /** Khmer badge text. */
+  label: string
+  tone: 'success' | 'warning' | 'muted'
+  /** What the card's primary control does. */
+  action: 'generate' | 'open' | 'none'
+  actionLabel: string
+  /** The template that would be used, when one exists — shown per §28. */
+  template: DocumentTemplate | null
+}
+
+export function reportAvailability(definition: ReportDefinition): ReportAvailability {
+  const template = activeTemplate(definition.type) ?? null
+
+  if (definition.resolver && template) {
+    return {
+      status: 'engine_ready',
+      label: 'រួចរាល់',
+      tone: 'success',
+      action: 'generate',
+      actionLabel: 'បង្កើតរបាយការណ៍',
+      template,
+    }
+  }
+
+  if (definition.resolver && !template) {
+    return {
+      status: 'needs_template',
+      label: 'ត្រូវកំណត់ Template',
+      tone: 'warning',
+      // A resolver with no template cannot produce a file, so the card offers
+      // the legacy screen if there is one rather than a button that fails.
+      action: definition.legacyHref ? 'open' : 'none',
+      actionLabel: 'បើករបាយការណ៍',
+      template: null,
+    }
+  }
+
+  if (definition.legacyHref) {
+    return {
+      status: 'legacy_only',
+      label: 'ទំព័រដើម',
+      tone: 'muted',
+      action: 'open',
+      actionLabel: 'បើករបាយការណ៍',
+      template: null,
+    }
+  }
+
+  return {
+    status: 'not_implemented',
+    label: 'មិនទាន់មាន',
+    tone: 'muted',
+    action: 'none',
+    actionLabel: '',
+    template: null,
+  }
 }
 
 // --------------------------------------------------------------- metadata

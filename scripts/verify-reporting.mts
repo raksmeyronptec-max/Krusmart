@@ -27,7 +27,20 @@ import {
 } from '../lib/reporting/report-types.ts'
 import {
   TEMPLATE_REGISTRY, activeTemplate, hasTemplate, templatesFor, templateById,
+  reportAvailability,
 } from '../lib/reporting/report-template.ts'
+import { DEFAULT_SCHEME_CONFIG } from '../lib/grading/scheme.ts'
+import { assignRanks, studentAverage } from '../lib/scores/aggregate.ts'
+import {
+  isSemesterId, monthlyComponent, monthsForSemester, semesterAverage, semesterLabel,
+} from '../lib/scores/semester.ts'
+import {
+  defaultHonorCriteria, evaluateHonor, HONOR_CRITERIA_PROVENANCE,
+} from '../lib/scores/honor.ts'
+import { SECONDARY_SCHEME_CONFIG } from '../lib/grading/scheme.ts'
+
+const byTypeGlobal = (t: string) =>
+  REPORT_DEFINITIONS.find(r => r.type === t)!
 
 let failures = 0
 function check(name: string, ok: boolean, detail = '') {
@@ -36,6 +49,7 @@ function check(name: string, ok: boolean, detail = '') {
 }
 
 const TEMPLATE = 'lib/reporting/templates/score_monthly_v1.xlsx'
+const RANKING_TEMPLATE = 'lib/reporting/templates/ranking_monthly_v1.xlsx'
 
 // ---------------------------------------------------------------------------
 console.log('\nCatalogue (§19)')
@@ -47,12 +61,16 @@ console.log('\nCatalogue (§19)')
     REPORT_CATEGORIES.filter(c => reportsByCategory(c.id).length === 0).map(c => c.id).join(', '))
   check('the sixteen requested reports exist', REPORT_DEFINITIONS.length === 16,
     `got ${REPORT_DEFINITIONS.length}`)
+  check('ranking_monthly is in the catalogue (§24.1)',
+    REPORT_DEFINITIONS.some(r => r.type === 'ranking_monthly' && r.category === 'ranking'))
+  check('and declares a resolver (§24.2)',
+    byTypeGlobal('ranking_monthly').resolver === true)
   check('identifiers are machine-readable, never Khmer',
     ids.every(id => /^[a-z0-9_]+$/.test(id)))
   check('a forged report type is rejected', !isReportType('score_monthly; drop table'))
   check('a real one is accepted', isReportType('score_monthly'))
-  check('every unmigrated report still points at its working screen (§27)',
-    REPORT_DEFINITIONS.filter(r => !r.engine).every(r => r.legacyHref !== null))
+  check('every report without a resolver still points at its working screen (§27)',
+    REPORT_DEFINITIONS.filter(r => !r.resolver).every(r => r.legacyHref !== null))
 }
 
 // ---------------------------------------------------------------------------
@@ -69,6 +87,59 @@ console.log('\nTemplate registry (§6/§7)')
   check('versions sort newest first', templatesFor('score_monthly')[0].version === 1)
   check('provenance is stated honestly',
     activeTemplate('score_monthly')?.provenance === 'derived')
+}
+
+// ---------------------------------------------------------------------------
+console.log('\nReport availability — no card may over-claim (§10/§11)')
+{
+  const byType = (t: string) => REPORT_DEFINITIONS.find(r => r.type === t)!
+
+  const monthly = reportAvailability(byType('score_monthly'))
+  check('score_monthly is engine-ready', monthly.status === 'engine_ready', monthly.status)
+  check('and offers a generate action', monthly.action === 'generate')
+  check('and names the template it will use (§28)',
+    monthly.template?.id === 'score_monthly_v1')
+
+  // Picked dynamically rather than named. Naming one meant this block broke
+  // every time that report was migrated — three times so far — which is churn,
+  // not signal: the property under test is that the MODEL reports a
+  // legacy-only report correctly, not which report happens to be one today.
+  const legacyDef = REPORT_DEFINITIONS.find(
+    r => !r.resolver && r.legacyHref !== null && !hasTemplate(r.type))
+  check('some report is still legacy-only (else this block is vacuous)',
+    legacyDef !== undefined)
+  if (legacyDef) {
+    const legacy = reportAvailability(legacyDef)
+    check(`a legacy-only report (${legacyDef.type}) is marked legacy, not ready`,
+      legacy.status === 'legacy_only', legacy.status)
+    check('and opens its existing screen rather than offering to generate',
+      legacy.action === 'open')
+    check('and claims NO template', legacy.template === null)
+  }
+
+  // The dishonesty the four-state model exists to prevent: a resolver with no
+  // document template must never present a generate button.
+  // A resolver pointed at a report type that has no template in the registry.
+  const orphan = reportAvailability({ ...byType('score_monthly'), type: 'score_semester' })
+  check('a resolver with no template asks for one instead of generating',
+    orphan.status === 'needs_template' && orphan.action !== 'generate', orphan.status)
+
+  const undone = reportAvailability({
+    ...byType('ranking_monthly'), resolver: false, legacyHref: null,
+  })
+  check('a report with neither resolver nor screen says so honestly',
+    undone.status === 'not_implemented' && undone.action === 'none')
+
+  check('no report claims engine_ready without an active template',
+    REPORT_DEFINITIONS.every(r => {
+      const a = reportAvailability(r)
+      return a.status !== 'engine_ready' || a.template !== null
+    }))
+  check('every generate action has a template behind it',
+    REPORT_DEFINITIONS.every(r => {
+      const a = reportAvailability(r)
+      return a.action !== 'generate' || a.template !== null
+    }))
 }
 
 // ---------------------------------------------------------------------------
@@ -298,6 +369,580 @@ console.log('\nEdge cases')
   await nw.xlsx.load(none as unknown as ArrayBuffer)
   check('no subjects still produces a document',
     nw.worksheets[0].getRow(8).getCell(2).value === 'ខ')
+}
+
+// ---------------------------------------------------------------------------
+console.log('\nranking_monthly (§24)')
+{
+  const def = byTypeGlobal('ranking_monthly')
+  const avail = reportAvailability(def)
+
+  check('with an active template it is engine_ready (§24.4)',
+    avail.status === 'engine_ready', avail.status)
+  check('and offers generation, not the legacy screen',
+    avail.action === 'generate')
+  check('template version is recorded (§24.15)',
+    avail.template?.id === 'ranking_monthly_v1' && avail.template?.version === 1)
+  check('provenance is derived, never claimed official (§21)',
+    avail.template?.provenance === 'derived')
+  check('the legacy /ranking route is preserved in the catalogue (§17)',
+    def.legacyHref === '/ranking')
+
+  // §24.3 — the same definition with no template must NOT be engine_ready.
+  // Points at `ranking_annual` because it genuinely has no template yet; when
+  // that is migrated this breaks, which is the signal to move the example on.
+  const orphan = reportAvailability({ ...def, type: 'ranking_annual' })
+  check('no active template means not engine_ready (§24.3)',
+    orphan.status === 'needs_template' && orphan.action !== 'generate', orphan.status)
+}
+
+// ---------------------------------------------------------------------------
+console.log('\nranking agrees with the canonical engine (§24.6/§7/§19)')
+{
+  // The ranking report does not re-rank: it reads `assignRanks`, the same
+  // helper /score/total and /ranking both call. These assertions pin the
+  // semantics the report inherits, so a change to them fails here rather than
+  // silently producing a sheet that disagrees with the screen.
+  type R = { id: string; avg: number; rank: number }
+  const rank = (avgs: [string, number][]): R[] => {
+    const rows: R[] = avgs.map(([id, avg]) => ({ id, avg, rank: 0 }))
+    assignRanks([...rows], (r) => r.avg, (r, n) => { r.rank = n })
+    return rows
+  }
+
+  // §7 — ties share a rank and the NEXT rank skips: 1,2,2,4 (never 1,2,2,3).
+  const tied = rank([['a', 9], ['b', 8], ['c', 8], ['d', 7]])
+  check('ties share a rank and the next rank skips (1,2,2,4)',
+    tied.map(r => r.rank).join(',') === '1,2,2,4',
+    tied.map(r => `${r.id}:${r.rank}`).join(' '))
+
+  const allTied = rank([['a', 8], ['b', 8], ['c', 8]])
+  check('a whole class tied all share rank 1',
+    allTied.every(r => r.rank === 1))
+
+  // §19 — a pupil with no marks has average null, weighed as 0 by the ranking
+  // pass. The report prints no rank for them and sorts them last; what it must
+  // never do is treat the missing mark as a zero *score* inside the average.
+  const unmarkedLast = rank([['a', 7], ['b', 0], ['c', 9]])
+  check('an unmarked pupil (average 0) ranks below every marked one',
+    unmarkedLast.find(r => r.id === 'b')!.rank === 3)
+
+  // The average itself: a missing subject drops out with its coefficient
+  // rather than counting as zero — `studentAverage`'s documented rule, and
+  // what makes the report agree with /score/total.
+  const scheme = DEFAULT_SCHEME_CONFIG
+  const maxes = { a: 10, b: 10, c: 10 }
+  const partial = studentAverage({ a: 8, b: 6 }, ['a', 'b', 'c'], maxes, scheme)
+  check('a missing subject is skipped, not counted as zero',
+    partial.average === 7, `got ${partial.average}`)
+  check('and only the marked subjects count toward the total',
+    partial.total === 14 && partial.scored === 2)
+
+  const none = studentAverage({}, ['a', 'b'], maxes, scheme)
+  check('a pupil with nothing marked has a null average, never 0.00',
+    none.average === null, String(none.average))
+}
+
+// ---------------------------------------------------------------------------
+console.log('\nranking_monthly document (§24.7-14)')
+{
+  const buf = await readFile(RANKING_TEMPLATE)
+  const tpl = new ExcelJS.Workbook()
+  await tpl.xlsx.load(buf as unknown as ArrayBuffer)
+  const tplWs = tpl.worksheets[0]
+
+  const RANK_SUBJECT_COL = 4
+
+  /** A ranking payload the resolver would produce: rank order, ties preserved. */
+  const rankingPayload = (subjectCount: number, pupils: number): ReportPayload => {
+    const subs = Array.from({ length: subjectCount }, (_, i) => ({
+      key: `k${i}`, label: `មុខវិជ្ជា${i + 1}`, maxScore: 10,
+    }))
+    return {
+      scalars: {
+        'school.name': 'សាលាបឋមសិក្សា ហ៊ុនសែន',
+        'class.name': '៤ក', 'class.grade': '៤', 'class.count': String(pupils),
+        'class.average': 7.5, 'class.scored': String(pupils),
+        'class.passed': String(pupils), 'class.failed': '០', 'class.passmark': '៥',
+        'period.label': 'ខែវិច្ឆិកា ឆ្នាំសិក្សា 2025-2026',
+        'teacher.name': 'លោកគ្រូ សុភា', 'director.role': 'នាយកសាលា',
+        'director.name': 'លោក វិចិត្រ', 'province.date': 'ភ្នំពេញ',
+      },
+      subjects: subs,
+      rows: Array.from({ length: pupils }, (_, i) => ({
+        values: {
+          'row.rank': String(i + 1), 'row.name': `សិស្ស${i + 1}`, 'row.gender': 'ប្រុស',
+          'row.total': 40 - i, 'row.average': Number((9 - i * 0.5).toFixed(2)),
+          'row.grade': 'ល្អ', 'row.status': 'ជាប់',
+        },
+        subjectValues: subs.map((_, s) => 8 - ((i + s) % 3)),
+      })),
+    }
+  }
+
+  // §24.12 — multiple subjects
+  const many = await fillXlsxTemplate(buf, rankingPayload(6, 5))
+  const mw = new ExcelJS.Workbook()
+  await mw.xlsx.load(many as unknown as ArrayBuffer)
+  const ws = mw.worksheets[0]
+
+  check('six subject columns expand (§24.8)',
+    ws.getRow(7).getCell(RANK_SUBJECT_COL + 5).value === 'មុខវិជ្ជា៦'.replace('៦', '6'),
+    String(ws.getRow(7).getCell(RANK_SUBJECT_COL + 5).value))
+  check('the tail columns shifted with the region',
+    ws.getRow(7).getCell(RANK_SUBJECT_COL + 6).value === 'ពិន្ទុសរុប',
+    String(ws.getRow(7).getCell(RANK_SUBJECT_COL + 6).value))
+  check('five pupil rows expand (§24.9)',
+    ws.getRow(12).getCell(2).value === 'សិស្ស5',
+    String(ws.getRow(12).getCell(2).value))
+  check('rank leads the row', ws.getRow(8).getCell(1).value === '1')
+  check('status closes the row',
+    ws.getRow(8).getCell(RANK_SUBJECT_COL + 9).value === 'ជាប់',
+    String(ws.getRow(8).getCell(RANK_SUBJECT_COL + 9).value))
+  check('a mark stays numeric so the column sums',
+    typeof ws.getRow(8).getCell(RANK_SUBJECT_COL).value === 'number')
+  check('no token survives (§24.13)', (() => {
+    let leftover: string | null = null
+    ws.eachRow({ includeEmpty: false }, (r) => {
+      r.eachCell({ includeEmpty: false }, (c) => {
+        const v = typeof c.value === 'string' ? c.value : ''
+        if (v.includes('{{')) leftover = v
+      })
+    })
+    return leftover === null
+  })())
+
+  // The class-statistics band must survive the row expansion and still fill.
+  const statsRow = (() => {
+    for (let r = 1; r <= ws.rowCount; r++) {
+      if (String(ws.getRow(r).getCell(1).value ?? '').includes('សិស្សមានពិន្ទុ')) return r
+    }
+    return -1
+  })()
+  check('the class statistics band survived and filled',
+    statsRow > 0 && String(ws.getRow(statsRow).getCell(1).value).includes('ជាប់'))
+  check('and its merge survived expansion (§24.14)',
+    statsRow > 0 && ws.getRow(statsRow).getCell(1).isMerged)
+
+  // §24.13 — formatting round trip
+  check('page setup survived', ws.pageSetup.orientation === 'landscape')
+  check('print titles survived', ws.pageSetup.printTitlesRow === '7:7')
+  check('letterhead merge widened with the table',
+    (ws as unknown as { model?: { merges?: string[] } }).model?.merges?.some(
+      m => m.startsWith('A1:') && m !== 'A1:H1') === true)
+  check('cloned subject header keeps its rotation',
+    ws.getRow(7).getCell(RANK_SUBJECT_COL + 3).alignment?.textRotation === 90)
+  check('duplicated rows keep their borders',
+    ws.getRow(12).getCell(2).border?.left?.style === 'thin')
+  check('column widths kept',
+    ws.getColumn(2).width === tplWs.getColumn(2).width)
+
+  // §24.11 — a single subject must not widen anything
+  const one = await fillXlsxTemplate(buf, rankingPayload(1, 2))
+  const ow = new ExcelJS.Workbook()
+  await ow.xlsx.load(one as unknown as ArrayBuffer)
+  check('a single-subject class keeps the original width (§24.11)',
+    ow.worksheets[0].getRow(7).getCell(RANK_SUBJECT_COL + 1).value === 'ពិន្ទុសរុប')
+
+  // §24.10 — an empty class still yields a usable sheet
+  const empty = await fillXlsxTemplate(buf, {
+    ...rankingPayload(3, 0), rows: [],
+  })
+  const ew = new ExcelJS.Workbook()
+  await ew.xlsx.load(empty as unknown as ArrayBuffer)
+  check('an empty class still yields a usable sheet (§24.10)',
+    ew.worksheets[0].getRow(7).getCell(RANK_SUBJECT_COL).value === 'មុខវិជ្ជា1')
+  check('and leaves no row marker behind',
+    !String(ew.worksheets[0].getRow(8).getCell(1).value ?? '').includes('#rows'))
+}
+
+// ---------------------------------------------------------------------------
+console.log('\nranking_semester — catalogue and availability (§24.1-4/13-14)')
+{
+  const def = byTypeGlobal('ranking_semester')
+  check('ranking_semester is in the catalogue', def.category === 'ranking')
+  check('and declares a resolver', def.resolver === true)
+  check('its period selector is the semester', def.period === 'semester')
+
+  const avail = reportAvailability(def)
+  check('with an active template it is engine_ready', avail.status === 'engine_ready', avail.status)
+  check('and offers generation, not the legacy screen', avail.action === 'generate')
+  check('template version is recorded',
+    avail.template?.id === 'ranking_semester_v1' && avail.template?.version === 1)
+  check('provenance is derived, never claimed official',
+    avail.template?.provenance === 'derived')
+  check('the legacy /ranking route is preserved', def.legacyHref === '/ranking')
+
+  const orphan = reportAvailability({ ...def, type: 'ranking_annual' })
+  check('no active template means not engine_ready',
+    orphan.status === 'needs_template' && orphan.action !== 'generate', orphan.status)
+}
+
+// ---------------------------------------------------------------------------
+console.log('\nsemester calculation — the canonical definition (§8/§23)')
+{
+  // §23: this IS /score/total's formula. `ScoreTotalClient` calls the same
+  // `semesterAverage`, so these assertions pin both surfaces at once. If the
+  // screen ever diverges, it diverges from this and the test fails.
+  check('A. fully marked: mean of the two halves',
+    semesterAverage(8, 6) === 7)
+  check('B/C/D. a missing SUBJECT is handled inside each half, not here',
+    semesterAverage(7.5, 7.5) === 7.5)
+  check('E. nothing recorded at all is null, never 0',
+    semesterAverage(null, null) === null)
+  // The asymmetry inherited from /score/total, asserted so it cannot drift.
+  check('F. no monthly component halves the exam mark (product definition)',
+    semesterAverage(8, null) === 4)
+  check('G. no exam halves the coursework the same way',
+    semesterAverage(null, 8) === 4)
+  check('H. coefficient schemes need no special case — both halves arrive scaled',
+    semesterAverage(40, 30) === 35)
+
+  // The month split — the bug this phase fixed.
+  const s1 = monthsForSemester('sem1')
+  const s2 = monthsForSemester('sem2')
+  check('semester 1 is វិច្ឆិកា–មីនា',
+    s1.join(',') === 'nov,dec,jan,feb,mar', s1.join(','))
+  check('semester 2 is the REST of the academic year, not nov–mar again',
+    s2.join(',') === 'apr,may,jun,jul,aug,sep,oct', s2.join(','))
+  check('the two halves do not overlap', s1.every(m => !s2.includes(m)))
+  check('together they cover the whole academic year', s1.length + s2.length === 12)
+
+  // The monthly half skips months with no marks rather than zeroing them.
+  check('the monthly component averages only months that have marks',
+    monthlyComponent({ nov: 8, dec: 6 }, s1) === 7)
+  check('a month with no marks is skipped, not counted as zero',
+    monthlyComponent({ nov: 8 }, s1) === 8)
+  check('no monthly marks at all yields null, not 0',
+    monthlyComponent({}, s1) === null)
+  check('months outside the semester are ignored',
+    monthlyComponent({ nov: 8, jul: 2 }, s1) === 8)
+
+  check('semester ids are validated', isSemesterId('sem1') && !isSemesterId('sem3'))
+  check('labels are Khmer', semesterLabel('sem2') === 'ឆមាសទី២')
+}
+
+// ---------------------------------------------------------------------------
+console.log('\nsemester ranking — ties and unmarked pupils (§24.7-9)')
+{
+  type R = { id: string; avg: number | null; rank: number }
+  const rank = (rows: R[]) => {
+    assignRanks([...rows], r => r.avg ?? 0, (r, n) => { r.rank = n })
+    return rows
+  }
+
+  // A: high. B and C: same semester average from DIFFERENT halves (§8.J).
+  // D: nothing recorded.
+  const a = { id: 'A', avg: semesterAverage(9, 9), rank: 0 }
+  const b = { id: 'B', avg: semesterAverage(8, 6), rank: 0 }   // 7
+  const c = { id: 'C', avg: semesterAverage(6, 8), rank: 0 }   // 7
+  const d = { id: 'D', avg: semesterAverage(null, null), rank: 0 }
+  rank([a, b, c, d])
+
+  check('B and C reach the same average from different halves',
+    b.avg === 7 && c.avg === 7)
+  check('A ranks 1', a.rank === 1)
+  check('B and C share rank 2', b.rank === 2 && c.rank === 2)
+  check('the next rank SKIPS to 4 — competition, not dense (§9)',
+    d.rank === 4, `got ${d.rank}`)
+  check('the unmarked pupil keeps a null average', d.avg === null)
+}
+
+// ---------------------------------------------------------------------------
+console.log('\nranking_semester document (§24.10-15/§25/§26)')
+{
+  const buf = await readFile('lib/reporting/templates/ranking_semester_v1.xlsx')
+  const tpl = new ExcelJS.Workbook()
+  await tpl.xlsx.load(buf as unknown as ArrayBuffer)
+  const tplWs = tpl.worksheets[0]
+  const SC = 4   // the subject anchor column
+
+  const payload = (subjectCount: number, pupils: number): ReportPayload => {
+    const subs = Array.from({ length: subjectCount }, (_, i) => ({
+      key: `k${i}`, label: `មុខវិជ្ជា${i + 1}`, maxScore: 10,
+    }))
+    return {
+      scalars: {
+        'school.name': 'សាលាតេស្ត', 'class.name': '៤ក', 'class.grade': '៤',
+        'class.count': String(pupils), 'class.average': 7,
+        'period.label': 'ឆមាសទី១ ឆ្នាំសិក្សា 2025-2026',
+        'class.scored': String(pupils), 'class.passed': String(pupils),
+        'class.failed': '០', 'class.passmark': '៥', 'class.months': '៥',
+        'teacher.name': 'គ្រូ ក', 'director.role': 'នាយកសាលា',
+        'director.name': 'លោក ខ', 'province.date': 'ភ្នំពេញ',
+      },
+      subjects: subs,
+      rows: Array.from({ length: pupils }, (_, i) => ({
+        values: {
+          'row.rank': String(i + 1), 'row.name': `សិស្ស${i + 1}`, 'row.gender': 'ប្រុស',
+          'row.exam': 8 - i, 'row.monthly': 7 - i,
+          'row.average': Number(((8 - i + 7 - i) / 2).toFixed(2)),
+          'row.grade': 'ល្អ', 'row.status': 'ជាប់',
+        },
+        subjectValues: subs.map((_, s) => 8 - ((i + s) % 3)),
+      })),
+    }
+  }
+
+  // §24.10 multiple subjects, §24.11 row expansion
+  const out = await fillXlsxTemplate(buf, payload(6, 5))
+  const wb = new ExcelJS.Workbook(); await wb.xlsx.load(out as unknown as ArrayBuffer)
+  const ws = wb.worksheets[0]
+
+  check('six subject columns expand', ws.getRow(7).getCell(SC + 5).value === 'មុខវិជ្ជា6',
+    String(ws.getRow(7).getCell(SC + 5).value))
+  check('the tail shifted with the region',
+    ws.getRow(7).getCell(SC + 6).value === 'ម.ភាគប្រឡង',
+    String(ws.getRow(7).getCell(SC + 6).value))
+  check('five pupil rows expand', ws.getRow(12).getCell(2).value === 'សិស្ស5')
+  check('both halves are printed, so the average is auditable',
+    ws.getRow(8).getCell(SC + 6).value === 8 && ws.getRow(8).getCell(SC + 7).value === 7)
+  check('the semester average is numeric', typeof ws.getRow(8).getCell(SC + 8).value === 'number')
+  check('no token survives', (() => {
+    let bad: string | null = null
+    ws.eachRow({ includeEmpty: false }, r => r.eachCell({ includeEmpty: false }, c => {
+      const v = typeof c.value === 'string' ? c.value : ''
+      if (v.includes('{{')) bad = v
+    }))
+    return bad === null
+  })())
+
+  // §24.12 / §25 — formatting round trip
+  check('page setup survived', ws.pageSetup.orientation === 'landscape')
+  check('fit-to-width survived', ws.pageSetup.fitToWidth === 1)
+  check('margins survived', ws.pageSetup.margins?.left === 0.4)
+  check('print titles survived', ws.pageSetup.printTitlesRow === '7:7')
+  check('letterhead merge widened with the table',
+    (ws as unknown as { model?: { merges?: string[] } }).model?.merges?.some(
+      m => m.startsWith('A1:') && m !== 'A1:I1') === true)
+  check('cloned subject header keeps its rotation',
+    ws.getRow(7).getCell(SC + 3).alignment?.textRotation === 90)
+  check('cloned subject column keeps its width',
+    ws.getColumn(SC + 3).width === tplWs.getColumn(SC).width)
+  check('duplicated rows keep their borders',
+    ws.getRow(12).getCell(2).border?.left?.style === 'thin')
+  check('column widths kept', ws.getColumn(2).width === tplWs.getColumn(2).width)
+
+  const statsRow = (() => {
+    for (let r = 1; r <= ws.rowCount; r++) {
+      if (String(ws.getRow(r).getCell(1).value ?? '').includes('សិស្សមានពិន្ទុ')) return r
+    }
+    return -1
+  })()
+  check('the statistics band survived and filled',
+    statsRow > 0 && String(ws.getRow(statsRow).getCell(1).value).includes('គិតលើ'))
+  check('and its merge survived expansion', statsRow > 0 && ws.getRow(statsRow).getCell(1).isMerged)
+
+  // §26 — edges
+  const single = await fillXlsxTemplate(buf, payload(1, 1))
+  const sw = new ExcelJS.Workbook(); await sw.xlsx.load(single as unknown as ArrayBuffer)
+  check('a single subject does not widen the region',
+    sw.worksheets[0].getRow(7).getCell(SC + 1).value === 'ម.ភាគប្រឡង')
+  check('a single pupil renders', sw.worksheets[0].getRow(8).getCell(2).value === 'សិស្ស1')
+
+  const empty = await fillXlsxTemplate(buf, { ...payload(3, 0), rows: [] })
+  const ew = new ExcelJS.Workbook(); await ew.xlsx.load(empty as unknown as ArrayBuffer)
+  check('an empty class still yields a usable sheet',
+    ew.worksheets[0].getRow(7).getCell(SC).value === 'មុខវិជ្ជា1')
+  check('and leaves no row marker behind',
+    !String(ew.worksheets[0].getRow(8).getCell(1).value ?? '').includes('#rows'))
+
+  const noSubjects = await fillXlsxTemplate(buf, {
+    ...payload(0, 1), subjects: [],
+    rows: [{ values: { 'row.name': 'ក' }, subjectValues: [] }],
+  })
+  const nw = new ExcelJS.Workbook(); await nw.xlsx.load(noSubjects as unknown as ArrayBuffer)
+  check('no configured subjects still produces a document',
+    nw.worksheets[0].getRow(8).getCell(2).value === 'ក')
+}
+
+// ---------------------------------------------------------------------------
+console.log('\nhonor — catalogue and availability (§21.1-4)')
+{
+  const def = byTypeGlobal('honor')
+  check('honor is in the catalogue', def.category === 'honor')
+  check('and declares a resolver', def.resolver === true)
+  check('its output is XLSX through the engine', def.formats.includes('xlsx'))
+
+  const avail = reportAvailability(def)
+  check('with an active template it is engine_ready', avail.status === 'engine_ready', avail.status)
+  check('and offers generation', avail.action === 'generate')
+  check('template version is recorded',
+    avail.template?.id === 'honor_v1' && avail.template?.version === 1)
+  check('provenance is derived, never claimed official (§25)',
+    avail.template?.provenance === 'derived')
+  check('the legacy /honor-roll route is preserved (§16)', def.legacyHref === '/honor-roll')
+
+  const orphan = reportAvailability({ ...def, type: 'ranking_annual' })
+  check('no active template means not engine_ready',
+    orphan.status === 'needs_template' && orphan.action !== 'generate', orphan.status)
+}
+
+// ---------------------------------------------------------------------------
+console.log('\nhonor criteria — derived from the scheme, not invented (§6/§21.6)')
+{
+  const primary = defaultHonorCriteria(DEFAULT_SCHEME_CONFIG)
+  const secondary = defaultHonorCriteria(SECONDARY_SCHEME_CONFIG)
+
+  check('the criteria are marked provisional', HONOR_CRITERIA_PROVENANCE === 'derived')
+  check('primary threshold is the scheme\'s ល្អ band (8/10), not a constant',
+    primary.minAverage === 8, String(primary.minAverage))
+  check('secondary threshold scales with ITS scheme (40/50) automatically',
+    secondary.minAverage === 40, String(secondary.minAverage))
+  check('the threshold is read from the scheme, so the two differ',
+    primary.minAverage !== secondary.minAverage)
+  check('no-failing-subject is on by default', primary.noFailingSubject === true)
+  check('the rule is stated in Khmer for the document',
+    primary.label.includes('៨') || primary.label.includes('8'))
+}
+
+// ---------------------------------------------------------------------------
+console.log('\nhonor eligibility and boundaries (§19/§21.7-8)')
+{
+  const scheme = DEFAULT_SCHEME_CONFIG          // /10, pass 5
+  const criteria = defaultHonorCriteria(scheme) // minAverage 8
+  const keys = ['a', 'b']
+  const maxes = { a: 10, b: 10 }
+  const judge = (average: number | null, scores: Record<string, number | string | null>) =>
+    evaluateHonor({ average, scores, subjectKeys: keys, maxByColumn: maxes }, criteria, scheme)
+
+  // §19 — X - epsilon, X, X + epsilon around the average threshold.
+  check('X - ε (7.99) is NOT eligible', judge(7.99, { a: 8, b: 8 }).eligible === false)
+  check('X exactly (8.00) IS eligible — the boundary is inclusive',
+    judge(8, { a: 8, b: 8 }).eligible === true)
+  check('X + ε (8.01) is eligible', judge(8.01, { a: 8, b: 8 }).eligible === true)
+
+  // The reason must be answerable to a parent.
+  check('a near-miss says why', judge(7.99, { a: 8, b: 8 }).reason?.includes('មធ្យមភាគ') === true)
+
+  // A failing subject disqualifies regardless of the average (§2 — criteria,
+  // not position: a high average cannot buy past a failed subject).
+  const withFail = judge(9, { a: 10, b: 4 })
+  check('a high average with a FAILING subject is not eligible', withFail.eligible === false)
+  check('and the failing subject is named', withFail.failingSubjects.includes('b'))
+  check('the pass boundary is inclusive too — exactly 5 does not fail',
+    judge(9, { a: 10, b: 5 }).eligible === true)
+  check('just below the pass mark does fail', judge(9, { a: 10, b: 4.99 }).eligible === false)
+
+  // A subject on its own scale: /100 marked 45 fails a half-way pass.
+  const bigScale = evaluateHonor(
+    { average: 9, scores: { a: 9, b: 45 }, subjectKeys: keys, maxByColumn: { a: 10, b: 100 } },
+    criteria, scheme)
+  check('a subject is judged against ITS OWN full mark, not the scheme scale',
+    bigScale.eligible === false && bigScale.failingSubjects.includes('b'))
+
+  // Missing data.
+  check('an unmarked pupil is not eligible', judge(null, {}).eligible === false)
+  check('and the reason says so', judge(null, {}).reason === 'មិនទាន់មានពិន្ទុ')
+  check('a pupil with no marked subjects is not eligible',
+    judge(9, {}).eligible === false)
+  check('an unmarked SUBJECT is skipped, not treated as a fail',
+    judge(9, { a: 9, b: null }).eligible === true)
+  check('marked subjects are counted', judge(9, { a: 9, b: 9 }).markedSubjects === 2)
+
+  // §2 — honour is not "top N": a whole class can qualify, or none.
+  const all = [9, 9.5, 8.2, 8].map(avg => judge(avg, { a: avg, b: avg }))
+  check('a strong class can ALL be honoured — not capped at five',
+    all.every(v => v.eligible))
+  const none = [7, 6, 5].map(avg => judge(avg, { a: avg, b: avg }))
+  check('a weak class honours NOBODY — unlike a top-N rule',
+    none.every(v => !v.eligible))
+}
+
+// ---------------------------------------------------------------------------
+console.log('\nhonor document (§21.9-12/§13)')
+{
+  const buf = await readFile('lib/reporting/templates/honor_v1.xlsx')
+  const tpl = new ExcelJS.Workbook()
+  await tpl.xlsx.load(buf as unknown as ArrayBuffer)
+  const tplWs = tpl.worksheets[0]
+  const SC = 4
+  const HEADER_ROW = 8
+  const FIRST_ROW = 9
+
+  const payload = (subjectCount: number, honoured: number): ReportPayload => {
+    const subs = Array.from({ length: subjectCount }, (_, i) => ({
+      key: `k${i}`, label: `មុខវិជ្ជា${i + 1}`, maxScore: 10,
+    }))
+    return {
+      scalars: {
+        'school.name': 'សាលាតេស្ត', 'class.name': '៤ក', 'class.grade': '៤',
+        'period.label': 'ខែវិច្ឆិកា', 'honor.count': String(honoured),
+        'honor.total': '៣២', 'honor.average': 8.8,
+        'honor.criteria': 'មធ្យមភាគចាប់ពី 8 ឡើងទៅ និងគ្មានមុខវិជ្ជាណាធ្លាក់',
+        'honor.provenance': 'លក្ខណៈវិនិច្ឆ័យបណ្ដោះអាសន្ន — មិនមែនផ្លូវការពីក្រសួងទេ',
+        'teacher.name': 'គ្រូ ក', 'director.role': 'នាយកសាលា',
+        'director.name': 'លោក ខ', 'province.date': 'ភ្នំពេញ',
+      },
+      subjects: subs,
+      rows: Array.from({ length: honoured }, (_, i) => ({
+        values: {
+          'row.no': String(i + 1), 'row.name': `សិស្ស${i + 1}`, 'row.gender': 'ស្រី',
+          'row.average': Number((9.5 - i * 0.1).toFixed(2)),
+          'row.grade': 'ល្អណាស់', 'row.rank': String(i + 1),
+        },
+        subjectValues: subs.map(() => 9),
+      })),
+    }
+  }
+
+  // §13 — variable length: 20 honourees.
+  const many = await fillXlsxTemplate(buf, payload(4, 20))
+  const mw = new ExcelJS.Workbook(); await mw.xlsx.load(many as unknown as ArrayBuffer)
+  const ws = mw.worksheets[0]
+
+  check('twenty honoured pupils expand to twenty rows',
+    ws.getRow(FIRST_ROW + 19).getCell(2).value === 'សិស្ស20',
+    String(ws.getRow(FIRST_ROW + 19).getCell(2).value))
+  check('four subject columns expand',
+    ws.getRow(HEADER_ROW).getCell(SC + 3).value === 'មុខវិជ្ជា4')
+  check('the tail shifted with the region',
+    ws.getRow(HEADER_ROW).getCell(SC + 4).value === 'មធ្យមភាគ',
+    String(ws.getRow(HEADER_ROW).getCell(SC + 4).value))
+  check('the average is numeric', typeof ws.getRow(FIRST_ROW).getCell(SC + 4).value === 'number')
+
+  // The disclaimer must reach the paper (§25).
+  check('the criteria line is printed on the sheet',
+    String(ws.getCell('A6').value).includes('មធ្យមភាគចាប់ពី'))
+  check('and the non-official warning is printed too',
+    String(ws.getCell('A7').value).includes('មិនមែនផ្លូវការ'),
+    String(ws.getCell('A7').value))
+
+  check('no token survives', (() => {
+    let bad: string | null = null
+    ws.eachRow({ includeEmpty: false }, r => r.eachCell({ includeEmpty: false }, c => {
+      const v = typeof c.value === 'string' ? c.value : ''
+      if (v.includes('{{')) bad = v
+    }))
+    return bad === null
+  })())
+
+  // §21.12 — formatting round trip. Portrait here, unlike the ranking sheets.
+  check('page setup survived and is PORTRAIT', ws.pageSetup.orientation === 'portrait')
+  check('fit-to-width survived', ws.pageSetup.fitToWidth === 1)
+  check('print titles survived', ws.pageSetup.printTitlesRow === '8:8')
+  check('the title merge widened with the table',
+    (ws as unknown as { model?: { merges?: string[] } }).model?.merges?.some(
+      m => m.startsWith('A4:') && m !== 'A4:G4') === true)
+  check('header fill survived', ws.getRow(HEADER_ROW).getCell(1).fill?.type === 'pattern')
+  check('cloned subject header keeps its rotation',
+    ws.getRow(HEADER_ROW).getCell(SC + 2).alignment?.textRotation === 90)
+  check('duplicated rows keep their borders',
+    ws.getRow(FIRST_ROW + 19).getCell(2).border?.left?.style === 'thin')
+  check('column widths kept', ws.getColumn(2).width === tplWs.getColumn(2).width)
+
+  // §13 — nobody qualified. The sheet must still print, saying so.
+  const empty = await fillXlsxTemplate(buf, { ...payload(3, 0), rows: [] })
+  const ew = new ExcelJS.Workbook(); await ew.xlsx.load(empty as unknown as ArrayBuffer)
+  check('zero honourees still yields a usable sheet',
+    ew.worksheets[0].getRow(HEADER_ROW).getCell(SC).value === 'មុខវិជ្ជា1')
+  check('and leaves no row marker behind',
+    !String(ew.worksheets[0].getRow(FIRST_ROW).getCell(1).value ?? '').includes('#rows'))
+
+  const one = await fillXlsxTemplate(buf, payload(1, 1))
+  const ow = new ExcelJS.Workbook(); await ow.xlsx.load(one as unknown as ArrayBuffer)
+  check('a single honouree with a single subject renders',
+    ow.worksheets[0].getRow(FIRST_ROW).getCell(2).value === 'សិស្ស1')
 }
 
 if (failures > 0) {
