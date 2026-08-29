@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  CalendarDays, CalendarOff, CalendarPlus, Info, Loader2, Lock, Merge,
-  MoveDown, MoveUp, RotateCcw, Save, Split,
+  CalendarDays, CalendarOff, CalendarPlus, Info, Loader2, Lock, LockOpen,
+  Merge, MoveDown, MoveUp, RotateCcw, Save, Split,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/actions/Button'
@@ -20,7 +20,9 @@ import { deriveLabel, validateCalendar, type ScorePeriod } from '@/lib/scores/ca
 import { useScoreCalendar } from '@/lib/hooks/useScoreCalendar'
 import {
   countScoresForMonths, getCalendarEditAccess, resetClassCalendar, saveClassCalendar,
+  setPeriodLock,
 } from './calendarActions'
+import { useUserRole } from '@/lib/rbac/useUserRole'
 
 /**
  * វគ្គពិន្ទុ — the class's score-period calendar, as a timeline.
@@ -65,6 +67,9 @@ const signature = (periods: readonly ScorePeriod[]) =>
 export function ScoreCalendarSection({ classId }: { classId: string | null }) {
   const { calendar, academicYear, configured, loading, reload } = useScoreCalendar()
   const { confirm, dialog } = useConfirm()
+  // Unlocking is admin-only (§11.8): a lock a teacher can quietly remove is
+  // not a lock. Rendering only — the server re-checks either way.
+  const { isAdmin } = useUserRole()
 
   const [draft, setDraft] = useState<ScorePeriod[] | null>(null)
   const [selectedKey, setSelectedKey] = useState<MonthId | null>(null)
@@ -255,6 +260,49 @@ export function ScoreCalendarSection({ classId }: { classId: string | null }) {
     ])
     setSelectedKey(monthId)
   }, [working, sem1End, apply])
+
+  /**
+   * Lock or unlock the selected period — a direct write, not a draft edit,
+   * so it is disabled while a draft is dirty (a lock must stamp the calendar
+   * that is actually stored). Locking closes the period to score writes;
+   * unlocking is offered to admins only, and both directions are audited.
+   */
+  const toggleLock = useCallback(async (period: ScorePeriod) => {
+    const locking = !period.locked
+    const ok = await confirm(locking
+      ? {
+          title: `ចាក់សោ ${period.labelKm}`,
+          message:
+            'បន្ទាប់ពីចាក់សោ ពិន្ទុក្នុងវគ្គនេះមើលបានតែប៉ុណ្ណោះ — ការកែ ការរួម ' +
+            'ឬការផ្លាស់ទីវគ្គនឹងត្រូវបដិសេធ រហូតដល់អ្នកគ្រប់គ្រងសាលាដោះសោ។',
+          tone: 'warning' as const,
+          confirmLabel: 'ចាក់សោ',
+        }
+      : {
+          title: `ដោះសោ ${period.labelKm}`,
+          message:
+            'ការដោះសោបើកការកែពិន្ទុក្នុងវគ្គនេះឡើងវិញ។ ក្រដាសដែលបានបោះពុម្ពរួច ' +
+            'អាចលែងត្រូវនឹងទិន្នន័យ។ ការដោះសោត្រូវបានកត់ត្រាក្នុងបញ្ជីសកម្មភាព។',
+          tone: 'danger' as const,
+          confirmLabel: 'ដោះសោ',
+        })
+    if (!ok) return
+
+    setSaving(true)
+    try {
+      const res = await setPeriodLock(academicYear, period.key, locking, classId ?? undefined)
+      if (res.error) {
+        notify.error(res.error)
+        return
+      }
+      await reload()
+      // The stored calendar changed under any (clean) draft — rebuild from it.
+      setDraft(null)
+      notify.success(locking ? `បានចាក់សោ ${period.labelKm}` : `បានដោះសោ ${period.labelKm}`)
+    } finally {
+      setSaving(false)
+    }
+  }, [confirm, academicYear, classId, reload])
 
   // ----------------------------------------------------------- dates dialog
 
@@ -463,6 +511,24 @@ export function ScoreCalendarSection({ classId }: { classId: string | null }) {
           >
             <CalendarOff className="h-3.5 w-3.5" aria-hidden="true" /> បិទវគ្គនេះ
           </Button>
+          {!selected.locked ? (
+            <Button
+              size="sm" variant="secondary" printHidden={false}
+              disabled={saving || dirty}
+              title={dirty ? 'សូមរក្សាទុកការកែជាមុនសិន' : undefined}
+              onClick={() => toggleLock(selected)}
+            >
+              <Lock className="h-3.5 w-3.5" aria-hidden="true" /> ចាក់សោ
+            </Button>
+          ) : isAdmin && (
+            <Button
+              size="sm" variant="secondary" printHidden={false}
+              disabled={saving || dirty}
+              onClick={() => toggleLock(selected)}
+            >
+              <LockOpen className="h-3.5 w-3.5" aria-hidden="true" /> ដោះសោ
+            </Button>
+          )}
         </div>
       )}
 

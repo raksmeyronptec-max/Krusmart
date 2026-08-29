@@ -48,6 +48,11 @@ export interface ScoreEntryListProps {
    * and lands on /50; under the default it is the plain /10 mean, unchanged.
    */
   scheme?: GradingSchemeConfig
+  /**
+   * A locked period (§11.8): every field disabled. The server refuses the
+   * write regardless — this only makes the state visible.
+   */
+  readOnly?: boolean
 }
 
 export function ScoreEntryList({
@@ -59,6 +64,7 @@ export function ScoreEntryList({
   rowNumbers,
   maxScoreFor = () => 10,
   scheme = DEFAULT_SCHEME_CONFIG,
+  readOnly = false,
 }: ScoreEntryListProps) {
   const containerRef = useRef<HTMLUListElement>(null)
   const single = columns.length === 1
@@ -138,6 +144,7 @@ export function ScoreEntryList({
                           value={String(raw)}
                           onChange={(v) => onChange(stu.id, col.id, v)}
                           options={col.options ?? []}
+                          disabled={readOnly}
                           placeholder="—"
                           ariaLabel={`${col.label} សម្រាប់ ${stu.name_kh || stu.name_en}`}
                           wrapperClassName={single ? 'w-44' : 'w-32'}
@@ -153,6 +160,7 @@ export function ScoreEntryList({
                           placeholder="—"
                           aria-label={`ពិន្ទុសម្រាប់ ${stu.name_kh || stu.name_en}${single ? '' : ` — ${col.label}`}`}
                           value={raw as string | number}
+                          disabled={readOnly}
                           onChange={(e) => onChange(stu.id, col.id, e.target.value)}
                           // A copy out of Excel carries a trailing tab or
                           // newline, which a number input silently rejects —

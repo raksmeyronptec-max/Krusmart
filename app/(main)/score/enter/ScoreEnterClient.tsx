@@ -6,7 +6,8 @@ import { useSearchParams } from 'next/navigation'
 import {
     CalendarCheck, Award, CalendarDays, Bookmark, Clock, BookOpen, FolderPlus,
     Mic, UserCheck, Book, Home, Save, Table2, Loader2, Search, Rows3, Grid3x3,
-    CopyPlus, Users, ListChecks, Gauge, Sparkles, RotateCcw, Check, X, SlidersHorizontal,
+    CopyPlus, Users, ListChecks, Gauge, Sparkles, RotateCcw, Check, X,
+    SlidersHorizontal, Lock,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/actions/Button'
@@ -167,6 +168,13 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
         [calendar, selectedMonth],
     )
     const month = activePeriod?.key ?? selectedMonth
+
+    /**
+     * A locked period (§11.8) renders read-only. The UI is a courtesy — the
+     * boundary is `saveScores`, which refuses the write however it is called.
+     * Only monthly periods lock; the semester grid is untouched.
+     */
+    const periodLocked = scoreType === 'monthly' && (activePeriod?.locked ?? false)
 
     const scorePeriod = scoreType === 'monthly' ? `${month}-${academicYear}` : `${semester}-${academicYear}`
 
@@ -380,6 +388,10 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
     useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current) }, [])
 
     const handleScoreChange = useCallback((studentId: string, columnId: string, value: string) => {
+        // Every edit path flows through here — typing, paste, the selects —
+        // so one guard covers them all. Bulk fill and copy write directly and
+        // have their buttons disabled instead.
+        if (periodLocked) return
         // The input's `max` attribute validates but does not filter — typing 11
         // in a /10 cell still delivers '11' here, so the cell snaps to 10 now.
         // Khmer ratings pass through the clamp untouched.
@@ -399,7 +411,7 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
             return next
         })
         scheduleAutoSave()
-    }, [scheduleAutoSave, maxScoreFor])
+    }, [scheduleAutoSave, maxScoreFor, periodLocked])
 
     const dirty = pendingCells.size > 0
 
@@ -428,6 +440,10 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
     }, [autoSave, confirm, flushPending])
 
     const handleSave = useCallback(async () => {
+        if (periodLocked) {
+            notify.error('វគ្គនេះបានចាក់សោ — មិនអាចរក្សាទុកពិន្ទុបានទេ')
+            return
+        }
         setSaving(true)
         if (timerRef.current) clearTimeout(timerRef.current)
         const res = await persist()
@@ -436,7 +452,7 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
             setLiveMessage('បានរក្សាទុកពិន្ទុទាំងអស់')
         }
         setSaving(false)
-    }, [persist, initialStudents.length])
+    }, [persist, initialStudents.length, periodLocked])
 
     // Ctrl/Cmd+S saves without reaching for the mouse — the one shortcut a
     // teacher mid-entry is likely to already know.
@@ -915,7 +931,7 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
                             variant="secondary"
                             printHidden={false}
                             loading={copying}
-                            disabled={!previousPeriod || !hasColumns}
+                            disabled={!previousPeriod || !hasColumns || periodLocked}
                             onClick={copyFromPreviousMonth}
                             title={previousPeriod
                                 ? `ចម្លងពីខែ${previousPeriod.labelKm}`
@@ -929,7 +945,7 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
                         size="sm"
                         variant="secondary"
                         printHidden={false}
-                        disabled={!hasColumns || !hasStudents}
+                        disabled={!hasColumns || !hasStudents || periodLocked}
                         onClick={openBulk}
                     >
                         <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> ផ្តល់ពិន្ទុដូចគ្នា
@@ -986,6 +1002,17 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
                     </div>
                 )}
             </div>
+
+            {/* ---------------------------------------------------- locked note */}
+            {periodLocked && (
+                <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-warning/40 bg-warning/10 p-3 text-sm text-text-body">
+                    <Lock className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
+                    <span>
+                        <span className="font-bold">វគ្គ{activePeriod?.labelKm ?? ''} បានចាក់សោ</span> — ពិន្ទុមើលបានតែប៉ុណ្ណោះ។
+                        ការដោះសោធ្វើដោយអ្នកគ្រប់គ្រងសាលា នៅ មុខវិជ្ជាតាមថ្នាក់ → វគ្គពិន្ទុ។
+                    </span>
+                </div>
+            )}
 
             {/* -------------------------------------------- quick monthly jump */}
             {scoreType === 'monthly' && (
@@ -1097,6 +1124,7 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
                             rowNumbers={rowNumbers}
                             maxScoreFor={maxScoreFor}
                             scheme={scheme}
+                            readOnly={periodLocked}
                         />
                     </div>
                     <div className="lg:hidden">
@@ -1109,6 +1137,7 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
                             rowNumbers={rowNumbers}
                             maxScoreFor={maxScoreFor}
                             scheme={scheme}
+                            readOnly={periodLocked}
                         />
                     </div>
                 </>
@@ -1122,6 +1151,7 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
                     rowNumbers={rowNumbers}
                     maxScoreFor={maxScoreFor}
                     scheme={scheme}
+                    readOnly={periodLocked}
                 />
             )}
 
@@ -1187,6 +1217,7 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
                         printHidden={false}
                         onClick={handleSave}
                         loading={saving}
+                        disabled={periodLocked}
                         icon={<Save className="h-5 w-5" />}
                     >
                         រក្សាទុកពិន្ទុ

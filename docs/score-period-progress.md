@@ -241,7 +241,7 @@ accounts ever do overlap in time, phases in different lanes share no files.
       what the read-only grid needs. Build, lint, all four verify scripts
       green.
 
-- [ ] **P6 · Lane B — Period locking**
+- [x] **P6 · Lane B — Period locking**
       **Needs:** P3, P4, P5b
       **Files:** `app/(main)/score/enter/ScoreEnterClient.tsx`,
       `app/(main)/score/enter/actions.ts`,
@@ -254,6 +254,23 @@ accounts ever do overlap in time, phases in different lanes share no files.
       enough until several teachers really share one class, and a policy on the
       score write path costs on every upsert. Record that trade-off in the
       header comment.
+      **Notes:** The trade-off is recorded in `score/enter/actions.ts`'s
+      header, as instructed. `saveScores` matches the lock by *membership*,
+      not key — a direct write to an absorbed month (`apr` inside a locked
+      merged mar-apr) is refused too; only monthly periods lock (semester /
+      annual / homework periods never parse as a month). Locking follows the
+      P4 calendar-edit gate (homeroom + admin); unlocking is `isSchoolAdmin`
+      only, per the brief — a self-serve owner unlocks their own class, which
+      is right because there is no one else. First lock on an inherited
+      calendar *materialises* the resolved calendar as class rows with the
+      lock applied (resolution unchanged — the copy is what was resolving).
+      Lock/unlock are direct writes, disabled while the draft is dirty, and
+      audited as `score_calendar.locked`/`unlocked`. Entry views gained a
+      `readOnly` prop (cells disabled); `handleScoreChange` is the choke
+      point for typing/paste/selects, bulk & copy buttons are disabled, and
+      the banner names where to unlock. ⚠ Browser acceptance still needs a
+      running stack with 00029 applied (the P3/P4 Docker blocker). Build,
+      lint, all four verify scripts green. **All eight phases complete.**
 
 ---
 

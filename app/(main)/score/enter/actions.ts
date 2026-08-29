@@ -4,10 +4,22 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { ActionResult, Score, ScoreInput } from '@/lib/types'
 import { logger } from '@/lib/utils/logger'
-import { resolveServerScope, rosterIdsForScope, resolveServerGradingContext } from '@/lib/utils/serverScope'
+import {
+    fetchScoreCalendar, resolveServerScope, rosterIdsForScope, resolveServerGradingContext,
+} from '@/lib/utils/serverScope'
 import { auditLogBatch } from '@/lib/audit/log'
 import { clampScoreCell, splitScoreCell } from '@/lib/utils/score-value'
+import { isMonthId } from '@/lib/constants/months'
 import type { TemplateScoreType } from '@/lib/scores/template'
+
+/**
+ * Period locking (§11.8) is enforced HERE, not in RLS. A policy on `scores`
+ * that consulted `score_calendar_periods` would be the strongest wall, but it
+ * prices a subquery into every upsert on the app's hottest write path, and
+ * this action is the only writer the app has. The trade-off is deliberate:
+ * the server check suffices until several teachers genuinely share one class
+ * — write the RLS policy the day direct-PostgREST writes matter.
+ */
 
 /**
  * `classId` is optional and mirrors `saveScores` below: omitted, the scope
@@ -68,6 +80,25 @@ export async function saveScores(scoreType: string, scorePeriod: string, scoresD
     const scopeCols = scope.mode === 'v2'
         ? { class_id: scope.classId, academic_year_id: scope.academicYearId }
         : {}
+
+    // A locked period refuses the write — the UI's read-only grid is not the
+    // boundary, this is (see the module header for the RLS trade-off). Only
+    // monthly periods lock: their `score_period` is `<monthId>-<year>`, so a
+    // semester ('sem1-…'), annual or homework period never parses as a month.
+    // Matching by MEMBERSHIP, not key, so a direct write to an absorbed month
+    // ('apr' inside a locked merged mar-apr) is refused too.
+    if (scoreType === 'monthly') {
+        const sep = scorePeriod.indexOf('-')
+        const monthId = sep > 0 ? scorePeriod.slice(0, sep) : ''
+        const year = sep > 0 ? scorePeriod.slice(sep + 1) : ''
+        if (isMonthId(monthId) && year !== '') {
+            const calendar = await fetchScoreCalendar(scope, year)
+            const period = calendar.find(p => p.members.includes(monthId))
+            if (period?.locked) {
+                return { error: `វគ្គ ${period.labelKm} បានចាក់សោ — មិនអាចកែពិន្ទុបានទេ` }
+            }
+        }
+    }
 
     // The clamp's server half: the client snaps 11 to 10 as it is typed, but a
     // direct call to this action is the real boundary. The maximum comes from

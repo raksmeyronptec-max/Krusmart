@@ -45,6 +45,11 @@ export interface ScoreEntryGridProps {
    * and lands on /50; under the default it is the plain /10 mean, unchanged.
    */
   scheme?: GradingSchemeConfig
+  /**
+   * A locked period (§11.8): every cell disabled. The server refuses the
+   * write regardless — this only makes the state visible.
+   */
+  readOnly?: boolean
 }
 
 export function ScoreEntryGrid({
@@ -56,6 +61,7 @@ export function ScoreEntryGrid({
   rowNumbers,
   maxScoreFor = () => 10,
   scheme = DEFAULT_SCHEME_CONFIG,
+  readOnly = false,
 }: ScoreEntryGridProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -139,6 +145,7 @@ export function ScoreEntryGrid({
                         <select
                           aria-label={label}
                           value={String(raw)}
+                          disabled={readOnly}
                           onChange={(e) => onChange(stu.id, col.id, e.target.value)}
                           onKeyDown={(e) => handleCellKeyDown(e, scrollRef.current, students.length)}
                           {...cellAttrs(rowIndex, colIndex)}
@@ -160,6 +167,7 @@ export function ScoreEntryGrid({
                           placeholder="—"
                           aria-label={`ពិន្ទុសម្រាប់ ${stu.name_kh || stu.name_en} — ${col.label}`}
                           value={raw as string | number}
+                          disabled={readOnly}
                           onChange={(e) => onChange(stu.id, col.id, e.target.value)}
                           // A copy out of Excel carries a trailing tab or
                           // newline, which a number input silently rejects —

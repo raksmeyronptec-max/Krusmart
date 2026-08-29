@@ -8,7 +8,7 @@ import { classContext } from './classContext'
 import { getUserRoles } from '@/lib/rbac/server'
 import { isSchoolAdmin } from '@/lib/rbac/permissions'
 import {
-  resolveClassTeachingRole, resolveServerScope, rosterIdsForScope,
+  fetchScoreCalendar, resolveClassTeachingRole, resolveServerScope, rosterIdsForScope,
 } from '@/lib/utils/serverScope'
 import { deriveLabel, validateCalendar, type ScorePeriod } from '@/lib/scores/calendar'
 import { MONTHS_BY_ACADEMIC_YEAR, isMonthId, type MonthId } from '@/lib/constants/months'
@@ -320,6 +320,105 @@ export async function resetClassCalendar(
 
   revalidatePath('/score/enter')
   revalidatePath('/score/total')
+  revalidatePath('/score/subjects')
+  return { success: true }
+}
+
+/**
+ * Lock or unlock one period — the score counterpart `attendance_locks` has
+ * had since 00003. A locked period accepts no score writes (`saveScores`
+ * refuses), cannot be merged, split, moved or reset (`saveClassCalendar` and
+ * `resetClassCalendar` refuse), and shows a read-only grid.
+ *
+ * LOCKING follows the calendar-edit gate (homeroom teacher or school admin).
+ * UNLOCKING is `isSchoolAdmin` only (§11.8): a lock a teacher can quietly
+ * remove is not a lock. A self-serve teacher owns their organisation and so
+ * holds the admin role — they can unlock their own class, which is right,
+ * because there is no one else. Every lock AND unlock is audited.
+ *
+ * A class still on the inherited calendar has no rows to stamp, so the first
+ * lock materialises the resolved calendar as class rows (the same
+ * copy-on-write shape a save writes) with the lock applied — resolution is
+ * unchanged because the copy IS what was resolving.
+ */
+export async function setPeriodLock(
+  academicYear: string,
+  monthKey: MonthId,
+  locked: boolean,
+  classId?: string,
+): Promise<ActionResult> {
+  const gate = await calendarEditContext(classId)
+  if ('error' in gate) return { error: gate.error }
+  if (!ACADEMIC_YEAR_RE.test(academicYear)) return { error: 'ឆ្នាំសិក្សាមិនត្រឹមត្រូវ' }
+  if (!isMonthId(monthKey)) return { error: 'វគ្គមិនត្រឹមត្រូវ' }
+
+  if (!locked) {
+    const roles = await getUserRoles()
+    if (roles === null || !isSchoolAdmin(roles.roles)) {
+      return { error: 'មានតែអ្នកគ្រប់គ្រងសាលាប៉ុណ្ណោះ ដែលអាចដោះសោវគ្គបានទេ' }
+    }
+  }
+
+  const supabase = await createClient()
+  const stamp = locked
+    ? { locked_at: new Date().toISOString(), locked_by: gate.userId }
+    : { locked_at: null, locked_by: null }
+
+  const before = await fetchClassRows(gate.classId, academicYear)
+
+  if (before.length === 0) {
+    if (!locked) return { success: true } // nothing stored, nothing locked
+    const scope = await resolveServerScope(gate.userId, gate.classId)
+    const calendar = await fetchScoreCalendar(scope, academicYear)
+    const target = calendar.find((p) => p.key === monthKey)
+    if (!target) return { error: 'វគ្គនេះមិនមានក្នុងប្រតិទិនទេ' }
+
+    const { error } = await supabase.from('score_calendar_periods').insert(
+      calendar.map((p) => ({
+        scope: 'class' as const,
+        class_id: gate.classId,
+        academic_year: academicYear,
+        month_key: p.key,
+        member_months: p.members,
+        label_km: null,
+        semester: p.semester,
+        starts_on: p.startsOn,
+        ends_on: p.endsOn,
+        ...(p.key === monthKey ? stamp : { locked_at: null, locked_by: null }),
+        sort_order: p.sortOrder,
+      })),
+    )
+    if (error) {
+      logger.error(error)
+      return { error: error.message }
+    }
+  } else {
+    const row = before.find((r) => r.month_key === monthKey)
+    if (!row) return { error: 'វគ្គនេះមិនមានក្នុងប្រតិទិនទេ' }
+    if (locked && row.locked_at !== null) return { success: true }
+    if (!locked && row.locked_at === null) return { success: true }
+
+    const { error } = await supabase
+      .from('score_calendar_periods')
+      .update({ ...stamp, updated_at: new Date().toISOString() })
+      .eq('id', row.id)
+    if (error) {
+      logger.error(error)
+      return { error: error.message }
+    }
+  }
+
+  // A lock that can be removed silently is not a lock — both directions land
+  // in the trail, with who and when.
+  await auditLog({
+    action: locked ? 'score_calendar.locked' : 'score_calendar.unlocked',
+    entityType: 'score_calendar',
+    entityId: gate.classId,
+    metadata: { academic_year: academicYear, month_key: monthKey },
+    actorId: gate.userId,
+  })
+
+  revalidatePath('/score/enter')
   revalidatePath('/score/subjects')
   return { success: true }
 }
