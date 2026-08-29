@@ -218,14 +218,28 @@ accounts ever do overlap in time, phases in different lanes share no files.
       seed computation replicated verbatim against `monthlyComponent` on a
       merged calendar. Build, lint, all four verify scripts green.
 
-- [ ] **P5b · Lane B — Calendar into the entry picker**
+- [x] **P5b · Lane B — Calendar into the entry picker**
       **Needs:** P2, P3
       **Files:** `app/(main)/score/enter/ScoreEnterClient.tsx`
       **Accepts:** the month picker lists periods by `labelKm` with
       `ScorePeriod.key` as the value, so `scorePeriod` at `:146` is unchanged
       in shape; the default comes from `periodForDate` instead of the hardcoded
       `'nov'` at `:101`; an absorbed month no longer appears as a choice.
-      **Notes:**
+      **Notes:** `month` became a *derived* value over new `selectedMonth`
+      state — the same pattern as `subject`/`selectedSubject` in the same file
+      — so a stale `?month=` naming an absorbed month resolves to the
+      absorbing period's anchor, and downstream (`scorePeriod`, the URL sync,
+      the header label) needed no shape change. The default seeds from
+      `periodForDate(DEFAULT_CALENDAR, today)` (the class's calendar arrives
+      async; the derivation re-maps once it lands); a month in no period falls
+      back to today's period. One consumer beyond the brief:
+      `previousMonth` → `previousPeriod` — "ចម្លងពីខែមុន" now walks the
+      calendar, because after a merge ឧសភា's predecessor is the merged period
+      whose marks live under its anchor; walking `MONTHS_BY_ACADEMIC_YEAR`
+      would have read the absorbed month's hidden cells. P6 note: the entry
+      screen now has `activePeriod` in scope, whose `locked` flag is exactly
+      what the read-only grid needs. Build, lint, all four verify scripts
+      green.
 
 - [ ] **P6 · Lane B — Period locking**
       **Needs:** P3, P4, P5b

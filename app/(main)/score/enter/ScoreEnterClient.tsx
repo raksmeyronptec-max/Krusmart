@@ -29,9 +29,9 @@ import { formatMark, letterOrDash, numericCell, styleFor } from '@/lib/utils/sco
 import { levelByKey, trackLabel } from '@/lib/onboarding/curriculum'
 import { coefficientAverage, coefficientOf, simpleAverage, DEFAULT_SCHEME_CONFIG } from '@/lib/grading/scheme'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
-import {
-    ACADEMIC_MONTH_OPTIONS_BY_ID, MONTHS_BY_ACADEMIC_YEAR, MONTH_LABEL_BY_ID,
-} from '@/lib/constants/months'
+import type { MonthId } from '@/lib/constants/months'
+import { DEFAULT_CALENDAR, periodForDate } from '@/lib/scores/calendar'
+import { useScoreCalendar } from '@/lib/hooks/useScoreCalendar'
 import { getCurrentAcademicYear } from '@/lib/constants/academic'
 import { allColumnsFor, subjectConfigs, subjectTitle } from './subjectConfigs'
 import { useScoreTemplate } from '@/lib/hooks/useScoreTemplate'
@@ -98,7 +98,14 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
     // November. The picker still offers the neighbouring years either side.
     const [academicYear, setAcademicYear] = useState(() => searchParams.get('year') || getCurrentAcademicYear())
     const [semester, setSemester] = useState(() => searchParams.get('semester') || 'sem1')
-    const [month, setMonth] = useState(() => searchParams.get('month') || 'nov')
+    // Was a fixed 'nov': a teacher opening the screen in July was silently on
+    // last November. The default now follows today's date through the calendar
+    // (INV-4) — still overridden by ?month= from a bookmark or កែពិន្ទុ. Seeded
+    // from the default calendar because the class's own arrives async; the
+    // derivation below re-maps once it does.
+    const [selectedMonth, setSelectedMonth] = useState(
+        () => searchParams.get('month') || periodForDate(DEFAULT_CALENDAR, new Date())?.key || 'nov',
+    )
     const [selectedSubject, setSubject] = useState(() => searchParams.get('subject') || 'math_general')
 
     const [view, setView] = useState<ViewMode>('grid')
@@ -142,6 +149,24 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
     // The configuration screen is a server component, so the class it should
     // open on has to travel in the URL — client state cannot reach it.
     const { classId: activeClassId } = useActiveClass()
+
+    /**
+     * The class's period calendar (00029). The month picker offers its periods
+     * — an absorbed month (មេសា after a មីនា-មេសា merge) is no longer a choice,
+     * and a stale `?month=` naming one resolves to the period that absorbed
+     * it, whose anchor is where those marks store (INV-1). A month in no
+     * period at all falls back to today's period. Derived, not synced state —
+     * the same pattern as `subject` below.
+     */
+    const { calendar } = useScoreCalendar()
+    const activePeriod = useMemo(
+        () =>
+            calendar.find((p) => p.key === selectedMonth)
+            ?? calendar.find((p) => p.members.includes(selectedMonth as MonthId))
+            ?? periodForDate(calendar, new Date()),
+        [calendar, selectedMonth],
+    )
+    const month = activePeriod?.key ?? selectedMonth
 
     const scorePeriod = scoreType === 'monthly' ? `${month}-${academicYear}` : `${semester}-${academicYear}`
 
@@ -466,13 +491,17 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
         }
     }, [cols, initialStudents, scoresData, maxScoreFor, scheme])
 
-    // ------------------------------------------------------ copy last month
+    // ----------------------------------------------------- copy last period
 
-    const previousMonth = useMemo(() => {
+    // The previous PERIOD on the class's calendar, not the previous calendar
+    // month: after a មីនា-មេសា merge, ឧសភា's predecessor is that merged period
+    // and its marks live under the anchor 'mar' — walking MONTHS_BY_ACADEMIC_YEAR
+    // would read the absorbed month's hidden cells instead.
+    const previousPeriod = useMemo(() => {
         if (scoreType !== 'monthly') return null
-        const index = MONTHS_BY_ACADEMIC_YEAR.findIndex(m => m.id === month)
-        return index > 0 ? MONTHS_BY_ACADEMIC_YEAR[index - 1] : null
-    }, [scoreType, month])
+        const index = calendar.findIndex(p => p.key === month)
+        return index > 0 ? calendar[index - 1] : null
+    }, [scoreType, month, calendar])
 
     const [copying, setCopying] = useState(false)
 
@@ -485,10 +514,10 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
      * auto-save picks the cells up, which is why they all enter the pending set.
      */
     const copyFromPreviousMonth = useCallback(async () => {
-        if (!previousMonth) return
+        if (!previousPeriod) return
         setCopying(true)
         try {
-            const records = await getScores('monthly', `${previousMonth.id}-${academicYear}`)
+            const records = await getScores('monthly', `${previousPeriod.key}-${academicYear}`)
             const wanted = new Set(cols.map(c => c.id))
             const next = { ...scoresRef.current }
             let filled = 0
@@ -509,7 +538,7 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
             }
 
             if (filled === 0) {
-                notify.info(`គ្មានពិន្ទុពី${MONTH_LABEL_BY_ID[previousMonth.id] ?? previousMonth.label}ដែលអាចចម្លងបាន`)
+                notify.info(`គ្មានពិន្ទុពី${previousPeriod.labelKm}ដែលអាចចម្លងបាន`)
                 return
             }
 
@@ -521,7 +550,7 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
         } finally {
             setCopying(false)
         }
-    }, [previousMonth, academicYear, cols, scheduleAutoSave, maxScoreFor])
+    }, [previousPeriod, academicYear, cols, scheduleAutoSave, maxScoreFor])
 
     // ------------------------------------------------------------ bulk assign
 
@@ -623,7 +652,7 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
     // ----------------------------------------------------------------- render
 
     const periodLabel = scoreType === 'monthly'
-        ? `ខែ${MONTH_LABEL_BY_ID[month] ?? month}`
+        ? `ខែ${activePeriod?.labelKm ?? month}`
         : semester === 'sem1' ? 'ឆមាសទី១' : 'ឆមាសទី២'
 
     const modeDescription = `បញ្ចូល${scoreType === 'monthly' ? 'ពិន្ទុប្រចាំខែ' : 'ពិន្ទុប្រចាំឆមាស'}សម្រាប់មុខវិជ្ជា${subjectTitle(subject)} ${periodLabel} ឆ្នាំសិក្សា ${academicYear}`
@@ -831,10 +860,14 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
 
                     {scoreType === 'monthly' ? (
                         <Select
-                            ariaLabel="ខែ"
+                            ariaLabel="វគ្គពិន្ទុ"
                             value={month}
-                            onChange={(v) => switchTo(() => setMonth(v))}
-                            options={ACADEMIC_MONTH_OPTIONS_BY_ID}
+                            onChange={(v) => switchTo(() => setSelectedMonth(v))}
+                            // The class's periods, labels included: a merged
+                            // period reads "មីនា-មេសា" and its absorbed month
+                            // is not offered. The value stays the anchor key,
+                            // so scorePeriod keeps its shape (INV-1).
+                            options={calendar.map((p) => ({ value: p.key, label: p.labelKm }))}
                             leadingIcon={<Clock />}
                         />
                     ) : (
@@ -882,11 +915,11 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
                             variant="secondary"
                             printHidden={false}
                             loading={copying}
-                            disabled={!previousMonth || !hasColumns}
+                            disabled={!previousPeriod || !hasColumns}
                             onClick={copyFromPreviousMonth}
-                            title={previousMonth
-                                ? `ចម្លងពីខែ${MONTH_LABEL_BY_ID[previousMonth.id] ?? previousMonth.label}`
-                                : 'ខែនេះជាខែដំបូងនៃឆ្នាំសិក្សា'}
+                            title={previousPeriod
+                                ? `ចម្លងពីខែ${previousPeriod.labelKm}`
+                                : 'វគ្គនេះជាវគ្គដំបូងនៃឆ្នាំសិក្សា'}
                         >
                             <CopyPlus className="h-3.5 w-3.5" aria-hidden="true" /> ចម្លងពីខែមុន
                         </Button>
