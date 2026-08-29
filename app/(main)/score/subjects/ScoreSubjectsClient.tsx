@@ -3,8 +3,8 @@
 import { useCallback, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
-  ArrowDown, ArrowUp, AlertTriangle, Eye, EyeOff, Info, Loader2,
-  Pencil, Plus, RotateCcw, SlidersHorizontal, Table2,
+  ArrowDown, ArrowUp, AlertTriangle, Eye, EyeOff, Info, Loader2, ListChecks,
+  Pencil, Plus, RotateCcw, SlidersHorizontal, Sparkles, Table2, Trash2,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/actions/Button'
@@ -23,11 +23,18 @@ import {
   coefficientFor, resolveTemplateEditor,
   type EditableSubject, type TemplateContext, type TemplateScoreType,
 } from '@/lib/scores/template'
+import { isTeacherAddedSubject, type ClassSubjectSelection } from '@/lib/scores/selection'
 import type { ScoreTemplateSubjectRow } from '@/lib/types'
 import {
   addClassSubject, getClassTemplateRows, resetClassTemplate,
   swapClassSubjectOrder, updateClassSubject,
 } from './actions'
+import {
+  addTemplateSubjects, listClassSelection, removeTemplateSubject,
+  setSubjectComponents, swapSelectionOrder,
+} from './selectionActions'
+import { CurriculumPicker } from './CurriculumPicker'
+import { ComponentPicker } from './ComponentPicker'
 
 /**
  * មុខវិជ្ជាតាមថ្នាក់ — the class layer of the score template.
@@ -74,31 +81,76 @@ const SCORE_TYPES: { id: TemplateScoreType; label: string }[] = [
 
 export default function ScoreSubjectsClient({
   initialRows,
+  initialSelection,
   templateContext,
   classId,
   className,
 }: {
   initialRows: ScoreTemplateSubjectRow[]
+  /** The class's chosen subjects (00028). Empty when it has not configured any. */
+  initialSelection: ClassSubjectSelection[]
   /** The class's curriculum context; resolution filters by it (00021). */
   templateContext: TemplateContext | null
   classId: string | null
   className: string
 }) {
   const [rows, setRows] = useState(initialRows)
+  const [selection, setSelection] = useState(initialSelection)
   const [scoreType, setScoreType] = useState<TemplateScoreType>('monthly')
   const [busyKey, setBusyKey] = useState<string | null>(null)
   const { confirm, dialog } = useConfirm()
 
-  const subjects = useMemo(
+  /** Every subject the class's curriculum defines for this grid. */
+  const curriculum = useMemo(
     () => resolveTemplateEditor(rows, scoreType, templateContext),
     [rows, scoreType, templateContext],
   )
 
+  const selectionByKey = useMemo(
+    () => new Map(selection.map((s) => [s.subjectKey, s])),
+    [selection],
+  )
+
+  /**
+   * Has this class chosen its subjects for *this* grid?
+   *
+   * Per score type, not per class: a teacher who configured their monthly
+   * subjects and has not opened the semester tab yet must not find it empty.
+   * Same predicate `applySelection` uses, so the editor and the score grid can
+   * never disagree about which world a class is in.
+   */
+  const configured = useMemo(
+    () => curriculum.some((s) => selectionByKey.has(s.subjectKey)),
+    [curriculum, selectionByKey],
+  )
+
+  /**
+   * The list on screen.
+   *
+   * Configured: the class's own template, in the teacher's order. Not yet
+   * configured: the whole curriculum, exactly as this page behaved before
+   * 00028 — an account that never opens the picker loses nothing.
+   */
+  const subjects = useMemo(() => {
+    if (!configured) return curriculum
+    return curriculum
+      .filter((s) => selectionByKey.has(s.subjectKey))
+      .sort((a, b) => {
+        const oa = selectionByKey.get(a.subjectKey)?.sortOrder ?? 0
+        const ob = selectionByKey.get(b.subjectKey)?.sortOrder ?? 0
+        return oa - ob || a.subjectKey.localeCompare(b.subjectKey)
+      })
+  }, [curriculum, configured, selectionByKey])
+
   const refresh = useCallback(async () => {
-    const next = await getClassTemplateRows(classId ?? undefined)
+    const [next, nextSelection] = await Promise.all([
+      getClassTemplateRows(classId ?? undefined),
+      listClassSelection(classId ?? undefined),
+    ])
     // The system layer always has rows, so an empty result means the read
     // failed. Keeping what we had beats blanking a list the teacher is editing.
     if (next.length > 0) setRows(next)
+    setSelection(nextSelection)
   }, [classId])
 
   /** Run a write, report it in Khmer, and re-read the list it changed. */
@@ -203,6 +255,68 @@ export default function ScoreSubjectsClient({
     }
   }
 
+  // ------------------------------------------------- curriculum selection
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [componentsFor, setComponentsFor] = useState<EditableSubject | null>(null)
+
+  /**
+   * The curriculum offered to the picker.
+   *
+   * Hidden subjects are excluded: a teacher who hid ភូមិវិទ្យា should not be
+   * offered it back in the same breath. The definition-layer "unhide" button is
+   * how that decision is reversed.
+   */
+  const pickable = useMemo(
+    () => curriculum.filter((s) => !s.hidden).map((s) => s.effective),
+    [curriculum],
+  )
+
+  const addFromCurriculum = async (subjectKeys: string[]) =>
+    run('picker', () => addTemplateSubjects(subjectKeys, classId ?? undefined), 'បានបន្ថែមមុខវិជ្ជា')
+
+  const saveComponents = async (columnIds: string[]) => {
+    if (!componentsFor) return false
+    return run(
+      componentsFor.subjectKey,
+      () => setSubjectComponents(componentsFor.subjectKey, columnIds, classId ?? undefined),
+      'បានរក្សាទុកផ្នែករង',
+    )
+  }
+
+  /**
+   * Take a subject out of the class's template.
+   *
+   * Confirmed, and the copy leads with what is *not* deleted: removing a
+   * subject a class has already been marking is the one action here that a
+   * teacher could reasonably fear loses data, and it does not.
+   */
+  const removeFromTemplate = async (subject: EditableSubject) => {
+    const ok = await confirm({
+      title: 'ដកចេញពី Template',
+      message:
+        `«${subject.effective.labelKm}» នឹងលែងបង្ហាញក្នុងតារាងបញ្ចូលពិន្ទុសម្រាប់ថ្នាក់នេះ។ ` +
+        'ពិន្ទុដែលបានបញ្ចូលរួចមិនត្រូវបានលុបទេ — វានៅតែបង្ហាញក្នុងតារាងសរុប និងរបាយការណ៍ ' +
+        'ហើយអ្នកអាចបន្ថែមមុខវិជ្ជានេះមកវិញបានគ្រប់ពេល។',
+      tone: 'danger',
+      confirmLabel: 'ដកចេញ',
+    })
+    if (!ok) return
+
+    await run(
+      subject.subjectKey,
+      () => removeTemplateSubject(subject.subjectKey, classId ?? undefined),
+      'បានដកចេញពី Template',
+    )
+  }
+
+  /** Reorder within the class's own template rather than the definition layer. */
+  const moveSelected = (subject: EditableSubject, neighbour: EditableSubject) =>
+    run(
+      subject.subjectKey,
+      () => swapSelectionOrder(subject.subjectKey, neighbour.subjectKey, classId ?? undefined),
+      'បានប្តូរលំដាប់',
+    )
+
   // ----------------------------------------------------------------- reset
   const doReset = async () => {
     const customised = rows.filter((r) => r.scope === 'class').length
@@ -300,6 +414,11 @@ export default function ScoreSubjectsClient({
         <span className="flex items-center gap-2 font-bold text-text-heading">
           <SlidersHorizontal className="h-4 w-4 text-brand" aria-hidden="true" />
           មុខវិជ្ជាកំពុងប្រើ {toKhmerNumber(visibleCount)}
+          {configured && (
+            <span className="font-normal text-text-muted">
+              ក្នុងចំណោម {toKhmerNumber(curriculum.length)}
+            </span>
+          )}
         </span>
         <span className="text-text-muted">
           បានកែ {toKhmerNumber(customisedCount)}
@@ -315,6 +434,31 @@ export default function ScoreSubjectsClient({
           មធ្យមភាគគិតដោយចែកនឹងចំនួនមុខវិជ្ជាដែលមានពិន្ទុ
         </span>
       </div>
+
+      {/*
+        Not configured yet: the class is showing the whole curriculum because it
+        has never chosen. Said out loud, with the way out — otherwise a teacher
+        reading thirty-four subjects has no idea the list is meant to be theirs.
+        A banner rather than a wall: this class may already have a year of marks
+        against the full list, and gating the page behind setup would break it.
+      */}
+      {!configured && curriculum.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-brand-400 bg-brand-100 p-3 dark:bg-brand-900/30">
+          <Sparkles className="h-5 w-5 shrink-0 text-brand" aria-hidden="true" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-text-heading">
+              ថ្នាក់នេះមិនទាន់បានជ្រើសរើសមុខវិជ្ជាដែលកំពុងបង្រៀនទេ
+            </p>
+            <p className="mt-0.5 text-xs text-text-muted">
+              ឥឡូវនេះកំពុងបង្ហាញមុខវិជ្ជាទាំងអស់ក្នុងកម្មវិធីសិក្សា។
+              ជ្រើសរើសតែមុខវិជ្ជាដែលអ្នកបង្រៀន ដើម្បីឲ្យតារាងបញ្ចូលពិន្ទុខ្លីជាងមុន។
+            </p>
+          </div>
+          <Button printHidden={false} onClick={() => setPickerOpen(true)} icon={<ListChecks className="h-4 w-4" />}>
+            ជ្រើសរើសមុខវិជ្ជា
+          </Button>
+        </div>
+      )}
 
       {/* ------------------------------------------------------------- list */}
       {subjects.length === 0 ? (
@@ -346,11 +490,17 @@ export default function ScoreSubjectsClient({
                       type="button"
                       disabled={index === 0 || busy}
                       onClick={() =>
-                        run(
-                          subject.subjectKey,
-                          () => swapClassSubjectOrder(subject.subjectKey, subjects[index - 1].subjectKey, classId ?? undefined),
-                          'បានប្តូរលំដាប់',
-                        )
+                        // Two order stores, and the right one depends on which
+                        // list is on screen: a configured class orders its own
+                        // template, an unconfigured one orders the definition
+                        // layer as this page always did.
+                        configured
+                          ? moveSelected(subject, subjects[index - 1])
+                          : run(
+                              subject.subjectKey,
+                              () => swapClassSubjectOrder(subject.subjectKey, subjects[index - 1].subjectKey, classId ?? undefined),
+                              'បានប្តូរលំដាប់',
+                            )
                       }
                       aria-label={`ផ្លាស់ទី ${subject.effective.labelKm} ឡើងលើ`}
                       className="flex h-8 w-9 items-center justify-center rounded-md border border-divider text-text-muted transition hover:border-brand-400 hover:text-brand disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
@@ -361,11 +511,13 @@ export default function ScoreSubjectsClient({
                       type="button"
                       disabled={index === subjects.length - 1 || busy}
                       onClick={() =>
-                        run(
-                          subject.subjectKey,
-                          () => swapClassSubjectOrder(subject.subjectKey, subjects[index + 1].subjectKey, classId ?? undefined),
-                          'បានប្តូរលំដាប់',
-                        )
+                        configured
+                          ? moveSelected(subject, subjects[index + 1])
+                          : run(
+                              subject.subjectKey,
+                              () => swapClassSubjectOrder(subject.subjectKey, subjects[index + 1].subjectKey, classId ?? undefined),
+                              'បានប្តូរលំដាប់',
+                            )
                       }
                       aria-label={`ផ្លាស់ទី ${subject.effective.labelKm} ចុះក្រោម`}
                       className="flex h-8 w-9 items-center justify-center rounded-md border border-divider text-text-muted transition hover:border-brand-400 hover:text-brand disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
@@ -378,10 +530,17 @@ export default function ScoreSubjectsClient({
                   <div className="min-w-0 flex-1">
                     <p className="flex flex-wrap items-center gap-2">
                       <span className="font-bold text-text-heading">{subject.effective.labelKm}</span>
-                      {subject.isClassOwn ? (
+                      {/*
+                        §10: teacher-added subjects must stay distinguishable
+                        from curriculum ones. The key prefix is what carries
+                        that provenance since 00027 merged the two stores —
+                        `isClassOwn` cannot, because a class row that merely
+                        *overrides* ភាសាខ្មែរ is still a national subject.
+                      */}
+                      {isTeacherAddedSubject(subject.subjectKey) || subject.isClassOwn ? (
                         <Badge variant="info" size="sm">គ្រូបន្ថែម</Badge>
                       ) : (
-                        <Badge variant="muted" size="sm">ប្រព័ន្ធ</Badge>
+                        <Badge variant="muted" size="sm">កម្មវិធីសិក្សា</Badge>
                       )}
                       {subject.override && !subject.isClassOwn && (
                         <Badge variant="warning" size="sm">បានកែ</Badge>
@@ -404,9 +563,18 @@ export default function ScoreSubjectsClient({
                           មេគុណ <span className="font-bold text-text-body tabular-nums">{coefficientFor(max)}</span>
                         </span>
                       )}
-                      {subject.effective.columns.length > 1 && (
-                        <span>ជួរឈរ {toKhmerNumber(subject.effective.columns.length)}</span>
-                      )}
+                      {subject.effective.columns.length > 1 && (() => {
+                        const picked = selectionByKey.get(subject.subjectKey)?.enabledColumns
+                        const total = subject.effective.columns.length
+                        return (
+                          <span>
+                            ជួរឈរ{' '}
+                            {picked && picked.length < total
+                              ? `${toKhmerNumber(picked.length)}/${toKhmerNumber(total)}`
+                              : toKhmerNumber(total)}
+                          </span>
+                        )
+                      })()}
                     </p>
                   </div>
 
@@ -432,6 +600,20 @@ export default function ScoreSubjectsClient({
                         <><EyeOff className="h-3.5 w-3.5" aria-hidden="true" /> លាក់</>
                       )}
                     </Button>
+                    {/* Components are a property of the class's choice, so the
+                        button only exists once the class has made one — and
+                        only for a subject that actually has more than one. */}
+                    {configured && subject.effective.columns.length > 1 && (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        printHidden={false}
+                        disabled={busy}
+                        onClick={() => setComponentsFor(subject)}
+                      >
+                        <ListChecks className="h-3.5 w-3.5" aria-hidden="true" /> ផ្នែករង
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="secondary"
@@ -441,6 +623,17 @@ export default function ScoreSubjectsClient({
                     >
                       <Pencil className="h-3.5 w-3.5" aria-hidden="true" /> កែ
                     </Button>
+                    {configured && (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        printHidden={false}
+                        disabled={busy}
+                        onClick={() => removeFromTemplate(subject)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" /> ដកចេញ
+                      </Button>
+                    )}
                   </div>
                 </div>
               </li>
@@ -451,17 +644,54 @@ export default function ScoreSubjectsClient({
 
       {/* ----------------------------------------------------------- footer */}
       <div className="mt-5 flex flex-wrap items-center gap-2">
+        {/*
+          Two buttons, and the order encodes the product rule (§7/§10): picking
+          from the curriculum is the primary action, inventing a subject is the
+          escape hatch beside it. One dialog cannot serve both — a free-text
+          field next to the curriculum list is exactly how a teacher ends up
+          hand-typing "ភាសាខ្មែរ" as a second, detached subject.
+        */}
         <Button
           printHidden={false}
-          onClick={() => { setNewScoreType(scoreType); setAddOpen(true) }}
+          onClick={() => setPickerOpen(true)}
           icon={<Plus className="h-4 w-4" />}
         >
           បន្ថែមមុខវិជ្ជា
+        </Button>
+        <Button
+          variant="secondary"
+          printHidden={false}
+          onClick={() => { setNewScoreType(scoreType); setAddOpen(true) }}
+          icon={<Sparkles className="h-4 w-4" />}
+        >
+          បង្កើតមុខវិជ្ជាផ្ទាល់ខ្លួន
         </Button>
         <Button variant="secondary" printHidden={false} onClick={doReset} disabled={busyKey === 'reset'}>
           <RotateCcw className="h-4 w-4" aria-hidden="true" /> ត្រឡប់ទៅលំនាំដើម
         </Button>
       </div>
+
+      {/* ------------------------------------------------ curriculum picker */}
+      <CurriculumPicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        subjects={pickable}
+        selection={selection}
+        onAdd={addFromCurriculum}
+        busy={busyKey === 'picker'}
+      />
+
+      {/* ------------------------------------------------- component picker */}
+      <ComponentPicker
+        open={componentsFor !== null}
+        onClose={() => setComponentsFor(null)}
+        subject={componentsFor?.effective ?? null}
+        enabledColumns={
+          componentsFor ? selectionByKey.get(componentsFor.subjectKey)?.enabledColumns ?? null : null
+        }
+        onSave={saveComponents}
+        busy={busyKey === componentsFor?.subjectKey}
+      />
 
       {/* ------------------------------------------------------ edit dialog */}
       <Dialog

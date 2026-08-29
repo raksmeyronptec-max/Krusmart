@@ -240,7 +240,15 @@ WITH probe(migration, what, present) AS (
            WHEN EXISTS (SELECT 1 FROM public.custom_subjects c
                          JOIN public.teacher_assignments a
                            ON a.teacher_id = c.teacher_id AND a.status='active') THEN false
-           ELSE NULL END)
+           ELSE NULL END),
+    -- 00028 seeds the primary curriculum and adds the class-selection table.
+    -- Both halves are probed: the table alone would read `present` on a
+    -- database where the seed had been rolled back, which is exactly the state
+    -- that leaves primary classes on the fourteen-subject picker.
+    ('00028 primary curriculum',   'system primary rows + class_template_subjects',
+      to_regclass('public.class_template_subjects') IS NOT NULL
+        AND EXISTS (SELECT 1 FROM public.score_template_subjects
+                     WHERE scope='system' AND level_key='primary'))
 )
 SELECT 'migration presence' AS section,
        migration,

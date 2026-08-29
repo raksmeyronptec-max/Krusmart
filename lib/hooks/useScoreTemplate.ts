@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { listScoreTemplateSubjects } from '@/app/(main)/score/template/actions'
 import { getClassTeachingRole } from '@/app/(main)/score/template/roleActions'
+import { listClassSelection } from '@/app/(main)/score/subjects/selectionActions'
 import type { ClassTeachingRole } from '@/lib/utils/serverScope'
 import { useActiveClass } from '@/lib/hooks/useActiveClass'
 import {
@@ -13,6 +14,11 @@ import {
   type TemplateContext,
   type TemplateScoreType,
 } from '@/lib/scores/template'
+import {
+  applySelection,
+  hasConfiguredSelection,
+  type ClassSubjectSelection,
+} from '@/lib/scores/selection'
 import { schemeForLevel } from '@/lib/grading/levelSchemes'
 import type { GradingSchemeConfig } from '@/lib/grading/scheme'
 import type { ScoreTemplateSubjectRow } from '@/lib/types'
@@ -39,6 +45,15 @@ export function useScoreTemplate(scoreType: TemplateScoreType): {
   subjects: EffectiveSubject[]
   /** The subset this teacher may enter marks for. Score entry uses this. */
   mySubjects: EffectiveSubject[]
+  /** The class's chosen subjects (00028). Empty when it has not configured any. */
+  selection: ClassSubjectSelection[]
+  /**
+   * Has this class configured the current score type's subject list?
+   *
+   * False drives the first-visit setup state on `/score/enter` (§12). It means
+   * "never configured", which is never the same as "teaches nothing".
+   */
+  configured: boolean
   rows: ScoreTemplateSubjectRow[]
   context: TemplateContext | null
   /**
@@ -68,16 +83,19 @@ export function useScoreTemplate(scoreType: TemplateScoreType): {
   const [role, setRole] = useState<ClassTeachingRole>({
     isHomeroom: false, subjectKeys: [], coversWholeClass: true,
   })
+  const [selection, setSelection] = useState<ClassSubjectSelection[]>([])
   const [loading, setLoading] = useState(true)
 
   const reload = useCallback(async () => {
-    const [next, nextRole] = await Promise.all([
+    const [next, nextRole, nextSelection] = await Promise.all([
       listScoreTemplateSubjects(classId ?? undefined),
       getClassTeachingRole(classId ?? undefined),
+      listClassSelection(classId ?? undefined),
     ])
     setRows(next.rows)
     setContext(next.context)
     setRole(nextRole)
+    setSelection(nextSelection)
   }, [classId])
 
   useEffect(() => {
@@ -92,14 +110,16 @@ export function useScoreTemplate(scoreType: TemplateScoreType): {
       try {
         // One round trip each, in parallel — the template and the role are
         // independent reads and neither blocks the other.
-        const [fetched, fetchedRole] = await Promise.all([
+        const [fetched, fetchedRole, fetchedSelection] = await Promise.all([
           listScoreTemplateSubjects(classId ?? undefined),
           getClassTeachingRole(classId ?? undefined),
+          listClassSelection(classId ?? undefined),
         ])
         if (!cancelled) {
           setRows(fetched.rows)
           setContext(fetched.context)
           setRole(fetchedRole)
+          setSelection(fetchedSelection)
         }
       } catch (e) {
         logger.error(e)
@@ -136,10 +156,26 @@ export function useScoreTemplate(scoreType: TemplateScoreType): {
    * education level.
    */
   const mySubjects = useMemo(() => {
-    if (role.coversWholeClass) return subjects
+    // Narrow to what the class teaches first. `applySelection` returns the full
+    // list untouched when the class has configured nothing, so an account that
+    // never opens the configuration screen keeps exactly today's picker.
+    const taught = applySelection(subjects, selection)
+    if (role.coversWholeClass) return taught
     const mine = new Set(role.subjectKeys)
-    return subjects.filter((s) => mine.has(s.subjectKey))
-  }, [subjects, role])
+    return taught.filter((s) => mine.has(s.subjectKey))
+  }, [subjects, role, selection])
+
+  /**
+   * Whether the class has configured *this* score type.
+   *
+   * Per score type, not per class: a teacher who set up their monthly subjects
+   * and has not yet opened the semester grid must not find it empty, so the
+   * semester grid keeps resolving the whole template until configured itself.
+   */
+  const configured = useMemo(
+    () => hasConfiguredSelection(subjects, selection),
+    [subjects, selection],
+  )
 
   // Scheme awareness rides on the *curriculum actually in effect*, not the
   // level alone: a grade-12 class whose track is unset falls back to the
@@ -152,7 +188,7 @@ export function useScoreTemplate(scoreType: TemplateScoreType): {
   )
 
   return {
-    subjects, mySubjects, rows, context, role, scheme, levelCurriculum,
-    loading: loading || classLoading, reload,
+    subjects, mySubjects, selection, configured, rows, context, role, scheme,
+    levelCurriculum, loading: loading || classLoading, reload,
   }
 }

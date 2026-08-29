@@ -153,6 +153,9 @@ export const NAV_SECTIONS: NavSection[] = [
           { label: "តារាងពិន្ទុសរុប", href: "/score/total", primary: true, alias: "total score table" },
           { label: "បញ្ចូលពិន្ទុ", href: "/score/enter", alias: "enter score" },
           { label: "មុខវិជ្ជាតាមថ្នាក់", href: "/score/subjects", alias: "subjects template class" },
+          // Redirects to /score/subjects — declared so the breadcrumb and the
+          // sidebar highlight resolve during the redirect rather than blanking.
+          { label: "មុខវិជ្ជាតាមថ្នាក់", href: "/score/template", hidden: true, alias: "score template" },
           { label: "ការប្រមូលពិន្ទុ", href: "/score/collect", alias: "collect completion subject teacher" },
           { label: "តារាងពិន្ទុ (ទម្រង់ក្រសួង)", href: "/score/print", alias: "score print moeys" },
           { label: "តារាងចំណាត់ថ្នាក់", href: "/ranking", alias: "ranking" },

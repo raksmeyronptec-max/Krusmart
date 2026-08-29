@@ -2,13 +2,10 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { requirePermission } from '@/lib/rbac/server'
 import { auditLog } from '@/lib/audit/log'
 import { logger } from '@/lib/utils/logger'
-import { getErrorMessage } from '@/lib/utils/errors'
-import { fetchScoreTemplate, resolveServerScope } from '@/lib/utils/serverScope'
+import { classContext } from './classContext'
 import {
-  filterRowsForContext,
   overrideDiffers,
   type OverridableFields,
   type SubjectColumn,
@@ -44,45 +41,6 @@ export interface SubjectPatch {
   max_score?: number
   hidden?: boolean
   sort_order?: number
-}
-
-interface ClassContext {
-  userId: string
-  classId: string
-  /**
-   * Already narrowed to this class's curriculum (level / grade / track,
-   * 00021). Without the narrowing, a grade-12 class would see two system rows
-   * per subject key — one per track — and `splitRows` could inherit from the
-   * wrong stream's full mark.
-   */
-  rows: ScoreTemplateSubjectRow[]
-}
-
-/**
- * Resolve the class being edited, or an error to show the teacher.
- *
- * A legacy account with no assignment has no class layer to write to — RLS
- * would reject the insert anyway, so the refusal is explained here in Khmer
- * rather than surfacing as an opaque failure.
- */
-async function classContext(classId?: string): Promise<ClassContext | { error: string }> {
-  try {
-    await requirePermission('scores:update')
-  } catch (e) {
-    return { error: getErrorMessage(e) }
-  }
-
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'សូមចូលគណនីជាមុនសិន' }
-
-  const scope = await resolveServerScope(user.id, classId)
-  if (scope.mode !== 'v2') {
-    return { error: 'គណនីនេះមិនទាន់មានថ្នាក់រៀនទេ ដូច្នេះមិនអាចកែបញ្ជីមុខវិជ្ជាតាមថ្នាក់បានឡើយ។' }
-  }
-
-  const { rows, context } = await fetchScoreTemplate(scope)
-  return { userId: user.id, classId: scope.classId, rows: filterRowsForContext(rows, context) }
 }
 
 function splitRows(rows: ScoreTemplateSubjectRow[], subjectKey: string) {

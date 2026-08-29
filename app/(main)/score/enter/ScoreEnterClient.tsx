@@ -35,6 +35,7 @@ import {
 import { getCurrentAcademicYear } from '@/lib/constants/academic'
 import { allColumnsFor, subjectConfigs, subjectTitle } from './subjectConfigs'
 import { useScoreTemplate } from '@/lib/hooks/useScoreTemplate'
+import { useActiveClass } from '@/lib/hooks/useActiveClass'
 import {
     columnsFor, maxScoreByColumn, toSubjectOptions, type SubjectColumn,
 } from '@/lib/scores/template'
@@ -134,7 +135,13 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
     // `mySubjects` — a subject teacher may only enter their own subjects. The
     // full template (`subjects`) is what aggregation weighs and is deliberately
     // not what this picker offers.
-    const { mySubjects: templateSubjects, role, context, scheme, reload: reloadTemplate } = useScoreTemplate(scoreType)
+    const {
+        mySubjects: templateSubjects, configured, role, context, scheme,
+        loading: templateLoading, reload: reloadTemplate,
+    } = useScoreTemplate(scoreType)
+    // The configuration screen is a server component, so the class it should
+    // open on has to travel in the URL — client state cannot reach it.
+    const { classId: activeClassId } = useActiveClass()
 
     const scorePeriod = scoreType === 'monthly' ? `${month}-${academicYear}` : `${semester}-${academicYear}`
 
@@ -221,11 +228,33 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
         [maxScores],
     )
 
+    /**
+     * Every column of the "whole month" grid.
+     *
+     * Once the class has chosen its subjects, that choice decides this list
+     * too — entering the month at once is the view the noise hurts most, and
+     * thirty columns for a class that teaches eight is exactly what §11 is
+     * about. An unconfigured class keeps the hand-built report-card layout
+     * byte-identical, so nothing moves for an account that never opts in.
+     */
+    const allCols = useMemo(() => {
+        if (!configured) return [...allColumnsFor(scoreType), ...templateExtraCols]
+
+        const seen = new Set<string>()
+        const out: SubjectColumn[] = []
+        for (const col of templateSubjects.flatMap(s => s.columns)) {
+            if (seen.has(col.id)) continue
+            seen.add(col.id)
+            out.push(col)
+        }
+        return out
+    }, [configured, scoreType, templateExtraCols, templateSubjects])
+
     /** Columns the current view actually edits. */
     const cols: SubjectColumn[] = useMemo(() => {
-        if (view === 'grid' && gridScope === 'all') return [...allColumnsFor(scoreType), ...templateExtraCols]
+        if (view === 'grid' && gridScope === 'all') return allCols
         return subjectCols
-    }, [view, gridScope, scoreType, templateExtraCols, subjectCols])
+    }, [view, gridScope, allCols, subjectCols])
 
     /**
      * Subject list for the picker.
@@ -624,6 +653,36 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
     const hasStudents = initialStudents.length > 0
     const hasColumns = cols.length > 0
 
+    /**
+     * First-visit subject setup (§12).
+     *
+     * A class that has never chosen its subjects should be asked which ones it
+     * teaches rather than handed a thirty-four-column grid — but only if that
+     * question is still open. Two guards keep it from ever becoming a wall in
+     * front of working data:
+     *
+     *   * `!hasAnyMarks` — a class already carrying marks for this period is a
+     *     class that has been entering scores against the full list for a term.
+     *     Interrupting it with a mandatory setup screen risks the year's data
+     *     for a preference, so it gets the grid and a banner instead.
+     *   * `dismissedSetup` — the teacher said "later". Local, not persisted:
+     *     the question is cheap to re-ask next visit and a stored dismissal is
+     *     a preference nobody can find again to undo.
+     *
+     * Once configured, this never renders again — configuration happens once,
+     * entry happens all year (§13).
+     */
+    const [dismissedSetup, setDismissedSetup] = useState(false)
+
+    const hasAnyMarks = useMemo(
+        () => Object.values(scoresData).some(row =>
+            Object.values(row).some(v => v !== null && v !== undefined && v !== '')),
+        [scoresData],
+    )
+
+    const showSetup =
+        !loading && !templateLoading && !configured && !dismissedSetup && !hasAnyMarks && hasStudents
+
     return (
         <PageContainer>
             <style jsx global>{`
@@ -931,6 +990,34 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
                             >
                                 <Users className="h-4 w-4" aria-hidden="true" /> ចុះឈ្មោះសិស្ស
                             </Link>
+                        }
+                    />
+                </div>
+            ) : showSetup ? (
+                /*
+                  §12: the class has never chosen its subjects and has no marks
+                  yet, so ask before showing a grid. Both routes out are real —
+                  "choose" goes to the configuration screen, "later" drops
+                  straight into the full grid, which is exactly the behaviour
+                  every account had before this existed.
+                */
+                <div className="rounded-xl border border-divider bg-bg-surface">
+                    <EmptyState
+                        icon={<ListChecks className="h-6 w-6" aria-hidden="true" />}
+                        title="សូមជ្រើសរើសមុខវិជ្ជាដែលអ្នកកំពុងបង្រៀន"
+                        description="ថ្នាក់នេះមិនទាន់បានកំណត់មុខវិជ្ជាទេ។ ជ្រើសរើសម្តងគត់ រួចតារាងបញ្ចូលពិន្ទុនឹងបង្ហាញតែមុខវិជ្ជាដែលអ្នកបង្រៀន។"
+                        action={
+                            <div className="flex flex-wrap items-center justify-center gap-2">
+                                <Link
+                                    href={activeClassId ? `/score/subjects?class=${encodeURIComponent(activeClassId)}` : '/score/subjects'}
+                                    className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand px-4 text-sm font-bold text-brand-contrast transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                                >
+                                    <ListChecks className="h-4 w-4" aria-hidden="true" /> ជ្រើសរើសមុខវិជ្ជា
+                                </Link>
+                                <Button variant="secondary" printHidden={false} onClick={() => setDismissedSetup(true)}>
+                                    បញ្ចូលពិន្ទុមុនសិន
+                                </Button>
+                            </div>
                         }
                     />
                 </div>

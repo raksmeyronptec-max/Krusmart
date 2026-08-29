@@ -16,6 +16,7 @@ import {
 import { schemeForLevel } from '@/lib/grading/levelSchemes'
 import type { GradingSchemeConfig } from '@/lib/grading/scheme'
 import { EDUCATION_LEVELS } from '@/lib/onboarding/curriculum'
+import type { ClassSubjectSelection } from '@/lib/scores/selection'
 import type { ScoreTemplateSubjectRow, Student, TeacherAssignment } from '@/lib/types'
 
 /**
@@ -369,6 +370,39 @@ export async function fetchScoreTemplate(
   const rows = await fetchScoreTemplateRows(scope)
   const context = scope.mode === 'v2' ? await resolveClassTemplateContext(scope.classId) : null
   return { rows, context }
+}
+
+/**
+ * The class's chosen subjects — `class_template_subjects` (migration 00028).
+ *
+ * Empty for a legacy account with no class, and empty for a class that has not
+ * configured anything yet. Both mean the same thing to `applySelection`: fall
+ * back to the whole template. A failed read lands here too, and lands on the
+ * same safe side — a teacher must never lose subjects because a query failed.
+ */
+export async function fetchClassSelection(
+  scope: QueryScope,
+): Promise<ClassSubjectSelection[]> {
+  if (scope.mode !== 'v2') return []
+
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('class_template_subjects')
+    .select('subject_key, enabled_columns, sort_order')
+    .eq('class_id', scope.classId)
+    .order('sort_order', { ascending: true })
+
+  if (error) {
+    // A missing table (00028 not yet applied) lands here too.
+    logger.error(error)
+    return []
+  }
+
+  return (data ?? []).map((r) => ({
+    subjectKey: r.subject_key as string,
+    enabledColumns: (r.enabled_columns as string[] | null) ?? null,
+    sortOrder: (r.sort_order as number | null) ?? 0,
+  }))
 }
 
 /**

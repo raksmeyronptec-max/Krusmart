@@ -15,7 +15,7 @@ npm run lint     # eslint (flat config, eslint-config-next core-web-vitals + typ
 
 No test framework is configured — there is nothing to run for tests. Type errors surface via `npm run build` (`tsc` is `noEmit`).
 
-Requires `.env.local` with `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` (see `.env.example`). The only other env var is `IMGBB_API_KEY` (server-only, optional — photo uploads in `/homework/send`; unset, the photo field reports uploads unavailable and everything else works). There is no service-role key anywhere, so **every** data path goes through RLS as the logged-in user — the only exceptions are the two SECURITY DEFINER functions, `create_teacher_organisation` (migration 00017) and `backfill_teacher_enrolments` (migration 00018, redefined in 00019), both keyed entirely on `auth.uid()`.
+Requires `.env.local` with `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` (see `.env.example`). The other env vars are the five Cloudflare R2 keys — `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` (all server-only) and `NEXT_PUBLIC_R2_PUBLIC_URL` (the read-only CDN host) — which back every image upload; unset, uploads report a failure and everything else works. There is no service-role key anywhere, so **every** data path goes through RLS as the logged-in user — the only exceptions are the two SECURITY DEFINER functions, `create_teacher_organisation` (migration 00017) and `backfill_teacher_enrolments` (migration 00018, redefined in 00019), both keyed entirely on `auth.uid()`.
 
 ## What this is
 
@@ -142,6 +142,7 @@ The wizard state is **derived from `Actor`, never stored** — same principle as
 | `00025_homeroom_uniqueness_subject_key.sql` | Re-keys homeroom uniqueness on *both* NULLs — without it a `subject_key` assignment collides with the teacher's homeroom row, and a second subject in one class is impossible. |
 | `00026_secondary_classroom_curriculum.sql` | Seeds the real classroom curriculum for grades 7–12 (105 rows, product owner's verified table) and converges 00021's BacII-weighted grade-12 seed to classroom values. BacII is deliberately out of the system — see `docs/score-system-design.md` §3.3. |
 | `00027_custom_subjects_to_template.sql` | Retires `custom_subjects` into `score_template_subjects` at `scope='class'`, copying every `SubjectColumn.id` verbatim. One source row fans out to one row per class the teacher holds, because `class_id` was never written and the subject already showed on every class. A teacher with no class cannot hold a class-scope row, so those rows stay put — and their subjects stop appearing, a recorded product decision. |
+| `00028_primary_curriculum_and_class_selection.sql` | Seeds the primary curriculum for grades 1–6 (312 rows, 52 per grade) at `level_key='primary'`, and adds `class_template_subjects` — which of those subjects a class actually teaches. No key is invented: all 52 already existed in `subjectConfigs.ts`, so this promotes a compiled-in fallback into the database. The seed is a strict superset of 00016's fourteen untagged rows, which stay put as the legacy fallback. |
 
 `supabase/legacy/` holds superseded partial snapshots — **do not apply them**. `supabase/README.md` still describes the pre-V2 world in places (it claims the scores conflict key omits `teacher_id`, and that there is no classes table); the migrations and this file are the newer account. Verify against the live project before relying on any of it.
 
@@ -162,6 +163,8 @@ The `homework_scores` table defined in SQL is unused by the app.
 
 ### Score templates: the subject list is data, not code
 
+**Two questions, two tables.** `score_template_subjects` answers *what subjects exist* for a class; `class_template_subjects` (00028) answers *which of them the class teaches*. Keeping them apart is load-bearing: a `scope='class'` row in the first table is a **definition override**, and `updateClassSubject` deletes one the moment it stops differing from what it inherits (so inheritance stays live). A selection carries no definition difference — "I teach Khmer" says nothing about what Khmer is — so stored in that layer it would be deleted as redundant. `applySelection` in [lib/scores/selection.ts](lib/scores/selection.ts) narrows the entry picker; **a class with no selection resolves the full template**, so an account that never configures anything behaves exactly as before. Aggregation surfaces (totals, ranking, certificates, reports, `resolveServerGradingContext`) always read the *unnarrowed* resolution — narrowing a template must never narrow an average.
+
 The score grid's subject picker used to be a literal array (the Cambodian *primary* curriculum, compiled in). It now resolves from `score_template_subjects` (migration 00016) in three layers — `system` (national default, seeded, read-only), `school` (admin amendments), `class` (assigned-teacher amendments) — where the lowest layer present wins per `subject_key`. The merge lives in [lib/scores/template.ts](lib/scores/template.ts) (pure, no server-only imports — a client hook consumes it) with [lib/hooks/useScoreTemplate.ts](lib/hooks/useScoreTemplate.ts) on the browser side. This changes only which columns the UI *offers*: `scores.subject` stays a TEXT key, `scores_owner_period_uniq` is untouched, and every already-entered mark keeps resolving. `SubjectColumn.id` is what `scores.subject` stores — it is schema, never rename one.
 
 ### Subject identity: three levels, one live key space per level
@@ -181,6 +184,8 @@ The third level, `subject_id` UUID → `public.subjects`, never reconciled with 
 - **Assignments carry `subject_key`** (00024/00025). Both writers — the admin console's `assignTeacher` and `/score/collect`'s `assignSubjectTeacher` — validate the key against the class's *resolved* template, and both pickers label subjects through `assignableSubjects()` in [lib/scores/template.ts](lib/scores/template.ts), so the two surfaces cannot name a subject differently. Do not add a third subject picker that reads `public.subjects`.
 - **`teacher_assignments.subject_id` is legacy**: still selected (reads tolerate it), never written. Nothing ever wrote a non-NULL value outside the old admin form, and the app was never deployed, so no rows need migrating; a hypothetical old row (`subject_key` NULL) resolves as whole-class — exactly its pre-00024 meaning. Do not backfill `subject_key` from `subjects.code` — the mapping is ambiguous by construction.
 - **`public.subjects` / `class_subjects` remain** as the admin catalogue (`/admin/subjects`) and 00004's backfill target; neither is load-bearing for grading or assignment.
+- **`/score/template` is a redirect**, not a page. The configuration screen has always been `/score/subjects` ("មុខវិជ្ជាតាមថ្នាក់"); the `template` directory holds only server actions, and its `page.tsx` forwards to `/score/subjects` preserving `?class=`. Do not build a second configuration surface there — two pages editing one template is how they end up disagreeing.
+- **The curriculum picker cannot mint a subject.** `/score/subjects` has two add buttons and the split is the product rule: "បន្ថែមមុខវិជ្ជា" picks from the class's *resolved* curriculum (`addTemplateSubjects` re-resolves server-side and refuses any key absent from it), while "បង្កើតមុខវិជ្ជាផ្ទាល់ខ្លួន" calls `addClassSubject`, which mints a `cls_` key server-side. One picks, the other extends; never merge them into one dialog with a free-text field.
 - **A teacher's own subjects are ordinary class-scope template rows** since 00027. There is no second store: `/score/enter`'s add-subject dialog and `/score/subjects` both call `addClassSubject`, which mints the key server-side (`cls_`) and never lets the browser coin one. Converted rows carry the `cs_` prefix, which is what makes 00027's rollback able to find exactly its own rows. Three prefixes, three origins — `hs_`/`kh_`/`math_`/`sem_` national, `cls_` teacher-added, `cs_` converted — and none of them collide.
 - **The `assessments` feature was removed, not migrated.** The table (00003) and `scores.assessment_id` exist, but nothing ever wrote a score against an assessment and no report read one; for self-serve schools the creation form's `class_subjects` picker was empty, so it could not even be used. The admin UI, action and queries are gone; the tables stay untouched. If assessment-style grading is ever built, key it on `subject_key`, not `class_subject_id`.
 
@@ -194,6 +199,26 @@ The third level, `subject_id` UUID → `public.subjects`, never reconciled with 
 | `lastTutorialPage`, `studentsCache` | Live. |
 | `inventoryItems` | **Migrated to Supabase** (`inventory_items`, migration 00012); the localStorage reader survives only for the one-time import. Nothing writes to the key any more. |
 | `customSubjects` | **Gone.** 00012 moved it to the `custom_subjects` table; 00027 then moved that into `score_template_subjects` and deleted the reader, the hook and the actions. The key is no longer read by anything. |
+
+## Image storage: Cloudflare R2
+
+Every uploaded image in the app now lives in one R2 bucket, and the database columns (`students.photo_url`, `settings.photo_url` / `school_logo` / `director_seal` / `teacher_signature`, `homework_assignments.image_url`) hold a **public CDN URL**, not the picture. Two older patterns were replaced and must not come back:
+
+- **imgbb.** `/homework/send` used to POST the bytes to a third-party image host on a shared API key. Gone — no `IMGBB_API_KEY`, no `api.imgbb.com`.
+- **Inline base64 data URLs.** A student photo or a school logo stored as `data:image/jpeg;base64,…` in a TEXT column is dragged along by every roster read, every printed report and every export — on Cambodian mobile data, per row. New writes store a URL.
+
+| Module | Role |
+| --- | --- |
+| [lib/storage/r2.ts](lib/storage/r2.ts) | `server-only`. The `S3Client` singleton (R2 is S3-compatible: `region: 'auto'`, endpoint `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`), plus `uploadBufferToR2()`, `uploadBase64ToR2()`, and the pure helpers `parseImageDataUrl()` / `base64ByteLength()` / `extensionForMime()` that every validator shares. |
+| [lib/storage/actions.ts](lib/storage/actions.ts) | `'use server'`. `uploadImageToR2Action({ dataUrl, folder })` — the single endpoint every client-side picker calls. |
+
+**Uploading is a server action, never a browser-side S3 call.** An R2 access key handed to the browser is an open write handle on the bucket for anyone who opens devtools — precisely the mistake the old imgbb key made before it was moved server-side. Only `NEXT_PUBLIC_R2_PUBLIC_URL` crosses into the client bundle, and only as a stored read URL.
+
+The action enforces three things a client-side upload could not: the caller is signed in (the bucket is not an open relay), the payload is one of `image/{jpeg,png,webp,gif,svg+xml}`, and it is under 10 MB — checked from the base64 length, before the bytes are materialised. Keys are `${folder}/${user.id}/${Date.now()}-${randomUUID()}.${ext}`: the `user.id` segment makes an object attributable to the account that wrote it, `Date.now()` sorts the bucket by time, and the UUID is what actually guarantees uniqueness. `folder` is a closed union (`students | profiles | homework | attachments`) — the browser cannot invent a prefix. Objects are written `immutable` with a one-year `max-age`, which is safe only because a key is never reused.
+
+Clients still **compress on a canvas first** ([lib/utils/image.ts](lib/utils/image.ts) for enrollment, an inline resize in `ImageUploadField`) — the bytes no longer land in Postgres, but a 5 MB phone photo should not be pushed over mobile data on the way to the bucket either.
+
+**Reads must tolerate both shapes.** Rows written before this migration still hold data URLs, so `imageDataUrl` in [lib/profile/schema.ts](lib/profile/schema.ts) accepts an `http(s)` URL *or* a `data:image/*;base64` payload, and rejects everything else — a stored value the guard refused would make its whole profile section unsavable. `<img src>` renders either without changes. There is no backfill; old values are migrated only when a teacher re-uploads.
 
 ## Shared constants and utilities
 

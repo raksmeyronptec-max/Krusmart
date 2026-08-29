@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import {
   classIdFromSearchParams,
+  fetchClassSelection,
   fetchScoreTemplate,
   resolveServerScope,
 } from '@/lib/utils/serverScope'
@@ -32,7 +33,11 @@ export default async function ScoreSubjectsPage({
 
   const requestedClassId = await classIdFromSearchParams(searchParams)
   const scope = await resolveServerScope(user.id, requestedClassId)
-  const { rows, context } = await fetchScoreTemplate(scope)
+  // Independent reads; neither blocks the other.
+  const [{ rows, context }, selection] = await Promise.all([
+    fetchScoreTemplate(scope),
+    fetchClassSelection(scope),
+  ])
 
   let className = ''
   if (scope.mode === 'v2') {
@@ -47,6 +52,7 @@ export default async function ScoreSubjectsPage({
   return (
     <ScoreSubjectsClient
       initialRows={rows}
+      initialSelection={selection}
       templateContext={context}
       classId={scope.mode === 'v2' ? scope.classId : null}
       className={className}

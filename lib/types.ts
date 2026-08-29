@@ -825,6 +825,26 @@ export interface ClassAdminEntry {
  * There is no `coefficient` — it is derived from `max_score`, and storing it
  * would let the two drift.
  */
+/**
+ * `class_template_subjects` row (migration 00028) — one subject the class has
+ * chosen to teach.
+ *
+ * Distinct from a `scope='class'` {@link ScoreTemplateSubjectRow}, which
+ * *redefines* a subject. This one only says the class uses it, and which of its
+ * components. See `lib/scores/selection.ts`.
+ */
+export interface ClassTemplateSubjectRow {
+  id: string
+  class_id: string
+  /** Names a subject in the class's resolved template, not one of its columns. */
+  subject_key: string
+  /** `SubjectColumn.id` values. NULL means every column the definition carries. */
+  enabled_columns: string[] | null
+  sort_order: number
+  created_at?: string
+  updated_at?: string
+}
+
 export interface ScoreTemplateSubjectRow {
   id: string
   scope: 'system' | 'school' | 'class'
