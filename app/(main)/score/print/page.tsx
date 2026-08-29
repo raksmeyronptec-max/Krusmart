@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import ScorePrintClient from './ScorePrintClient'
-import { FALLBACK_ACADEMIC_YEAR } from '@/lib/constants/academic'
+import { getCurrentAcademicYear } from '@/lib/constants/academic'
 import {
   classIdFromSearchParams,
   fetchStudentsForScope,
@@ -43,7 +43,7 @@ export default async function ScorePrintPage({
     <ScorePrintClient
       initialStudents={students}
       settings={(settings as Settings) ?? null}
-      academicYear={settings?.academic_year || FALLBACK_ACADEMIC_YEAR}
+      academicYear={settings?.academic_year || getCurrentAcademicYear()}
     />
   )
 }

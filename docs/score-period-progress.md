@@ -44,7 +44,7 @@ accounts ever do overlap in time, phases in different lanes share no files.
 
 ## Phases
 
-- [ ] **P0 · Lane B — Retire `FALLBACK_ACADEMIC_YEAR`**
+- [x] **P0 · Lane B — Retire `FALLBACK_ACADEMIC_YEAR`**
       **Needs:** —
       **Files:** `app/(main)/record-book/page.tsx:37`,
       `app/(main)/score-analyse/page.tsx:30`,
@@ -56,7 +56,11 @@ accounts ever do overlap in time, phases in different lanes share no files.
       left under `app/`; no other file changed.
       **Why first:** the calendar is keyed by academic year. Building it on top
       of a default year of `'2023-2024'` doubles the cost of every later debug.
-      **Notes:**
+      **Notes:** Exactly as briefed — the five call sites were the only
+      references under `app/`, each the same
+      `settings?.academic_year || FALLBACK_ACADEMIC_YEAR` shape, swapped to
+      `getCurrentAcademicYear()`. The export stays with a `@deprecated` JSDoc.
+      No surprises; build and lint green.
 
 - [ ] **P1 · Lane B — `clampScoreCell` + four call sites**
       **Needs:** —

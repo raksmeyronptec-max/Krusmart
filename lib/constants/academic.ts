@@ -7,12 +7,12 @@ import { MONTHS_BY_CALENDAR } from './months'
 export const ACADEMIC_YEAR_START_MONTH_INDEX = MONTHS_BY_CALENDAR.find((m) => m.id === 'nov')!.index
 
 /**
- * Fallback used when a teacher has not set `settings.academic_year` yet.
- *
- * NOTE: this is a hardcoded value carried over from the original code, where
- * three pages each inlined the same `'2023-2024'` literal. It is preserved
- * as-is so this refactor stays behaviour-neutral, but it is stale — consider
- * switching the call sites to {@link getCurrentAcademicYear}.
+ * @deprecated No longer used. This was the fallback when a teacher had not set
+ * `settings.academic_year`, carried over from the original code where three
+ * pages each inlined the same `'2023-2024'` literal. A teacher with no setting
+ * silently read and wrote scores under 2023-2024 and saw empty screens with no
+ * error, so every call site now falls back to {@link getCurrentAcademicYear}
+ * instead. The export is kept only so nothing importing it breaks.
  */
 export const FALLBACK_ACADEMIC_YEAR = '2023-2024'
 

@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import RecordBookClient from './RecordBookClient'
-import { FALLBACK_ACADEMIC_YEAR } from '@/lib/constants/academic'
+import { getCurrentAcademicYear } from '@/lib/constants/academic'
 import {
   classIdFromSearchParams,
   fetchStudentsForScope,
@@ -34,7 +34,7 @@ export default async function RecordBookPage({
     .eq('teacher_id', user.id)
     .maybeSingle()
 
-  const academicYear = settings?.academic_year || FALLBACK_ACADEMIC_YEAR
+  const academicYear = settings?.academic_year || getCurrentAcademicYear()
 
   const requestedClassId = await classIdFromSearchParams(searchParams)
   const scope = await resolveServerScope(user.id, requestedClassId)

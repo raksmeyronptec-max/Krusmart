@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import ScoreAnalyseClient from './ScoreAnalyseClient'
-import { FALLBACK_ACADEMIC_YEAR } from '@/lib/constants/academic'
+import { getCurrentAcademicYear } from '@/lib/constants/academic'
 import {
   classIdFromSearchParams,
   fetchStudentsForScope,
@@ -27,7 +27,7 @@ export default async function ScoreAnalysePage({
     .eq('teacher_id', user.id)
     .single()
     
-  const academicYear = settings?.academic_year || FALLBACK_ACADEMIC_YEAR
+  const academicYear = settings?.academic_year || getCurrentAcademicYear()
 
   // Fetch students
   // Phase 5: roster scoped to the active class via student_enrollments,
