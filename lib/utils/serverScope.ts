@@ -17,7 +17,9 @@ import { schemeForLevel } from '@/lib/grading/levelSchemes'
 import type { GradingSchemeConfig } from '@/lib/grading/scheme'
 import { EDUCATION_LEVELS } from '@/lib/onboarding/curriculum'
 import type { ClassSubjectSelection } from '@/lib/scores/selection'
-import type { ScoreTemplateSubjectRow, Student, TeacherAssignment } from '@/lib/types'
+import { DEFAULT_CALENDAR, resolveCalendar, type ScorePeriod } from '@/lib/scores/calendar'
+import { getCurrentAcademicYear } from '@/lib/constants/academic'
+import type { ScoreCalendarPeriodRow, ScoreTemplateSubjectRow, Student, TeacherAssignment } from '@/lib/types'
 
 /**
  * Server-side counterpart to `lib/utils/queryFilter`.
@@ -370,6 +372,64 @@ export async function fetchScoreTemplate(
   const rows = await fetchScoreTemplateRows(scope)
   const context = scope.mode === 'v2' ? await resolveClassTemplateContext(scope.classId) : null
   return { rows, context }
+}
+
+/**
+ * The score-period calendar in effect for a scope — `score_calendar_periods`
+ * (migration 00029) resolved through `resolveCalendar`: class rows → school
+ * rows → `DEFAULT_CALENDAR`, each layer as a whole set.
+ *
+ * Every failure mode resolves the default, because the default IS today's
+ * behaviour (INV-2): a legacy account with neither school nor class, a class
+ * with no configuration, a database where 00029 has not run, or a failed
+ * request. A screen can always render twelve months; what it must never do is
+ * render a partial calendar.
+ *
+ * `academicYear` is the *label* (`'2025-2026'` — the right half of
+ * `score_period`), not `academic_years.id`: the calendar keys on the same
+ * string the score rows carry, so a period and its marks can never disagree
+ * about which year they belong to.
+ */
+export async function fetchScoreCalendar(
+  scope: QueryScope,
+  academicYear: string = getCurrentAcademicYear(),
+): Promise<ScorePeriod[]> {
+  const supabase = await createClient()
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('school_id')
+    .eq('id', scope.teacherId)
+    .maybeSingle()
+
+  const schoolId = typeof profile?.school_id === 'string' ? profile.school_id : null
+  const classId = scope.mode === 'v2' ? scope.classId : null
+
+  // Same shape as `fetchTemplateRowsByIds`: RLS already restricts what comes
+  // back, the explicit filters are the usual second guard — and with neither a
+  // school nor a class there is nothing to ask for.
+  const filters: string[] = []
+  if (schoolId !== null && UUID.test(schoolId)) filters.push(`school_id.eq.${schoolId}`)
+  if (classId !== null && UUID.test(classId)) filters.push(`class_id.eq.${classId}`)
+  if (filters.length === 0) return [...DEFAULT_CALENDAR]
+
+  const { data, error } = await supabase
+    .from('score_calendar_periods')
+    .select('*')
+    .or(filters.join(','))
+    .eq('academic_year', academicYear)
+    .order('sort_order', { ascending: true })
+
+  if (error) {
+    // A missing table (00029 not yet applied) lands here too.
+    logger.error(error)
+    return [...DEFAULT_CALENDAR]
+  }
+
+  return resolveCalendar((data ?? []) as ScoreCalendarPeriodRow[], {
+    classId: classId ?? undefined,
+    academicYear,
+  })
 }
 
 /**

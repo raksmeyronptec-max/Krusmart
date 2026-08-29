@@ -117,7 +117,7 @@ accounts ever do overlap in time, phases in different lanes share no files.
       `verify-score-total` / `verify-reporting` / `verify-clamp` untouched and
       green; build + lint green.
 
-- [ ] **P3 · Lane A — Migration 00029 + server resolver + hook**
+- [x] **P3 · Lane A — Migration 00029 + server resolver + hook**
       **Needs:** P2
       **Files:** `supabase/migrations/00029_score_calendar_periods.sql` (new),
       `lib/types.ts` (`ScoreCalendarPeriodRow`),
@@ -129,7 +129,25 @@ accounts ever do overlap in time, phases in different lanes share no files.
       in 00028 — no new policy shape; PostgREST grants not forgotten.
       **Watch:** `locked_at` / `locked_by` are created here but unused until P6.
       No screen consumes any of this yet.
-      **Notes:**
+      **Notes:** ⚠ **The migration was NOT applied locally** — this machine has
+      no Docker, so no local Supabase stack exists. The SQL is a close copy of
+      00016's policy shapes (select-visible minus the system branch,
+      school-write, class-write) and 00028's framing; whoever first has a
+      running stack should apply it and run the header's VERIFICATION queries.
+      Deviations from the §11.3 DDL, both additive: a `member_months_valid`
+      CHECK (`member_months <@ ARRAY[12 month ids]`) making an invented key
+      like `'mar_apr'` unrepresentable at the DB layer (INV-1), and
+      `academic_year` documented as the *label* string, stored because school
+      rows have no class to imply the year. `lib/types.ts` **re-exports**
+      `ScoreCalendarPeriodRow` from `calendar.ts` per P2's note. Server:
+      `fetchScoreCalendar(scope, academicYear = getCurrentAcademicYear())` —
+      the year is the label, never the year row's UUID. Client:
+      `useScoreCalendar` reads the table with the **browser client** (the
+      `SchoolContext` precedent) rather than a server action, because P3's file
+      list has no actions file and RLS is the boundary either way; it waits for
+      class+school+year contexts, falls back to `DEFAULT_CALENDAR`, and guards
+      its `.or()` string with the same UUID regex as `serverScope.ts`. Build,
+      lint, all four verify scripts green.
 
 - [ ] **P4 · Lane B — `វគ្គពិន្ទុ` tab + calendar actions**
       **Needs:** P2, P3

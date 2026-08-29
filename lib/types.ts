@@ -845,6 +845,17 @@ export interface ClassTemplateSubjectRow {
   updated_at?: string
 }
 
+/**
+ * `score_calendar_periods` row (migration 00029) — one score period of a
+ * school's or class's calendar.
+ *
+ * Re-exported rather than defined here: the shape lives beside its resolver in
+ * `lib/scores/calendar.ts`, which is pure and runs under plain node for the
+ * verify scripts, so it cannot depend on this module. One definition, one
+ * table, still one type per table.
+ */
+export type { ScoreCalendarPeriodRow } from './scores/calendar'
+
 export interface ScoreTemplateSubjectRow {
   id: string
   scope: 'system' | 'school' | 'class'
