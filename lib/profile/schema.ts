@@ -55,24 +55,35 @@ const numericText = (max = 30) =>
     .default('')
 
 /**
- * An image as a data URL (the app's established storage pattern — see
- * `settings.photo_url` / `school_logo`). Server-side guard: must be a real
- * `data:image/*;base64` payload under the size cap, so a hand-crafted request
- * cannot smuggle arbitrary text into an <img src>.
+ * An image reference: either an `http(s)` URL — what an upload now returns,
+ * a Cloudflare R2 CDN link (`https://pub-….r2.dev/profiles/…`) — or a
+ * `data:image/*;base64` payload, which is what every value stored before the
+ * R2 migration looks like.
+ *
+ * Both shapes have to pass. New saves send a URL; an already-stored data URL
+ * that the teacher did not re-upload is re-submitted as-is by the form, and
+ * rejecting it here would make an untouched section unsavable. The size cap
+ * only bites on the inline form, since a URL is never near it.
+ *
+ * The guard is still a guard: one of two known shapes, so a hand-crafted
+ * request cannot smuggle arbitrary text (or a `javascript:` scheme) into an
+ * <img src>.
  *
  * OPTIONAL, not defaulted: the client omits an image field whose value it
- * did not change, so a pre-00020 stored value the guard would reject (an
- * external URL, an oversized legacy logo) can never make its whole section
- * unsavable — and an omitted key is simply not written by the upsert.
- * Sending '' explicitly clears the image.
+ * did not change, so a stored value the guard would reject (an oversized
+ * legacy logo) can never make its whole section unsavable — and an omitted
+ * key is simply not written by the upsert. Sending '' explicitly clears the
+ * image.
  */
 export const MAX_IMAGE_DATA_URL_BYTES = 1_500_000 // ~1.1MB of image after base64 overhead
 export const IMAGE_FIELDS = ['photo_url', 'school_logo', 'director_seal', 'teacher_signature'] as const
+const DATA_URL_IMAGE = /^data:image\/[a-z0-9.+-]+;base64,[A-Za-z0-9+/=]+$/i
+const HTTP_URL = /^https?:\/\/[^\s<>"']+$/i
 const imageDataUrl = z
   .string()
   .trim()
   .max(MAX_IMAGE_DATA_URL_BYTES, 'រូបភាពធំពេក — សូមជ្រើសរើសរូបតូចជាងនេះ')
-  .refine((v) => v === '' || /^data:image\/[a-z0-9.+-]+;base64,[A-Za-z0-9+/=]+$/i.test(v), {
+  .refine((v) => v === '' || DATA_URL_IMAGE.test(v) || HTTP_URL.test(v), {
     message: 'រូបភាពមិនត្រឹមត្រូវ',
   })
   .optional()

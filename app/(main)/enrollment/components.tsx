@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/actions/Button"
 import { Dialog } from "@/components/ui/overlay/Dialog"
 import { notify } from "@/components/ui/feedback/notify"
 import { getDriveImageUrl } from "@/lib/utils/drive-image"
+import { uploadImageToR2Action } from "@/lib/storage/actions"
 import { compressImageFile, dataUrlBytes } from "@/lib/utils/image"
 import { toKhmerNumber } from "@/lib/utils/khmer-num"
 import { getErrorMessage } from "@/lib/utils/errors"
@@ -382,14 +383,22 @@ export function PhotoPanel({
     }
     setIsProcessing(true)
     try {
-      // Downscaled before it becomes a data URL: the raw file goes into
-      // `students.photo_url` and is re-read on every roster load.
+      // Still downscaled first, even though the bytes no longer land in the
+      // database: it is what keeps a 5MB phone photo from being pushed over
+      // Cambodian mobile data on the way to the bucket.
       const dataUrl = await compressImageFile(file)
-      onChange(dataUrl)
+      const uploaded = await uploadImageToR2Action({ dataUrl, folder: "students" })
+      if (uploaded.error || !uploaded.url) {
+        notify.error(uploaded.error ?? "មិនអាចផ្ទុករូបថតបានទេ។")
+        return
+      }
+      // `students.photo_url` holds the R2 CDN URL, not the image itself, so the
+      // roster read no longer carries a photo per row.
+      onChange(uploaded.url)
       notify.success(`បានបន្ថែមរូបថត (${toKhmerNumber(Math.max(1, Math.round(dataUrlBytes(dataUrl) / 1024)))}KB)`)
     } catch (err) {
-      logger.error("photo compress:", err)
-      notify.error(`មិនអាចអានរូបភាពបានទេ៖ ${getErrorMessage(err)}`)
+      logger.error("photo upload:", err)
+      notify.error(`មិនអាចផ្ទុករូបភាពបានទេ៖ ${getErrorMessage(err)}`)
     } finally {
       setIsProcessing(false)
       if (fileRef.current) fileRef.current.value = ""

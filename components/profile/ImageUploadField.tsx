@@ -3,13 +3,14 @@
 import { useId, useRef, useState } from 'react'
 import { Camera, Info, Trash2 } from 'lucide-react'
 import { notify } from '@/components/ui/feedback/notify'
+import { uploadImageToR2Action } from '@/lib/storage/actions'
 import { MAX_IMAGE_DATA_URL_BYTES } from '@/lib/profile/schema'
 
 export interface ImageUploadFieldProps {
   label: string
-  /** Data URL (the app's storage pattern) or ''. */
+  /** Image URL — an R2 CDN link, a legacy stored data URL, or ''. */
   value: string
-  onChange: (dataUrl: string) => void
+  onChange: (url: string) => void
   /** 'circle' for the avatar, 'square' for logos/seals/signatures. */
   shape?: 'circle' | 'square'
   /** Longest output edge after the client-side resize. */
@@ -31,8 +32,13 @@ const MAX_INPUT_BYTES = 5 * 1024 * 1024
 /**
  * The one uploader behind all four profile images (avatar, school logo,
  * director seal, teacher signature). Resizes on a canvas before anything
- * touches state — a 40MB phone photo never reaches memory as a data URL —
- * and enforces the same size cap the server schema re-checks.
+ * leaves the browser — a 40MB phone photo never travels as a data URL — then
+ * hands the compressed bytes to the R2 upload action and stores the CDN URL
+ * it returns. `settings` holds a link, not an image.
+ *
+ * The data-URL size cap is still checked before the upload: it is cheaper to
+ * refuse an over-large image here than to push it to the bucket and have the
+ * server schema reject the save afterwards.
  */
 export default function ImageUploadField({
   label,
@@ -88,13 +94,25 @@ export default function ImageUploadField({
         canvas.height = height
         canvas.getContext('2d')?.drawImage(img, 0, 0, width, height)
         const dataUrl = canvas.toDataURL(mime, 0.8)
-        setBusy(false)
 
         if (dataUrl.length > MAX_IMAGE_DATA_URL_BYTES) {
+          setBusy(false)
           notify.error('រូបភាពនៅតែធំពេកបន្ទាប់ពីបង្រួម — សូមជ្រើសរើសរូបសាមញ្ញជាងនេះ')
           return
         }
-        onChange(dataUrl)
+
+        // `busy` stays true across the upload, so the spinner covers the round
+        // trip rather than only the canvas work the user never waits for.
+        void uploadImageToR2Action({ dataUrl, folder: 'profiles' })
+          .then((result) => {
+            if (result.error || !result.url) {
+              notify.error(result.error ?? 'មានបញ្ហាក្នុងការផ្ទុករូបភាព')
+              return
+            }
+            onChange(result.url)
+          })
+          .catch(() => notify.error('មានបញ្ហាក្នុងការផ្ទុករូបភាព'))
+          .finally(() => setBusy(false))
       }
       img.src = event.target?.result as string
     }
@@ -114,7 +132,7 @@ export default function ImageUploadField({
           className={`${frameClass} flex shrink-0 items-center justify-center overflow-hidden border-2 border-dashed border-divider bg-paper`}
         >
           {value ? (
-            // eslint-disable-next-line @next/next/no-img-element -- data-URL preview; next/image adds no value here
+            // eslint-disable-next-line @next/next/no-img-element -- R2 CDN URL or legacy data URL; next/image needs an allow-listed host and adds nothing at 80px
             <img src={value} alt={label} className="h-full w-full object-contain" />
           ) : (
             fallback ?? <Camera aria-hidden className="h-6 w-6 text-text-muted" />

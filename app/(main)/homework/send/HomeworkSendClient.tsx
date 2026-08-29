@@ -32,9 +32,10 @@ import type { HomeworkAssignment } from '@/lib/types'
  *  - It never shows a delivery or read state, because none is recorded.
  *  - Status is derived from `due_date` alone — see `assignmentStatus.ts`.
  *
- * The photo still goes to imgbb through the `uploadHomeworkPhoto` server
- * action, which is where the API key lives. Nothing in this file, and nothing
- * in the browser bundle, ever holds a key. See the note in `actions.ts`.
+ * The photo goes to Cloudflare R2 through the `uploadHomeworkPhoto` server
+ * action, which is where the bucket credentials live. Nothing in this file,
+ * and nothing in the browser bundle, ever holds a key; what comes back is the
+ * public CDN URL. See the note in `actions.ts`.
  */
 
 export interface HomeworkSendClientProps {
