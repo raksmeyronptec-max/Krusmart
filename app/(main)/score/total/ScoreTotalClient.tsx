@@ -34,6 +34,10 @@ import {
     coefficientAverage, letterFor, type GradingSchemeConfig,
 } from '@/lib/grading/scheme'
 import { maxScoreByColumn, resolveTemplate } from '@/lib/scores/template'
+import {
+    SEM1_KEY, SEM2_KEY, annualSourceNote, buildAnnualResult, storedAnnualValue,
+    type AnnualValueSource,
+} from '@/lib/scores/annual'
 import { levelByKey, trackLabel } from '@/lib/onboarding/curriculum'
 import { scoreCellValue, scoreNumericValue } from '@/lib/utils/score-value'
 import { formatMark, letterOrDash, numericCell, styleFor, styleForMark } from '@/lib/utils/score-band'
@@ -94,6 +98,12 @@ const MODES: { id: TotalMode; label: string; icon: typeof Calendar }[] = [
 /** Scores for one pupil: what was fetched, with anything typed layered on top. */
 type ScoreMap = Record<string, number | string | null>
 
+/**
+ * The two semester figures this screen would compute for a pupil from their
+ * marks, when no stored annual row exists. Empty in every mode but ឆ្នាំ.
+ */
+type DerivedSemesters = Record<string, { sem1: number | null; sem2: number | null }>
+
 function computeRows(
     students: Student[],
     scoresByStudent: Record<string, ScoreMap>,
@@ -102,6 +112,7 @@ function computeRows(
     monthlyComponent: Record<string, number>,
     scheme: GradingSchemeConfig,
     maxByColumn: Record<string, number>,
+    annualDerived: DerivedSemesters = {},
 ): TotalledStudent[] {
     const rows: TotalledStudent[] = students.map(stu => {
         const scores = scoresByStudent[stu.id] ?? {}
@@ -143,17 +154,36 @@ function computeRows(
             row.average = weighted === null ? '0.00' : weighted.toFixed(2)
             row.finalAverageForRank = parseFloat(row.average)
         } else if (mode === 'annual') {
-            const s1 = parseFloat(String(scores['sem1_avg'] ?? '0'))
-            const s2 = parseFloat(String(scores['sem2_avg'] ?? '0'))
+            /**
+             * STORED FIRST, DERIVED OTHERWISE — the one definition of a year.
+             *
+             * This branch used to read `sem1_avg` / `sem2_avg` and nothing else,
+             * which showed `0.00` for every class in this application: nothing
+             * here writes a `score_type='annual'` row, so the stored sheet is
+             * empty unless a year was imported. The printed annual reports fall
+             * back to the canonical semester layer, and a screen that disagreed
+             * with the sheet a teacher prints from it is exactly the defect the
+             * shared layer exists to prevent.
+             *
+             * The arithmetic is NOT re-implemented here. `buildAnnualResult`
+             * (`lib/scores/annual.ts`) is the same function `resolveAnnualClass`
+             * calls, including the quirk that one marked semester averages to
+             * itself rather than to half of it.
+             */
+            const derived = annualDerived[stu.id]
+            const annual = buildAnnualResult({
+                sem1Stored: storedAnnualValue(scores[SEM1_KEY]),
+                sem2Stored: storedAnnualValue(scores[SEM2_KEY]),
+                sem1Derived: derived?.sem1 ?? null,
+                sem2Derived: derived?.sem2 ?? null,
+            }, scheme.passMark)
 
-            let div = 0
-            if (!isNaN(s1) && s1 > 0) div++
-            if (!isNaN(s2) && s2 > 0) div++
-
-            row.annualTotal = (isNaN(s1) ? 0 : s1) + (isNaN(s2) ? 0 : s2)
-            row.annualAverage = div === 0 ? '0.00'
-                : div === 1 ? row.annualTotal.toFixed(2)
-                : (row.annualTotal / 2).toFixed(2)
+            row.annualResult = annual
+            row.annualTotal = (annual.sem1.value ?? 0) + (annual.sem2.value ?? 0)
+            // `0.00` for "no result" is this screen's long-standing display, kept
+            // deliberately: the reports print a blank cell instead, and the two
+            // conventions are documented rather than reconciled.
+            row.annualAverage = annual.average === null ? '0.00' : annual.average.toFixed(2)
 
             row.finalAverageForRank = parseFloat(row.annualAverage)
             row.total = row.annualTotal
@@ -241,6 +271,16 @@ export default function ScoreTotalClient({
     // ------------------------------------------------------------------ data
     const [records, setRecords] = useState<Score[]>([])
     const [yearMonthly, setYearMonthly] = useState<{ year: string; rows: Score[] } | null>(null)
+    /**
+     * Both semesters' EXAM marks, fetched only in ឆ្នាំ mode.
+     *
+     * The annual tab reads stored `sem1_avg` / `sem2_avg` rows, which no part of
+     * this application writes — so without these two requests the tab shows
+     * `0.00` for every class while the printed annual reports show a real year.
+     * Two extra reads, in one mode, buy the screen and the sheet agreeing.
+     */
+    const [annualExams, setAnnualExams] =
+        useState<{ year: string; sem1: Score[]; sem2: Score[] } | null>(null)
     const [edits, setEdits] = useState<Record<string, Record<string, string>>>({})
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
@@ -359,6 +399,21 @@ export default function ScoreTotalClient({
         return () => { alive = false }
     }, [academicYear])
 
+    // Only in ឆ្នាំ mode: the two semester exam periods the derived fallback
+    // needs. Skipped entirely in the other modes, so the monthly and semester
+    // tabs make exactly the requests they always did.
+    useEffect(() => {
+        if (currentMode !== 'annual') return
+        let alive = true
+        Promise.all([
+            getAllScoresByPeriod('semester', `sem1-${academicYear}`),
+            getAllScoresByPeriod('semester', `sem2-${academicYear}`),
+        ]).then(([sem1, sem2]) => {
+            if (alive) setAnnualExams({ year: academicYear, sem1, sem2 })
+        })
+        return () => { alive = false }
+    }, [currentMode, academicYear])
+
     /**
      * Full mark per *monthly* column, for the semester's monthly component —
      * the current mode may be semester, but the component is built from
@@ -431,6 +486,69 @@ export default function ScoreTotalClient({
         return out
     }, [currentMode, initialStudents, monthlyAverages, selectedSemesterMonths])
 
+    /**
+     * Each pupil's two semester figures, derived from their marks.
+     *
+     * The SAME composition `resolveAnnualClass` performs server-side:
+     * `semesterAverage(exam, coursework)` per semester, where the coursework
+     * half is `monthlyComponent` over that semester's periods on the class's own
+     * calendar. Nothing is re-derived — both halves come from the shared
+     * helpers, so the screen cannot produce a number the printed sheet would
+     * not.
+     *
+     * Empty outside ឆ្នាំ mode, and empty until the two requests land, in which
+     * case `buildAnnualResult` simply falls through to the stored sheet — the
+     * behaviour this tab had before.
+     */
+    const annualDerived = useMemo<DerivedSemesters>(() => {
+        const out: DerivedSemesters = {}
+        if (currentMode !== 'annual') return out
+        if (!annualExams || annualExams.year !== academicYear) return out
+
+        const examAverage = (rows: Score[]): Record<string, number | null> => {
+            const byStudent: Record<string, { score: number; maxScore: number }[]> = {}
+            for (const r of rows) {
+                const value = scoreNumericValue(r)
+                if (value === null) continue
+                ;(byStudent[r.student_id] ??= []).push({
+                    score: value,
+                    maxScore: maxByColumn[r.subject] ?? scheme.maxScore,
+                })
+            }
+            const acc: Record<string, number | null> = {}
+            for (const [sid, entries] of Object.entries(byStudent)) {
+                acc[sid] = coefficientAverage(entries, scheme)
+            }
+            return acc
+        }
+
+        const exam1 = examAverage(annualExams.sem1)
+        const exam2 = examAverage(annualExams.sem2)
+
+        // The class's own period calendar (00029), never a compiled-in split.
+        const months1 = periodKeysForSemester(calendar, 'sem1')
+        const months2 = periodKeysForSemester(calendar, 'sem2')
+
+        const coursework = (sid: string, months: readonly string[]): number | null => {
+            const values = months
+                .map((m) => monthlyAverages[sid]?.[m])
+                .filter((v): v is number => typeof v === 'number')
+            if (values.length === 0) return null
+            return values.reduce((a, b) => a + b, 0) / values.length
+        }
+
+        for (const stu of initialStudents) {
+            out[stu.id] = {
+                sem1: semesterAverage(exam1[stu.id] ?? null, coursework(stu.id, months1)),
+                sem2: semesterAverage(exam2[stu.id] ?? null, coursework(stu.id, months2)),
+            }
+        }
+        return out
+    }, [
+        currentMode, annualExams, academicYear, initialStudents,
+        monthlyAverages, calendar, maxByColumn, scheme,
+    ])
+
     /** Fetched marks with anything typed layered on top. */
     const scoresByStudent = useMemo(() => {
         const base: Record<string, ScoreMap> = {}
@@ -445,8 +563,8 @@ export default function ScoreTotalClient({
     }, [initialStudents, records, edits])
 
     const rows = useMemo(
-        () => computeRows(initialStudents, scoresByStudent, allColumns, currentMode, monthlyComponent, scheme, maxByColumn),
-        [initialStudents, scoresByStudent, allColumns, currentMode, monthlyComponent, scheme, maxByColumn],
+        () => computeRows(initialStudents, scoresByStudent, allColumns, currentMode, monthlyComponent, scheme, maxByColumn, annualDerived),
+        [initialStudents, scoresByStudent, allColumns, currentMode, monthlyComponent, scheme, maxByColumn, annualDerived],
     )
 
     // -------------------------------------------------------------- filtering
@@ -745,6 +863,21 @@ export default function ScoreTotalClient({
     const finalLabel = currentMode === 'semester' ? 'មធ្យមភាគឆមាស'
         : currentMode === 'annual' ? 'លទ្ធផលប្រចាំឆ្នាំ' : 'មធ្យមភាគ'
 
+    /**
+     * The weakest provenance across the class, for the badge above — `stored`
+     * only when every semester that counted came from a stored row, so the
+     * screen can never claim a figure is a teacher's own when half of it was
+     * worked out. `null` outside ឆ្នាំ mode, where the question does not arise.
+     */
+    const annualSource: AnnualValueSource | null = useMemo(() => {
+        if (currentMode !== 'annual') return null
+        const sources = new Set(
+            rows.map((r) => r.annualResult?.source).filter((v): v is AnnualValueSource => !!v && v !== 'none'),
+        )
+        if (sources.size === 0) return null
+        return sources.has('derived') ? 'derived' : 'stored'
+    }, [currentMode, rows])
+
     return (
         <PageContainer>
             <style jsx global>{`
@@ -790,6 +923,18 @@ export default function ScoreTotalClient({
                             {levelContextLabel && (
                                 <span className="rounded-full bg-brand-100 px-2.5 py-0.5 text-xs font-bold text-brand-800 dark:bg-brand-900/40 dark:text-brand-300">
                                     {levelContextLabel}
+                                </span>
+                            )}
+                            {annualSource !== null && (
+                                /* Which source the ឆ្នាំ figures came from, said out
+                                   loud. A stored average a teacher recorded and one
+                                   the system worked out from the marks are different
+                                   claims, and the printed annual reports carry the
+                                   same sentence — so the screen and the sheet agree
+                                   about their own provenance, not just their
+                                   numbers. */
+                                <span className="rounded-full bg-paper px-2.5 py-0.5 text-xs text-text-muted">
+                                    {annualSourceNote(annualSource)}
                                 </span>
                             )}
                         </p>

@@ -11,6 +11,7 @@
 
 import type { Student } from '@/lib/types'
 import type { EffectiveSubject } from '@/lib/scores/template'
+import type { AnnualResult } from '@/lib/scores/annual'
 
 /**
  * A student decorated with the per-period scores and every derived total the
@@ -25,6 +26,14 @@ export type TotalledStudent = Student & {
     rank: number
     annualTotal: number
     annualAverage: string
+    /**
+     * The year as the shared layer resolved it, in ឆ្នាំ mode only.
+     *
+     * Carries WHICH SOURCE each semester came from — a stored annual row, or a
+     * figure derived from the marks — so the screen can say so rather than
+     * presenting the two as the same claim. Undefined in the other modes.
+     */
+    annualResult?: AnnualResult
     examTotal: number
     examAverage: string
     monthlyAverage: string
