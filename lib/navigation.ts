@@ -6,6 +6,7 @@ import {
   BookMarked,
   FileBarChart,
   FolderOpen,
+  School,
   Sparkles,
   Bell,
   Settings,
@@ -104,6 +105,32 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: LayoutDashboard,
         href: "/dashboard",
         alias: "dashboard home",
+      },
+      /*
+       * The front door for class · student · subject.
+       *
+       * It **groups, it does not relocate**: the hub page links out to
+       * `/student-list`, `/enrollment` and `/score/subjects`, and those routes
+       * stay where they are, owned by the modules below and by `scores`. This
+       * module therefore declares only its own two routes — claiming
+       * `/student-list` here as well would put two entries in `PATH_INDEX` for
+       * one href, and the sidebar would start highlighting whichever the
+       * longest-match sort happened to reach first.
+       *
+       * `/classroom/classes` is the one genuinely new page: until it existed a
+       * teacher who wanted a second class had nowhere to go, since
+       * `/onboarding/class` runs once and `/admin/classes` needs a principal.
+       */
+      {
+        id: "classroom",
+        label: "ថ្នាក់ និងសិស្ស",
+        icon: School,
+        href: "/classroom",
+        alias: "classroom classes my class manage",
+        children: [
+          { label: "ទិដ្ឋភាពរួម", href: "/classroom", primary: true, alias: "classroom overview hub" },
+          { label: "ថ្នាក់របស់ខ្ញុំ", href: "/classroom/classes", alias: "my classes manage create" },
+        ],
       },
       {
         id: "students",
@@ -211,12 +238,28 @@ export const NAV_SECTIONS: NavSection[] = [
           { label: "បំបែកសន្លឹក Poster", href: "/poster-splitter", alias: "poster splitter" },
         ],
       },
+      /*
+       * `facilities`, not `classroom`: this module is about the *room* —
+       * the cleaning rota, the equipment inventory, the wall decorations —
+       * and never about the class of pupils or their enrolment. It held the
+       * `classroom` id and the label ថ្នាក់រៀន from the start, which read as
+       * the pupils to anyone who had not opened it, and the ថ្នាក់ concept is
+       * now needed for the module that really does own it (`/classroom`).
+       *
+       * The rename is free: `NavModule.id` is used only as a React key and for
+       * active/open state (`Sidebar`, `MobileNav`, `Breadcrumb`, all of which
+       * compare `active?.id === m.id` within one array), and it is persisted in
+       * no database, URL or storage key. `MOBILE_PRIMARY_IDS` never named it.
+       * The `href` is unchanged, so no route moves.
+       */
       {
-        id: "classroom",
-        label: "ថ្នាក់រៀន",
+        id: "facilities",
+        label: "បរិក្ខារថ្នាក់",
         icon: Sparkles,
         href: "/cleaning-schedule",
-        alias: "classroom",
+        // `classroom` stays in the search terms: a teacher who reached the
+        // cleaning rota by typing it should keep landing here.
+        alias: "facilities classroom room equipment",
         children: [
           { label: "កាលវិភាគសម្អាតថ្នាក់", href: "/cleaning-schedule", primary: true, alias: "cleaning schedule" },
           { label: "បញ្ជីសារពើភ័ណ្ឌ", href: "/inventory", alias: "inventory" },

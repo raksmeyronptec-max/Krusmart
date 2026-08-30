@@ -3,6 +3,7 @@ import 'server-only'
 import { createClient } from '@/lib/supabase/server'
 import type { QueryScope } from '@/lib/utils/queryFilter'
 import { CLASS_PARAM } from './scopeParam'
+import { chooseAssignment } from './defaultClass'
 import { logger } from '@/lib/utils/logger'
 import {
   maxScoreByColumn,
@@ -42,6 +43,11 @@ export { CLASS_PARAM } from './scopeParam'
  * Falls back to legacy `teacher_id` scoping whenever the teacher has no
  * assignments — which is every pre-V2 account — so untouched features keep
  * working exactly as before.
+ *
+ * With assignments, the class is `?class=` when the caller holds it and the
+ * **oldest active homeroom** otherwise (`lib/utils/defaultClass.ts`). That
+ * default is fixed: creating a second class does not re-point the screens a
+ * teacher did not parameterise.
  */
 export async function resolveServerScope(
   userId: string,
@@ -51,22 +57,28 @@ export async function resolveServerScope(
 
   const { data } = await supabase
     .from('teacher_assignments')
-    .select('id, teacher_id, class_id, subject_id, academic_year_id, is_homeroom, status')
+    .select('id, teacher_id, class_id, subject_id, academic_year_id, is_homeroom, status, created_at')
     .eq('teacher_id', userId)
     .eq('status', 'active')
+    // The default class must not depend on Postgres row order — see
+    // `lib/utils/defaultClass.ts` for why that stopped being hypothetical the
+    // moment a teacher could hold two homeroom classes. `chooseAssignment`
+    // re-applies the same order below; the two together are what make the
+    // answer stable rather than merely usually stable.
+    .order('is_homeroom', { ascending: false, nullsFirst: false })
+    .order('created_at', { ascending: true })
+    .order('id', { ascending: true })
 
   const assignments = (data ?? []) as TeacherAssignment[]
   if (assignments.length === 0) {
     return { mode: 'legacy', teacherId: userId }
   }
 
-  // Honour the request only if the teacher actually holds that class.
-  const requested = requestedClassId
-    ? assignments.find((a) => a.class_id === requestedClassId)
-    : undefined
-
-  // Otherwise prefer the homeroom assignment, then the first.
-  const chosen = requested ?? assignments.find((a) => a.is_homeroom) ?? assignments[0]
+  // Honour `?class=` when the teacher actually holds it; otherwise the oldest
+  // active homeroom class. A forged id matches nothing and falls back to their
+  // own default, so it can never widen access.
+  const chosen = chooseAssignment(assignments, requestedClassId)
+  if (!chosen) return { mode: 'legacy', teacherId: userId }
 
   return {
     mode: 'v2',

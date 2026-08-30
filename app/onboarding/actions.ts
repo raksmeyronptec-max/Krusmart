@@ -262,12 +262,51 @@ export async function chooseGrade(gradeId: string): Promise<ActionResult> {
 
 // ── Step 4 ──────────────────────────────────────────────────────────────────
 
+/**
+ * Who is creating the class, and therefore what happens afterwards.
+ *
+ * A **closed union**, never a URL from the caller: this is the one input that
+ * decides where the browser goes next, and accepting a path here would make an
+ * open redirect out of a form any signed-in teacher can submit.
+ *
+ *   `onboarding` — the wizard. Continues to `/onboarding/students`, unchanged.
+ *   `classroom`  — `/classroom/classes`. Returns instead of redirecting, so the
+ *                  screen can refresh `TeacherContext`: the new assignment did
+ *                  not exist when that context loaded, and a redirect throws
+ *                  before the client could ask it to reload.
+ */
+export type ClassCreationOrigin = 'onboarding' | 'classroom'
+
+/**
+ * Create a class and make the caller its form master.
+ *
+ * ★ THE ONLY CLASS-CREATION PATH. `/classroom/classes` calls this rather than
+ * carrying its own, because the enrolment backfill below is invisible from a
+ * call site: a second writer is a writer that forgets it and strands a
+ * v2-scoped account with an empty roster. If a caller needs different
+ * behaviour, add it here — see `origin`.
+ */
 export async function createClassAndAssign(input: {
   gradeId: string
   name: string
   academicYearId: string
   /** Stream for grades that split (curriculum's `tracksFromGrade`). */
   track?: string
+  origin?: ClassCreationOrigin
+  /**
+   * Whether the caller is this class's form master. Defaults to `true`, which
+   * is the wizard's behaviour and stays byte-identical for it.
+   *
+   * ★ THIS FLAG DECIDES WHETHER THE TEACHER CAN ADD STUDENTS AT ALL.
+   * `student_enrollments_write_assigned_or_admin` (00003) permits an enrolment
+   * write only to a homeroom teacher of that class, or to a school admin — so
+   * a class created with `false` is one its own creator cannot populate. That
+   * is a legitimate shape (a subject teacher on a colleague's class, whose
+   * roster an admin fills) and a trap for a self-serve teacher who has no
+   * admin. The dialog states that consequence at the moment of choice rather
+   * than letting someone find it against a permanently empty roster.
+   */
+  isHomeroom?: boolean
 }): Promise<ActionResult> {
   const { supabase, user } = await requireTeacher()
 
@@ -310,14 +349,18 @@ export async function createClassAndAssign(input: {
     return { error: friendlyError(classErr) }
   }
 
-  // Homeroom, because a teacher setting up their own class is its form master.
-  // `student_enrollments_write_assigned_or_admin` keys the roster write on
-  // exactly this flag, so without it the next step could not add a student.
+  // Homeroom by default, because a teacher setting up their own class is its
+  // form master. `student_enrollments_write_assigned_or_admin` keys the roster
+  // write on exactly this flag, so without it the next step could not add a
+  // student — which is why the wizard never offers the choice and why
+  // `/classroom/classes` spells the consequence out where it does.
+  const isHomeroom = input.isHomeroom ?? true
+
   const { error: assignErr } = await supabase.from('teacher_assignments').insert({
     teacher_id: user.id,
     class_id: cls.id,
     academic_year_id: input.academicYearId,
-    is_homeroom: true,
+    is_homeroom: isHomeroom,
     status: 'active',
   })
 
@@ -334,10 +377,17 @@ export async function createClassAndAssign(input: {
   // roster) must be enrolled *now*, or they vanish from every screen the
   // moment we redirect. Must run after the assignment: the RPC resolves the
   // target class from the caller's own homeroom assignments (00018).
-  const { data: enrolled, error: backfillErr } = await supabase.rpc(
-    'backfill_teacher_enrolments',
-    { p_class_id: cls.id },
-  )
+  //
+  // Skipped entirely for a non-homeroom class, and that is not an optimisation.
+  // 00018 resolves `p_class_id` *through the caller's active homeroom
+  // assignments*: an id they do not hold that way matches nothing and raises.
+  // Calling it here would therefore fail, hit the rollback below and delete a
+  // class the teacher legitimately asked for. There is also nothing for it to
+  // do — the legacy roster it rescues belongs to a form master, and a teacher
+  // who is not one cannot write enrolments at all.
+  const { data: enrolled, error: backfillErr } = isHomeroom
+    ? await supabase.rpc('backfill_teacher_enrolments', { p_class_id: cls.id })
+    : { data: 0, error: null }
 
   if (backfillErr) {
     // Roll the assignment and the class back rather than leaving them and
@@ -360,8 +410,10 @@ export async function createClassAndAssign(input: {
   // submit does not pay two serial round-trips after the data is already safe.
   await Promise.all([
     backfilled > 0
+      // The trigger names the surface, so the audit trail distinguishes the
+      // wizard's first class from a later one created in /classroom/classes.
       ? auditLogBatch('enrollment.backfilled', 'student_enrollment', backfilled, {
-          class_id: cls.id, trigger: 'onboarding',
+          class_id: cls.id, trigger: input.origin ?? 'onboarding',
         }, user.id)
       : Promise.resolve(),
     auditLog({
@@ -371,6 +423,11 @@ export async function createClassAndAssign(input: {
       actorId: user.id,
     }),
   ])
+
+  // The wizard continues to its next step. `/classroom/classes` gets a plain
+  // result: it has a `TeacherContext` to refresh — the assignment just written
+  // is not in it — and `redirect()` throws before the client could do that.
+  if (input.origin === 'classroom') return { success: true }
 
   redirect(`/onboarding/students?class=${cls.id}`)
 }

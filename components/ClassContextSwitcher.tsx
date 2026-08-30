@@ -1,11 +1,10 @@
 'use client'
 
-import { Suspense, useCallback } from 'react'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
 import { LayoutGrid } from 'lucide-react'
 import SearchableSelect from '@/components/ui/forms/SearchableSelect'
 import { useActiveClass } from '@/lib/hooks/useActiveClass'
-import { CLASS_PARAM } from '@/lib/utils/scopeParam'
+import { useSelectActiveClass } from '@/lib/hooks/useSelectActiveClass'
 import type { TeacherAssignmentDetail } from '@/lib/types'
 
 /** `២០២៥-២០២៦ › ១ក › គណិតវិទ្យា` */
@@ -45,36 +44,14 @@ function ClassContextSwitcherInner({
   compact?: boolean
   frameClassName?: string
 }) {
-  const { assignments, assignment, setAssignmentId, hasMultiple, isLegacy, loading } =
-    useActiveClass()
-
-  const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
+  const { assignments, assignment, hasMultiple, isLegacy, loading } = useActiveClass()
 
   /**
-   * Update the context *and* the URL.
-   *
-   * The URL half matters: server components read `?class=` to decide what to
-   * fetch, so without it the page would keep rendering the previous class's
-   * data while the switcher claimed otherwise. Every other param is carried
-   * across — a deep link into a filtered, paged report must survive a class
-   * change, and `resolveServerScope` re-validates the id against the caller's
-   * own assignments regardless of what the URL says.
+   * Update the context *and* the URL — see `useSelectActiveClass`, which owns
+   * that pair. `/classroom/classes` selects a class with the same hook, so the
+   * two surfaces cannot disagree about which one is active.
    */
-  const handleChange = useCallback(
-    (assignmentId: string) => {
-      setAssignmentId(assignmentId)
-
-      const target = assignments.find((a) => a.id === assignmentId)
-      if (!target) return
-
-      const params = new URLSearchParams(searchParams.toString())
-      params.set(CLASS_PARAM, target.class_id)
-      router.replace(`${pathname}?${params.toString()}`, { scroll: false })
-    },
-    [assignments, pathname, router, searchParams, setAssignmentId],
-  )
+  const handleChange = useSelectActiveClass()
 
   // Nothing to show for a legacy account, and nothing to flash while loading.
   if (loading || isLegacy || !assignment) return null
