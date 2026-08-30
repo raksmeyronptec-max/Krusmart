@@ -144,7 +144,7 @@ Turn-taking makes it advisory, but phases in different lanes share no files.
       exist, that the four linked screens are still at their own URLs, that the
       hub reads no marks, and that `/score/template` is still a redirect.
 
-- [ ] **C3 · Lane B — `/classroom/classes`, read + set active**
+- [x] **C3 · Lane B — `/classroom/classes`, read + set active**
       **Needs:** C0, C2
       **Files:** `app/(main)/classroom/classes/page.tsx`,
       `app/(main)/classroom/classes/ClassesClient.tsx`
@@ -160,6 +160,29 @@ Turn-taking makes it advisory, but phases in different lanes share no files.
       **Watch:** reuse `components/ClassContextSwitcher.tsx` for the active-class
       control. Do not build a second switcher — two of them disagreeing about
       which class is selected is the failure this avoids.
+      **Notes:** the switcher could not be *rendered* on a card (it is a
+      dropdown over every assignment, not a per-class button), so what was
+      reused is the behaviour: `handleChange` moved out of it into
+      `lib/hooks/useSelectActiveClass.ts`, and both surfaces now call that. One
+      place knows that selecting a class means writing `TeacherContext` **and**
+      `?class=` together. The switcher is unchanged in behaviour.
+      Read rules live in a pure `lib/classroom/classes.ts` so they can be checked
+      without a database — `buildClassList` and `countEnrolments` are what
+      `verify-classroom.mts` exercises. Its import of `defaultClass` is relative
+      **with the `.ts` extension**, the shape `lib/scores/semester.ts` already
+      uses: `@/` is a bundler feature and the harness has no bundler.
+      Three things the spec did not settle. **One card per class, not per
+      assignment** — a teacher holding both a homeroom row and a subject row on
+      one class holds two rows and has one class; the card keeps every
+      assignment id, because C5 archives all of them or the class comes back.
+      **Selecting a card selects its homeroom assignment**, via the same
+      `orderAssignments` the default-class rule uses, so the card and the server
+      agree on what selecting means. And the **list** sorts newest year first,
+      the reverse of the default-class rule — a list is read top-down and the
+      current year is what a teacher wants, while a default must not move.
+      The active class is passed from the server *and* read from context: they
+      agree except between the click and the router settling, and the fresher
+      context wins.
 
 - [ ] **C4 · Lane B — Create a class**
       **Needs:** C3, plus the product answer below
