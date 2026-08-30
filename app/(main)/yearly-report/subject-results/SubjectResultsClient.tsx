@@ -8,7 +8,10 @@ import { EmptyState } from '@/components/ui/feedback/EmptyState'
 import { getAllScoresByPeriod } from '../../score/total/actions'
 import { MONTHS_BY_ACADEMIC_YEAR } from '@/lib/constants/months'
 import { MONTHLY_SUBJECT_KEYS, SEMESTER_SUBJECT_KEYS, subjectLabel } from '@/lib/constants/subjects'
-import { DEFAULT_SCHEME_CONFIG, gradeFor } from '@/lib/grading/scheme'
+import { DEFAULT_SCHEME_CONFIG } from '@/lib/grading/scheme'
+import {
+  schemeLetters, tallyCell, tallySubject, type SubjectTally, type Tally,
+} from '@/lib/scores/subject-results'
 import { useScoreTemplate } from '@/lib/hooks/useScoreTemplate'
 import { maxScoreByColumn } from '@/lib/scores/template'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
@@ -16,47 +19,20 @@ import type { Score, Settings, Student } from '@/lib/types'
 
 type Mode = 'monthly' | 'semester'
 
-/** Total / female pair, which is how every ministry tally is reported. */
-interface Tally {
-  t: number
-  f: number
-}
-
-interface SubjectRow {
-  key: string
-  label: string
-  tot: Tally
-  grades: Record<string, Tally>
-  pass: Tally
-  passABC: Tally
-  fail: Tally
-}
-
 /**
- * A pupil passes a subject at half its full mark, and reaches the A–C band at
- * 70% of it — the same two fractions the scheme's own pass mark and C band
- * encode. Expressed as fractions rather than the literal 5.0 / 7.0 so a
- * subject marked out of 75 is judged at 37.5 / 52.5 instead of being called a
- * pass on a /10 yardstick.
+ * The tally rule moved to `lib/scores/subject-results.ts` so the printed
+ * `annual_subject_results` report and this screen share one definition of
+ * "ជាប់មធ្យមភាគ" (§16). `Tally`, the two fractions, the letter ordering and
+ * the per-subject loop all live there now; this screen renders what it returns.
  */
-const PASS_FRACTION = 0.5
-const ABC_FRACTION = 0.7
+type SubjectRow = SubjectTally
 
 /** Letters in report order, taken from the shared scheme so the two agree. */
-const LETTERS = [...DEFAULT_SCHEME_CONFIG.bands]
-  .sort((a, b) => b.min - a.min)
-  .map((b) => b.letter)
-
-const emptyTally = (): Tally => ({ t: 0, f: 0 })
-
-function bump(tally: Tally, isFemale: boolean) {
-  tally.t++
-  if (isFemale) tally.f++
-}
+const LETTERS = schemeLetters(DEFAULT_SCHEME_CONFIG)
 
 /** `៣០ (១២)` — total with the female count in brackets. */
 function cell(tally: Tally): string {
-  return `${toKhmerNumber(tally.t)} (${toKhmerNumber(tally.f)})`
+  return tallyCell(tally, toKhmerNumber)
 }
 
 /**
@@ -121,35 +97,17 @@ export function SubjectResultsClient({
     for (const key of keys) {
       const entries = byKey.get(key) ?? []
 
-      const row: SubjectRow = {
-        key,
-        label: subjectLabel(key),
-        tot: emptyTally(),
-        grades: Object.fromEntries(LETTERS.map((l) => [l, emptyTally()])),
-        pass: emptyTally(),
-        passABC: emptyTally(),
-        fail: emptyTally(),
-      }
-
-      for (const entry of entries) {
-        if (entry.score_value === null || entry.score_value === undefined || String(entry.score_value) === '') continue
+      const values = entries.flatMap((entry) => {
+        if (entry.score_value === null || entry.score_value === undefined
+          || String(entry.score_value) === '') return []
         const val = Number.parseFloat(String(entry.score_value))
-        if (!Number.isFinite(val)) continue
+        if (!Number.isFinite(val)) return []
+        return [{ value: val, female: femaleIds.has(entry.student_id) }]
+      })
 
-        const isFemale = femaleIds.has(entry.student_id)
-
-        bump(row.tot, isFemale)
-
-        // A per-subject mark, graded on that subject's own scale.
-        const letter = gradeFor(val, scheme, maxByColumn[key] ?? scheme.maxScore)?.letter
-        if (letter && row.grades[letter]) bump(row.grades[letter], isFemale)
-
-        const subjectMax = maxByColumn[key] ?? scheme.maxScore
-        if (val >= subjectMax * PASS_FRACTION) bump(row.pass, isFemale)
-        else bump(row.fail, isFemale)
-
-        if (val >= subjectMax * ABC_FRACTION) bump(row.passABC, isFemale)
-      }
+      const row = tallySubject(
+        key, subjectLabel(key), values, maxByColumn[key] ?? scheme.maxScore, scheme,
+      )
 
       // A subject nobody has been marked in is left off entirely rather than
       // printed as a row of zeroes — the legacy report did the same.
