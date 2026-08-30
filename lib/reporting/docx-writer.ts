@@ -51,9 +51,18 @@ function toTemplateData(payload: ReportPayload): TemplateData {
     })),
     rows: payload.rows.map((row) => ({
       ...Object.fromEntries(Object.entries(row.values).map(([k, v]) => [k, clean(v)])),
+      // `subjectDetail` is merged into each subject's scope so a per-pupil form
+      // can print several figures under one subject — the record book's
+      // semester/semester/annual table. Absent for every other report, which
+      // sees exactly the shape it always did.
       subjects: payload.subjects.map((s, i) => ({
         label: s.label,
+        key: s.key,
+        maxScore: s.maxScore,
         score: clean(row.subjectValues[i] ?? null),
+        ...Object.fromEntries(
+          Object.entries(row.subjectDetail?.[i] ?? {}).map(([k, v]) => [k, clean(v)]),
+        ),
       })),
     })),
     // Asserted rather than structurally typed: the library's `TemplateData` is

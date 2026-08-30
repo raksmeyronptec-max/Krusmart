@@ -43,21 +43,3 @@ export async function loadTemplateFile(
     return { error: 'ឯកសារទម្រង់មិនមាននៅលើម៉ាស៊ីនមេទេ' }
   }
 }
-
-/**
- * The filename a teacher downloads.
- *
- * Khmer class names reach the filesystem intact — every browser this app
- * targets handles UTF-8 filenames — but separators and quotes are stripped
- * because they would break the `Content-Disposition` header the download rides
- * on.
- */
-export function downloadFileName(
-  reportType: string,
-  className: string,
-  period: string,
-  extension: string,
-): string {
-  const safe = (s: string) => s.replace(/[/\\"'\r\n]+/g, '').trim() || '—'
-  return `${safe(reportType)}_${safe(className)}_${safe(period)}.${extension}`
-}

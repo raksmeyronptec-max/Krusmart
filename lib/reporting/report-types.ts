@@ -94,6 +94,19 @@ export interface ReportDefinition {
    * which is the only place allowed to decide what a card may claim.
    */
   resolver: boolean
+  /**
+   * Subsection heading inside a large family (§42).
+   *
+   * Only the yearly family needs one: seven reports in a flat list is a wall,
+   * and the three things a teacher actually comes for — the year's totals, the
+   * per-subject view, and the promote/repeat decision — are not the same
+   * errand. Declared here rather than in the Print Center because it is a fact
+   * about the catalogue, and a second list of groupings in a React component is
+   * exactly the drift §28 forbids. Undefined means the family lists flat.
+   *
+   * Display only. Never key anything on it.
+   */
+  group?: string
 }
 
 /**
@@ -119,11 +132,11 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     type: 'score_semester',
     category: 'scores',
     label: 'តារាងពិន្ទុឆមាស',
-    description: 'ពិន្ទុប្រឡងឆមាស និងមធ្យមភាគ',
+    description: 'ពិន្ទុប្រឡងឆមាស ម.ភាគប្រចាំខែ និងម.ភាគឆមាស តាមលំដាប់បញ្ជីឈ្មោះ',
     period: 'semester',
     formats: ['xlsx'],
     legacyHref: '/score/print',
-    resolver: false,
+    resolver: true,
   },
   {
     type: 'score_annual',
@@ -161,11 +174,11 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     type: 'ranking_annual',
     category: 'ranking',
     label: 'ចំណាត់ថ្នាក់ប្រចាំឆ្នាំ',
-    description: 'លំដាប់សិស្សតាមមធ្យមភាគប្រចាំឆ្នាំ',
+    description: 'លំដាប់សិស្សតាមមធ្យមភាគឆមាសទាំងពីរ និងលទ្ធផលប្រចាំឆ្នាំ',
     period: 'year',
     formats: ['xlsx'],
     legacyHref: '/ranking',
-    resolver: false,
+    resolver: true,
   },
 
   // ----------------------------------------------------------------- honor
@@ -185,11 +198,11 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     type: 'certificate',
     category: 'certificate',
     label: 'វិញ្ញាបនបត្រ',
-    description: 'ឯកសារផ្លូវការសម្រាប់សិស្សម្នាក់ៗ',
+    description: 'បណ្ណសរសើរជា Word មួយទំព័រក្នុងមួយសិស្ស តាមលទ្ធផលប្រចាំឆ្នាំ',
     period: 'year',
     formats: ['docx', 'html'],
     legacyHref: '/certificate',
-    resolver: false,
+    resolver: true,
   },
 
   // ---------------------------------------------------------------- yearly
@@ -201,7 +214,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     period: 'year',
     formats: ['xlsx'],
     legacyHref: '/yearly-report',
-    resolver: false,
+    resolver: true,
+    group: 'លទ្ធផលសរុបប្រចាំឆ្នាំ',
   },
   {
     type: 'annual_monthly_ranking',
@@ -211,7 +225,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     period: 'year',
     formats: ['xlsx'],
     legacyHref: '/yearly-report',
-    resolver: false,
+    resolver: true,
+    group: 'លទ្ធផលសរុបប្រចាំឆ្នាំ',
   },
   {
     type: 'annual_monthly_average',
@@ -221,7 +236,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     period: 'year',
     formats: ['xlsx'],
     legacyHref: '/yearly-report',
-    resolver: false,
+    resolver: true,
+    group: 'លទ្ធផលសរុបប្រចាំឆ្នាំ',
   },
   {
     type: 'annual_subject',
@@ -231,7 +247,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     period: 'year',
     formats: ['xlsx'],
     legacyHref: '/yearly-report',
-    resolver: false,
+    resolver: true,
+    group: 'តាមមុខវិជ្ជា',
   },
   {
     type: 'annual_subject_results',
@@ -241,7 +258,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     period: 'year',
     formats: ['xlsx'],
     legacyHref: '/yearly-report/subject-results',
-    resolver: false,
+    resolver: true,
+    group: 'តាមមុខវិជ្ជា',
   },
   {
     type: 'annual_promoted_students',
@@ -251,7 +269,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     period: 'year',
     formats: ['xlsx'],
     legacyHref: '/yearly-report/promoted',
-    resolver: false,
+    resolver: true,
+    group: 'ការសម្រេចចុងឆ្នាំ',
   },
   {
     type: 'annual_repeated_students',
@@ -261,7 +280,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     period: 'year',
     formats: ['xlsx'],
     legacyHref: '/yearly-report/repeated',
-    resolver: false,
+    resolver: true,
+    group: 'ការសម្រេចចុងឆ្នាំ',
   },
 
   // -------------------------------------------------------------- tracking
@@ -269,11 +289,14 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     type: 'student_tracking_record_book',
     category: 'tracking',
     label: 'សៀវភៅសិក្ខាគារិក',
-    description: 'កំណត់ត្រាតាមដានសិស្សប្រចាំឆ្នាំ',
+    description: 'កំណត់ត្រាតាមដានសិស្សប្រចាំឆ្នាំ — ១ទំព័រក្នុងមួយសិស្ស ជា Word',
     period: 'year',
-    formats: ['html'],
+    // DOCX because the form is page-oriented — one sheet per pupil — which a
+    // single worksheet's one repeating row cannot express (§24). `html` stays
+    // listed: the legacy /record-book screen still prints it that way (§29).
+    formats: ['docx', 'html'],
     legacyHref: '/record-book',
-    resolver: false,
+    resolver: true,
   },
 ]
 

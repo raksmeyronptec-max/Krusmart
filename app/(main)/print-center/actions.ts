@@ -6,9 +6,12 @@ import { auditLog } from '@/lib/audit/log'
 import { logger } from '@/lib/utils/logger'
 import { getErrorMessage } from '@/lib/utils/errors'
 
-import { resolveReport, type ReportRequest } from '@/lib/reporting/report-data'
-import { downloadFileName, loadTemplateFile } from '@/lib/reporting/report-storage'
-import { activeTemplate, templateById } from '@/lib/reporting/report-template'
+import {
+  resolveCertificateCandidates, resolveReport,
+  type CertificateCandidate, type ReportRequest,
+} from '@/lib/reporting/report-data'
+import { loadTemplateFile } from '@/lib/reporting/report-storage'
+import { activeTemplate, downloadFileName, templateById } from '@/lib/reporting/report-template'
 import { fillXlsxTemplate } from '@/lib/reporting/xlsx-writer'
 import { fillDocxTemplate } from '@/lib/reporting/docx-writer'
 import { isReportType, reportDefinition } from '@/lib/reporting/report-types'
@@ -79,6 +82,32 @@ export async function previewReport(
   return { summary: resolved.summary }
 }
 
+/**
+ * The pupils a certificate may be issued to (§10).
+ *
+ * Separate from `previewReport` because the certificate is the one report whose
+ * flow asks *who*, not just *when*. Gated by the same permission and resolved
+ * through the same scope, so the list a teacher can pick from is already
+ * confined to their own class — the selection they send back is then checked
+ * against the roster again in `resolveCertificate`, because a list returned to
+ * a browser is a convenience, never an authority.
+ */
+export async function listCertificateCandidates(
+  request: ReportRequest,
+): Promise<{ error?: string; className?: string; candidates?: CertificateCandidate[] }> {
+  if (!isReportType(request.reportType)) return { error: 'របាយការណ៍មិនត្រឹមត្រូវ' }
+
+  try {
+    await requirePermission('scores:view')
+  } catch (e) {
+    return { error: getErrorMessage(e) }
+  }
+
+  const result = await resolveCertificateCandidates(request)
+  if ('error' in result) return { error: result.error }
+  return result
+}
+
 /** Generate a report document and return it for download. */
 export async function generateReport(
   request: ReportRequest,
@@ -120,7 +149,7 @@ export async function generateReport(
   }
 
   const fileName = downloadFileName(
-    request.reportType,
+    definition.label,
     resolved.summary.className || 'class',
     request.period,
     template.format,

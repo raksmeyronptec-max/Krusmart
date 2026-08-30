@@ -79,7 +79,10 @@ console.log('\nCatalogue (§19)')
 console.log('\nTemplate registry (§6/§7)')
 {
   check('score_monthly has an active template', hasTemplate('score_monthly'))
-  check('a report with no template reports none', !hasTemplate('certificate'))
+  // Was `certificate`, then `score_semester`, as each gained a real template.
+  // `score_annual` is the last report with none — move the example on again
+  // rather than weakening the check when it is migrated (§34).
+  check('a report with no template reports none', !hasTemplate('score_annual'))
   check('the active template is v1', activeTemplate('score_monthly')?.version === 1)
   check('it is addressable by the id recorded in metadata',
     templateById('score_monthly_v1')?.reportType === 'score_monthly')
@@ -122,7 +125,7 @@ console.log('\nReport availability — no card may over-claim (§10/§11)')
   // The dishonesty the four-state model exists to prevent: a resolver with no
   // document template must never present a generate button.
   // A resolver pointed at a report type that has no template in the registry.
-  const orphan = reportAvailability({ ...byType('score_monthly'), type: 'score_semester' })
+  const orphan = reportAvailability({ ...byType('score_monthly'), type: 'score_annual' })
   check('a resolver with no template asks for one instead of generating',
     orphan.status === 'needs_template' && orphan.action !== 'generate', orphan.status)
 
@@ -391,9 +394,12 @@ console.log('\nranking_monthly (§24)')
     def.legacyHref === '/ranking')
 
   // §24.3 — the same definition with no template must NOT be engine_ready.
-  // Points at `ranking_annual` because it genuinely has no template yet; when
-  // that is migrated this breaks, which is the signal to move the example on.
-  const orphan = reportAvailability({ ...def, type: 'ranking_annual' })
+  // Pointed at `ranking_annual`, then `score_semester`, and moved on each time
+  // that report was migrated — exactly what §34 asks for. Now `score_annual`,
+  // the last definition with neither a resolver nor a template. When IT is
+  // migrated this breaks again, and the answer is still to move the example
+  // rather than weaken the check.
+  const orphan = reportAvailability({ ...def, type: 'score_annual' })
   check('no active template means not engine_ready (§24.3)',
     orphan.status === 'needs_template' && orphan.action !== 'generate', orphan.status)
 }
@@ -575,7 +581,7 @@ console.log('\nranking_semester — catalogue and availability (§24.1-4/13-14)'
     avail.template?.provenance === 'derived')
   check('the legacy /ranking route is preserved', def.legacyHref === '/ranking')
 
-  const orphan = reportAvailability({ ...def, type: 'ranking_annual' })
+  const orphan = reportAvailability({ ...def, type: 'score_annual' })
   check('no active template means not engine_ready',
     orphan.status === 'needs_template' && orphan.action !== 'generate', orphan.status)
 }
@@ -828,7 +834,7 @@ console.log('\nhonor — catalogue and availability (§21.1-4)')
     avail.template?.provenance === 'derived')
   check('the legacy /honor-roll route is preserved (§16)', def.legacyHref === '/honor-roll')
 
-  const orphan = reportAvailability({ ...def, type: 'ranking_annual' })
+  const orphan = reportAvailability({ ...def, type: 'score_annual' })
   check('no active template means not engine_ready',
     orphan.status === 'needs_template' && orphan.action !== 'generate', orphan.status)
 }

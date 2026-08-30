@@ -56,6 +56,24 @@ export interface ReportRow {
   values: Record<string, CellValue>
   /** One value per subject column, in the same order as `subjects`. */
   subjectValues: CellValue[]
+  /**
+   * Extra named values per subject, for page-oriented documents (§24).
+   *
+   * A spreadsheet row has ONE cell per subject, which is why `subjectValues` is
+   * a flat array and every XLSX report is served by it. A per-pupil Word form
+   * is not a row: the record book prints a subject TABLE inside each pupil's
+   * page, with a semester column, a second semester column and an annual
+   * column — three figures under one subject.
+   *
+   * Additive on purpose. Nothing sets this except the reports that need it, the
+   * XLSX writer never reads it (a spreadsheet has nowhere to put it), and the
+   * DOCX writer merges each entry into that subject's loop scope. Extending the
+   * contract this way was the alternative to giving one report its own payload
+   * shape, which is the second source of truth §4 forbids.
+   *
+   * One entry per subject column, in the same order as `subjects`.
+   */
+  subjectDetail?: Record<string, CellValue>[]
 }
 
 /**

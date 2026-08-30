@@ -135,6 +135,160 @@ export const TEMPLATE_REGISTRY: DocumentTemplate[] = [
     notes:
       'ទាំងទម្រង់ និងលក្ខណៈវិនិច្ឆ័យជាបណ្ដោះអាសន្ន — ក្រសួងមិនទាន់មានច្បាប់កិត្តិយសផ្លូវការក្នុងប្រព័ន្ធនេះទេ។',
   },
+  {
+    id: 'ranking_annual_v1',
+    reportType: 'ranking_annual',
+    version: 1,
+    label: 'តារាងចំណាត់ថ្នាក់ប្រចាំឆ្នាំ (v1)',
+    format: 'xlsx',
+    file: 'ranking_annual_v1.xlsx',
+    educationLevel: 'primary',
+    grades: [],
+    isActive: true,
+    provenance: 'derived',
+    notes:
+      'បង្ហាញម.ភាគឆមាសទាំងពីរ និងលទ្ធផលប្រចាំឆ្នាំ។ ប្រភពម.ភាគឆមាស (រក្សាទុក ឬគណនា) បោះពុម្ពលើសន្លឹកតែម្ដង។',
+  },
+  {
+    id: 'certificate_v1',
+    reportType: 'certificate',
+    version: 1,
+    label: 'បណ្ណសរសើរ (v1)',
+    format: 'docx',
+    file: 'certificate_v1.docx',
+    educationLevel: 'primary',
+    grades: [],
+    isActive: true,
+    provenance: 'derived',
+    notes:
+      'ឯកសារ Word មួយទំព័រក្នុងមួយសិស្ស។ យកតែវាល (field) ដែល /certificate បោះពុម្ពរួចហើយ — មិនមែនចម្លងផ្ទាល់ពីឯកសារក្រសួងទេ។ ទំព័រ /certificate ដើមនៅដំណើរការដដែល។',
+  },
+  {
+    id: 'annual_summary_v1',
+    reportType: 'annual_summary',
+    version: 1,
+    label: 'បញ្ជីបូកលទ្ធផលសរុប (v1)',
+    format: 'xlsx',
+    file: 'annual_summary_v1.xlsx',
+    educationLevel: 'primary',
+    grades: [],
+    isActive: true,
+    provenance: 'derived',
+    notes:
+      'លទ្ធផលពេញមួយឆ្នាំក្នុងមួយសន្លឹក — ឆមាសទាំងពីរ ម.ភាគ និទ្ទេស ចំណាត់ថ្នាក់ និងលទ្ធផល។ បង្កើតដោយ KruSmart។',
+  },
+  {
+    id: 'annual_monthly_ranking_v1',
+    reportType: 'annual_monthly_ranking',
+    version: 1,
+    label: 'ចំណាត់ថ្នាក់ និងនិទ្ទេស (v1)',
+    format: 'xlsx',
+    file: 'annual_monthly_ranking_v1.xlsx',
+    educationLevel: 'primary',
+    grades: [],
+    isActive: true,
+    provenance: 'derived',
+    notes:
+      'ជួរឈរមួយក្នុងមួយខែតាមប្រតិទិនពិន្ទុរបស់ថ្នាក់ បង្ហាញចំណាត់ថ្នាក់ប្រចាំខែ។ បង្កើតដោយ KruSmart។',
+  },
+  {
+    id: 'annual_monthly_average_v1',
+    reportType: 'annual_monthly_average',
+    version: 1,
+    label: 'មធ្យមភាគប្រចាំឆ្នាំ (v1)',
+    format: 'xlsx',
+    file: 'annual_monthly_average_v1.xlsx',
+    educationLevel: 'primary',
+    grades: [],
+    isActive: true,
+    provenance: 'derived',
+    notes:
+      'មធ្យមភាគប្រចាំខែ ឆមាស និងប្រចាំឆ្នាំក្នុងតារាងតែមួយ។ បង្កើតដោយ KruSmart។',
+  },
+  {
+    id: 'annual_subject_v1',
+    reportType: 'annual_subject',
+    version: 1,
+    label: 'មុខវិជ្ជាប្រចាំឆ្នាំ (v1)',
+    format: 'xlsx',
+    file: 'annual_subject_v1.xlsx',
+    educationLevel: 'primary',
+    grades: [],
+    isActive: true,
+    provenance: 'derived',
+    notes:
+      'មុខវិជ្ជាមកពីទម្រង់ពិន្ទុរបស់ថ្នាក់ — ទទឹងតារាងប្រែតាមចំនួនមុខវិជ្ជា។ បង្កើតដោយ KruSmart។',
+  },
+  {
+    id: 'annual_subject_results_v1',
+    reportType: 'annual_subject_results',
+    version: 1,
+    label: 'លទ្ធផលតាមមុខវិជ្ជា (v1)',
+    format: 'xlsx',
+    file: 'annual_subject_results_v1.xlsx',
+    educationLevel: 'primary',
+    grades: [],
+    isActive: true,
+    provenance: 'derived',
+    notes:
+      'ជួរដេកជាមុខវិជ្ជា មិនមែនសិស្ស។ ច្បាប់ជាប់/ធ្លាក់ដូចទំព័រ /yearly-report/subject-results ដដែល។ បង្កើតដោយ KruSmart។',
+  },
+  {
+    id: 'annual_promoted_students_v1',
+    reportType: 'annual_promoted_students',
+    version: 1,
+    label: 'សិស្សឡើងថ្នាក់ (v1)',
+    format: 'xlsx',
+    file: 'annual_promoted_students_v1.xlsx',
+    educationLevel: 'primary',
+    grades: [],
+    isActive: true,
+    provenance: 'derived',
+    notes:
+      'លក្ខណៈវិនិច្ឆ័យបោះពុម្ពលើសន្លឹក។ សិស្សដែលមិនទាន់មានលទ្ធផលមិនស្ថិតក្នុងបញ្ជីទេ។ បង្កើតដោយ KruSmart។',
+  },
+  {
+    id: 'annual_repeated_students_v1',
+    reportType: 'annual_repeated_students',
+    version: 1,
+    label: 'សិស្សត្រួតថ្នាក់ (v1)',
+    format: 'xlsx',
+    file: 'annual_repeated_students_v1.xlsx',
+    educationLevel: 'primary',
+    grades: [],
+    isActive: true,
+    provenance: 'derived',
+    notes:
+      'ជាគូបំពេញនឹងបញ្ជីឡើងថ្នាក់ — សិស្សម្នាក់ស្ថិតក្នុងបញ្ជីតែមួយប៉ុណ្ណោះ។ បង្កើតដោយ KruSmart។',
+  },
+  {
+    id: 'student_tracking_record_book_v1',
+    reportType: 'student_tracking_record_book',
+    version: 1,
+    label: 'សៀវភៅសិក្ខាគារិក (v1)',
+    format: 'docx',
+    file: 'student_tracking_record_book_v1.docx',
+    educationLevel: 'primary',
+    grades: [],
+    isActive: true,
+    provenance: 'derived',
+    notes:
+      'ឯកសារ Word មួយទំព័រក្នុងមួយសិស្ស (A4 ផ្តេក) — មុខវិជ្ជាមកពីទម្រង់ពិន្ទុរបស់ថ្នាក់ និងអវត្តមានចែកតាមប្រតិទិនពិន្ទុរបស់ថ្នាក់។ ទំព័រ /record-book ដើមនៅដំណើរការដដែល។',
+  },
+  {
+    id: 'score_semester_v1',
+    reportType: 'score_semester',
+    version: 1,
+    label: 'តារាងពិន្ទុឆមាស (v1)',
+    format: 'xlsx',
+    file: 'score_semester_v1.xlsx',
+    educationLevel: 'primary',
+    grades: [],
+    isActive: true,
+    provenance: 'derived',
+    notes:
+      'តារាងពិន្ទុតាមលំដាប់បញ្ជីឈ្មោះ — ម.ភាគប្រឡង និងម.ភាគប្រចាំខែបង្ហាញដាច់ដោយឡែក។ មិនមែនចម្លងផ្ទាល់ពីឯកសារក្រសួងទេ។',
+  },
 ]
 
 /** Templates available for a report, newest first. */
@@ -269,4 +423,27 @@ export interface GenerationMetadata {
   format: ReportFormat
   /** Rows written, so an empty document is visible in the audit trail. */
   rowCount: number
+}
+
+/**
+ * The filename a teacher downloads (§42).
+ *
+ * Takes the report's KHMER LABEL rather than its `ReportType`, so a teacher
+ * filing a document recognises it in their downloads folder — `ranking_monthly`
+ * means nothing to the person printing it. The machine identifier still travels
+ * with the file, in the audit record and the generation metadata, which is
+ * where something needs to key on it.
+ *
+ * Khmer reaches the filesystem intact — every browser this app targets handles
+ * UTF-8 filenames — but separators and quotes are stripped because they would
+ * break the `Content-Disposition` header the download rides on.
+ */
+export function downloadFileName(
+  reportLabel: string,
+  className: string,
+  period: string,
+  extension: string,
+): string {
+  const safe = (s: string) => s.replace(/[/\\"'\r\n]+/g, '').replace(/\s+/g, ' ').trim() || '—'
+  return `KruSmart_${safe(reportLabel)}_${safe(className)}_${safe(period)}.${extension}`
 }
