@@ -250,8 +250,15 @@ console.log('\nthe list reads newest year first — the reverse of the default-c
 console.log('\nthe active-class control is the existing one:')
 const client = read('app/(main)/classroom/classes/ClassesClient.tsx')
 check('it selects through useSelectActiveClass', client.includes('useSelectActiveClass'))
+// Narrowed in C5. This read `!/useState<[^>]*>\(\s*(activeClassId|null)/`,
+// which forbade *any* nullable state in the file — so the manage dialog's
+// `useState<ClassroomClass | null>(null)` tripped it. That is ordinary UI
+// state and never was the thing at risk. What must not exist is a second
+// opinion about which class is ACTIVE, so the check now names that instead of
+// pattern-matching on nullability.
 check('it owns no selection state of its own',
-  !/useState<[^>]*>\(\s*(activeClassId|null)/.test(client) && !client.includes('setActiveClassId'))
+  !/const \[\s*\w*[Aa]ctive\w*\s*,\s*set\w+\s*\]\s*=\s*useState/.test(client) &&
+    !client.includes('setActiveClassId'))
 check('ClassContextSwitcher writes through the same hook',
   read('components/ClassContextSwitcher.tsx').includes('useSelectActiveClass'))
 check('there is no second switcher component',
@@ -385,6 +392,62 @@ check('unqualified by class', !/se\.class_id/.test(notExists))
 check('unqualified by status', !/se\.status/.test(notExists))
 check('and ON CONFLICT DO NOTHING is still the concurrency belt',
   insertBlock.includes('ON CONFLICT') && insertBlock.includes('DO NOTHING'))
+
+// --- 7. renaming and archiving (C5) ------------------------------------------
+// The rule with the most expensive failure mode in the whole feature: a
+// `classes` row has scores, attendance and enrolments behind it, all
+// ON DELETE CASCADE. Archiving must never become deleting.
+console.log('\nrenaming and archiving never destroy anything:')
+
+const classActions = read('app/(main)/classroom/classes/actions.ts')
+const manage = read('app/(main)/classroom/classes/ManageClassDialog.tsx')
+
+check('nothing in the feature deletes a class',
+  !/from\('classes'\)[\s\S]{0,120}\.delete\(/.test(classActions + manage + client),
+  'a classes row cascades to scores, attendance and enrolments')
+check('nor deletes an assignment',
+  !/from\('teacher_assignments'\)[\s\S]{0,120}\.delete\(/.test(classActions + manage + client))
+check('archiving moves the status instead',
+  /from\('teacher_assignments'\)[\s\S]{0,200}\.update\(\{\s*status:\s*'archived'/.test(classActions))
+check('and archives every active row the teacher holds on the class',
+  /\.eq\('teacher_id'[\s\S]{0,160}\.eq\('class_id'[\s\S]{0,160}\.eq\('status',\s*'active'\)/
+    .test(classActions),
+  'a teacher can hold a homeroom row AND a subject row on one class (00025)')
+
+check('archiving the last active class is refused, not warned',
+  /otherActive\s*\?\?\s*0\)\s*===\s*0/.test(classActions),
+  'it silently drops the account to legacy scope, which a dialog cannot fairly describe')
+
+// The rename must not let the name and the grade drift: the grade resolves the
+// score template, the name does not.
+check('the new name is regenerated from the class\'s own grade',
+  /generatedClassName\(gradeNumber,\s*input\.section\)/.test(classActions))
+check('the section is validated against the closed list',
+  /CLASS_SECTIONS[\s\S]{0,80}\.includes\(input\.section\)/.test(classActions))
+// Asserted as the shape of the payload, not the absence of two words nearby:
+// the first attempt scanned a window of source and matched the comment naming
+// `UNIQUE (grade_id, academic_year_id, name)`. Prose is not code.
+check('neither grade nor academic year is writable',
+  /from\('classes'\)\s*\n?\s*\.update\(\{ name \}\)/.test(classActions),
+  'the only column a rename may touch is `name`')
+
+// ★ The trap. PostgREST does not error when RLS rejects an UPDATE — it matches
+// no rows and returns 200. Only checking `error` shows a success toast over a
+// class that did not change.
+console.log('\na write the policy rejects is reported, not celebrated:')
+check('both actions gate on the permission the RLS mirrors',
+  (classActions.match(/requirePermission\('classes:update'\)/g) ?? []).length >= 2,
+  'classes/teacher_assignments carry admin-only write policies (00003)')
+check('rename treats zero rows as a refusal',
+  /!updated \|\| updated\.length === 0/.test(classActions))
+check('archive treats zero rows as a refusal',
+  /!archived \|\| archived\.length === 0/.test(classActions))
+check('both writes select rows back, so there is something to count',
+  (classActions.match(/\.select\('id'\)/g) ?? []).length >= 2)
+
+check('the card hides what the server would refuse',
+  client.includes("can('classes:update')"),
+  'convenience only — requirePermission is the enforcement')
 
 if (failures > 0) {
   console.error(`\n${failures} failure(s).`)

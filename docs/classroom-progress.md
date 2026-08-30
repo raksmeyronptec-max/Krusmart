@@ -234,7 +234,7 @@ Turn-taking makes it advisory, but phases in different lanes share no files.
       which had stopped at exactly the blocking question. That work was finished
       rather than restarted.
 
-- [ ] **C5 · Lane B — Rename and archive**
+- [x] **C5 · Lane B — Rename and archive**
       **Needs:** C4
       **Files:** `app/(main)/classroom/classes/*`
       **What:** edit the class **name only**. Grade and academic year are not
@@ -246,6 +246,40 @@ Turn-taking makes it advisory, but phases in different lanes share no files.
       else in this product: narrowing hides, it never deletes. Archiving must
       also be refused — or warned hard — when the class is the caller's only
       active one, since that drops them back to legacy scope.
+      **Notes:** ★ **both operations are admin-gated at the database, and the
+      spec did not know it.** `classes_admin_write` and
+      `teacher_assignments_admin_write` (00003) are the *only* write policies on
+      those tables — there is no "own row" policy for a teacher. A self-serve
+      teacher passes because `create_teacher_organisation` made them `owner` of
+      their own school; a teacher who joined someone else's school through
+      `join_requests` holds plain `teacher`, which the permission table gives
+      `classes` READ_ONLY. That is also why C4's create works at all, and why it
+      would fail for a joined teacher.
+      The dangerous half is *how* it fails: PostgREST does not error when RLS
+      rejects an UPDATE — it matches no rows and returns 200. A caller checking
+      only `error` shows a success toast over a class that did not change. Both
+      actions therefore gate on `requirePermission('classes:update')` (the same
+      line the RLS draws, surfaced as Khmer) **and** `.select('id')` on every
+      write, treating an empty result as a refusal.
+      **Rename is by section, not free text.** `classes.name` is
+      `generatedClassName(gradeNumber, section)` — `៥ក` — derived so name and
+      grade cannot drift, and the *grade* resolves the score template. A text
+      box would let a grade-5 class be called `៧ខ` while changing no curriculum.
+      So the section is the input and the name is regenerated server-side from
+      the class's own row. 23505 on `UNIQUE (grade_id, academic_year_id, name)`
+      is reported as "that section is taken".
+      **Archiving the last active class is refused, not warned.** Losing the
+      last assignment flips `resolveServerScope` to legacy, changing how every
+      screen resolves its roster and hiding any pupil a colleague enrolled. That
+      is not a consequence a dialog can fairly describe, and creating the next
+      class first avoids it entirely. All of the teacher's active rows on the
+      class are archived, which is what C3's `assignmentIds` was kept for.
+      Two verify assertions were corrected rather than worked around. One
+      forbade *any* nullable `useState` in `ClassesClient`, which the manage
+      dialog's state tripped — it now names active-class state, which was the
+      actual rule. The other scanned a window of source for `grade_id` and
+      matched a **comment** quoting the unique key; it now asserts the update
+      payload is `{ name }`. Prose is not code.
 
 ---
 
@@ -257,4 +291,6 @@ Turn-taking makes it advisory, but phases in different lanes share no files.
 | 2026-08-30 | design | **The hub links, it does not absorb.** `/student-list` and `/score/subjects` keep their URLs. Renaming them would touch the dashboard, every back link, the RBAC redirect targets and `proxy.ts` for no user-visible gain. |
 | 2026-08-30 | C4 | **A teacher may hold several homerooms, and the dialog asks.** Product owner's call, consistent with `/admin/teachers`, which has always asked. No migration; C0 already made the default class stable when there are several. |
 | 2026-08-30 | C4 | **Unticking homeroom is offered but warned, and skips the backfill.** `is_homeroom` gates every enrolment write (00003) and the backfill's class lookup (00018), so a non-homeroom class cannot be populated by its creator and would be *deleted* by the rollback if the backfill still ran. If this turns out to confuse teachers, removing the checkbox and always passing `true` is a one-line change — the action's default already is `true`. |
+| 2026-08-30 | C5 | **Managing a class needs `classes:update`, which a joined teacher does not have.** `classes` and `teacher_assignments` carry admin-only write policies (00003); self-serve teachers pass only because they are `owner` of the school they created. The card hides the control and the action refuses it. If teachers who joined a school should be able to rename their own class, that is a new RLS policy and a product decision — not a UI change. |
+| 2026-08-30 | C5 | **An RLS-rejected UPDATE is silent, so every write counts its rows.** PostgREST returns 200 with zero rows rather than an error. Any future write in this feature must `.select()` and treat an empty result as a refusal, or it will show success over a change that never happened. |
 | 2026-08-30 | setup | **Built in a git worktree**, base `cfa81fe`. The main checkout had uncommitted annual-report work from another session, and classroom is independent of the score-period rollout, which is blocked on migration 00029. |

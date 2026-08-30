@@ -2,7 +2,7 @@
 
 import { Suspense, useState } from 'react'
 import Link from 'next/link'
-import { Check, GraduationCap, Plus, Users } from 'lucide-react'
+import { Check, GraduationCap, Plus, Settings2, Users } from 'lucide-react'
 
 import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
 import { Badge } from '@/components/ui/feedback/Badge'
@@ -12,7 +12,9 @@ import { useActiveClass } from '@/lib/hooks/useActiveClass'
 import { useSelectActiveClass } from '@/lib/hooks/useSelectActiveClass'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import type { ClassroomClass } from '@/lib/classroom/classes'
+import { useUserRole } from '@/lib/rbac/useUserRole'
 import { CreateClassDialog, type GradeOption } from './CreateClassDialog'
+import { ManageClassDialog } from './ManageClassDialog'
 
 export type { GradeOption }
 
@@ -49,6 +51,19 @@ function ClassesClientInner({
   const selectAssignment = useSelectActiveClass()
   const { classId: contextClassId, loading } = useActiveClass()
   const [creating, setCreating] = useState(false)
+  const [managing, setManaging] = useState<ClassroomClass | null>(null)
+
+  /*
+   * The same line the server draws, so the card does not offer a control that
+   * would be refused. `classes` and `teacher_assignments` carry admin-only
+   * write policies (00003): a self-serve teacher passes because
+   * `create_teacher_organisation` made them `owner` of their own school, while
+   * a teacher who joined someone else's school holds plain `teacher`, which the
+   * permission table gives `classes` read-only. `requirePermission` in
+   * `actions.ts` is the enforcement; this only decides what to show.
+   */
+  const { can } = useUserRole()
+  const canManage = can('classes:update')
 
   const active = contextClassId ?? activeClassId
 
@@ -120,6 +135,7 @@ function ClassesClientInner({
                 isActive={cls.classId === active}
                 selecting={loading}
                 onSelect={() => selectAssignment(cls.assignmentId)}
+                onManage={canManage ? () => setManaging(cls) : undefined}
               />
             </li>
           ))}
@@ -132,6 +148,12 @@ function ClassesClientInner({
         grades={grades}
         years={years}
       />
+
+      <ManageClassDialog
+        cls={managing}
+        open={managing !== null}
+        onClose={() => setManaging(null)}
+      />
     </PageContainer>
   )
 }
@@ -141,11 +163,14 @@ function ClassCard({
   isActive,
   selecting,
   onSelect,
+  onManage,
 }: {
   cls: ClassroomClass
   isActive: boolean
   selecting: boolean
   onSelect: () => void
+  /** Absent when the teacher may not write to `classes` — see `canManage`. */
+  onManage?: () => void
 }) {
   // ថ្នាក់ទី៥ · បឋមសិក្សា — skipping whichever a school without the canonical
   // level names does not resolve, rather than printing a stray separator.
@@ -218,6 +243,17 @@ function ClassCard({
         >
           មើលបញ្ជីសិស្ស
         </Link>
+        {onManage && (
+          <button
+            type="button"
+            onClick={onManage}
+            aria-label={`កែថ្នាក់ ${cls.className}`}
+            className="ml-auto inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-[13px] font-bold text-text-muted transition hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring sm:min-h-8"
+          >
+            <Settings2 className="h-3.5 w-3.5" aria-hidden="true" />
+            កែ
+          </button>
+        )}
       </div>
     </div>
   )
