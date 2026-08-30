@@ -38,7 +38,8 @@ export default async function PrintCenterPage({
   const scope = await resolveServerScope(user.id, requestedClassId)
 
   // Class name and grade for the header (§6). Both are context, not report
-  // data: the centre must not fetch a single mark to render itself (§30).
+  // data: the centre must not fetch a single mark to render itself (§33) — two
+  // metadata rows, no scores, whatever the catalogue grows to.
   let className = ''
   let gradeNumber: number | null = null
   if (scope.mode === 'v2') {
@@ -48,6 +49,17 @@ export default async function PrintCenterPage({
     ])
     className = data?.name ?? ''
     gradeNumber = context?.gradeNumber ?? null
+  } else {
+    // A pre-V2 account has no `classes` row, but it does have the class name it
+    // prints on every sheet. Without this the context bar would read "—" for
+    // exactly the teachers whose reports still work — and §6 asks the header to
+    // name the class, not to expose which scoping path resolved it.
+    const { data } = await supabase
+      .from('settings')
+      .select('class_name')
+      .eq('teacher_id', user.id)
+      .maybeSingle()
+    className = data?.class_name ?? ''
   }
 
   return (
