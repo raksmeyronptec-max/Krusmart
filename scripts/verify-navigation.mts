@@ -94,6 +94,38 @@ check(
   (facilities?.alias ?? '').includes('classroom'),
 )
 
+// --- 1b. the new module -----------------------------------------------------------
+console.log('\nthe class module took the `classroom` id:')
+
+const classroom = byId('classroom')
+check('a module with id `classroom` exists', Boolean(classroom))
+check('labelled ថ្នាក់ និងសិស្ស', classroom?.label === 'ថ្នាក់ និងសិស្ស', `got ${classroom?.label}`)
+check('points at /classroom', classroom?.href === '/classroom', `got ${classroom?.href}`)
+check('it is not the room module wearing a new label',
+  classroom?.href !== '/cleaning-schedule')
+check('declares /classroom/classes', 
+  Boolean(classroom?.children?.some((c) => c.href === '/classroom/classes')))
+
+// The hub links to these; it must not *own* them. Two PATH_INDEX entries for one
+// href would make the sidebar highlight whichever the longest-match sort reached
+// first, so `/student-list` could start lighting up ថ្នាក់ និងសិស្ស instead of សិស្ស.
+console.log('\nthe hub groups, it does not relocate:')
+for (const [href, owner] of [
+  ['/student-list', 'students'],
+  ['/enrollment', 'students'],
+  ['/score/subjects', 'scores'],
+] as const) {
+  check(`${href} is still owned by ${owner}`, moduleForPath(href)?.id === owner,
+    `got ${moduleForPath(href)?.id}`)
+  check(`${href} is not declared under classroom`,
+    !classroom?.children?.some((c) => c.href === href))
+}
+
+check(
+  'every classroom child is a /classroom route',
+  (classroom?.children ?? []).every((c) => c.href === '/classroom' || c.href.startsWith('/classroom/')),
+)
+
 // --- 2. path resolution -----------------------------------------------------------
 // The sidebar highlight, the mobile bar and the breadcrumb all go through this.
 console.log('\nthe room routes still resolve to it (sidebar, breadcrumb, mobile bar):')
@@ -104,6 +136,8 @@ for (const path of ['/cleaning-schedule', '/inventory', '/decorations']) {
 
 console.log('\nno route the rename touched changed module:')
 for (const [path, id] of [
+  ['/classroom', 'classroom'],
+  ['/classroom/classes', 'classroom'],
   ['/dashboard', 'dashboard'],
   ['/student-list', 'students'],
   ['/students/abc-123', 'students'],
@@ -121,8 +155,8 @@ console.log('\nthe tree is still coherent:')
 const ids = NAV_MODULES.map((m) => m.id)
 check('module ids are unique', new Set(ids).size === ids.length,
   `${ids.length} modules, ${new Set(ids).size} distinct`)
-check('no module still calls itself `classroom` by accident of the old meaning',
-  !ids.includes('classroom') || byId('classroom')?.href === '/classroom',
+check('the `classroom` id belongs to the class module, not the room one',
+  byId('classroom')?.href === '/classroom',
   `classroom → ${byId('classroom')?.href}`)
 
 check(

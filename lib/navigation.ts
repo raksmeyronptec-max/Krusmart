@@ -6,6 +6,7 @@ import {
   BookMarked,
   FileBarChart,
   FolderOpen,
+  School,
   Sparkles,
   Bell,
   Settings,
@@ -104,6 +105,32 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: LayoutDashboard,
         href: "/dashboard",
         alias: "dashboard home",
+      },
+      /*
+       * The front door for class · student · subject.
+       *
+       * It **groups, it does not relocate**: the hub page links out to
+       * `/student-list`, `/enrollment` and `/score/subjects`, and those routes
+       * stay where they are, owned by the modules below and by `scores`. This
+       * module therefore declares only its own two routes — claiming
+       * `/student-list` here as well would put two entries in `PATH_INDEX` for
+       * one href, and the sidebar would start highlighting whichever the
+       * longest-match sort happened to reach first.
+       *
+       * `/classroom/classes` is the one genuinely new page: until it existed a
+       * teacher who wanted a second class had nowhere to go, since
+       * `/onboarding/class` runs once and `/admin/classes` needs a principal.
+       */
+      {
+        id: "classroom",
+        label: "ថ្នាក់ និងសិស្ស",
+        icon: School,
+        href: "/classroom",
+        alias: "classroom classes my class manage",
+        children: [
+          { label: "ទិដ្ឋភាពរួម", href: "/classroom", primary: true, alias: "classroom overview hub" },
+          { label: "ថ្នាក់របស់ខ្ញុំ", href: "/classroom/classes", alias: "my classes manage create" },
+        ],
       },
       {
         id: "students",

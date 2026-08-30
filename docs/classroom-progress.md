@@ -110,7 +110,7 @@ Turn-taking makes it advisory, but phases in different lanes share no files.
       declare; reached through a narrow cast and a runtime guard rather than
       bumping a dependency the app builds against.
 
-- [ ] **C2 · Lane B — `/classroom` hub**
+- [x] **C2 · Lane B — `/classroom` hub**
       **Needs:** C1
       **Files:** `app/(main)/classroom/page.tsx`,
       `app/(main)/classroom/ClassroomHubClient.tsx`,
@@ -126,6 +126,23 @@ Turn-taking makes it advisory, but phases in different lanes share no files.
       `/student-list` or `/score/subjects`, and do not build a second subject
       configuration screen — `/score/subjects` is the only one, which is why
       `/score/template` is already a redirect.
+      **Notes:** no `ClassroomHubClient.tsx` was written. The hub is four links
+      and a context line — it holds no state and handles no events, so a
+      `'use client'` boundary would have bought nothing and cost a bundle. It is
+      a plain server component; the trio pattern starts at C3, where there is
+      actually something to edit.
+      The nav module declares **only** its own two routes. Listing
+      `/student-list` under it as well would put two entries in `PATH_INDEX` for
+      one href, and the sidebar would highlight whichever the longest-match sort
+      reached first — `/student-list` could start lighting up ថ្នាក់ និងសិស្ស
+      instead of សិស្ស. `verify-navigation.mts` now asserts that.
+      The ថ្នាក់របស់ខ្ញុំ card links to `/classroom/classes` before C3 creates
+      it, so this commit alone leaves one card 404ing. Chosen over a placeholder
+      that C3 would immediately delete; C3 follows directly.
+      New harness `scripts/verify-classroom.mts` checks the shape rather than
+      the render: that `/classroom/{students,enrollment,subjects}` do **not**
+      exist, that the four linked screens are still at their own URLs, that the
+      hub reads no marks, and that `/score/template` is still a redirect.
 
 - [ ] **C3 · Lane B — `/classroom/classes`, read + set active**
       **Needs:** C0, C2
