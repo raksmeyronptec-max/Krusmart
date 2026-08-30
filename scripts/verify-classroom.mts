@@ -281,8 +281,113 @@ check('it scopes assignments to the caller', page.includes(".eq('teacher_id', us
 check('it resolves the active class through resolveServerScope, not its own rule',
   page.includes('resolveServerScope'))
 
+// --- 5. one class-creation path ----------------------------------------------------
+// ★ The rule with the sharpest failure mode. `createClassAndAssign` runs the
+// enrolment backfill immediately after inserting the assignment, and rolls the
+// assignment *and* the class back if it fails. Neither is visible from a call
+// site, so a second creation path is a path that silently omits both.
+console.log('\ncreating a class goes through the one existing action:')
+
+const dialog = read('app/(main)/classroom/classes/CreateClassDialog.tsx')
+check('the dialog calls createClassAndAssign', dialog.includes('createClassAndAssign'))
+check('imported from the onboarding actions, not re-declared',
+  /from '@\/app\/onboarding\/actions'/.test(dialog))
+
+// The classroom feature must not write these tables itself.
+const feature = ['app/(main)/classroom/classes/page.tsx',
+  'app/(main)/classroom/classes/ClassesClient.tsx',
+  'app/(main)/classroom/classes/CreateClassDialog.tsx'].map(read).join('\n')
+check('the classroom feature never inserts a class itself',
+  !/from\('classes'\)[\s\S]{0,80}\.insert/.test(feature))
+check('nor an assignment', !/from\('teacher_assignments'\)[\s\S]{0,80}\.insert/.test(feature))
+// The dialog *names* the RPC, in the comment explaining why it does not call
+// it. What must not exist is an invocation.
+check('nor calls the backfill RPC on its own',
+  !/\.rpc\(\s*'backfill_teacher_enrolments'/.test(feature))
+
+const actions = read('app/onboarding/actions.ts')
+check('the action still backfills right after the assignment',
+  actions.includes("rpc(\n    'backfill_teacher_enrolments'") ||
+    actions.includes("'backfill_teacher_enrolments'"))
+check('and still rolls the class back when the backfill fails',
+  /backfillErr\)?\s*\{[\s\S]{0,900}rollbackClass/.test(actions))
+check('and when the assignment itself fails',
+  /assignErr\)\s*\{[\s\S]{0,600}rollbackClass/.test(actions))
+check('the caller does not swallow the failure',
+  dialog.includes('result?.error') && dialog.includes('setError'))
+check('nothing is closed or refreshed before the server confirms',
+  dialog.indexOf('return') < dialog.indexOf('router.refresh()'))
+
+// `origin` decides where the browser goes next, so it must be a closed union
+// and never a path supplied by the caller.
+check('the redirect target is a closed union, not a URL from the client',
+  actions.includes("export type ClassCreationOrigin = 'onboarding' | 'classroom'") &&
+    !/redirect\(\s*input\.(redirectTo|origin)/.test(actions))
+check('the wizard still continues to /onboarding/students',
+  actions.includes('redirect(`/onboarding/students?class=${cls.id}`)'))
+
+// --- 5b. who is the form master, and what that costs -------------------------
+// `is_homeroom` is not a label. `student_enrollments_write_assigned_or_admin`
+// (00003) permits an enrolment write ONLY to a class's homeroom teacher or a
+// school admin, and 00018 resolves the backfill's target class through the
+// caller's homeroom assignments — so the flag decides both whether the teacher
+// can ever add a pupil and whether the create call survives at all.
+console.log('\nthe homeroom choice tells the truth about what it costs:')
+
+check('the enrolment write policy still keys on is_homeroom',
+  /student_enrollments_write_assigned_or_admin[\s\S]{0,400}ta\.is_homeroom/
+    .test(read('supabase/migrations/00003_enterprise_v2_foundation.sql')),
+  'if this stops being true, the warning below is telling teachers a lie')
+
+check('the wizard is unchanged: homeroom unless a caller says otherwise',
+  /input\.isHomeroom\s*\?\?\s*true/.test(actions))
+check('the assignment carries the resolved flag, not a literal',
+  /is_homeroom:\s*isHomeroom/.test(actions) && !/is_homeroom:\s*true/.test(actions))
+
+// The sharp one. Calling the RPC for a non-homeroom class raises inside the
+// function, which lands in the rollback and deletes a class the teacher
+// legitimately asked for.
+check('the backfill is skipped when the caller is not the form master',
+  /isHomeroom\s*\n?\s*\?\s*await supabase\.rpc\(\s*'backfill_teacher_enrolments'/.test(actions),
+  'it resolves p_class_id through homeroom assignments and raises otherwise')
+
+check('the dialog offers the choice', /setIsHomeroom/.test(dialog))
+check('ticked by default, because unticking is the unusual case',
+  /useState\(true\)/.test(dialog))
+check('and the flag reaches the action', /isHomeroom,/.test(dialog))
+check('unticking says what it costs, rather than failing later',
+  /!isHomeroom\s*&&/.test(dialog) && dialog.includes('មិនអាចបញ្ចូលសិស្សដោយខ្លួនឯង'),
+  'the consequence belongs at the moment of choice, not on an empty roster')
+
+console.log('\nthe context is refreshed, because the new assignment is not in it:')
+check('TeacherContext is reloaded after a successful create', dialog.includes('teacher?.refresh()'))
+check('and the server component re-runs', dialog.includes('router.refresh()'))
+
+// --- 6. the backfill's idempotency, at the source ----------------------------------
+// `scripts/verify-classroom-live.mts` proves this against a real database. This
+// asserts the *reason* it holds, so an edit to the migration that would break a
+// second class fails here rather than in production.
+console.log("\n00019's predicate is what makes a second class safe:")
+const mig = read('supabase/migrations/00019_backfill_never_enrolled_only.sql')
+const insertBlock = mig.slice(mig.indexOf('INSERT INTO public.student_enrollments'),
+  mig.indexOf('GET DIAGNOSTICS'))
+// Cut at ON CONFLICT: the conflict target legitimately names
+// academic_year_id, and including it would hide a year-scoped guard.
+const notExists = insertBlock.slice(
+  insertBlock.indexOf('NOT EXISTS'),
+  insertBlock.indexOf('ON CONFLICT'),
+)
+check('it skips a pupil with ANY enrolment row', notExists.includes('se.student_id = s.id'))
+check('unqualified by year — that is the whole property',
+  !notExists.includes('academic_year_id'),
+  'a year-scoped guard is 00018\'s defect: it re-enrols last year\'s roster')
+check('unqualified by class', !/se\.class_id/.test(notExists))
+check('unqualified by status', !/se\.status/.test(notExists))
+check('and ON CONFLICT DO NOTHING is still the concurrency belt',
+  insertBlock.includes('ON CONFLICT') && insertBlock.includes('DO NOTHING'))
+
 if (failures > 0) {
   console.error(`\n${failures} failure(s).`)
   process.exit(1)
 }
-console.log('\n✓ /classroom groups the existing screens, lists only live classes, and counts the real roster.')
+console.log('\n✓ /classroom groups the existing screens, lists only live classes, and creates them through the one action that backfills.')

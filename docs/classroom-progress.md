@@ -184,7 +184,7 @@ Turn-taking makes it advisory, but phases in different lanes share no files.
       agree except between the click and the router settling, and the fresher
       context wins.
 
-- [ ] **C4 · Lane B — Create a class**
+- [x] **C4 · Lane B — Create a class**
       **Needs:** C3, plus the product answer below
       **Files:** `app/(main)/classroom/classes/ClassesClient.tsx`,
       `app/(main)/classroom/classes/actions.ts`
@@ -208,6 +208,31 @@ Turn-taking makes it advisory, but phases in different lanes share no files.
       deterministic, but does not answer: **may a primary teacher be homeroom of
       two classes at once?** If no, this needs a unique index and a "this is my
       homeroom" choice in the dialog. Surface it and stop.
+      **Notes:** the question was put to the product owner and answered **"ask
+      in the dialog, default smartly"** — matching `/admin/teachers`, which has
+      asked the same question with the same checkbox all along. Yes, a teacher
+      may hold several homerooms; C0 already made the resulting default stable.
+      ★ **Answering it turned up a constraint the spec did not know about, and
+      it changes what unticking means.** `is_homeroom` is not a label:
+      `student_enrollments_write_assigned_or_admin` (00003) permits an enrolment
+      write only to a class's homeroom teacher or a school admin. So a
+      non-homeroom class is one its creator cannot put a single pupil into.
+      Worse, `backfill_teacher_enrolments` resolves `p_class_id` *through the
+      caller's homeroom assignments* (00018) — calling it for a non-homeroom
+      class raises, lands in the existing rollback, and deletes the class the
+      teacher just asked for. So the backfill is now skipped when
+      `isHomeroom` is false: not an optimisation, the difference between the
+      feature working and silently destroying its own output.
+      The checkbox is therefore ticked by default and unticking renders a
+      warning saying the teacher will not be able to add pupils themselves. The
+      choice survives; the trap does not. `verify-classroom.mts` asserts all of
+      it, including that 00003 still keys the policy on `is_homeroom` — if that
+      ever changes, the warning becomes a lie and the check fails.
+      `createClassAndAssign` keeps `isHomeroom ?? true`, so the wizard's
+      behaviour is byte-identical.
+      The phase was found already written but uncommitted by an earlier session,
+      which had stopped at exactly the blocking question. That work was finished
+      rather than restarted.
 
 - [ ] **C5 · Lane B — Rename and archive**
       **Needs:** C4
@@ -230,4 +255,6 @@ Turn-taking makes it advisory, but phases in different lanes share no files.
 |---|---|---|
 | 2026-08-30 | design | **`/classroom` takes the name; the old module becomes `facilities`.** The URL was free (the old module pointed at `/cleaning-schedule`), `NavModule.id` is persisted nowhere, and the old label was a misnomer — it describes the room, not the class. |
 | 2026-08-30 | design | **The hub links, it does not absorb.** `/student-list` and `/score/subjects` keep their URLs. Renaming them would touch the dashboard, every back link, the RBAC redirect targets and `proxy.ts` for no user-visible gain. |
+| 2026-08-30 | C4 | **A teacher may hold several homerooms, and the dialog asks.** Product owner's call, consistent with `/admin/teachers`, which has always asked. No migration; C0 already made the default class stable when there are several. |
+| 2026-08-30 | C4 | **Unticking homeroom is offered but warned, and skips the backfill.** `is_homeroom` gates every enrolment write (00003) and the backfill's class lookup (00018), so a non-homeroom class cannot be populated by its creator and would be *deleted* by the rollback if the backfill still ran. If this turns out to confuse teachers, removing the checkbox and always passing `true` is a one-line change — the action's default already is `true`. |
 | 2026-08-30 | setup | **Built in a git worktree**, base `cfa81fe`. The main checkout had uncommitted annual-report work from another session, and classroom is independent of the score-period rollout, which is blocked on migration 00029. |

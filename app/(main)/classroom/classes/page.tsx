@@ -8,7 +8,7 @@ import {
   type EnrolmentCountRow,
 } from '@/lib/classroom/classes'
 import { logger } from '@/lib/utils/logger'
-import ClassesClient from './ClassesClient'
+import ClassesClient, { type GradeOption } from './ClassesClient'
 
 export const metadata = { title: 'ថ្នាក់របស់ខ្ញុំ' }
 
@@ -82,6 +82,65 @@ export default async function ClassesPage({
 
   const classes = buildClassList(assignments, enrolments)
 
+  /*
+   * What the create dialog needs to offer, resolved here rather than in the
+   * client: the grades this teacher's school actually defines, and its academic
+   * years. `createClassAndAssign` re-derives both server-side and refuses
+   * anything the school does not hold, so this list is a convenience, never the
+   * authorisation.
+   *
+   * A teacher with no `profiles.school_id` has no organisation yet — they
+   * cannot hold a grade to create a class under, so the dialog is not offered
+   * and the empty state points at the step that is actually missing.
+   */
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('school_id')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  const schoolId = typeof profile?.school_id === 'string' ? profile.school_id : null
+
+  let grades: GradeOption[] = []
+  let years: { id: string; name: string }[] = []
+
+  if (schoolId) {
+    const [{ data: gradeRows }, { data: yearRows }] = await Promise.all([
+      supabase
+        .from('grades')
+        .select('id, name, sort_order, education_levels!inner(id, name, school_id)')
+        .eq('education_levels.school_id', schoolId)
+        .order('sort_order'),
+      supabase
+        .from('academic_years')
+        .select('id, name, is_active')
+        .eq('school_id', schoolId)
+        .order('name', { ascending: false }),
+    ])
+
+    grades = (gradeRows ?? []).map((row) => {
+      const rel = (row as { education_levels?: { name?: string } | { name?: string }[] })
+        .education_levels
+      const level = Array.isArray(rel) ? rel[0] : rel
+      return {
+        id: row.id as string,
+        name: row.name as string,
+        sortOrder: (row.sort_order as number) ?? 0,
+        levelName: level?.name ?? '',
+      }
+    })
+
+    years = (yearRows ?? []).map((y) => ({ id: y.id as string, name: y.name as string }))
+    // The school's current year leads, so the dialog opens on it.
+    const activeYear = yearRows?.find((y) => y.is_active)
+    if (activeYear) {
+      years = [
+        { id: activeYear.id as string, name: activeYear.name as string },
+        ...years.filter((y) => y.id !== activeYear.id),
+      ]
+    }
+  }
+
   // Which class the rest of the app currently considers active. Resolved
   // through the same function every other server surface uses, so this screen
   // cannot show a different answer from the one `/score/enter` acts on.
@@ -92,6 +151,8 @@ export default async function ClassesPage({
       classes={classes}
       activeClassId={scope.mode === 'v2' ? scope.classId : null}
       loadFailed={Boolean(error)}
+      grades={grades}
+      years={years}
     />
   )
 }

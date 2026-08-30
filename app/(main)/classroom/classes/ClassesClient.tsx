@@ -1,8 +1,8 @@
 'use client'
 
-import { Suspense } from 'react'
+import { Suspense, useState } from 'react'
 import Link from 'next/link'
-import { Check, GraduationCap, Users } from 'lucide-react'
+import { Check, GraduationCap, Plus, Users } from 'lucide-react'
 
 import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
 import { Badge } from '@/components/ui/feedback/Badge'
@@ -12,6 +12,9 @@ import { useActiveClass } from '@/lib/hooks/useActiveClass'
 import { useSelectActiveClass } from '@/lib/hooks/useSelectActiveClass'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import type { ClassroomClass } from '@/lib/classroom/classes'
+import { CreateClassDialog, type GradeOption } from './CreateClassDialog'
+
+export type { GradeOption }
 
 /**
  * ថ្នាក់របស់ខ្ញុំ — one card per class the teacher holds.
@@ -28,25 +31,44 @@ import type { ClassroomClass } from '@/lib/classroom/classes'
  * since. They agree except in the moment between clicking and the router
  * settling, and the context is the fresher of the two, so it wins when present.
  */
+interface ClassesClientProps {
+  classes: ClassroomClass[]
+  activeClassId: string | null
+  loadFailed: boolean
+  grades: GradeOption[]
+  years: { id: string; name: string }[]
+}
+
 function ClassesClientInner({
   classes,
   activeClassId,
   loadFailed,
-}: {
-  classes: ClassroomClass[]
-  activeClassId: string | null
-  loadFailed: boolean
-}) {
+  grades,
+  years,
+}: ClassesClientProps) {
   const selectAssignment = useSelectActiveClass()
   const { classId: contextClassId, loading } = useActiveClass()
+  const [creating, setCreating] = useState(false)
 
   const active = contextClassId ?? activeClassId
+
+  // A teacher with no organisation holds no grade to create a class under, and
+  // `createClassAndAssign` would refuse. Offering the button anyway would be a
+  // control that cannot work; the empty state names the missing step instead.
+  const canCreate = grades.length > 0 && years.length > 0
 
   return (
     <PageContainer>
       <PageHeader
         title="ថ្នាក់របស់ខ្ញុំ"
         description="ថ្នាក់ដែលអ្នកទទួលបន្ទុក ឬបង្រៀន"
+        actions={
+          canCreate && classes.length > 0 ? (
+            <Button icon={<Plus className="h-4 w-4" />} onClick={() => setCreating(true)}>
+              បង្កើតថ្នាក់ថ្មី
+            </Button>
+          ) : null
+        }
       />
 
       {loadFailed ? (
@@ -68,7 +90,25 @@ function ClassesClientInner({
           <EmptyState
             kind="empty"
             title="អ្នកមិនទាន់មានថ្នាក់នៅឡើយទេ"
-            description="បង្កើតថ្នាក់ដំបូងរបស់អ្នក ដើម្បីចាប់ផ្តើមបញ្ចូលសិស្ស វត្តមាន និងពិន្ទុ។"
+            description={
+              canCreate
+                ? 'បង្កើតថ្នាក់ដំបូងរបស់អ្នក ដើម្បីចាប់ផ្តើមបញ្ចូលសិស្ស វត្តមាន និងពិន្ទុ។'
+                : 'អ្នកត្រូវបង្កើតស្ថាប័នរបស់អ្នកជាមុនសិន មុននឹងបង្កើតថ្នាក់បាន។'
+            }
+            action={
+              canCreate ? (
+                <Button icon={<Plus className="h-4 w-4" />} onClick={() => setCreating(true)}>
+                  បង្កើតថ្នាក់ថ្មី
+                </Button>
+              ) : (
+                <Link
+                  href="/onboarding/organisation"
+                  className="inline-flex min-h-11 items-center rounded-lg bg-brand px-4 text-sm font-bold text-brand-contrast transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                >
+                  បង្កើតស្ថាប័ន
+                </Link>
+              )
+            }
           />
         </div>
       ) : (
@@ -85,6 +125,13 @@ function ClassesClientInner({
           ))}
         </ul>
       )}
+
+      <CreateClassDialog
+        open={creating}
+        onClose={() => setCreating(false)}
+        grades={grades}
+        years={years}
+      />
     </PageContainer>
   )
 }
@@ -181,11 +228,7 @@ function ClassCard({
  * client rendering and which Next.js refuses to prerender without a boundary.
  * Same reason `ClassContextSwitcher` carries one.
  */
-export default function ClassesClient(props: {
-  classes: ClassroomClass[]
-  activeClassId: string | null
-  loadFailed: boolean
-}) {
+export default function ClassesClient(props: ClassesClientProps) {
   return (
     <Suspense fallback={null}>
       <ClassesClientInner {...props} />
