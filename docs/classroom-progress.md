@@ -47,7 +47,7 @@ Turn-taking makes it advisory, but phases in different lanes share no files.
 
 ## Phases
 
-- [ ] **C0 · Lane A — Make the default class deterministic**
+- [x] **C0 · Lane A — Make the default class deterministic**
       **Needs:** —
       **Files:** `lib/utils/serverScope.ts:52-69`, `scripts/verify-scope.mts` (new)
       **What:** `resolveServerScope` picks the default class with
@@ -66,6 +66,19 @@ Turn-taking makes it advisory, but phases in different lanes share no files.
       the chosen class is stable and is the oldest homeroom.
       **Why first:** this is nondeterminism in the function that decides which
       scores are read and written. It must land before a second class can exist.
+      **Notes:** the rule moved into a new pure module `lib/utils/defaultClass.ts`
+      rather than staying inline. `serverScope.ts` carries `server-only`, so a
+      check that runs outside Next.js could not have reached it there — the same
+      reason `scopeParam.ts` exists on its own. The order is applied twice, in
+      SQL and again in JS: the SQL half is what makes the answer stable, the JS
+      half is what a test can run, and they cannot drift because
+      `scripts/verify-scope.mts` asserts both.
+      Two things the spec did not settle, decided here. The order is **total** —
+      `id` breaks a `created_at` tie, because two rows written in one transaction
+      share a timestamp and a comparator returning 0 there hands the decision
+      back to input order, which is the whole defect. And a row with no
+      `created_at` sorts **last**: it means the column was not selected, and
+      guessing "very old" would promote an unknown row to the default.
 
 - [ ] **C1 · Lane A — Rename the `classroom` nav module to `facilities`**
       **Needs:** —
