@@ -211,12 +211,28 @@ export const NAV_SECTIONS: NavSection[] = [
           { label: "បំបែកសន្លឹក Poster", href: "/poster-splitter", alias: "poster splitter" },
         ],
       },
+      /*
+       * `facilities`, not `classroom`: this module is about the *room* —
+       * the cleaning rota, the equipment inventory, the wall decorations —
+       * and never about the class of pupils or their enrolment. It held the
+       * `classroom` id and the label ថ្នាក់រៀន from the start, which read as
+       * the pupils to anyone who had not opened it, and the ថ្នាក់ concept is
+       * now needed for the module that really does own it (`/classroom`).
+       *
+       * The rename is free: `NavModule.id` is used only as a React key and for
+       * active/open state (`Sidebar`, `MobileNav`, `Breadcrumb`, all of which
+       * compare `active?.id === m.id` within one array), and it is persisted in
+       * no database, URL or storage key. `MOBILE_PRIMARY_IDS` never named it.
+       * The `href` is unchanged, so no route moves.
+       */
       {
-        id: "classroom",
-        label: "ថ្នាក់រៀន",
+        id: "facilities",
+        label: "បរិក្ខារថ្នាក់",
         icon: Sparkles,
         href: "/cleaning-schedule",
-        alias: "classroom",
+        // `classroom` stays in the search terms: a teacher who reached the
+        // cleaning rota by typing it should keep landing here.
+        alias: "facilities classroom room equipment",
         children: [
           { label: "កាលវិភាគសម្អាតថ្នាក់", href: "/cleaning-schedule", primary: true, alias: "cleaning schedule" },
           { label: "បញ្ជីសារពើភ័ណ្ឌ", href: "/inventory", alias: "inventory" },

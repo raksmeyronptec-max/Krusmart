@@ -80,7 +80,7 @@ Turn-taking makes it advisory, but phases in different lanes share no files.
       `created_at` sorts **last**: it means the column was not selected, and
       guessing "very old" would promote an unknown row to the default.
 
-- [ ] **C1 · Lane A — Rename the `classroom` nav module to `facilities`**
+- [x] **C1 · Lane A — Rename the `classroom` nav module to `facilities`**
       **Needs:** —
       **Files:** `lib/navigation.ts` (module at :215, and `MOBILE_PRIMARY_IDS`
       at :328 if it names `classroom`)
@@ -95,6 +95,20 @@ Turn-taking makes it advisory, but phases in different lanes share no files.
       **Watch:** `NavModule.id` is used only for React keys and active/open
       state — nothing persists it, so this is a pure rename. Confirm that before
       relying on it.
+      **Notes:** confirmed rather than assumed. `"classroom"` as an id appeared
+      in exactly two places, both in `lib/navigation.ts` (the module and its
+      `alias`); `Sidebar`, `MobileNav` and `Breadcrumb` all compare
+      `active?.id === m.id` within one array, and the only id *literal* in the
+      codebase is `"dashboard"` in `Breadcrumb`. `MOBILE_PRIMARY_IDS` never
+      named it.
+      `classroom` was kept in the facilities `alias` so a teacher who reached the
+      cleaning rota by typing it still lands there.
+      New harness `scripts/verify-navigation.mts` imports the real module rather
+      than regexing it — `lib/navigation.ts` uses the `@/` alias, which node does
+      not resolve, so the script registers a resolve hook. That needs
+      `module.registerHooks` (node 22.15+), which `@types/node@^20` does not
+      declare; reached through a narrow cast and a runtime guard rather than
+      bumping a dependency the app builds against.
 
 - [ ] **C2 · Lane B — `/classroom` hub**
       **Needs:** C1
