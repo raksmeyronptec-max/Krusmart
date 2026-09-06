@@ -4,7 +4,7 @@
 import { orderAssignments } from '../utils/defaultClass.ts'
 
 /**
- * The teacher's own classes, as `/classroom/classes` renders them.
+ * The teacher's own classes, as `/classroom` renders them.
  *
  * Pure and free of `server-only` so the rules below can be checked without a
  * database — they are the ones that go wrong silently:

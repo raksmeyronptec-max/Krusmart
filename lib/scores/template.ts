@@ -23,7 +23,6 @@
 // `scripts/` run this module with plain `node`, which strips types but neither
 // rewrites the `@/` alias nor resolves extensionless specifiers — either form
 // would crash them at load time. `allowImportingTsExtensions` covers tsc.
-import { NATIONAL_COEFFICIENT_UNIT } from '../grading/scheme.ts'
 import type { ScoreTemplateSubjectRow } from '@/lib/types'
 import type { EducationLevelKey } from '@/lib/onboarding/curriculum'
 
@@ -574,23 +573,25 @@ export function resolveTemplateEditor(
   )
 }
 
-/**
- * The derived coefficient for a full mark, per design §3.2.
+/*
+ * ★ THERE IS DELIBERATELY NO `coefficientFor(maxScore)` HERE.
  *
- * There is no `coefficient` column and there must not be one: two editable
- * numbers that can contradict each other is a bug waiting to happen. The
- * national scale of 50 is what makes a subject marked out of 100 count double
- * one marked out of 50.
+ * There used to be, as an unconditional `maxScore ÷ 50`, and `/score/subjects`
+ * showed its result to teachers. That is wrong for two of the three levels this
+ * product serves — design §3.2's table gives បឋមសិក្សា `weighting: 'simple'`,
+ * where every subject weighs 1 whatever it is marked out of — so a primary
+ * teacher was told their /10 subject carried `មេគុណ 0.2`, a number that
+ * multiplies nothing anywhere in the app.
  *
- * Nothing multiplies by this yet — the score screens use `simpleAverage`, and
- * `weightedAverage` in `lib/grading/scheme.ts` has no callers. It is shown to
- * the teacher as a consequence of the number they are typing, not as an input.
+ * A coefficient cannot be derived from a full mark alone; it needs the class's
+ * grading scheme. `coefficientOf(maxScore, scheme)` in `lib/grading/scheme.ts`
+ * is that function, and `schemeForLevel()` is how a screen gets the scheme. The
+ * level-blind version is not re-exported under any name, because the whole
+ * failure was that it looked usable without a level.
+ *
+ * `NATIONAL_COEFFICIENT_UNIT` (= 50) stays the one place the secondary base is
+ * written, and `coefficientOf` is its only consumer.
  */
-export const COEFFICIENT_BASE = NATIONAL_COEFFICIENT_UNIT
-
-export function coefficientFor(maxScore: number): number {
-  return Math.round((maxScore / COEFFICIENT_BASE) * 100) / 100
-}
 
 /**
  * The fields that decide whether a class row says anything its parent does not.

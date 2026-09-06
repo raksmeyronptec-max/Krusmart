@@ -9,7 +9,7 @@ import { CLASS_PARAM } from '@/lib/utils/scopeParam'
  * Switch the class a teacher is working in.
  *
  * Extracted from `ClassContextSwitcher`, which was the only caller until
- * `/classroom/classes` gained a per-class "set as active" button. Both write
+ * `/classroom` gained a per-class "set as active" button. Both write
  * the *same* two places, and that is the point — the failure this avoids is two
  * surfaces disagreeing about which class is selected, which is what a second
  * switcher with its own state would produce.

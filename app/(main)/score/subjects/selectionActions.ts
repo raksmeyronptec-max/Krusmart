@@ -292,3 +292,133 @@ export async function swapSelectionOrder(
   revalidatePath('/score/enter')
   return { success: true }
 }
+
+/**
+ * Apply one screen-level selection change: upserts and removals together.
+ *
+ * ── Why this exists alongside the four actions above ───────────────────────
+ *
+ * The redesigned `/score/subjects` toggles a subject and its components inline,
+ * and a single tap can mean all three of "start teaching this subject", "mark
+ * only these components of it" and "drop the standalone rows that used to say
+ * the same thing" — see `planSelectionChange` in `lib/scores/curriculum.ts`.
+ * Composed out of `addTemplateSubjects` + `setSubjectComponents` +
+ * `removeTemplateSubject` that is three round trips, three chances to half-fail,
+ * and a visible flicker as the list re-reads between them.
+ *
+ * The older actions stay: they are the reorder path and the call sites that
+ * genuinely do one thing.
+ *
+ * ── The alias removal is not a delete of anything a teacher owns ───────────
+ *
+ * `remove` here usually carries curriculum keys the class selected on the old
+ * flat screen (`kh_read`) whose column the surviving row now covers as a
+ * component. `SubjectColumn.id` is what `scores.subject` stores and it is
+ * identical on both sides of that swap, so the grid renders the same columns
+ * before and after and not one mark is touched. The planner is pure and
+ * `scripts/verify-subject-fold.mts` asserts exactly this property.
+ *
+ * Same gate as every action in this file: `assertKnownSubjects` re-resolves the
+ * class's own curriculum server-side, so neither half of the plan can name a
+ * subject the class does not have.
+ */
+export async function applySubjectSelection(
+  plan: {
+    upsert: { subjectKey: string; enabledColumns: string[] | null }[]
+    remove: string[]
+  },
+  classId?: string,
+): Promise<ActionResult> {
+  const ctx = await classContext(classId)
+  if ('error' in ctx) return { error: ctx.error }
+
+  const upsert = plan.upsert.filter((u) => u.subjectKey.trim().length > 0)
+  const remove = [...new Set(plan.remove.map((k) => k.trim()).filter(Boolean))]
+  if (upsert.length === 0 && remove.length === 0) return { success: true }
+
+  const known = knownSubjectKeys(ctx)
+  // Removals are NOT gated on the curriculum: a key that has since left the
+  // class's curriculum is exactly the stale row this is here to clear, and
+  // refusing it would strand it for ever. The class_id filter and RLS are what
+  // bound a delete, and they bound it to this class either way.
+  const unknown = upsert.map((u) => u.subjectKey).filter((k) => !known.has(k))
+  if (unknown.length > 0) {
+    logger.error('applySubjectSelection: unknown keys', unknown)
+    return { error: 'មុខវិជ្ជាដែលបានជ្រើសរើសមិនមានក្នុងកម្មវិធីសិក្សារបស់ថ្នាក់នេះទេ' }
+  }
+
+  const supabase = await createClient()
+
+  const { data: existing, error: readError } = await supabase
+    .from('class_template_subjects')
+    .select('subject_key, sort_order')
+    .eq('class_id', ctx.classId)
+
+  if (readError) {
+    logger.error(readError)
+    return { error: readError.message }
+  }
+
+  const orderByKey = new Map(
+    (existing ?? []).map((r) => [r.subject_key as string, (r.sort_order as number) ?? 0]),
+  )
+  let nextOrder = (existing ?? []).reduce((max, r) => Math.max(max, (r.sort_order as number) ?? 0), 0)
+
+  /*
+   * Removals first. A subject being switched on can inherit the position of the
+   * alias row it replaces, which keeps the list from jumping under the finger
+   * that just tapped it — and doing it the other way round would delete the row
+   * we just wrote when a key appears in both halves.
+   */
+  if (remove.length > 0) {
+    const { error } = await supabase
+      .from('class_template_subjects')
+      .delete()
+      .eq('class_id', ctx.classId)
+      .in('subject_key', remove)
+
+    if (error) {
+      logger.error(error)
+      return { error: error.message }
+    }
+  }
+
+  for (const { subjectKey, enabledColumns } of upsert) {
+    // The position an alias row held, so a consolidated subject stays put.
+    const inheritedOrder = remove
+      .map((k) => orderByKey.get(k))
+      .find((o): o is number => typeof o === 'number')
+
+    const sort_order = orderByKey.get(subjectKey) ?? inheritedOrder ?? (nextOrder += 10)
+
+    const { error } = await supabase
+      .from('class_template_subjects')
+      .upsert(
+        {
+          class_id: ctx.classId,
+          subject_key: subjectKey,
+          enabled_columns: enabledColumns,
+          sort_order,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'class_id, subject_key' },
+      )
+
+    if (error) {
+      logger.error(error)
+      return { error: error.message }
+    }
+  }
+
+  await auditLog({
+    action: 'class_template.selection_applied',
+    entityType: 'class_template_subject',
+    newValue: { upsert, removed: remove },
+    metadata: { class_id: ctx.classId },
+    actorId: ctx.userId,
+  })
+
+  revalidatePath('/score/subjects')
+  revalidatePath('/score/enter')
+  return { success: true }
+}

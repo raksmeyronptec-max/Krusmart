@@ -13,7 +13,7 @@
  * onboarding wizard runs once, so a teacher had exactly one homeroom row and
  * `find` had exactly one candidate.
  *
- * `/classroom/classes` makes a second class routine, and migration 00003's
+ * `/classroom` makes a second class routine, and migration 00003's
  * homeroom index is keyed on *(teacher, class, year)* — so two homeroom rows in
  * one year are legal, and `createClassAndAssign` writes `is_homeroom: true`
  * unconditionally. Without an explicit order the default class then depends on

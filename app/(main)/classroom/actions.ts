@@ -6,11 +6,11 @@ import { createClient } from '@/lib/supabase/server'
 import { requirePermission } from '@/lib/rbac/server'
 import { auditLog } from '@/lib/audit/log'
 import { logger } from '@/lib/utils/logger'
-import { CLASS_SECTIONS, generatedClassName } from '@/lib/onboarding/curriculum'
+import { CLASS_SECTIONS, generatedClassName, gradeName } from '@/lib/onboarding/curriculum'
 import type { ActionResult } from '@/lib/types'
 
 /**
- * Renaming and archiving a class, for `/classroom/classes`.
+ * Renaming and archiving a class, for `/classroom`.
  *
  * ── Two gates that must agree, and one failure mode they exist to prevent ───
  *
@@ -128,7 +128,6 @@ export async function renameClass(input: {
     actorId: user.id,
   })
 
-  revalidatePath('/classroom/classes')
   revalidatePath('/classroom')
   return { success: true }
 }
@@ -211,7 +210,124 @@ export async function archiveClass(input: { classId: string }): Promise<ActionRe
     actorId: user.id,
   })
 
-  revalidatePath('/classroom/classes')
   revalidatePath('/classroom')
   return { success: true }
+}
+
+/**
+ * Make sure a grade row exists, and return its id.
+ *
+ * ── Why this action exists ─────────────────────────────────────────────────
+ *
+ * "បង្កើតថ្នាក់ថ្មី" used to offer only the `grades` rows a school happened to
+ * hold. `seedEducationLevel` writes a level's whole range, so a school created
+ * through the current wizard has all six primary grades — but one seeded by an
+ * older path, or one whose upsert failed, holds a single row and the dialog
+ * then offers a single grade. Nothing in the teacher app could add another:
+ * `/admin/classes` needs a principal and the wizard's level step runs once.
+ *
+ * The dialog now offers the level's full curriculum range and calls this for
+ * the grade the teacher actually picked. Rows are written for grades that get
+ * used, not for every grade on every page load.
+ *
+ * ── The name is derived, never sent ────────────────────────────────────────
+ *
+ * `gradeName(n)` regenerates `ថ្នាក់ទី៥` from the number, exactly as
+ * `gradesForLevel` does. Accepting a name from the browser would let a school
+ * grow a grade called anything, and `classes.name` is generated from the grade
+ * number — the two would drift, and the grade is what resolves the score
+ * template.
+ *
+ * ── The gate is authentication, and RLS is the boundary ───────────────────
+ *
+ * ★ NOT `requirePermission('classes:update')`. That was the first version of
+ * this action and it crashed the page: the permission matrix gives a plain
+ * `teacher` `classes` READ_ONLY, `requirePermission` *throws* rather than
+ * returning, and an uncaught throw inside a server action surfaces as a
+ * runtime error over the whole screen rather than a message in the dialog.
+ *
+ * It was also the wrong line to draw. This action is one step of the
+ * create-class flow, and that flow's gate is `createClassAndAssign`'s:
+ * authenticate, then let `grades_admin_write` / `classes_admin_write` (00003)
+ * decide. Gating this more strictly than the class insert it precedes would
+ * refuse teachers who can demonstrably create classes — the two must agree, and
+ * the database is the one that gets to be right.
+ *
+ * So a caller who may not write grades is told so in Khmer, by the zero-row
+ * check below, exactly as `renameClass` and `archiveClass` explain their own
+ * refusals. Those two keep `requirePermission` because the UI only offers them
+ * when `can('classes:update')` already passed; this one is reached from the
+ * create dialog, which is not gated on that.
+ *
+ * `UNIQUE (education_level_id, name)` makes the upsert safe against a race with
+ * a colleague creating the same class. The level is re-read against the
+ * caller's own school first, so a forged `educationLevelId` names a level that
+ * is simply not there.
+ *
+ * This writes structure only: no class, no assignment, no enrolment. If the
+ * class creation that follows fails, an unused grade row is left behind, which
+ * is harmless and will be reused rather than duplicated.
+ */
+export async function ensureGrade(input: {
+  educationLevelId: string
+  gradeNumber: number
+}): Promise<ActionResult & { gradeId?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized' }
+
+  if (!Number.isInteger(input.gradeNumber) || input.gradeNumber < 1 || input.gradeNumber > 12) {
+    return { error: 'ថ្នាក់មិនត្រឹមត្រូវ' }
+  }
+
+  // The level must be one this caller's school holds. RLS would refuse the
+  // insert anyway; this turns that into a sentence rather than a silent zero.
+  const { data: level } = await supabase
+    .from('education_levels')
+    .select('id, name')
+    .eq('id', input.educationLevelId)
+    .maybeSingle()
+
+  if (!level) return { error: 'រកមិនឃើញកម្រិតសិក្សានេះទេ' }
+
+  const name = gradeName(input.gradeNumber)
+
+  const { data: existing } = await supabase
+    .from('grades')
+    .select('id')
+    .eq('education_level_id', level.id)
+    .eq('name', name)
+    .maybeSingle()
+
+  if (existing?.id) return { success: true, gradeId: existing.id as string }
+
+  const { data: created, error } = await supabase
+    .from('grades')
+    .upsert(
+      { education_level_id: level.id, name, sort_order: input.gradeNumber },
+      { onConflict: 'education_level_id,name' },
+    )
+    .select('id')
+    .maybeSingle()
+
+  if (error) {
+    logger.error(error)
+    return { error: 'មិនអាចបង្កើតកម្រិតថ្នាក់នេះបានទេ' }
+  }
+
+  // Zero rows with no error is the RLS refusal described in the module note.
+  if (!created?.id) {
+    return { error: 'មានតែនាយកសាលាប៉ុណ្ណោះដែលអាចបន្ថែមកម្រិតថ្នាក់បាន' }
+  }
+
+  await auditLog({
+    action: 'grade.created',
+    entityType: 'grade',
+    entityId: created.id as string,
+    newValue: { name, sort_order: input.gradeNumber, education_level_id: level.id },
+    actorId: user.id,
+  })
+
+  revalidatePath('/classroom')
+  return { success: true, gradeId: created.id as string }
 }

@@ -1,0 +1,30 @@
+# Everything the image must NOT carry.
+#
+# `.env.local` is excluded deliberately: it holds the R2 secret key and the
+# Supabase keys, and anything COPYed into a layer stays in the image history
+# even if a later stage deletes it. The public values reach the build as build
+# args, the server-only secrets reach the container at runtime through
+# `env_file` — neither is ever baked in.
+.env
+.env.*
+!.env.example
+
+node_modules
+.next
+out
+build
+
+.git
+.gitignore
+*.md
+!README.md
+
+# Build artefacts regenerated inside the image by `npm run build`'s prebuild.
+lib/reporting/templates/*.xlsx
+lib/reporting/templates/*.docx
+
+.vscode
+.idea
+.DS_Store
+npm-debug.log*
+coverage

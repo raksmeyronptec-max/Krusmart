@@ -1,25 +1,23 @@
 'use client'
 
 import { useMemo, useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
+import { unstable_rethrow, useRouter } from 'next/navigation'
 
 import { Dialog } from '@/components/ui/overlay/Dialog'
 import { Button } from '@/components/ui/actions/Button'
 import Select from '@/components/ui/forms/Select'
 import { notify } from '@/components/ui/feedback/notify'
+import { getErrorMessageOr } from '@/lib/utils/errors'
 import { useTeacherContext } from '@/lib/context/TeacherContext'
 import {
   CLASS_SECTIONS, CLASS_TRACKS, classDisplayName, generatedClassName,
   gradeNeedsTrack, levelByName, type ClassTrackKey,
 } from '@/lib/onboarding/curriculum'
+import { gradeOptionValue, type GradeOption } from '@/lib/classroom/grades'
 import { createClassAndAssign } from '@/app/onboarding/actions'
+import { ensureGrade } from './actions'
 
-export interface GradeOption {
-  id: string
-  name: string
-  sortOrder: number
-  levelName: string
-}
+export type { GradeOption }
 
 /**
  * បង្កើតថ្នាក់ថ្មី — the dialog that closes the product gap.
@@ -62,7 +60,7 @@ export function CreateClassDialog({
   const router = useRouter()
   const teacher = useTeacherContext()
 
-  const [gradeId, setGradeId] = useState(grades[0]?.id ?? '')
+  const [gradeValue, setGradeValue] = useState(grades[0] ? gradeOptionValue(grades[0]) : '')
   const [section, setSection] = useState<string>(CLASS_SECTIONS[0])
   const [yearId, setYearId] = useState(years[0]?.id ?? '')
   const [track, setTrack] = useState<ClassTrackKey | ''>('')
@@ -85,50 +83,94 @@ export function CreateClassDialog({
    */
   const [isHomeroom, setIsHomeroom] = useState(true)
 
-  const grade = useMemo(() => grades.find((g) => g.id === gradeId), [grades, gradeId])
+  const grade = useMemo(
+    () => grades.find((g) => gradeOptionValue(g) === gradeValue),
+    [grades, gradeValue],
+  )
 
   // ថ្នាក់ទី១១–១២ stream into វិទ្យាសាស្ត្រ / សង្គម, and the same subject carries
   // a different full mark per stream. Whether this grade streams is curriculum
   // data, never a grade-number test written here.
-  const needsTrack = grade ? gradeNeedsTrack(levelByName(grade.levelName), grade.sortOrder) : false
+  const needsTrack = grade ? gradeNeedsTrack(levelByName(grade.levelName), grade.gradeNumber) : false
 
-  const name = grade ? generatedClassName(grade.sortOrder, section) : ''
-  const display = grade ? classDisplayName(grade.sortOrder, section) : ''
+  const name = grade ? generatedClassName(grade.gradeNumber, section) : ''
+  const display = grade ? classDisplayName(grade.gradeNumber, section) : ''
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
 
     startTransition(async () => {
-      const result = await createClassAndAssign({
-        gradeId,
-        name,
-        academicYearId: yearId,
-        track: needsTrack && track ? track : undefined,
-        origin: 'classroom',
-        isHomeroom,
-      })
-
-      // Nothing optimistic: the dialog stays open and the list is untouched
-      // until the server says the class exists.
-      if (result?.error) {
-        setError(result.error)
-        notify.error(result.error)
-        return
-      }
+      if (!grade) return
 
       /*
-       * Two refreshes, because two things hold stale data.
-       *
-       * `TeacherContext` loaded the teacher's assignments once, on mount, and
-       * the one just written is not in it — without this the new class could
-       * not be selected as active, and the top-bar switcher would not list it.
-       * `router.refresh()` re-runs the server component so the card appears.
+       * A server action that *throws* — rather than returning `{ error }` —
+       * takes down the whole screen with Next's runtime-error overlay instead
+       * of putting a message in this dialog. `requirePermission` throws by
+       * design, and any action here could grow another throw, so the flow is
+       * wrapped rather than trusted. `unstable_rethrow` lets Next's own control
+       * flow (redirect, notFound) past; everything else becomes a Khmer
+       * sentence in the form, which is what a teacher can act on.
        */
-      await teacher?.refresh()
-      router.refresh()
-      notify.success('បានបង្កើតថ្នាក់ថ្មី')
-      onClose()
+      try {
+        /*
+         * The grade row may not exist yet. The dialog offers the level's whole
+         * curriculum range — six grades for បឋមសិក្សា — because offering only the
+         * rows a school happens to hold left teachers unable to create a class in
+         * any other grade, with no control anywhere to add one. `ensureGrade`
+         * writes the row now, deriving its name from the number server-side, so
+         * nothing is written for a grade nobody uses.
+         */
+        let gradeId = grade.id
+        if (!gradeId) {
+          const ensured = await ensureGrade({
+            educationLevelId: grade.educationLevelId,
+            gradeNumber: grade.gradeNumber,
+          })
+          if (ensured.error || !ensured.gradeId) {
+            const message = ensured.error ?? 'មិនអាចបង្កើតកម្រិតថ្នាក់នេះបានទេ'
+            setError(message)
+            notify.error(message)
+            return
+          }
+          gradeId = ensured.gradeId
+        }
+
+        const result = await createClassAndAssign({
+          gradeId,
+          name,
+          academicYearId: yearId,
+          track: needsTrack && track ? track : undefined,
+          origin: 'classroom',
+          isHomeroom,
+        })
+
+        // Nothing optimistic: the dialog stays open and the list is untouched
+        // until the server says the class exists.
+        if (result?.error) {
+          setError(result.error)
+          notify.error(result.error)
+          return
+        }
+
+        /*
+         * Two refreshes, because two things hold stale data.
+         *
+         * `TeacherContext` loaded the teacher's assignments once, on mount, and
+         * the one just written is not in it — without this the new class could
+         * not be selected as active, and the top-bar switcher would not list it.
+         * `router.refresh()` re-runs the server component so the card appears.
+         */
+        await teacher?.refresh()
+        router.refresh()
+        notify.success('បានបង្កើតថ្នាក់ថ្មី')
+        onClose()
+      } catch (e) {
+        unstable_rethrow(e)
+        const message = getErrorMessageOr(e, 'មិនអាចបង្កើតថ្នាក់បានទេ')
+        setError(message)
+        notify.error(message)
+      }
     })
   }
 
@@ -148,7 +190,7 @@ export function CreateClassDialog({
             type="submit"
             form="create-class-form"
             loading={pending}
-            disabled={!gradeId || !yearId || !name || (needsTrack && !track)}
+            disabled={!grade || !yearId || !name || (needsTrack && !track)}
           >
             បង្កើតថ្នាក់
           </Button>
@@ -158,9 +200,13 @@ export function CreateClassDialog({
       <form id="create-class-form" onSubmit={submit} className="flex flex-col gap-4">
         <Select
           label="កម្រិត និងថ្នាក់"
-          value={gradeId}
-          onChange={setGradeId}
-          options={grades.map((g) => ({ value: g.id, label: g.name, group: g.levelName }))}
+          value={gradeValue}
+          onChange={setGradeValue}
+          options={grades.map((g) => ({
+            value: gradeOptionValue(g),
+            label: g.name,
+            group: g.levelName,
+          }))}
         />
 
         <Select

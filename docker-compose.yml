@@ -1,0 +1,66 @@
+# Running KruSmart locally in Docker.
+#
+#   docker compose --env-file .env.local up --build
+#
+# `--env-file .env.local` matters: it makes the values available for the `${...}`
+# interpolation below, so the public keys reach the BUILD. `env_file` further
+# down is a separate mechanism that hands the whole file to the RUNNING
+# container, which is how the server-only R2 credentials arrive without ever
+# entering an image layer.
+
+services:
+  web:
+    build:
+      context: .
+      args:
+        # Inlined into the browser bundle at build time, so these must be the
+        # addresses THE BROWSER will use — 127.0.0.1 for a local Supabase, since
+        # the browser runs on the host, not in this container.
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        NEXT_PUBLIC_R2_PUBLIC_URL: ${NEXT_PUBLIC_R2_PUBLIC_URL}
+
+    image: krusmart-web:local
+    container_name: krusmart-web
+
+    # Every variable in .env.local, for the server side: the R2 secret key, the
+    # bucket, the account id. None of them are in the image.
+    env_file:
+      - .env.local
+
+    environment:
+      # ★ OVERRIDES the value env_file just supplied, for SERVER-side code only
+      # (`lib/supabase/server.ts`, `middleware.ts`). The browser keeps the
+      # build-time value above; this is the same variable resolved twice,
+      # because 127.0.0.1 means "this container" in here and "the Mac" out
+      # there.
+      #
+      # Pointing at a CLOUD Supabase instead? Then both sides want the same
+      # public hostname, so set SUPABASE_SERVER_URL to that URL — or simply
+      # delete this line, and the env_file value applies to both.
+      NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_SERVER_URL:-http://host.docker.internal:54321}
+
+    ports:
+      # Host port is configurable so the container can run alongside a
+      # `npm run dev` already holding 3000:
+      #   WEB_PORT=3001 docker compose --env-file .env.local up -d
+      # The container side is always 3000 — that is what Next binds inside.
+      - "${WEB_PORT:-3000}:3000"
+
+    # Docker Desktop provides host.docker.internal on macOS already; declaring
+    # the gateway alias explicitly keeps this file working on plain Linux
+    # Docker, where it does not exist by default.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    restart: unless-stopped
+
+    healthcheck:
+      # /login is the one route that renders without a session, so a 200 here
+      # means the server is genuinely serving pages rather than merely holding
+      # the port open.
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 40s
+      retries: 3

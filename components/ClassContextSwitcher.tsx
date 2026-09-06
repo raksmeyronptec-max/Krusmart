@@ -48,7 +48,7 @@ function ClassContextSwitcherInner({
 
   /**
    * Update the context *and* the URL — see `useSelectActiveClass`, which owns
-   * that pair. `/classroom/classes` selects a class with the same hook, so the
+   * that pair. `/classroom` selects a class with the same hook, so the
    * two surfaces cannot disagree about which one is active.
    */
   const handleChange = useSelectActiveClass()

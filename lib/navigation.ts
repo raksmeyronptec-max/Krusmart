@@ -109,17 +109,22 @@ export const NAV_SECTIONS: NavSection[] = [
       /*
        * The front door for class · student · subject.
        *
-       * It **groups, it does not relocate**: the hub page links out to
+       * It **groups, it does not relocate**: the page links out to
        * `/student-list`, `/enrollment` and `/score/subjects`, and those routes
        * stay where they are, owned by the modules below and by `scores`. This
-       * module therefore declares only its own two routes — claiming
+       * module therefore declares only its own routes — claiming
        * `/student-list` here as well would put two entries in `PATH_INDEX` for
        * one href, and the sidebar would start highlighting whichever the
        * longest-match sort happened to reach first.
        *
-       * `/classroom/classes` is the one genuinely new page: until it existed a
-       * teacher who wanted a second class had nowhere to go, since
-       * `/onboarding/class` runs once and `/admin/classes` needs a principal.
+       * `/classroom` is the class manager, and the one genuinely new screen in
+       * this module: until it existed a teacher who wanted a second class had
+       * nowhere to go, since `/onboarding/class` runs once and `/admin/classes`
+       * needs a principal. It used to be a hub of four link cards with the list
+       * one click further in at `/classroom/classes`; that route now redirects
+       * here and is declared `hidden` so the breadcrumb and the sidebar
+       * highlight resolve during the redirect rather than blanking — the same
+       * pattern `/score/template` uses.
        */
       {
         id: "classroom",
@@ -128,8 +133,8 @@ export const NAV_SECTIONS: NavSection[] = [
         href: "/classroom",
         alias: "classroom classes my class manage",
         children: [
-          { label: "ទិដ្ឋភាពរួម", href: "/classroom", primary: true, alias: "classroom overview hub" },
-          { label: "ថ្នាក់របស់ខ្ញុំ", href: "/classroom/classes", alias: "my classes manage create" },
+          { label: "ថ្នាក់របស់ខ្ញុំ", href: "/classroom", primary: true, alias: "my classes manage create overview" },
+          { label: "ថ្នាក់របស់ខ្ញុំ", href: "/classroom/classes", hidden: true, alias: "classes redirect" },
         ],
       },
       {

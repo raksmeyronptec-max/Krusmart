@@ -3,8 +3,8 @@
 import { useCallback, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
-  ArrowDown, ArrowUp, AlertTriangle, CalendarDays, Eye, EyeOff, Info, Loader2,
-  ListChecks, Pencil, Plus, RotateCcw, SlidersHorizontal, Sparkles, Table2, Trash2,
+  AlertTriangle, CalendarDays, Eye, Info, ListChecks, RotateCcw,
+  SlidersHorizontal, Sparkles, Table2,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/actions/Button'
@@ -12,67 +12,125 @@ import { Dialog } from '@/components/ui/overlay/Dialog'
 import { useConfirm } from '@/components/ui/overlay/ConfirmDialog'
 import { notify } from '@/components/ui/feedback/notify'
 import { EmptyState } from '@/components/ui/feedback/EmptyState'
-import { Badge } from '@/components/ui/feedback/Badge'
 import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
 import { controlClass, fieldLabel, requiredMark } from '@/components/ui/forms/fieldStyles'
 import Select from '@/components/ui/forms/Select'
 
-import { DEFAULT_SCHEME_CONFIG } from '@/lib/grading/scheme'
+import { DEFAULT_SCHEME_CONFIG, coefficientOf, type GradingSchemeConfig } from '@/lib/grading/scheme'
+import { schemeForLevel } from '@/lib/grading/levelSchemes'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import {
-  coefficientFor, resolveTemplateEditor,
+  resolveTemplateEditor,
   type EditableSubject, type TemplateContext, type TemplateScoreType,
 } from '@/lib/scores/template'
-import { isTeacherAddedSubject, type ClassSubjectSelection } from '@/lib/scores/selection'
+import {
+  entryState, foldCurriculum, groupEntries, isNoopPlan,
+  planComponentToggle, planEntryToggle, planSelectionChange,
+  previewColumns, selectionSummary,
+  type CurriculumEntry, type SelectionPlan,
+} from '@/lib/scores/curriculum'
+import type { ClassSubjectSelection } from '@/lib/scores/selection'
 import type { ScoreTemplateSubjectRow } from '@/lib/types'
 import {
-  addClassSubject, getClassTemplateRows, resetClassTemplate,
-  swapClassSubjectOrder, updateClassSubject,
+  addClassSubject, getClassTemplateRows, resetClassTemplate, updateClassSubject,
 } from './actions'
-import {
-  addTemplateSubjects, listClassSelection, removeTemplateSubject,
-  setSubjectComponents, swapSelectionOrder,
-} from './selectionActions'
-import { CurriculumPicker } from './CurriculumPicker'
-import { ComponentPicker } from './ComponentPicker'
+import { applySubjectSelection, listClassSelection, swapSelectionOrder } from './selectionActions'
+import { SubjectSelectionList, type SubjectRow } from './SubjectSelectionList'
+import { GridPreview } from './GridPreview'
 import { ScoreCalendarSection } from './ScoreCalendarSection'
 
 /**
- * មុខវិជ្ជាតាមថ្នាក់ — the class layer of the score template.
+ * មុខវិជ្ជាតាមថ្នាក់ — which subjects a class teaches, and which parts of each.
  *
- * A teacher can hide a subject the ministry list carries but their class does
- * not sit, rename one to the wording their school uses, reorder the list to
- * match their register, change a full mark, and add a subject of their own.
- * Everything else keeps inheriting, which is why nothing is written until they
- * actually change something: materialising fourteen copies on first visit would
- * quietly cut this class off from every future change to the national default.
+ * ── What this screen used to be, and what was wrong with it ────────────────
  *
- * Hiding, never deleting. `scores.subject` holds the subject key of every mark
- * ever entered, so removing a subject from the table would orphan them. A
- * hidden subject drops out of the picker and its history still resolves.
+ * A flat list of every row the curriculum defines, four buttons on each, two
+ * modal pickers, two add buttons and a reset. For a primary class that meant
+ * thirty-four rows — twenty-three of which are the other eleven said again,
+ * because migration 00028 seeds both `khmer_all` (seven columns) and each of
+ * its seven skills as a subject in its own right, writing the *same*
+ * `scores.subject` values. A teacher who ticked ភាសាខ្មែរ and សមត្ថភាពអាន got អាន
+ * twice in their grid, and nothing on the page said so.
  *
- * Reordering is up/down rather than drag-and-drop, on purpose. This is a phone
- * screen inside a scrolling page: a touch drag has to fight the page's own
- * scroll, and getting it wrong means a teacher drops a subject somewhere they
- * did not intend. Two buttons are unambiguous, are 44px targets, work from the
- * keyboard and to a screen reader, and map exactly onto the two-row write the
- * server does.
+ * It also offered two different ways to make a subject disappear — លាក់ (a
+ * definition override) and ដកចេញ (a selection row) — which read as one sentence
+ * to a teacher and behaved differently.
+ *
+ * ── What it is now ─────────────────────────────────────────────────────────
+ *
+ * `foldCurriculum` collapses the restatements into their bundle, so the class
+ * decides about eleven subjects rather than thirty-four, and each subject's
+ * parts are chips inside its own row. Two controls, both inline:
+ *
+ *     switch      does this class teach this subject?
+ *     chips       which of its components does it mark?
+ *
+ * and a preview of the grid those choices produce, which is the question the
+ * page is really answering and which nothing here used to show.
+ *
+ * ── What deliberately did NOT change ───────────────────────────────────────
+ *
+ * The stored shape. `class_template_subjects` still holds a `subject_key` and
+ * `enabled_columns`, so `applySelection`, `useScoreTemplate`, `/score/enter`,
+ * `/score/total` and every report keep reading exactly what they read before.
+ * The fold is presentation; deleting `lib/scores/curriculum.ts` would restore
+ * the old list without a migration.
+ *
+ * The two add paths also stay apart (§7): "បង្កើតមុខវិជ្ជាផ្ទាល់ខ្លួន" mints a `cls_`
+ * subject server-side, and picking from the curriculum cannot invent one. What
+ * disappeared is the *picker dialog*, not the distinction — picking is now the
+ * switch on the row.
+ *
+ * Labels are shown verbatim: `ភាសាខ្មែរ (គ្រប់បំណិន)` is not trimmed to `ភាសាខ្មែរ`,
+ * because the score grid shows the stored label and two surfaces naming one
+ * subject differently is the drift the template layering exists to prevent.
  */
 
 /**
- * The national scale divides by 50 (design §3.2), so a full mark that is a
- * multiple of 25 yields a coefficient in halves. Anything else is legal — a
- * private school may mark out of 68 — but is worth a second look, so it warns
- * rather than blocks. The inherited value never warns: 10 is the primary
- * default and a teacher who has not touched it has nothing to confirm.
+ * ★ មេគុណ IS A PROPERTY OF THE LEVEL, NOT OF THE NUMBER.
+ *
+ * This screen used to call a level-blind `coefficientFor(max)` — an
+ * unconditional `max ÷ 50` — and so told a primary teacher their /10 subject
+ * carried `មេគុណ 0.2`. It does not. Design §3.2's table is explicit:
+ *
+ *     បឋមសិក្សា       weighting `simple`       every subject weighs 1
+ *     អនុ/វិទ្យាល័យ    weighting `coefficient`  មេគុណ = ពិន្ទុពេញ ÷ ៥០
+ *
+ * `coefficientOf` in `lib/grading/scheme.ts` has always encoded that — it
+ * returns 1 whenever the scheme is not coefficient-weighted — so the fix is to
+ * ask the class's own scheme rather than to divide by a constant. The
+ * level-blind helper is gone from `template.ts` so nobody reaches for it again.
+ *
+ * The practical consequence for a primary teacher is worth stating on the form:
+ * changing ពិន្ទុពេញ changes the scale a mark is entered on and changes nothing
+ * about how much the subject counts. Under coefficient weighting it changes
+ * both.
  */
 const NATIONAL_STEP = 25
 
-function oddCoefficientWarning(maxScore: number, inheritedMax: number | null): string | null {
+/**
+ * A full mark that is not a multiple of 25 yields an unusual coefficient. Legal
+ * — a private school may mark out of 68 — but worth a second look, so it warns
+ * rather than blocks.
+ *
+ * Silent under `simple` weighting, because there is no coefficient there to be
+ * odd: every subject weighs 1 whatever the full mark. The old version fired on
+ * the untouched primary default of 10 and asked a teacher to confirm `មេគុណ 0.2`,
+ * which was both wrong and unanswerable.
+ *
+ * The inherited value never warns either: a teacher who has not changed the
+ * number has nothing to confirm.
+ */
+function oddCoefficientWarning(
+  maxScore: number,
+  inheritedMax: number | null,
+  scheme: GradingSchemeConfig,
+): string | null {
+  if (scheme.weighting !== 'coefficient') return null
   if (!Number.isFinite(maxScore) || maxScore <= 0) return null
   if (inheritedMax !== null && maxScore === inheritedMax) return null
   if (maxScore % NATIONAL_STEP === 0) return null
-  return `មេគុណ ${coefficientFor(maxScore)} — ប្រាកដទេ?`
+  return `មេគុណ ${coefficientOf(maxScore, scheme)} — ប្រាកដទេ?`
 }
 
 const SCORE_TYPES: { id: TemplateScoreType; label: string }[] = [
@@ -98,20 +156,47 @@ export default function ScoreSubjectsClient({
   const [rows, setRows] = useState(initialRows)
   const [selection, setSelection] = useState(initialSelection)
   /**
-   * Top-level section: subjects (the original page) or the period calendar.
-   * A *section* switch above the score-type tablist, not a third tab inside
-   * it — periods are not score-type-specific, and putting them beside
-   * monthly/semester would imply a monthly calendar and a semester calendar.
+   * Top-level section: subjects or the period calendar. A *section* switch
+   * above the score-type tablist, not a third tab inside it — periods are not
+   * score-type-specific, and putting them beside monthly/semester would imply a
+   * monthly calendar and a semester calendar.
    */
   const [section, setSection] = useState<'subjects' | 'calendar'>('subjects')
   const [scoreType, setScoreType] = useState<TemplateScoreType>('monthly')
   const [busyKey, setBusyKey] = useState<string | null>(null)
+  const [showPreview, setShowPreview] = useState(false)
   const { confirm, dialog } = useConfirm()
 
-  /** Every subject the class's curriculum defines for this grid. */
-  const curriculum = useMemo(
+  /**
+   * The grading scheme this class's level uses — the authority on whether
+   * មេគុណ means anything here at all. `schemeForLevel(null)` is primary, which
+   * is the fallback every legacy account without a level has always graded on.
+   */
+  const scheme = useMemo(() => schemeForLevel(templateContext?.levelKey), [templateContext])
+  const weighted = scheme.weighting === 'coefficient'
+
+  /** Every subject the class's curriculum defines for this grid, unfolded. */
+  const editable = useMemo(
     () => resolveTemplateEditor(rows, scoreType, templateContext),
     [rows, scoreType, templateContext],
+  )
+
+  /**
+   * The same list, folded into subjects and their components.
+   *
+   * Built from the *visible* subjects: a hidden one is excluded from the fold
+   * so it cannot silently swallow a column that would then have nowhere to
+   * live. Hidden rows are re-attached below, where they render greyed with a
+   * way to unhide.
+   */
+  const editableByKey = useMemo(
+    () => new Map(editable.map((s) => [s.subjectKey, s])),
+    [editable],
+  )
+
+  const { entries } = useMemo(
+    () => foldCurriculum(editable.filter((s) => !s.hidden).map((s) => s.effective)),
+    [editable],
   )
 
   const selectionByKey = useMemo(
@@ -119,36 +204,57 @@ export default function ScoreSubjectsClient({
     [selection],
   )
 
-  /**
-   * Has this class chosen its subjects for *this* grid?
-   *
-   * Per score type, not per class: a teacher who configured their monthly
-   * subjects and has not opened the semester tab yet must not find it empty.
-   * Same predicate `applySelection` uses, so the editor and the score grid can
-   * never disagree about which world a class is in.
-   */
-  const configured = useMemo(
-    () => curriculum.some((s) => selectionByKey.has(s.subjectKey)),
-    [curriculum, selectionByKey],
+  const summary = useMemo(
+    () => selectionSummary(entries, selectionByKey),
+    [entries, selectionByKey],
+  )
+
+  const preview = useMemo(
+    () => previewColumns(entries, selectionByKey),
+    [entries, selectionByKey],
   )
 
   /**
-   * The list on screen.
+   * The rows the list renders: every entry, plus the subjects this class has
+   * hidden so the decision stays reversible.
    *
-   * Configured: the class's own template, in the teacher's order. Not yet
-   * configured: the whole curriculum, exactly as this page behaved before
-   * 00028 — an account that never opens the picker loses nothing.
+   * Hidden ones are appended to their own group rather than interleaved, so a
+   * teacher scanning what their class teaches is not reading past subjects that
+   * are switched off twice over.
    */
-  const subjects = useMemo(() => {
-    if (!configured) return curriculum
-    return curriculum
-      .filter((s) => selectionByKey.has(s.subjectKey))
-      .sort((a, b) => {
-        const oa = selectionByKey.get(a.subjectKey)?.sortOrder ?? 0
-        const ob = selectionByKey.get(b.subjectKey)?.sortOrder ?? 0
-        return oa - ob || a.subjectKey.localeCompare(b.subjectKey)
-      })
-  }, [curriculum, configured, selectionByKey])
+  const groups = useMemo(() => {
+    const toRow = (entry: CurriculumEntry, hidden: boolean): SubjectRow => ({
+      entry,
+      state: hidden
+        ? { on: false, columnIds: [], aliasKeys: [], sortOrder: entry.sortOrder }
+        : entryState(entry, selectionByKey),
+      hidden,
+      customised: editableByKey.get(entry.subjectKey)?.override != null,
+    })
+
+    const live = groupEntries(entries).map((g) => ({
+      label: g.label,
+      rows: g.entries.map((e) => toRow(e, false)),
+    }))
+
+    // Hidden subjects have no fold of their own — they are single rows the
+    // curriculum still defines and this class suppressed.
+    const hidden = editable.filter((s) => s.hidden)
+    if (hidden.length === 0) return live
+
+    const { entries: hiddenEntries } = foldCurriculum(hidden.map((s) => s.effective))
+    const byGroup = new Map(live.map((g) => [g.label, g]))
+    for (const entry of hiddenEntries) {
+      const group = byGroup.get(entry.groupLabel)
+      if (group) group.rows.push(toRow(entry, true))
+      else {
+        const fresh = { label: entry.groupLabel, rows: [toRow(entry, true)] }
+        byGroup.set(entry.groupLabel, fresh)
+        live.push(fresh)
+      }
+    }
+    return live
+  }, [entries, editable, editableByKey, selectionByKey])
 
   const refresh = useCallback(async () => {
     const [next, nextSelection] = await Promise.all([
@@ -163,7 +269,11 @@ export default function ScoreSubjectsClient({
 
   /** Run a write, report it in Khmer, and re-read the list it changed. */
   const run = useCallback(
-    async (key: string, fn: () => Promise<{ error?: string; success?: boolean }>, okMessage: string) => {
+    async (
+      key: string,
+      fn: () => Promise<{ error?: string; success?: boolean }>,
+      okMessage: string | null,
+    ) => {
       setBusyKey(key)
       try {
         const res = await fn()
@@ -172,7 +282,7 @@ export default function ScoreSubjectsClient({
           return false
         }
         await refresh()
-        notify.success(okMessage)
+        if (okMessage) notify.success(okMessage)
         return true
       } finally {
         setBusyKey(null)
@@ -181,6 +291,72 @@ export default function ScoreSubjectsClient({
     [refresh],
   )
 
+  // ------------------------------------------------------------- selection
+  /**
+   * Send a plan from `lib/scores/curriculum.ts` to the one action that applies
+   * both halves at once.
+   *
+   * Toggling is not toasted. A switch that visibly moves has already reported
+   * itself, and a teacher setting up a class flips a dozen of them — a dozen
+   * toasts would bury the one message that matters, which is a failure.
+   */
+  const applyPlan = useCallback(
+    (subjectKey: string, plan: SelectionPlan) => {
+      if (isNoopPlan(plan)) return
+      return run(subjectKey, () => applySubjectSelection(plan, classId ?? undefined), null)
+    },
+    [classId, run],
+  )
+
+  const toggleSubject = (row: SubjectRow) =>
+    applyPlan(row.entry.subjectKey, planEntryToggle(row.entry, selectionByKey))
+
+  const toggleComponent = (row: SubjectRow, columnId: string) =>
+    applyPlan(row.entry.subjectKey, planComponentToggle(row.entry, columnId, selectionByKey))
+
+  /**
+   * Reorder within the class's own list.
+   *
+   * Only the selected subjects can move, and only past each other — the
+   * unselected ones hold no `class_template_subjects` row, so there is no order
+   * to swap. `swapSelectionOrder` writes the two rows the move touches rather
+   * than renumbering the list.
+   *
+   * The consolidation step is not optional. A subject whose "on" state is
+   * carried by legacy standalone rows (`kh_read` with no `khmer_all` row) has
+   * nothing stored under the key the swap addresses, so `swapSelectionOrder`
+   * would report "រកមិនឃើញមុខវិជ្ជានេះទេ" about a subject visibly sitting in the
+   * list. Applying the row's own current state first writes that key — a no-op
+   * to everything the teacher can see, since `planSelectionChange` preserves
+   * exactly the columns already ticked — and the swap then has both rows.
+   */
+  const move = (row: SubjectRow, direction: -1 | 1) => {
+    const selected = groups
+      .flatMap((g) => g.rows)
+      .filter((r) => r.state.on)
+      .map((r) => r.entry.subjectKey)
+    const index = selected.indexOf(row.entry.subjectKey)
+    const neighbour = selected[index + direction]
+    if (!neighbour) return
+
+    const needsOwnRow = !selectionByKey.has(row.entry.subjectKey)
+
+    return run(
+      row.entry.subjectKey,
+      async () => {
+        if (needsOwnRow) {
+          const consolidated = await applySubjectSelection(
+            planSelectionChange(row.entry, row.state.columnIds, selectionByKey),
+            classId ?? undefined,
+          )
+          if (consolidated.error) return consolidated
+        }
+        return swapSelectionOrder(row.entry.subjectKey, neighbour, classId ?? undefined)
+      },
+      null,
+    )
+  }
+
   // ------------------------------------------------------------------ edit
   const [editing, setEditing] = useState<EditableSubject | null>(null)
   const [editLabel, setEditLabel] = useState('')
@@ -188,7 +364,9 @@ export default function ScoreSubjectsClient({
   /** The odd-coefficient hint fires on a value the teacher typed, not on open. */
   const [editMaxTouched, setEditMaxTouched] = useState(false)
 
-  const openEdit = (subject: EditableSubject) => {
+  const openEdit = (row: SubjectRow) => {
+    const subject = editableByKey.get(row.entry.subjectKey)
+    if (!subject) return
     setEditing(subject)
     setEditLabel(subject.effective.labelKm)
     setEditMax(String(subject.effective.maxScore))
@@ -197,8 +375,9 @@ export default function ScoreSubjectsClient({
 
   const editMaxNumber = Number(editMax)
   const inheritedMax = editing?.inherited ? Number(editing.inherited.max_score) : null
-  const maxChanged = editing !== null && Number.isFinite(editMaxNumber) && editMaxNumber !== editing.effective.maxScore
-  const oddWarning = editing ? oddCoefficientWarning(editMaxNumber, inheritedMax) : null
+  const maxChanged =
+    editing !== null && Number.isFinite(editMaxNumber) && editMaxNumber !== editing.effective.maxScore
+  const oddWarning = editing ? oddCoefficientWarning(editMaxNumber, inheritedMax, scheme) : null
 
   const submitEdit = async () => {
     if (!editing) return
@@ -213,8 +392,30 @@ export default function ScoreSubjectsClient({
 
     const ok = await run(
       editing.subjectKey,
-      () => updateClassSubject(editing.subjectKey, { label_km: editLabel.trim(), max_score: editMaxNumber }, classId ?? undefined),
+      () =>
+        updateClassSubject(
+          editing.subjectKey,
+          { label_km: editLabel.trim(), max_score: editMaxNumber },
+          classId ?? undefined,
+        ),
       'បានរក្សាទុក',
+    )
+    if (ok) setEditing(null)
+  }
+
+  /**
+   * Undo a hide made on the old screen.
+   *
+   * Offered but never its inverse: the switch is now how a class stops teaching
+   * a subject, and having two controls for that was this page's worst
+   * ambiguity. Nothing here can create a new hidden subject.
+   */
+  const unhide = async () => {
+    if (!editing) return
+    const ok = await run(
+      editing.subjectKey,
+      () => updateClassSubject(editing.subjectKey, { hidden: false }, classId ?? undefined),
+      'បានបង្ហាញឡើងវិញ',
     )
     if (ok) setEditing(null)
   }
@@ -227,7 +428,7 @@ export default function ScoreSubjectsClient({
   const [newColumns, setNewColumns] = useState('')
 
   const newMaxNumber = Number(newMax)
-  const newOddWarning = oddCoefficientWarning(newMaxNumber, null)
+  const newOddWarning = oddCoefficientWarning(newMaxNumber, null, scheme)
 
   const submitAdd = async () => {
     if (!newLabel.trim()) {
@@ -263,68 +464,6 @@ export default function ScoreSubjectsClient({
     }
   }
 
-  // ------------------------------------------------- curriculum selection
-  const [pickerOpen, setPickerOpen] = useState(false)
-  const [componentsFor, setComponentsFor] = useState<EditableSubject | null>(null)
-
-  /**
-   * The curriculum offered to the picker.
-   *
-   * Hidden subjects are excluded: a teacher who hid ភូមិវិទ្យា should not be
-   * offered it back in the same breath. The definition-layer "unhide" button is
-   * how that decision is reversed.
-   */
-  const pickable = useMemo(
-    () => curriculum.filter((s) => !s.hidden).map((s) => s.effective),
-    [curriculum],
-  )
-
-  const addFromCurriculum = async (subjectKeys: string[]) =>
-    run('picker', () => addTemplateSubjects(subjectKeys, classId ?? undefined), 'បានបន្ថែមមុខវិជ្ជា')
-
-  const saveComponents = async (columnIds: string[]) => {
-    if (!componentsFor) return false
-    return run(
-      componentsFor.subjectKey,
-      () => setSubjectComponents(componentsFor.subjectKey, columnIds, classId ?? undefined),
-      'បានរក្សាទុកផ្នែករង',
-    )
-  }
-
-  /**
-   * Take a subject out of the class's template.
-   *
-   * Confirmed, and the copy leads with what is *not* deleted: removing a
-   * subject a class has already been marking is the one action here that a
-   * teacher could reasonably fear loses data, and it does not.
-   */
-  const removeFromTemplate = async (subject: EditableSubject) => {
-    const ok = await confirm({
-      title: 'ដកចេញពី Template',
-      message:
-        `«${subject.effective.labelKm}» នឹងលែងបង្ហាញក្នុងតារាងបញ្ចូលពិន្ទុសម្រាប់ថ្នាក់នេះ។ ` +
-        'ពិន្ទុដែលបានបញ្ចូលរួចមិនត្រូវបានលុបទេ — វានៅតែបង្ហាញក្នុងតារាងសរុប និងរបាយការណ៍ ' +
-        'ហើយអ្នកអាចបន្ថែមមុខវិជ្ជានេះមកវិញបានគ្រប់ពេល។',
-      tone: 'danger',
-      confirmLabel: 'ដកចេញ',
-    })
-    if (!ok) return
-
-    await run(
-      subject.subjectKey,
-      () => removeTemplateSubject(subject.subjectKey, classId ?? undefined),
-      'បានដកចេញពី Template',
-    )
-  }
-
-  /** Reorder within the class's own template rather than the definition layer. */
-  const moveSelected = (subject: EditableSubject, neighbour: EditableSubject) =>
-    run(
-      subject.subjectKey,
-      () => swapSelectionOrder(subject.subjectKey, neighbour.subjectKey, classId ?? undefined),
-      'បានប្តូរលំដាប់',
-    )
-
   // ----------------------------------------------------------------- reset
   const doReset = async () => {
     const customised = rows.filter((r) => r.scope === 'class').length
@@ -348,9 +487,6 @@ export default function ScoreSubjectsClient({
   }
 
   // ---------------------------------------------------------------- render
-  const visibleCount = subjects.filter((s) => !s.hidden).length
-  const customisedCount = subjects.filter((s) => s.override !== null).length
-
   if (!classId) {
     return (
       <PageContainer>
@@ -364,10 +500,10 @@ export default function ScoreSubjectsClient({
             description="ការកែបញ្ជីមុខវិជ្ជាធ្វើឡើងតាមថ្នាក់។ គណនីនេះមិនទាន់មានថ្នាក់ទេ ដូច្នេះវាកំពុងប្រើបញ្ជីមុខវិជ្ជាតាមលំនាំដើមរបស់ក្រសួង។"
             action={
               <Link
-                href="/score/enter"
+                href="/classroom"
                 className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand px-4 text-sm font-bold text-brand-contrast transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
               >
-                <Table2 className="h-4 w-4" aria-hidden="true" /> ត្រឡប់ទៅបញ្ចូលពិន្ទុ
+                <ListChecks className="h-4 w-4" aria-hidden="true" /> បង្កើតថ្នាក់
               </Link>
             }
           />
@@ -382,12 +518,12 @@ export default function ScoreSubjectsClient({
         title="មុខវិជ្ជាតាមថ្នាក់"
         description={
           className
-            ? `កែបញ្ជីមុខវិជ្ជាសម្រាប់ថ្នាក់ ${className}`
-            : 'កែបញ្ជីមុខវិជ្ជាសម្រាប់ថ្នាក់របស់អ្នក'
+            ? `កំណត់មុខវិជ្ជាដែលថ្នាក់ ${className} បង្រៀន`
+            : 'កំណត់មុខវិជ្ជាដែលថ្នាក់របស់អ្នកបង្រៀន'
         }
         actions={
           <Link
-            href="/score/enter"
+            href={`/score/enter?class=${encodeURIComponent(classId)}`}
             className="flex min-h-11 items-center gap-2 rounded-lg border border-divider bg-bg-surface px-4 text-[13px] font-bold text-text-body transition hover:border-brand-400 hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
           >
             <Table2 className="h-4 w-4" aria-hidden="true" /> បញ្ចូលពិន្ទុ
@@ -447,39 +583,40 @@ export default function ScoreSubjectsClient({
       </div>
 
       {/* ----------------------------------------------------------- summary */}
-      <div className="mb-4 flex flex-wrap items-center gap-2.5 rounded-xl border border-divider bg-bg-surface p-3 text-sm">
+      <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-divider bg-bg-surface p-3 text-sm">
         <span className="flex items-center gap-2 font-bold text-text-heading">
           <SlidersHorizontal className="h-4 w-4 text-brand" aria-hidden="true" />
-          មុខវិជ្ជាកំពុងប្រើ {toKhmerNumber(visibleCount)}
-          {configured && (
-            <span className="font-normal text-text-muted">
-              ក្នុងចំណោម {toKhmerNumber(curriculum.length)}
-            </span>
-          )}
-        </span>
-        <span className="text-text-muted">
-          បានកែ {toKhmerNumber(customisedCount)}
+          {summary.configured ? 'ថ្នាក់នេះបង្រៀន' : 'កម្មវិធីសិក្សាទាំងមូល'}{' '}
+          {toKhmerNumber(summary.subjects)} មុខវិជ្ជា
         </span>
         {/*
-          The denominator of the class average, spelled out. The score screens
-          use `simpleAverage`, so the divisor really is the number of subjects
-          marked — not a sum of coefficients. Showing a coefficient total here
-          would be a number that matches nothing the app computes.
+          Columns, not just subjects: a column is what a teacher types into, and
+          "៥ មុខវិជ្ជា" badly understates a class marking twenty-two cells.
         */}
-        <span className="ml-auto flex items-center gap-1.5 text-xs text-text-muted">
-          <Info className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          មធ្យមភាគគិតដោយចែកនឹងចំនួនមុខវិជ្ជាដែលមានពិន្ទុ
+        <span className="text-text-muted">
+          {toKhmerNumber(summary.columns)} ជួរពិន្ទុ
         </span>
+
+        <button
+          type="button"
+          onClick={() => setShowPreview((v) => !v)}
+          className="ml-auto inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-[13px] font-bold text-text-body transition hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+        >
+          <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+          {showPreview ? 'លាក់គំរូតារាង' : 'មើលគំរូតារាង'}
+        </button>
       </div>
 
+      {showPreview && <GridPreview columns={preview} configured={summary.configured} />}
+
       {/*
-        Not configured yet: the class is showing the whole curriculum because it
-        has never chosen. Said out loud, with the way out — otherwise a teacher
-        reading thirty-four subjects has no idea the list is meant to be theirs.
-        A banner rather than a wall: this class may already have a year of marks
-        against the full list, and gating the page behind setup would break it.
+        Not configured yet: the class shows the whole curriculum because it has
+        never chosen. Said out loud, because a teacher reading eleven subjects
+        has no way to tell whether that is their choice or the default. A banner
+        rather than a wall — this class may already have a year of marks against
+        the full list, and gating the page behind setup would break it.
       */}
-      {!configured && curriculum.length > 0 && (
+      {!summary.configured && entries.length > 0 && (
         <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-brand-400 bg-brand-100 p-3 dark:bg-brand-900/30">
           <Sparkles className="h-5 w-5 shrink-0 text-brand" aria-hidden="true" />
           <div className="min-w-0 flex-1">
@@ -487,216 +624,42 @@ export default function ScoreSubjectsClient({
               ថ្នាក់នេះមិនទាន់បានជ្រើសរើសមុខវិជ្ជាដែលកំពុងបង្រៀនទេ
             </p>
             <p className="mt-0.5 text-xs text-text-muted">
-              ឥឡូវនេះកំពុងបង្ហាញមុខវិជ្ជាទាំងអស់ក្នុងកម្មវិធីសិក្សា។
-              ជ្រើសរើសតែមុខវិជ្ជាដែលអ្នកបង្រៀន ដើម្បីឲ្យតារាងបញ្ចូលពិន្ទុខ្លីជាងមុន។
+              បើកតែមុខវិជ្ជាដែលអ្នកបង្រៀន ដើម្បីឲ្យតារាងបញ្ចូលពិន្ទុខ្លីជាងមុន។ បើមិនជ្រើស ប្រព័ន្ធនឹងបង្ហាញទាំងអស់ដដែល។
             </p>
           </div>
-          <Button printHidden={false} onClick={() => setPickerOpen(true)} icon={<ListChecks className="h-4 w-4" />}>
-            ជ្រើសរើសមុខវិជ្ជា
-          </Button>
         </div>
       )}
 
       {/* ------------------------------------------------------------- list */}
-      {subjects.length === 0 ? (
+      {groups.length === 0 ? (
         <div className="rounded-xl border border-divider bg-bg-surface">
           <EmptyState
             kind="filtered"
             title="មិនទាន់មានមុខវិជ្ជាសម្រាប់ប្រភេទពិន្ទុនេះទេ"
-            description="បន្ថែមមុខវិជ្ជាសម្រាប់ថ្នាក់នេះ ដើម្បីចាប់ផ្តើមបញ្ចូលពិន្ទុ។"
+            description="បង្កើតមុខវិជ្ជាផ្ទាល់ខ្លួនសម្រាប់ថ្នាក់នេះ ដើម្បីចាប់ផ្តើមបញ្ចូលពិន្ទុ។"
           />
         </div>
       ) : (
-        <ul className="flex flex-col gap-2.5">
-          {subjects.map((subject, index) => {
-            const busy = busyKey === subject.subjectKey
-            const max = subject.effective.maxScore
-            const offNationalScale = max !== DEFAULT_SCHEME_CONFIG.maxScore
-
-            return (
-              <li
-                key={subject.subjectKey}
-                className={`rounded-xl border border-divider bg-bg-surface p-3 shadow-sm transition sm:p-4 ${
-                  subject.hidden ? 'opacity-60' : ''
-                }`}
-              >
-                <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
-                  {/* order */}
-                  <div className="flex shrink-0 flex-col gap-1">
-                    <button
-                      type="button"
-                      disabled={index === 0 || busy}
-                      onClick={() =>
-                        // Two order stores, and the right one depends on which
-                        // list is on screen: a configured class orders its own
-                        // template, an unconfigured one orders the definition
-                        // layer as this page always did.
-                        configured
-                          ? moveSelected(subject, subjects[index - 1])
-                          : run(
-                              subject.subjectKey,
-                              () => swapClassSubjectOrder(subject.subjectKey, subjects[index - 1].subjectKey, classId ?? undefined),
-                              'បានប្តូរលំដាប់',
-                            )
-                      }
-                      aria-label={`ផ្លាស់ទី ${subject.effective.labelKm} ឡើងលើ`}
-                      className="flex h-8 w-9 items-center justify-center rounded-md border border-divider text-text-muted transition hover:border-brand-400 hover:text-brand disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-                    >
-                      <ArrowUp className="h-4 w-4" aria-hidden="true" />
-                    </button>
-                    <button
-                      type="button"
-                      disabled={index === subjects.length - 1 || busy}
-                      onClick={() =>
-                        configured
-                          ? moveSelected(subject, subjects[index + 1])
-                          : run(
-                              subject.subjectKey,
-                              () => swapClassSubjectOrder(subject.subjectKey, subjects[index + 1].subjectKey, classId ?? undefined),
-                              'បានប្តូរលំដាប់',
-                            )
-                      }
-                      aria-label={`ផ្លាស់ទី ${subject.effective.labelKm} ចុះក្រោម`}
-                      className="flex h-8 w-9 items-center justify-center rounded-md border border-divider text-text-muted transition hover:border-brand-400 hover:text-brand disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-                    >
-                      <ArrowDown className="h-4 w-4" aria-hidden="true" />
-                    </button>
-                  </div>
-
-                  {/* identity */}
-                  <div className="min-w-0 flex-1">
-                    <p className="flex flex-wrap items-center gap-2">
-                      <span className="font-bold text-text-heading">{subject.effective.labelKm}</span>
-                      {/*
-                        §10: teacher-added subjects must stay distinguishable
-                        from curriculum ones. The key prefix is what carries
-                        that provenance since 00027 merged the two stores —
-                        `isClassOwn` cannot, because a class row that merely
-                        *overrides* ភាសាខ្មែរ is still a national subject.
-                      */}
-                      {isTeacherAddedSubject(subject.subjectKey) || subject.isClassOwn ? (
-                        <Badge variant="info" size="sm">គ្រូបន្ថែម</Badge>
-                      ) : (
-                        <Badge variant="muted" size="sm">កម្មវិធីសិក្សា</Badge>
-                      )}
-                      {subject.override && !subject.isClassOwn && (
-                        <Badge variant="warning" size="sm">បានកែ</Badge>
-                      )}
-                      {subject.hidden && <Badge variant="danger" size="sm">បានលាក់</Badge>}
-                    </p>
-                    <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-xs text-text-muted">
-                      <span>
-                        ពិន្ទុពេញ <span className="font-bold text-text-body tabular-nums">{toKhmerNumber(max)}</span>
-                      </span>
-                      {/*
-                        The coefficient is shown only once a subject has left the
-                        national /10 scale. Printing `មេគុណ 0.2` beside all
-                        fourteen primary subjects would teach a number that
-                        multiplies nothing — `simpleAverage` is what the score
-                        screens run, and `weightedAverage` has no callers yet.
-                      */}
-                      {offNationalScale && (
-                        <span>
-                          មេគុណ <span className="font-bold text-text-body tabular-nums">{coefficientFor(max)}</span>
-                        </span>
-                      )}
-                      {subject.effective.columns.length > 1 && (() => {
-                        const picked = selectionByKey.get(subject.subjectKey)?.enabledColumns
-                        const total = subject.effective.columns.length
-                        return (
-                          <span>
-                            ជួរឈរ{' '}
-                            {picked && picked.length < total
-                              ? `${toKhmerNumber(picked.length)}/${toKhmerNumber(total)}`
-                              : toKhmerNumber(total)}
-                          </span>
-                        )
-                      })()}
-                    </p>
-                  </div>
-
-                  {/* actions */}
-                  <div className="flex shrink-0 items-center gap-2">
-                    {busy && <Loader2 className="h-4 w-4 animate-spin text-brand" aria-hidden="true" />}
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      printHidden={false}
-                      disabled={busy}
-                      onClick={() =>
-                        run(
-                          subject.subjectKey,
-                          () => updateClassSubject(subject.subjectKey, { hidden: !subject.hidden }, classId ?? undefined),
-                          subject.hidden ? 'បានបង្ហាញឡើងវិញ' : 'បានលាក់មុខវិជ្ជា',
-                        )
-                      }
-                    >
-                      {subject.hidden ? (
-                        <><Eye className="h-3.5 w-3.5" aria-hidden="true" /> បង្ហាញ</>
-                      ) : (
-                        <><EyeOff className="h-3.5 w-3.5" aria-hidden="true" /> លាក់</>
-                      )}
-                    </Button>
-                    {/* Components are a property of the class's choice, so the
-                        button only exists once the class has made one — and
-                        only for a subject that actually has more than one. */}
-                    {configured && subject.effective.columns.length > 1 && (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        printHidden={false}
-                        disabled={busy}
-                        onClick={() => setComponentsFor(subject)}
-                      >
-                        <ListChecks className="h-3.5 w-3.5" aria-hidden="true" /> ផ្នែករង
-                      </Button>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      printHidden={false}
-                      disabled={busy}
-                      onClick={() => openEdit(subject)}
-                    >
-                      <Pencil className="h-3.5 w-3.5" aria-hidden="true" /> កែ
-                    </Button>
-                    {configured && (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        printHidden={false}
-                        disabled={busy}
-                        onClick={() => removeFromTemplate(subject)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" /> ដកចេញ
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </li>
-            )
-          })}
-        </ul>
+        <SubjectSelectionList
+          groups={groups}
+          busyKey={busyKey}
+          disabled={busyKey === 'reset'}
+          onToggleSubject={toggleSubject}
+          onToggleComponent={toggleComponent}
+          onMove={move}
+          onEdit={openEdit}
+        />
       )}
 
       {/* ----------------------------------------------------------- footer */}
       <div className="mt-5 flex flex-wrap items-center gap-2">
         {/*
-          Two buttons, and the order encodes the product rule (§7/§10): picking
-          from the curriculum is the primary action, inventing a subject is the
-          escape hatch beside it. One dialog cannot serve both — a free-text
-          field next to the curriculum list is exactly how a teacher ends up
-          hand-typing "ភាសាខ្មែរ" as a second, detached subject.
+          Only one add button now. Picking a curriculum subject is the switch on
+          its row, so what is left here is the genuinely different operation:
+          inventing a subject the curriculum does not define. `addClassSubject`
+          mints its `cls_` key server-side — the browser still cannot coin one.
         */}
         <Button
-          printHidden={false}
-          onClick={() => setPickerOpen(true)}
-          icon={<Plus className="h-4 w-4" />}
-        >
-          បន្ថែមមុខវិជ្ជា
-        </Button>
-        <Button
-          variant="secondary"
           printHidden={false}
           onClick={() => { setNewScoreType(scoreType); setAddOpen(true) }}
           icon={<Sparkles className="h-4 w-4" />}
@@ -706,30 +669,12 @@ export default function ScoreSubjectsClient({
         <Button variant="secondary" printHidden={false} onClick={doReset} disabled={busyKey === 'reset'}>
           <RotateCcw className="h-4 w-4" aria-hidden="true" /> ត្រឡប់ទៅលំនាំដើម
         </Button>
+        <span className="ml-auto flex items-center gap-1.5 text-xs text-text-muted">
+          <Info className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          មធ្យមភាគគិតដោយចែកនឹងចំនួនមុខវិជ្ជាដែលមានពិន្ទុ
+        </span>
       </div>
       </>)}
-
-      {/* ------------------------------------------------ curriculum picker */}
-      <CurriculumPicker
-        open={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        subjects={pickable}
-        selection={selection}
-        onAdd={addFromCurriculum}
-        busy={busyKey === 'picker'}
-      />
-
-      {/* ------------------------------------------------- component picker */}
-      <ComponentPicker
-        open={componentsFor !== null}
-        onClose={() => setComponentsFor(null)}
-        subject={componentsFor?.effective ?? null}
-        enabledColumns={
-          componentsFor ? selectionByKey.get(componentsFor.subjectKey)?.enabledColumns ?? null : null
-        }
-        onSave={saveComponents}
-        busy={busyKey === componentsFor?.subjectKey}
-      />
 
       {/* ------------------------------------------------------ edit dialog */}
       <Dialog
@@ -745,6 +690,17 @@ export default function ScoreSubjectsClient({
         }
       >
         <div className="flex flex-col gap-4">
+          {editing?.hidden && (
+            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-warning/40 bg-warning/10 p-3">
+              <p className="min-w-0 flex-1 text-xs leading-relaxed font-medium text-text-body">
+                មុខវិជ្ជានេះត្រូវបានលាក់ ដូច្នេះវាមិនបង្ហាញក្នុងបញ្ជីជ្រើសរើសទេ។
+              </p>
+              <Button size="sm" variant="secondary" printHidden={false} onClick={unhide}>
+                <Eye className="h-3.5 w-3.5" aria-hidden="true" /> បង្ហាញឡើងវិញ
+              </Button>
+            </div>
+          )}
+
           <div>
             <label className={fieldLabel} htmlFor="subject-label">
               ឈ្មោះមុខវិជ្ជា <span className={requiredMark}>*</span>
@@ -778,15 +734,26 @@ export default function ScoreSubjectsClient({
               />
               {/*
                 Derived, never typed. Two editable numbers that can disagree is
-                exactly the drift design §3.2 avoids by not storing one.
+                exactly the drift design §3.2 avoids by not storing one — and it
+                is derived from the *class's scheme*, so a primary subject reads
+                មេគុណ ១ however it is marked.
               */}
               <p className="text-sm text-text-muted">
                 មេគុណ{' '}
                 <span className="font-bold text-text-heading tabular-nums">
-                  {Number.isFinite(editMaxNumber) && editMaxNumber > 0 ? coefficientFor(editMaxNumber) : '—'}
+                  {Number.isFinite(editMaxNumber) && editMaxNumber > 0
+                    ? coefficientOf(editMaxNumber, scheme)
+                    : '—'}
                 </span>
               </p>
             </div>
+
+            {!weighted && (
+              <p className="mt-1.5 text-[11px] text-text-muted">
+                កម្រិតបឋមសិក្សាមិនប្រើមេគុណទេ — គ្រប់មុខវិជ្ជាមានទម្ងន់ ១ ស្មើគ្នា។
+                ការប្តូរពិន្ទុពេញប្តូរតែមាត្រដ្ឋានបញ្ចូលពិន្ទុប៉ុណ្ណោះ។
+              </p>
+            )}
 
             {oddWarning && editMaxTouched && (
               <p className="mt-2 flex items-start gap-2 rounded-lg bg-warning/10 p-2.5 text-xs text-warning">
@@ -809,7 +776,7 @@ export default function ScoreSubjectsClient({
       <Dialog
         open={addOpen}
         onClose={() => setAddOpen(false)}
-        title="បន្ថែមមុខវិជ្ជាសម្រាប់ថ្នាក់"
+        title="បង្កើតមុខវិជ្ជាផ្ទាល់ខ្លួន"
         description="មុខវិជ្ជានេះនឹងបង្ហាញសម្រាប់ថ្នាក់នេះតែប៉ុណ្ណោះ"
         footer={
           <>
@@ -831,6 +798,9 @@ export default function ScoreSubjectsClient({
               className={controlClass(false, 'font-bold')}
               placeholder="ឧ. កុំព្យូទ័រ, ភាសាចិន..."
             />
+            <p className="mt-1.5 text-[11px] text-text-muted">
+              បើមុខវិជ្ជានេះមានក្នុងកម្មវិធីសិក្សារួចហើយ សូមបើកវាពីបញ្ជីខាងលើវិញ — កុំបង្កើតជាមុខវិជ្ជាថ្មី។
+            </p>
           </div>
 
           <Select
@@ -858,10 +828,17 @@ export default function ScoreSubjectsClient({
               <p className="text-sm text-text-muted">
                 មេគុណ{' '}
                 <span className="font-bold text-text-heading tabular-nums">
-                  {Number.isFinite(newMaxNumber) && newMaxNumber > 0 ? coefficientFor(newMaxNumber) : '—'}
+                  {Number.isFinite(newMaxNumber) && newMaxNumber > 0
+                    ? coefficientOf(newMaxNumber, scheme)
+                    : '—'}
                 </span>
               </p>
             </div>
+            {!weighted && (
+              <p className="mt-1.5 text-[11px] text-text-muted">
+                កម្រិតបឋមសិក្សាមិនប្រើមេគុណទេ — គ្រប់មុខវិជ្ជាមានទម្ងន់ ១ ស្មើគ្នា។
+              </p>
+            )}
             {newOddWarning && (
               <p className="mt-2 flex items-start gap-2 rounded-lg bg-warning/10 p-2.5 text-xs text-warning">
                 <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
@@ -871,9 +848,9 @@ export default function ScoreSubjectsClient({
           </div>
 
           <div>
-            <label className={fieldLabel} htmlFor="new-subject-columns">ជួរឈរពិន្ទុ (ជម្រើស)</label>
+            <label className={fieldLabel} htmlFor="new-subject-columns">ផ្នែករង (ជម្រើស)</label>
             <p className="mb-2 text-[11px] leading-relaxed text-text-muted">
-              បើមុខវិជ្ជានេះមានច្រើនជួរឈរ សូមសរសេរខណ្ឌដោយសញ្ញាក្បៀស (,) ឧ. <strong>ទ្រឹស្តី, អនុវត្តន៍</strong>។ បើទុកទទេ វានឹងយកឈ្មោះមុខវិជ្ជាជាជួរឈរតែមួយ។
+              បើមុខវិជ្ជានេះមានច្រើនផ្នែក សូមសរសេរខណ្ឌដោយសញ្ញាក្បៀស (,) ឧ. <strong>ទ្រឹស្តី, អនុវត្តន៍</strong>។ បើទុកទទេ វានឹងមានផ្នែកតែមួយ។
             </p>
             <input
               id="new-subject-columns"

@@ -6,7 +6,7 @@
  * `resolveServerScope` decides which class a request reads and writes marks
  * for. Before C0 it picked that class with `find(a => a.is_homeroom)` over a
  * query carrying no `ORDER BY`, which is deterministic only while a teacher has
- * exactly one homeroom row. `/classroom/classes` ends that: migration 00003
+ * exactly one homeroom row. `/classroom` ends that: migration 00003
  * keys homeroom uniqueness on *(teacher, class, year)*, so several homeroom
  * rows in one year are legal, and `createClassAndAssign` writes
  * `is_homeroom: true` every time.

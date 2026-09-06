@@ -10,7 +10,7 @@
  * ── Why it cannot be done offline ──────────────────────────────────────────
  *
  * `createClassAndAssign` calls `backfill_teacher_enrolments()` immediately
- * after inserting the assignment, and `/classroom/classes` now calls that
+ * after inserting the assignment, and `/classroom` now calls that
  * action a *second*, *third*, *nth* time — which the onboarding wizard never
  * did, because it runs once. The claim that this is safe rests entirely on
  * 00019's predicate: it enrols only pupils with **no enrolment row at all**, so
@@ -146,7 +146,7 @@ check('all of them point at the first class',
   (afterFirst ?? []).every((r) => r.class_id === first.classId))
 
 // --- 2. ★ the second class --------------------------------------------------------
-console.log('\nthe second class — what /classroom/classes makes routine:')
+console.log('\nthe second class — what /classroom makes routine:')
 const second = await createClass('៥ខ')
 check('★ the second backfill is a no-op', second.backfilled === 0,
   `returned ${second.backfilled} — 00019's predicate is not holding`)

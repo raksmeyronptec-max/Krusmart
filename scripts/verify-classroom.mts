@@ -1,6 +1,12 @@
 /**
  * The /classroom rollout's structural invariants.
  *
+ * Updated when `/classroom` absorbed `/classroom/classes`: the hub used to be
+ * four link cards whose first item was the class list, which meant the front
+ * door to class management never showed a class. The list is now the page and
+ * the other three cards are per-class links; `/classroom/classes` redirects.
+ * The invariants below did not change — only where the files live.
+ *
  *     node scripts/verify-classroom.mts
  *
  * Most of what can go wrong here is not a wrong value but a wrong *shape*: a
@@ -23,6 +29,7 @@ import {
   type ClassAssignmentRow,
   type EnrolmentCountRow,
 } from '../lib/classroom/classes.ts'
+import { buildGradeOffer, gradeOptionValue } from '../lib/classroom/grades.ts'
 
 let failures = 0
 function check(name: string, ok: boolean, detail = '') {
@@ -38,20 +45,31 @@ const path = (p: string) => fileURLToPath(new URL(p, root))
 const has = (p: string) => existsSync(path(p))
 const read = (p: string) => (has(p) ? readFileSync(path(p), 'utf8') : '')
 
-const HUB = 'app/(main)/classroom/page.tsx'
+const PAGE = 'app/(main)/classroom/page.tsx'
+const REDIRECT = 'app/(main)/classroom/classes/page.tsx'
 
 // --- 1. where the routes live -----------------------------------------------------
 console.log('\nthe rollout adds two routes and no others:')
 
-check('the hub exists', has(HUB))
+check('the class manager exists', has(PAGE))
 check(
   'under app/(main)/, so it inherits the shell, the parent redirect and proxy.ts',
-  has(HUB) && !has('app/classroom/page.tsx'),
+  has(PAGE) && !has('app/classroom/page.tsx'),
 )
 check('it does not render its own <TopNav /> — the layout owns it',
-  !read(HUB).includes('<TopNav'))
+  !read(PAGE).includes('<TopNav'))
 
-// ★ The rule the whole design rests on: the hub *links*, it does not absorb.
+// The old route is kept as a redirect rather than deleted: it is bookmarkable
+// and linked from comments across the codebase, and it must carry ?class=
+// through or a teacher lands silently on their default class.
+check('/classroom/classes redirects rather than 404s',
+  read(REDIRECT).includes('redirect(') && read(REDIRECT).includes('/classroom'))
+check('and preserves the class selection across the redirect',
+  read(REDIRECT).includes('CLASS_PARAM'))
+check('it is a redirect, not a second class manager',
+  !/buildClassList|from\('teacher_assignments'\)/.test(read(REDIRECT)))
+
+// ★ The rule the whole design rests on: the page *links*, it does not absorb.
 console.log('\nnothing was relocated under /classroom:')
 for (const forbidden of [
   'app/(main)/classroom/students',
@@ -72,24 +90,29 @@ for (const kept of [
   check(kept.replace('app/(main)', ''), has(kept))
 }
 
-// --- 2. the hub's four destinations ------------------------------------------------
-console.log('\nthe hub offers exactly the four cards, pointing outward:')
-const hub = read(HUB)
+// --- 2. the hub's destinations, now attached to a class ---------------------------
+// The three tools only mean anything *about a class*, so they live on the card
+// and carry its id. A link that says "សិស្សក្នុងថ្នាក់" without naming the class is
+// a question, not a destination.
+console.log('\nthe three outward tools are per-class links:')
+const hub = read(PAGE)
+const clientSrc = read('app/(main)/classroom/ClassroomClient.tsx')
 for (const [label, href] of [
-  ['ថ្នាក់របស់ខ្ញុំ', '/classroom/classes'],
-  ['សិស្សក្នុងថ្នាក់', '/student-list'],
-  ['បញ្ចូលសិស្សថ្មី', '/enrollment'],
+  ['បញ្ជីសិស្ស', '/student-list'],
+  ['បញ្ចូលសិស្ស', '/enrollment'],
   ['មុខវិជ្ជា', '/score/subjects'],
 ] as const) {
-  check(`${label} → ${href}`, hub.includes(`'${href}'`) && hub.includes(label))
+  check(`${label} → ${href}`, clientSrc.includes(`'${href}'`) && clientSrc.includes(label))
 }
+check('each carries the class it acts on',
+  /scoped\s*=\s*\(href: string\)[\s\S]{0,120}class=/.test(clientSrc))
 check(
-  'it reads no marks, no roster and no template — it is a discovery layer',
-  !/from\('scores'\)|from\('students'\)|from\('student_enrollments'\)|from\('score_template_subjects'\)/.test(hub),
+  'the page reads no marks and no template — the roster count is its only bulk read',
+  !/from\('scores'\)|from\('score_template_subjects'\)/.test(hub),
 )
 check(
   'it carries the class forward as ?class=, the existing mechanism',
-  hub.includes('class=') && hub.includes('resolveServerScope'),
+  (hub.includes('class=') || clientSrc.includes('class=')) && hub.includes('resolveServerScope'),
 )
 
 // --- 3. one subject-configuration screen -------------------------------------------
@@ -97,9 +120,9 @@ check(
 // two screens editing one template is how they end up disagreeing.
 console.log('\nthere is still exactly one subject-configuration screen:')
 check(
-  'the hub links to /score/subjects rather than reimplementing it',
-  hub.includes('/score/subjects') &&
-    !/score_template_subjects|class_template_subjects|addClassSubject/.test(hub),
+  'the class manager links to /score/subjects rather than reimplementing it',
+  clientSrc.includes('/score/subjects') &&
+    !/score_template_subjects|class_template_subjects|addClassSubject/.test(hub + clientSrc),
 )
 check('/score/template is still a redirect, not a second one',
   read('app/(main)/score/template/page.tsx').includes('redirect'))
@@ -248,7 +271,7 @@ console.log('\nthe list reads newest year first — the reverse of the default-c
 }
 
 console.log('\nthe active-class control is the existing one:')
-const client = read('app/(main)/classroom/classes/ClassesClient.tsx')
+const client = read('app/(main)/classroom/ClassroomClient.tsx')
 check('it selects through useSelectActiveClass', client.includes('useSelectActiveClass'))
 // Narrowed in C5. This read `!/useState<[^>]*>\(\s*(activeClassId|null)/`,
 // which forbade *any* nullable state in the file — so the manage dialog's
@@ -263,14 +286,14 @@ check('ClassContextSwitcher writes through the same hook',
   read('components/ClassContextSwitcher.tsx').includes('useSelectActiveClass'))
 check('there is no second switcher component',
   !existsSync(path('components/ClassSwitcher2.tsx')) &&
-    !existsSync(path('app/(main)/classroom/classes/ClassSwitcher.tsx')))
+    !existsSync(path('app/(main)/classroom/ClassSwitcher.tsx')))
 // The client *mentions* the wizard, in a comment saying why it does not send
 // anyone there. What must not exist is a navigation to it.
 check('the empty state does not bounce the teacher back into the wizard',
   !/(router\.(push|replace)|redirect\(|href=)[^\n]*\/onboarding\/class/.test(client))
 
 console.log('\nthe page reads in bulk, never per card:')
-const page = read('app/(main)/classroom/classes/page.tsx')
+const page = read(PAGE)
 check('head counts come from one in() read', page.includes(".in('class_id'"))
 
 // Sliced, because the two queries want opposite things: assignments *are*
@@ -288,6 +311,119 @@ check('it scopes assignments to the caller', page.includes(".eq('teacher_id', us
 check('it resolves the active class through resolveServerScope, not its own rule',
   page.includes('resolveServerScope'))
 
+// --- 4b. the grade offer comes from the curriculum, not from the rows -------------
+// ★ The dead end this closes. The dialog used to offer exactly the `grades`
+// rows a school held. `seedEducationLevel` writes a level's whole range, but a
+// school seeded by an older path holds one row — and then the dialog offers one
+// grade, in a product where primary has six, with no control anywhere to add
+// another. Nothing in the teacher app creates a grade: /admin/classes needs a
+// principal and the wizard's level step runs once.
+console.log('\nthe create dialog offers a level\'s whole grade range:')
+{
+  const PRIMARY = { id: 'lvl-p', name: 'បឋមសិក្សា' }
+
+  // The reported case: one row, ថ្នាក់ទី៤, under a primary level.
+  const offer = buildGradeOffer(
+    [PRIMARY],
+    [{ id: 'g-4', name: 'ថ្នាក់ទី៤', sort_order: 4, education_level_id: 'lvl-p' }],
+  )
+  check('primary offers six grades, not the one row that exists',
+    offer.length === 6, `got ${offer.length}: ${offer.map((g) => g.name).join(', ')}`)
+  check('numbered 1 to 6, in order',
+    JSON.stringify(offer.map((g) => g.gradeNumber)) === JSON.stringify([1, 2, 3, 4, 5, 6]))
+  check('the existing row keeps its id — a class in it must not be orphaned',
+    offer.find((g) => g.gradeNumber === 4)?.id === 'g-4')
+  check('and its stored name, so the dialog and the class list agree',
+    offer.find((g) => g.gradeNumber === 4)?.name === 'ថ្នាក់ទី៤')
+  check('the five missing ones carry no id — ensureGrade writes them on use',
+    offer.filter((g) => g.id === null).length === 5)
+  check('they still carry their level, which is what ensureGrade needs',
+    offer.every((g) => g.educationLevelId === 'lvl-p'))
+  check('every option has a distinct <Select> value',
+    new Set(offer.map(gradeOptionValue)).size === offer.length)
+
+  // Matching on sort_order, not the name: an older generator or a hand-typed
+  // row would otherwise be offered again as a duplicate of itself.
+  const oddName = buildGradeOffer(
+    [PRIMARY],
+    [{ id: 'g-2', name: 'Grade 2', sort_order: 2, education_level_id: 'lvl-p' }],
+  )
+  check('a row with a non-canonical name is matched by number, not duplicated',
+    oddName.length === 6 && oddName.find((g) => g.gradeNumber === 2)?.id === 'g-2')
+
+  // A row outside the curriculum range must survive: a class may sit in it.
+  const stray = buildGradeOffer(
+    [PRIMARY],
+    [{ id: 'g-9', name: 'ថ្នាក់ទី៩', sort_order: 9, education_level_id: 'lvl-p' }],
+  )
+  check('a grade outside the range is kept, never dropped',
+    stray.length === 7 && stray.some((g) => g.id === 'g-9'))
+
+  // A level the curriculum does not know still contributes what it holds.
+  const unknown = buildGradeOffer(
+    [{ id: 'lvl-x', name: 'មត្តេយ្យ' }],
+    [{ id: 'g-k', name: 'ថ្នាក់មត្តេយ្យ', sort_order: 0, education_level_id: 'lvl-x' }],
+  )
+  check('an unrecognised level offers its own rows rather than nothing',
+    unknown.length === 1 && unknown[0].id === 'g-k')
+
+  check('a school with no levels offers nothing, and the dialog stays hidden',
+    buildGradeOffer([], []).length === 0)
+
+  // Two levels: primary must lead, and the two grade 1s must not collide.
+  const twoLevels = buildGradeOffer(
+    [PRIMARY, { id: 'lvl-s', name: 'មធ្យមសិក្សាបឋមភូមិ' }],
+    [],
+  )
+  check('levels sort in curriculum order, primary first',
+    twoLevels[0].levelName === 'បឋមសិក្សា' && twoLevels.at(-1)?.gradeNumber === 9)
+  check('and options across levels never collide',
+    new Set(twoLevels.map(gradeOptionValue)).size === twoLevels.length)
+}
+
+console.log('\nthe missing grade row is created server-side, on use:')
+// `dialog` and `classActions` are read further down for section 5; this block
+// needs them earlier, so it takes its own handles rather than hoisting theirs.
+const createDialogSrc = read('app/(main)/classroom/CreateClassDialog.tsx')
+const gradeAction = read('app/(main)/classroom/actions.ts')
+check('the page builds the offer rather than mapping raw rows',
+  page.includes('buildGradeOffer') && page.includes("from('education_levels')"))
+check('the dialog calls ensureGrade only when the grade has no row',
+  /if \(!gradeId\)[\s\S]{0,200}ensureGrade\(/.test(createDialogSrc))
+check('and refuses to continue if that fails, rather than creating a stray class',
+  /ensured\.error[\s\S]{0,200}return/.test(createDialogSrc))
+check('the grade name is derived from the number, never sent by the browser',
+  /const name = gradeName\(input\.gradeNumber\)/.test(gradeAction) &&
+    !/name:\s*input\.name/.test(gradeAction),
+  'classes.name is generated from the grade number; a free-typed grade name would drift')
+check('the grade number is bounded',
+  /input\.gradeNumber < 1 \|\| input\.gradeNumber > 12/.test(gradeAction))
+check('the level is re-read against the caller\'s own school',
+  /from\('education_levels'\)[\s\S]{0,200}\.eq\('id', input\.educationLevelId\)/.test(gradeAction))
+check('the insert is an idempotent upsert on the natural key',
+  /onConflict: 'education_level_id,name'/.test(gradeAction))
+check('a zero-row write is treated as the RLS refusal it is',
+  /!created\?\.id/.test(gradeAction))
+check('ensureGrade writes structure only — no class, no assignment, no enrolment',
+  !/from\('classes'\)|from\('teacher_assignments'\)|from\('student_enrollments'\)/
+    .test(gradeAction.slice(gradeAction.indexOf('export async function ensureGrade'))))
+
+// ★ The gate must not be stricter than the class insert it precedes.
+// `requirePermission` throws, the matrix gives a plain `teacher` classes
+// READ_ONLY, and an uncaught throw in a server action replaces the screen with
+// a runtime-error overlay instead of putting a message in the dialog. It also
+// refused teachers who can demonstrably create classes, because
+// `createClassAndAssign` gates on authentication and lets RLS decide.
+check('ensureGrade does NOT gate on classes:update — RLS is the boundary',
+  !/export async function ensureGrade[\s\S]{0,400}requirePermission/.test(gradeAction),
+  'it would throw for a plain teacher and crash the page, and disagree with the class insert')
+check('the create flow cannot be crashed by a thrown action',
+  createDialogSrc.includes('unstable_rethrow') && /catch \(e\)/.test(createDialogSrc),
+  'a server action that throws replaces the screen rather than filling in the form error')
+check('rename and archive DO keep the permission gate — the UI gates them too',
+  /export async function renameClass[\s\S]{0,300}requirePermission\('classes:update'\)/.test(gradeAction) &&
+    /export async function archiveClass[\s\S]{0,300}requirePermission\('classes:update'\)/.test(gradeAction))
+
 // --- 5. one class-creation path ----------------------------------------------------
 // ★ The rule with the sharpest failure mode. `createClassAndAssign` runs the
 // enrolment backfill immediately after inserting the assignment, and rolls the
@@ -295,15 +431,15 @@ check('it resolves the active class through resolveServerScope, not its own rule
 // site, so a second creation path is a path that silently omits both.
 console.log('\ncreating a class goes through the one existing action:')
 
-const dialog = read('app/(main)/classroom/classes/CreateClassDialog.tsx')
+const dialog = read('app/(main)/classroom/CreateClassDialog.tsx')
 check('the dialog calls createClassAndAssign', dialog.includes('createClassAndAssign'))
 check('imported from the onboarding actions, not re-declared',
   /from '@\/app\/onboarding\/actions'/.test(dialog))
 
 // The classroom feature must not write these tables itself.
-const feature = ['app/(main)/classroom/classes/page.tsx',
-  'app/(main)/classroom/classes/ClassesClient.tsx',
-  'app/(main)/classroom/classes/CreateClassDialog.tsx'].map(read).join('\n')
+const feature = [PAGE,
+  'app/(main)/classroom/ClassroomClient.tsx',
+  'app/(main)/classroom/CreateClassDialog.tsx'].map(read).join('\n')
 check('the classroom feature never inserts a class itself',
   !/from\('classes'\)[\s\S]{0,80}\.insert/.test(feature))
 check('nor an assignment', !/from\('teacher_assignments'\)[\s\S]{0,80}\.insert/.test(feature))
@@ -399,8 +535,8 @@ check('and ON CONFLICT DO NOTHING is still the concurrency belt',
 // ON DELETE CASCADE. Archiving must never become deleting.
 console.log('\nrenaming and archiving never destroy anything:')
 
-const classActions = read('app/(main)/classroom/classes/actions.ts')
-const manage = read('app/(main)/classroom/classes/ManageClassDialog.tsx')
+const classActions = read('app/(main)/classroom/actions.ts')
+const manage = read('app/(main)/classroom/ManageClassDialog.tsx')
 
 check('nothing in the feature deletes a class',
   !/from\('classes'\)[\s\S]{0,120}\.delete\(/.test(classActions + manage + client),

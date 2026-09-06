@@ -2,7 +2,9 @@
 
 import { Suspense, useState } from 'react'
 import Link from 'next/link'
-import { Check, GraduationCap, Plus, Settings2, Users } from 'lucide-react'
+import {
+  BookOpen, Check, GraduationCap, Plus, Settings2, UserPlus, Users,
+} from 'lucide-react'
 
 import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
 import { Badge } from '@/components/ui/feedback/Badge'
@@ -11,21 +13,33 @@ import { Button } from '@/components/ui/actions/Button'
 import { useActiveClass } from '@/lib/hooks/useActiveClass'
 import { useSelectActiveClass } from '@/lib/hooks/useSelectActiveClass'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
+import { getCurrentAcademicYear } from '@/lib/constants/academic'
 import type { ClassroomClass } from '@/lib/classroom/classes'
 import { useUserRole } from '@/lib/rbac/useUserRole'
-import { CreateClassDialog, type GradeOption } from './CreateClassDialog'
+import type { GradeOption } from '@/lib/classroom/grades'
+import { CreateClassDialog } from './CreateClassDialog'
 import { ManageClassDialog } from './ManageClassDialog'
 
-export type { GradeOption }
-
 /**
- * ថ្នាក់របស់ខ្ញុំ — one card per class the teacher holds.
+ * ថ្នាក់របស់ខ្ញុំ — one card per class the teacher holds, and the way into each.
  *
- * ★ There is no second class switcher here. The "ជ្រើសជាថ្នាក់សកម្ម" button
- * calls `useSelectActiveClass`, the same hook `ClassContextSwitcher` in the top
- * bar calls, which writes `TeacherContext` and `?class=` together. Two surfaces
- * with their own idea of the active class is exactly the failure this avoids —
- * so this one owns no selection state at all.
+ * ── The hub's four cards live here now ─────────────────────────────────────
+ *
+ * `/classroom` used to be a menu: ថ្នាក់របស់ខ្ញុំ, សិស្សក្នុងថ្នាក់, បញ្ចូលសិស្សថ្មី, មុខវិជ្ជា.
+ * Three of those only mean anything *about a class*, so they moved onto the
+ * card, where each carries `?class=` and names the class it will open. A menu
+ * item that says "សិស្សក្នុងថ្នាក់" without saying which class is a question, not
+ * a link.
+ *
+ * They are still links to the routes that already own those screens — nothing
+ * was relocated under `/classroom/`.
+ *
+ * ── There is no second class switcher here ─────────────────────────────────
+ *
+ * "ជ្រើសជាថ្នាក់សកម្ម" calls `useSelectActiveClass`, the same hook
+ * `ClassContextSwitcher` in the top bar calls, which writes `TeacherContext` and
+ * `?class=` together. Two surfaces with their own idea of the active class is
+ * exactly the failure this avoids — so this one owns no selection state at all.
  *
  * The active class is known twice over, on purpose. The server passed
  * `activeClassId` from `resolveServerScope`, which is what the *data* on every
@@ -33,7 +47,7 @@ export type { GradeOption }
  * since. They agree except in the moment between clicking and the router
  * settling, and the context is the fresher of the two, so it wins when present.
  */
-interface ClassesClientProps {
+interface ClassroomClientProps {
   classes: ClassroomClass[]
   activeClassId: string | null
   loadFailed: boolean
@@ -41,13 +55,13 @@ interface ClassesClientProps {
   years: { id: string; name: string }[]
 }
 
-function ClassesClientInner({
+function ClassroomClientInner({
   classes,
   activeClassId,
   loadFailed,
   grades,
   years,
-}: ClassesClientProps) {
+}: ClassroomClientProps) {
   const selectAssignment = useSelectActiveClass()
   const { classId: contextClassId, loading } = useActiveClass()
   const [creating, setCreating] = useState(false)
@@ -76,7 +90,7 @@ function ClassesClientInner({
     <PageContainer>
       <PageHeader
         title="ថ្នាក់របស់ខ្ញុំ"
-        description="ថ្នាក់ដែលអ្នកទទួលបន្ទុក ឬបង្រៀន"
+        description="បង្កើតថ្នាក់ គ្រប់គ្រងបញ្ជីសិស្ស និងកំណត់មុខវិជ្ជា"
         actions={
           canCreate && classes.length > 0 ? (
             <Button icon={<Plus className="h-4 w-4" />} onClick={() => setCreating(true)}>
@@ -85,6 +99,15 @@ function ClassesClientInner({
           ) : null
         }
       />
+
+      <p className="mb-4 text-sm font-bold text-text-body">
+        ឆ្នាំសិក្សា {getCurrentAcademicYear()}
+        {classes.length > 0 && (
+          <span className="font-normal text-text-muted">
+            {' '}· ថ្នាក់ {toKhmerNumber(classes.length)}
+          </span>
+        )}
+      </p>
 
       {loadFailed ? (
         <div className="rounded-xl border border-divider bg-bg-surface">
@@ -158,6 +181,13 @@ function ClassesClientInner({
   )
 }
 
+/** The three screens that only mean something about a particular class. */
+const CLASS_TOOLS = [
+  { label: 'បញ្ជីសិស្ស', href: '/student-list', icon: Users },
+  { label: 'បញ្ចូលសិស្ស', href: '/enrollment', icon: UserPlus },
+  { label: 'មុខវិជ្ជា', href: '/score/subjects', icon: BookOpen },
+] as const
+
 function ClassCard({
   cls,
   isActive,
@@ -175,6 +205,7 @@ function ClassCard({
   // ថ្នាក់ទី៥ · បឋមសិក្សា — skipping whichever a school without the canonical
   // level names does not resolve, rather than printing a stray separator.
   const gradeLine = [cls.gradeName, cls.levelName].filter(Boolean).join(' · ')
+  const scoped = (href: string) => `${href}?class=${encodeURIComponent(cls.classId)}`
 
   return (
     <div
@@ -197,7 +228,7 @@ function ClassCard({
         )}
       </div>
 
-      <dl className="mb-3 flex-1 space-y-1 text-xs">
+      <dl className="mb-3 space-y-1 text-xs">
         <div className="flex items-center gap-1.5">
           <dt className="text-text-muted">ឆ្នាំសិក្សា</dt>
           <dd className="font-bold text-text-body">{cls.academicYearName || '—'}</dd>
@@ -221,7 +252,30 @@ function ClassCard({
         )}
       </dl>
 
-      <div className="flex flex-wrap items-center gap-2">
+      {/*
+        The old hub's cards, attached to the class they act on. Real anchors, not
+        buttons with a router push: they open in a new tab on a middle click and
+        show their target in the status bar. `?class=` scopes the screen without
+        disturbing which class the rest of the app considers active — that is
+        what the button below is for.
+      */}
+      <nav aria-label={`ឧបករណ៍សម្រាប់ថ្នាក់ ${cls.className}`} className="mb-3 flex-1">
+        <ul className="grid grid-cols-3 gap-1.5">
+          {CLASS_TOOLS.map((tool) => (
+            <li key={tool.href}>
+              <Link
+                href={scoped(tool.href)}
+                className="flex min-h-11 flex-col items-center justify-center gap-1 rounded-lg border border-divider px-1 py-1.5 text-[11px] font-bold text-text-body transition hover:border-brand-400 hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+              >
+                <tool.icon className="h-4 w-4 text-text-muted" aria-hidden="true" />
+                <span className="truncate">{tool.label}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
+
+      <div className="flex flex-wrap items-center gap-2 border-t border-divider pt-3">
         {isActive ? (
           <span className="inline-flex min-h-11 items-center gap-1.5 text-[13px] font-bold text-success sm:min-h-8">
             <Check className="h-3.5 w-3.5" aria-hidden="true" />
@@ -232,17 +286,6 @@ function ClassCard({
             ជ្រើសជាថ្នាក់សកម្ម
           </Button>
         )}
-        {/*
-          A real link, not a button with a router push: it opens in a new tab on
-          a middle click and shows its target in the status bar. `?class=` scopes
-          the roster without disturbing the active selection.
-        */}
-        <Link
-          href={`/student-list?class=${encodeURIComponent(cls.classId)}`}
-          className="inline-flex min-h-11 items-center rounded-lg px-2 text-[13px] font-bold text-text-body underline-offset-2 transition hover:text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring sm:min-h-8"
-        >
-          មើលបញ្ជីសិស្ស
-        </Link>
         {onManage && (
           <button
             type="button"
@@ -264,10 +307,10 @@ function ClassCard({
  * client rendering and which Next.js refuses to prerender without a boundary.
  * Same reason `ClassContextSwitcher` carries one.
  */
-export default function ClassesClient(props: ClassesClientProps) {
+export default function ClassroomClient(props: ClassroomClientProps) {
   return (
     <Suspense fallback={null}>
-      <ClassesClientInner {...props} />
+      <ClassroomClientInner {...props} />
     </Suspense>
   )
 }

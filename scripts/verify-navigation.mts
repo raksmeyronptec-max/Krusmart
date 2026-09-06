@@ -103,8 +103,16 @@ check('labelled ថ្នាក់ និងសិស្ស', classroom?.label =
 check('points at /classroom', classroom?.href === '/classroom', `got ${classroom?.href}`)
 check('it is not the room module wearing a new label',
   classroom?.href !== '/cleaning-schedule')
-check('declares /classroom/classes', 
-  Boolean(classroom?.children?.some((c) => c.href === '/classroom/classes')))
+// `/classroom` is the class manager itself since the hub was merged into it, so
+// it must be the primary child — the sidebar's default target for the module.
+check('the primary child is /classroom itself',
+  classroom?.children?.find((c) => c.primary)?.href === '/classroom',
+  `got ${classroom?.children?.find((c) => c.primary)?.href}`)
+// The old route redirects; it stays declared so the breadcrumb and the sidebar
+// highlight resolve during the redirect rather than blanking, and stays hidden
+// so the sidebar does not list one screen twice.
+check('still declares /classroom/classes, hidden, for the redirect',
+  Boolean(classroom?.children?.some((c) => c.href === '/classroom/classes' && c.hidden === true)))
 
 // The hub links to these; it must not *own* them. Two PATH_INDEX entries for one
 // href would make the sidebar highlight whichever the longest-match sort reached

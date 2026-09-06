@@ -270,7 +270,7 @@ export async function chooseGrade(gradeId: string): Promise<ActionResult> {
  * open redirect out of a form any signed-in teacher can submit.
  *
  *   `onboarding` — the wizard. Continues to `/onboarding/students`, unchanged.
- *   `classroom`  — `/classroom/classes`. Returns instead of redirecting, so the
+ *   `classroom`  — `/classroom`. Returns instead of redirecting, so the
  *                  screen can refresh `TeacherContext`: the new assignment did
  *                  not exist when that context loaded, and a redirect throws
  *                  before the client could ask it to reload.
@@ -280,7 +280,7 @@ export type ClassCreationOrigin = 'onboarding' | 'classroom'
 /**
  * Create a class and make the caller its form master.
  *
- * ★ THE ONLY CLASS-CREATION PATH. `/classroom/classes` calls this rather than
+ * ★ THE ONLY CLASS-CREATION PATH. `/classroom` calls this rather than
  * carrying its own, because the enrolment backfill below is invisible from a
  * call site: a second writer is a writer that forgets it and strands a
  * v2-scoped account with an empty roster. If a caller needs different
@@ -353,7 +353,7 @@ export async function createClassAndAssign(input: {
   // form master. `student_enrollments_write_assigned_or_admin` keys the roster
   // write on exactly this flag, so without it the next step could not add a
   // student — which is why the wizard never offers the choice and why
-  // `/classroom/classes` spells the consequence out where it does.
+  // `/classroom` spells the consequence out where it does.
   const isHomeroom = input.isHomeroom ?? true
 
   const { error: assignErr } = await supabase.from('teacher_assignments').insert({
@@ -411,7 +411,7 @@ export async function createClassAndAssign(input: {
   await Promise.all([
     backfilled > 0
       // The trigger names the surface, so the audit trail distinguishes the
-      // wizard's first class from a later one created in /classroom/classes.
+      // wizard's first class from a later one created in /classroom.
       ? auditLogBatch('enrollment.backfilled', 'student_enrollment', backfilled, {
           class_id: cls.id, trigger: input.origin ?? 'onboarding',
         }, user.id)
@@ -424,7 +424,7 @@ export async function createClassAndAssign(input: {
     }),
   ])
 
-  // The wizard continues to its next step. `/classroom/classes` gets a plain
+  // The wizard continues to its next step. `/classroom` gets a plain
   // result: it has a `TeacherContext` to refresh — the assignment just written
   // is not in it — and `redirect()` throws before the client could do that.
   if (input.origin === 'classroom') return { success: true }
