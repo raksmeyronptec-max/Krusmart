@@ -481,8 +481,6 @@ export default function MonthlyAttendanceClient({
                 .font-hanuman { font-family: 'Hanuman', serif; }
                 @media print {
                     @page { size: A4 landscape; margin: 0; }
-                    body { padding: 0; margin: 0; background: white; }
-                    .print-hide { display: none !important; }
                 }
             `}</style>
 

@@ -222,8 +222,7 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
 
                 @media print {
                     @page { size: A4 portrait; margin: 0; }
-                    body { background: white !important; -webkit-print-color-adjust: exact; padding: 0; overflow: hidden; }
-                    .no-print { display: none !important; }
+                    body { overflow: hidden; }
                     .print-container { 
                         display: block !important; 
                         width: 210mm !important; 

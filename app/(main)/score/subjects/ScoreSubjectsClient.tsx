@@ -15,6 +15,7 @@ import { EmptyState } from '@/components/ui/feedback/EmptyState'
 import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
 import { controlClass, fieldLabel, requiredMark } from '@/components/ui/forms/fieldStyles'
 import Select from '@/components/ui/forms/Select'
+import { Tabs, tabPanelProps, type TabItem } from '@/components/ui/navigation/Tabs'
 
 import { DEFAULT_SCHEME_CONFIG, coefficientOf, type GradingSchemeConfig } from '@/lib/grading/scheme'
 import { schemeForLevel } from '@/lib/grading/levelSchemes'
@@ -134,10 +135,21 @@ function oddCoefficientWarning(
   return `មេគុណ ${coefficientOf(maxScore, scheme)} — ប្រាកដទេ?`
 }
 
-const SCORE_TYPES: { id: TemplateScoreType; label: string }[] = [
+const SCORE_TYPES: readonly TabItem<TemplateScoreType>[] = [
   { id: 'monthly', label: 'ប្រចាំខែ' },
   { id: 'semester', label: 'ប្រចាំឆមាស' },
 ]
+
+type Section = 'subjects' | 'calendar'
+
+const SECTION_TABS: readonly TabItem<Section>[] = [
+  { id: 'subjects', label: 'មុខវិជ្ជា', icon: SlidersHorizontal },
+  { id: 'calendar', label: 'វគ្គពិន្ទុ', icon: CalendarDays },
+]
+
+/* Stable ids so each tab's `aria-controls` names the panel it actually opens. */
+const SECTION_TABS_ID = 'subjects-section'
+const TYPE_TABS_ID = 'subjects-score-type'
 
 export default function ScoreSubjectsClient({
   initialRows,
@@ -165,7 +177,7 @@ export default function ScoreSubjectsClient({
    * score-type-specific, and putting them beside monthly/semester would imply a
    * monthly calendar and a semester calendar.
    */
-  const [section, setSection] = useState<'subjects' | 'calendar'>('subjects')
+  const [section, setSection] = useState<Section>('subjects')
   const [scoreType, setScoreType] = useState<TemplateScoreType>('monthly')
   const [busyKey, setBusyKey] = useState<string | null>(null)
   const [showPreview, setShowPreview] = useState(false)
@@ -535,56 +547,45 @@ export default function ScoreSubjectsClient({
         }
       />
 
-      {/* ----------------------------------------------------------- section */}
-      <div
-        role="tablist"
-        aria-label="ផ្នែក"
-        className="mb-4 inline-flex w-full gap-1 rounded-xl border border-divider bg-bg-surface p-1 sm:w-auto"
-      >
-        {([
-          { id: 'subjects' as const, label: 'មុខវិជ្ជា', icon: SlidersHorizontal },
-          { id: 'calendar' as const, label: 'វគ្គពិន្ទុ', icon: CalendarDays },
-        ]).map(({ id, label, icon: SectionIcon }) => (
-          <button
-            key={id}
-            role="tab"
-            type="button"
-            aria-selected={section === id}
-            onClick={() => setSection(id)}
-            className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg px-4 text-[13px] font-bold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${
-              section === id ? 'bg-brand text-brand-contrast shadow-md' : 'text-text-muted hover:text-brand'
-            }`}
-          >
-            <SectionIcon className="h-4 w-4" aria-hidden="true" />
-            {label}
-          </button>
-        ))}
-      </div>
+      {/*
+        Two tablists, two levels — and they used to be styled identically and
+        rendered adjacent, so the four pills read as one strip with two of them
+        somehow active. `variant` is what separates them now: the solid pill
+        chooses the part of the screen, the quiet one chooses a kind of mark
+        *within* it, under a label that says so.
+      */}
+      <Tabs
+        items={SECTION_TABS}
+        value={section}
+        onChange={setSection}
+        label="ផ្នែក"
+        idBase={SECTION_TABS_ID}
+        className="mb-4"
+      />
 
-      {section === 'calendar' && <ScoreCalendarSection classId={classId} />}
+      {section === 'calendar' && (
+        <div {...tabPanelProps(SECTION_TABS_ID, 'calendar')}>
+          <ScoreCalendarSection classId={classId} />
+        </div>
+      )}
 
-      {section === 'subjects' && (<>
+      {section === 'subjects' && (
+      <div {...tabPanelProps(SECTION_TABS_ID, 'subjects')}>
       {/* -------------------------------------------------------- score type */}
-      <div
-        role="tablist"
-        aria-label="ប្រភេទពិន្ទុ"
-        className="mb-4 inline-flex w-full gap-1 rounded-xl bg-paper p-1 sm:w-auto"
-      >
-        {SCORE_TYPES.map(({ id, label }) => (
-          <button
-            key={id}
-            role="tab"
-            type="button"
-            aria-selected={scoreType === id}
-            onClick={() => setScoreType(id)}
-            className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg px-4 text-[13px] font-bold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${
-              scoreType === id ? 'bg-brand text-brand-contrast shadow-md' : 'text-text-muted hover:text-brand'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
+      <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <span className="text-xs font-bold text-text-muted">ប្រភេទពិន្ទុ</span>
+        <Tabs
+          items={SCORE_TYPES}
+          value={scoreType}
+          onChange={setScoreType}
+          label="ប្រភេទពិន្ទុ"
+          variant="subtle"
+          idBase={TYPE_TABS_ID}
+          fill={false}
+        />
       </div>
+
+      <div {...tabPanelProps(TYPE_TABS_ID, scoreType)}>
 
       {/* ----------------------------------------------------------- summary */}
       <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-divider bg-bg-surface p-3 text-sm">
@@ -678,7 +679,8 @@ export default function ScoreSubjectsClient({
           មធ្យមភាគគិតដោយចែកនឹងចំនួនមុខវិជ្ជាដែលមានពិន្ទុ
         </span>
       </div>
-      </>)}
+      </div>
+      </div>)}
 
       {/* ------------------------------------------------------ edit dialog */}
       <Dialog

@@ -8,6 +8,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "verify": "node scripts/verify-all.mjs",
+    "verify:live": "node scripts/verify-all.mjs --live",
+    "check": "npm run lint && npm run typecheck && npm run verify",
     "build:templates": "node scripts/build-report-templates.mts"
   },
   "dependencies": {

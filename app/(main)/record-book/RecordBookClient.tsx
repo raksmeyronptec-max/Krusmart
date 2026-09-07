@@ -185,8 +185,6 @@ export default function RecordBookClient({
         .print-container { display: none; }
         @media print {
           @page { size: A4 landscape; margin: 0; }
-          body { background: #fff !important; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .no-print { display: none !important; }
           .print-container { display: block !important; }
           .record-sheet {
             width: 29.7cm;

@@ -101,8 +101,6 @@ export default function StudentTrackingClient({ initialStudents, scoresData, set
                         size: A4 portrait;
                         margin: 0; 
                     }
-                    body { background: white !important; margin: 0; padding: 0; -webkit-print-color-adjust: exact; }
-                    .no-print { display: none !important; }
                     /* Set on the other students' pages when printing just one. */
                     .print-skip { display: none !important; }
                     .print-container { 

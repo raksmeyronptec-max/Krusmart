@@ -508,11 +508,6 @@ export default function HomeworkEnterClient({
             size: A4 landscape;
             margin: 8mm;
           }
-          body {
-            background: white !important;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-          }
         }
         .hw-print-table {
           width: 100%;

@@ -1,0 +1,46 @@
+# The quality gate: lint, types, and the verify-* harnesses.
+#
+# The ~30 harnesses in scripts/ are this repository's regression suite — each one
+# pins an invariant that regresses *silently* (the page renders, the numbers look
+# plausible, they are another class's). They were runnable only one at a time by
+# hand, so nothing enforced them. `npm run check` is that gate; this runs it.
+#
+# The `*-live.mts` harnesses are deliberately not run here: they need a Supabase
+# stack plus the fixtures in supabase/fixtures/. Run them locally against a local
+# stack with `npm run verify:live`.
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Verify invariants
+        run: npm run verify
+
+      # Catches a break in the report-template builder (`prebuild`), which the
+      # harnesses read but do not themselves regenerate.
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key

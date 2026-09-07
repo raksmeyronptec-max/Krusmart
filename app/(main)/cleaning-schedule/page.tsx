@@ -145,8 +145,6 @@ export default function CleaningSchedulePage() {
         .cleaning-print { display: none; }
         @media print {
           @page { size: A4 portrait; margin: 15mm; }
-          body { background: #fff !important; margin: 0; padding: 0; }
-          .no-print { display: none !important; }
           .cleaning-print { display: block !important; }
           .cleaning-table th { background-color: #f3f4f6 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           .cleaning-table tr { break-inside: avoid; }

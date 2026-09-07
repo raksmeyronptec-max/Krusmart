@@ -37,8 +37,13 @@ import type { CurriculumEntry, EntryState } from '@/lib/scores/curriculum'
  * because a state the screen refuses to show is a state they can never undo.
  *
  * Reordering stays two buttons rather than a drag. This is a phone inside a
- * scrolling page: a touch drag fights the page's own scroll, and the two
- * buttons are 44px targets that work from a keyboard and to a screen reader.
+ * scrolling page: a touch drag fights the page's own scroll, and two buttons
+ * work from a keyboard and to a screen reader where a drag does not.
+ *
+ * They are 32px on a touch screen, not the 44px the rest of this page keeps to
+ * — a stacked pair at 44px would stand taller than the row it reorders. That is
+ * a deliberate exception to the touch-target floor and the only one here; it
+ * replaces the 24px pair that was small enough to miss.
  */
 
 export interface SubjectRow {
@@ -74,9 +79,30 @@ export function SubjectSelectionList({
 
   return (
     <div className="flex flex-col gap-5">
-      {groups.map((group) => (
-        <section key={group.label}>
-          <h3 className="mb-2 px-1 text-xs font-bold tracking-wide text-text-muted">{group.label}</h3>
+      {groups.map((group) => {
+        /*
+          A heading that is its own only child is the subject's name written
+          twice. `ភាសាខ្មែរ` sat directly above `ភាសាខ្មែរ (គ្រប់បំណិន)`, and
+          `គណិតវិទ្យា` above `គណិតវិទ្យា (គ្រប់ផ្នែក)` — for a primary class that was
+          five of these in the first screenful, each costing a line of type and
+          a gap to say nothing the row beneath did not already say.
+
+          So the heading is dropped exactly when it is a restatement: one row,
+          whose label begins with the group's. A single-row group that genuinely
+          classifies its row (កីឡា under អប់រំសុខភាព) keeps its heading, and so
+          does every group holding more than one row — there the heading is
+          doing the grouping work it exists for. The `<section>` keeps its
+          `aria-label` either way, so nothing is lost to a screen reader.
+        */
+        const only = group.rows.length === 1 ? group.rows[0] : null
+        const headingIsRestatement =
+          only !== null && only.entry.labelKm.trim().startsWith(group.label.trim())
+
+        return (
+        <section key={group.label} aria-label={group.label}>
+          {!headingIsRestatement && (
+            <h3 className="mb-2 px-1 text-xs font-bold tracking-wide text-text-muted">{group.label}</h3>
+          )}
 
           <ul className="flex flex-col gap-2">
             {group.rows.map((row) => {
@@ -99,7 +125,8 @@ export function SubjectSelectionList({
             })}
           </ul>
         </section>
-      ))}
+        )
+      })}
     </div>
   )
 }
@@ -232,7 +259,7 @@ function SubjectCard({
                   disabled={busy || disabled || last}
                   title={last ? 'ត្រូវមានផ្នែកយ៉ាងតិចមួយ — បិទមុខវិជ្ជាទាំងមូលជំនួសវិញ' : undefined}
                   onClick={() => onToggleComponent(component.columnId)}
-                  className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-bold transition disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${
+                  className={`inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 text-xs font-bold transition-colors duration-200 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${
                     picked
                       ? 'border-brand bg-brand-100 text-brand dark:bg-brand-900/40'
                       : 'border-divider bg-bg-surface text-text-muted hover:border-brand-400 hover:text-brand'
@@ -281,7 +308,7 @@ function SubjectSwitch({
       aria-label={`បង្រៀនមុខវិជ្ជា ${label}`}
       disabled={disabled}
       onClick={onChange}
-      className={`relative mt-0.5 inline-flex h-6 w-11 shrink-0 items-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${
+      className={`relative mt-0.5 inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${
         on ? 'bg-brand' : 'bg-divider'
       }`}
     >
@@ -304,7 +331,13 @@ function IconButton({
   label: string
   disabled?: boolean
   onClick: () => void
-  /** Full 44px target; the stacked reorder pair is deliberately shorter. */
+  /**
+   * Full 44px target. The stacked reorder pair stays shorter — two 44px
+   * buttons would be taller than the row they reorder — but it was 24px, which
+   * is small enough to be a real miss on a phone. 32px, tightening to 28px from
+   * `sm` where the pointer is a mouse, is the compromise: still a compact pair,
+   * no longer a fingertip-sized gamble.
+   */
   tall?: boolean
   children: React.ReactNode
 }) {
@@ -314,8 +347,8 @@ function IconButton({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className={`flex w-9 items-center justify-center rounded-md border border-divider text-text-muted transition hover:border-brand-400 hover:text-brand disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${
-        tall ? 'h-11 sm:h-9' : 'h-6'
+      className={`flex w-9 cursor-pointer items-center justify-center rounded-md border border-divider text-text-muted transition-colors duration-200 hover:border-brand-400 hover:text-brand disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${
+        tall ? 'h-11 sm:h-9' : 'h-8 sm:h-7'
       }`}
     >
       {children}

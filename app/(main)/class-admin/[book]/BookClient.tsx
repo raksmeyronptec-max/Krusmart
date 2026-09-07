@@ -160,8 +160,6 @@ export default function BookClient({
         .print-container { display: none; }
         @media print {
           @page { size: A4 ${landscape ? 'landscape' : 'portrait'}; margin: 12mm; }
-          .no-print { display: none !important; }
-          body { background: #fff !important; margin: 0; padding: 0; }
           .print-container {
             display: block !important;
             width: 100%;

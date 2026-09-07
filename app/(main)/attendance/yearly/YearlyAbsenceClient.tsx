@@ -166,8 +166,6 @@ export function YearlyAbsenceClient({
       <style jsx global>{`
         @media print {
           @page { size: A4 landscape; margin: 8mm; }
-          body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .no-print { display: none !important; }
           .print-sheet { box-shadow: none !important; margin: 0 !important; padding: 0 !important; width: 100% !important; }
         }
         .abs-table { width: 100%; border-collapse: collapse; font-size: 9pt; }

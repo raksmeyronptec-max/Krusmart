@@ -372,16 +372,45 @@ body {
     }
 
     /*
+     * The paper baseline, shared by every printable view.
+     *
+     * Twenty-one clients print A4 sheets at exact millimetre dimensions, and
+     * each one used to restate these two rules in its own inline `<style>`:
+     * `.no-print` was written out verbatim sixteen times, and the `body` reset
+     * appeared in fourteen spellings of one intent — `white` or `#fff`, with or
+     * without `print-color-adjust`, with or without `!important`. A sheet that
+     * printed on a grey ground, or in greyscale, differed from its neighbour
+     * only by which copy it had been forked from.
+     *
+     * They are declared once here instead. A page keeps its own `@page` (size
+     * and margin are genuinely per-document) and whatever page-specific rules
+     * it needs; it no longer restates the baseline. `!important` is what lets
+     * that move be behaviour-preserving: an inline `<style>` comes after this
+     * stylesheet in document order, so without it the hoisted rule would lose
+     * the cascade it used to win by being last.
+     *
+     * `.print-hide` is `/attendance/monthly`'s spelling of `.no-print`. It is
+     * honoured rather than renamed so this stays a pure consolidation.
+     */
+    body {
+      background: #fff !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    .no-print,
+    .print-hide {
+      display: none !important;
+    }
+
+    /*
      * Application chrome must not reach the paper.
      *
-     * Fifteen views print A4 sheets at exact millimetre dimensions. Today each
-     * sits directly under `(main)/layout.tsx`, so nothing between the sheet and
-     * `<body>` contributes padding, width or overflow. The CMS shell coming in
-     * Phase 3 changes that: a sidebar, a top bar and a centred content
-     * container would all become ancestors of every certificate and report.
-     *
-     * Two attributes, honoured here in advance so the shell cannot regress
-     * printing when it lands:
+     * Fifteen views print A4 sheets at exact millimetre dimensions, and the app
+     * shell — sidebar, top bar, centred content container — is an ancestor of
+     * every one of them. Two attributes keep it off the page:
      *
      *   data-app-chrome — sidebar, top bar, bottom nav, drawers. Removed.
      *   data-app-frame  — layout wrappers. `display: contents` drops the box
@@ -389,7 +418,9 @@ body {
      *                     max-width, grid placement and overflow stop applying
      *                     but the sheet itself still renders.
      *
-     * Both are inert until Phase 3 tags the shell — no element carries them yet.
+     * `AppShell`, `PageContainer`, `TopNav`, `Sidebar` and `MobileNav` all
+     * carry them, so an A4 sheet measures the same as it did before the shell
+     * existed. Keep both attributes on any new frame element.
      */
     [data-app-chrome] {
       display: none !important;

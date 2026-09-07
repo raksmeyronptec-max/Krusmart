@@ -155,8 +155,6 @@ export default function InventoryClient({
                 .print-container { display: none; }
                 @media print {
                     @page { size: A4 portrait; margin: 0; }
-                    .no-print { display: none !important; }
-                    body { background: white !important; margin: 0; padding: 0; }
                     .print-container { 
                         display: block !important; 
                         width: 100%;

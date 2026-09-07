@@ -206,8 +206,6 @@ export default function ScorePrintClient({
         .print-container { display: none; }
         @media print {
           @page { size: A4 landscape; margin: 10mm; }
-          body { background: #fff !important; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .no-print { display: none !important; }
           .print-container { display: block !important; width: 100%; margin: 0 !important; padding: 0 !important; box-shadow: none !important; }
           .moeys-table th { background-color: #f3f4f6 !important; }
           .moeys-table tr { break-inside: avoid; }

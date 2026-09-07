@@ -220,7 +220,6 @@ export default function ScoreAnalyseClient({ initialStudents, attendanceData, sc
             <style jsx global>{`
                 @media print {
                     @page { size: A4 portrait; margin: 12mm; }
-                    body { background: white !important; }
                     [data-analysis-chrome] { display: none !important; }
                 }
             `}</style>

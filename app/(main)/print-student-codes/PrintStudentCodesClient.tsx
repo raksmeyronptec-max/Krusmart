@@ -35,8 +35,6 @@ export default function PrintStudentCodesClient({ initialStudents, teacherUid }:
                 }
                 
                 @media print {
-                    .no-print { display: none !important; }
-                    body { background: white !important; margin: 0; padding: 0; }
                     .print-codes-mode {
                         position: relative !important;
                         left: 0 !important;

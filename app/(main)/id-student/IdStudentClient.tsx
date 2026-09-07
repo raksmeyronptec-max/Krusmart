@@ -112,16 +112,6 @@ export default function IdStudentClient({ initialStudents, settings }: { initial
                         margin: 4mm;
                     }
                     
-                    body { 
-                        background-color: white !important; 
-                        margin: 0 !important; 
-                        padding: 0 !important; 
-                        -webkit-print-color-adjust: exact !important; 
-                        print-color-adjust: exact !important;
-                    }
-                    
-                    .no-print { display: none !important; }
-                    
                     .container {
                         max-width: none !important;
                         margin: 0 !important;

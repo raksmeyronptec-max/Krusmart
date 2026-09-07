@@ -326,8 +326,6 @@ export default function ParentReportClient({ initialStudents, settings }: { init
 
                 @media print {
                     @page { size: A4 portrait; margin: 8mm; }
-                    body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; padding: 0; margin: 0; }
-                    .no-print { display: none !important; }
                     .print-container { 
                         box-shadow: none !important;
                         padding: 0 !important;

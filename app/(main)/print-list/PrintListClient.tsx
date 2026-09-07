@@ -192,8 +192,7 @@ export default function PrintListClient({ initialStudents, settings }: { initial
                         size: A4 landscape;
                         margin: 5mm; 
                     }
-                    body { background: white !important; margin: 0; padding: 0; font-size: 8pt; }
-                    .no-print { display: none !important; }
+                    body { font-size: 8pt; }
                     .print-container { width: 100% !important; box-shadow: none !important; border: none !important; padding: 0 !important; max-width: none !important; margin: 0 !important; }
                     
                     * {

@@ -47,8 +47,6 @@ export function ReportFrame({
       <style jsx global>{`
         @media print {
           @page { size: A4 ${orientation}; margin: 10mm; }
-          body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .no-print { display: none !important; }
           .print-sheet { box-shadow: none !important; margin: 0 !important; padding: 0 !important; width: 100% !important; }
         }
         .report-table { width: 100%; border-collapse: collapse; font-size: 11pt; }

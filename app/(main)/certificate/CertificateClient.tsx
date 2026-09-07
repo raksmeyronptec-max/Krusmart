@@ -253,8 +253,6 @@ export default function CertificateClient({ initialStudents, settings }: { initi
 
                 @media print {
                     @page { size: A4 landscape; margin: 0; }
-                    body { background: white !important; margin: 0; padding: 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-                    .no-print { display: none !important; }
                     
                     #printContainer {
                         display: block !important;

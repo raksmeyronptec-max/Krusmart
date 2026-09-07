@@ -244,8 +244,6 @@ function RankingClientInner({ initialStudents, settings }: RankingClientProps) {
                 .font-battambang { font-family: 'Battambang', cursive; }
                 @media print {
                     @page { size: A4 portrait; margin: 0.5cm; }
-                    body { background: white !important; -webkit-print-color-adjust: exact; padding: 0; }
-                    .no-print { display: none !important; }
                     .print-container { box-shadow: none !important; margin: 0 !important; width: 100% !important; }
                 }
                 /*

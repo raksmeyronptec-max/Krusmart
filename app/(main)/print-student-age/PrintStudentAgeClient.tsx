@@ -112,8 +112,6 @@ export default function PrintStudentAgeClient({ initialStudents, settings, acade
             <style jsx global>{`
                 @media print {
                     @page { size: A4 landscape; margin: 10mm; }
-                    body { background: white !important; margin: 0; padding: 0; -webkit-print-color-adjust: exact; }
-                    .no-print { display: none !important; }
                     .print-container { 
                         display: block !important; 
                         width: 100%;
