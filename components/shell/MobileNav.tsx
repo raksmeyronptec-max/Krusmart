@@ -11,6 +11,7 @@ import {
   secondarySections,
   sectionsForRoles,
 } from "@/lib/navigation"
+import { useClassHref } from "@/lib/hooks/useClassHref"
 import type { RoleName } from "@/lib/types"
 
 /**
@@ -33,6 +34,10 @@ import type { RoleName } from "@/lib/types"
 export function MobileNav({ roles }: { roles?: RoleName[] }) {
   const pathname = usePathname()
   const active = useMemo(() => moduleForPath(pathname), [pathname])
+  // Every destination carries the class the teacher is working in, so tapping
+  // ពិន្ទុ from ៥ខ's attendance sheet opens ៥ខ's marks and not their default
+  // class's. Non-scoped destinations (ការកំណត់, ការណែនាំ) come back unchanged.
+  const classHref = useClassHref()
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   const sections = useMemo(() => sectionsForRoles(roles), [roles])
@@ -65,7 +70,7 @@ export function MobileNav({ roles }: { roles?: RoleName[] }) {
             return (
               <li key={m.id}>
                 <Link
-                  href={m.href}
+                  href={classHref(m.href)}
                   aria-current={on ? "page" : undefined}
                   className={`relative flex min-h-[56px] flex-col items-center justify-center gap-1 px-1 py-2 text-[11px] font-bold transition-colors ${
                     on ? "text-brand" : "text-text-body"
@@ -131,7 +136,7 @@ export function MobileNav({ roles }: { roles?: RoleName[] }) {
                   return (
                     <li key={m.id}>
                       <Link
-                        href={m.href}
+                        href={classHref(m.href)}
                         onClick={() => setDrawerOpen(false)}
                         aria-current={on ? "page" : undefined}
                         className={`flex min-h-[52px] items-center gap-3 rounded-xl px-3 text-sm font-bold transition-colors ${

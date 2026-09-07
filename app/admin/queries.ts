@@ -122,38 +122,85 @@ export async function getSchoolStats(scope: AdminScope): Promise<SchoolStats> {
 }
 
 /** One row of the teachers table. */
+/** One `teacher_assignments` row, as the console needs to name and remove it. */
+export interface TeacherAssignmentSummary {
+  assignmentId: string
+  classId: string
+  className: string
+  /**
+   * The subject this assignment covers, or null for the whole class.
+   *
+   * A `subject_key`, not a label: naming it means resolving the class's own
+   * template, which the page does once for the classes it holds rather than
+   * once per row. See `subjectLabels` below.
+   */
+  subjectKey: string | null
+  isHomeroom: boolean
+}
+
 export interface TeacherRow {
   teacherId: string
   email: string | null
   fullName: string | null
   classes: string[]
   isHomeroom: boolean
+  /** Every active assignment, so the console can show and remove each one. */
+  assignments: TeacherAssignmentSummary[]
 }
 
 /** Teachers holding an assignment in the active year. */
 export async function getTeachers(scope: AdminScope): Promise<TeacherRow[]> {
   const supabase = await createClient()
 
+  /*
+   * `id` and `subject_key` are selected, and that is the point of this change.
+   *
+   * The table used to collapse every assignment into a comma-joined list of
+   * class names, which threw away the two things an administrator needs:
+   * *which subject* a teacher holds in a class (00024's `subject_key` — a
+   * secondary teacher holds one row per subject, and the console showed the
+   * class name repeated instead), and the assignment's **id**, without which
+   * `removeAssignment` cannot be called. That action has existed since the
+   * console was built and was wired to nothing, so a teacher could be assigned
+   * and never un-assigned: they kept RLS access to the class, kept appearing in
+   * `/score/collect`, and the only remedy was editing the table by hand.
+   */
   const { data } = await supabase
     .from('teacher_assignments')
-    .select('teacher_id, is_homeroom, classes(name), profiles:teacher_id(full_name)')
+    .select('id, teacher_id, is_homeroom, subject_key, class_id, classes(name), profiles:teacher_id(full_name)')
     .eq('academic_year_id', scope.activeYear?.id ?? '')
+    .eq('status', 'active')
 
   const byTeacher = new Map<string, TeacherRow>()
 
   for (const raw of data ?? []) {
     const row = raw as {
+      id: string
       teacher_id: string
       is_homeroom: boolean
+      subject_key: string | null
+      class_id: string
       classes?: { name?: string } | { name?: string }[] | null
       profiles?: { full_name?: string } | { full_name?: string }[] | null
     }
     const cls = Array.isArray(row.classes) ? row.classes[0] : row.classes
     const prof = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles
 
+    const assignment: TeacherAssignmentSummary = {
+      assignmentId: row.id,
+      classId: row.class_id,
+      className: cls?.name ?? '—',
+      // A NULL `subject_key` means the whole class — a homeroom row, or a
+      // legacy assignment written before 00024, whose pre-00024 meaning was
+      // exactly that. Never invent a subject name for it.
+      subjectKey: row.subject_key ?? null,
+      isHomeroom: row.is_homeroom,
+    }
+
     const existing = byTeacher.get(row.teacher_id)
     if (existing) {
-      if (cls?.name) existing.classes.push(cls.name)
+      existing.assignments.push(assignment)
+      if (cls?.name && !existing.classes.includes(cls.name)) existing.classes.push(cls.name)
       existing.isHomeroom = existing.isHomeroom || row.is_homeroom
     } else {
       byTeacher.set(row.teacher_id, {
@@ -162,6 +209,7 @@ export async function getTeachers(scope: AdminScope): Promise<TeacherRow[]> {
         fullName: prof?.full_name ?? null,
         classes: cls?.name ? [cls.name] : [],
         isHomeroom: row.is_homeroom,
+        assignments: [assignment],
       })
     }
   }

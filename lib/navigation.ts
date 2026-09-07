@@ -60,6 +60,21 @@ export interface NavLink {
    * knows the route — should still find the page. Never rendered; matched only.
    */
   alias?: string
+  /**
+   * Hidden from the rendered navigation when the signed-in roles lack it.
+   *
+   * The same *convenience* `NavModule.permission` is, at the row below it.
+   * It exists because one destination in an otherwise-teacher module is a
+   * principal's — `/administration`, the school analytics view, which redirects
+   * anyone else to `/dashboard`. Before this the only way to offer it was a
+   * second, hand-maintained tile list on the dashboard with its own `adminOnly`
+   * flag; that list is gone, so the gate had to move to where the destination
+   * is actually declared.
+   *
+   * Authorization is the page's own redirect plus RLS. This decides what is
+   * *offered*, never what is permitted.
+   */
+  permission?: Permission
 }
 
 export interface NavModule {
@@ -144,28 +159,64 @@ export const NAV_SECTIONS: NavSection[] = [
         href: "/student-list",
         alias: "students roster",
         permission: "students:view",
+        /*
+         * Managing pupils, then the paperwork about them — four entries, not
+         * eight.
+         *
+         * The module used to list four printable documents (កាតសិស្ស, លេខកូដ,
+         * អាយុ/កម្ពស់, បញ្ជីបោះពុម្ព) as siblings of the roster and the
+         * enrolment form. Two costs. Eight equally-weighted children is a wall
+         * in a rail that has to hold ten modules; and, worse, it was a second
+         * document menu — those four screens appeared in *no* other index, so a
+         * teacher who opened មជ្ឈមណ្ឌលរបាយការណ៍ looking for the ID cards found
+         * six families and not one of them held them.
+         *
+         * They are catalogued in the Print Center now (`category: 'student'`,
+         * all five `legacy_only` — indexed, not rebuilt), so one entry pointing
+         * at that family replaces the four. Their routes are unchanged and
+         * still declared below as `hidden`, so `moduleForPath` keeps resolving
+         * them, the breadcrumb keeps naming them, and every existing link —
+         * `/student-list`'s toolbar among them — keeps working.
+         */
         children: [
           { label: "បញ្ជីឈ្មោះសិស្ស", href: "/student-list", primary: true, alias: "student list roster" },
-          { label: "ព័ត៌មានសិស្ស", href: "/students", hidden: true, alias: "student detail" },
-          { label: "បញ្ចូលព័ត៌មានសិស្ស", href: "/enrollment", alias: "enrollment add student" },
+          { label: "បញ្ចូលព័ត៌មានសិស្ស", href: "/enrollment", alias: "enrollment add student import" },
           { label: "សៀវភៅតាមដាន", href: "/student-tracking", alias: "student tracking" },
-          { label: "បោះពុម្ពកាតសិស្ស", href: "/id-student", alias: "id card student print" },
-          { label: "លេខកូដសិស្ស (ឪពុកម្តាយ)", href: "/print-student-codes", alias: "parent codes print" },
-          { label: "វិភាគអាយុ និងកម្ពស់", href: "/print-student-age", alias: "age height analysis" },
-          { label: "បោះពុម្ពបញ្ជីឈ្មោះ", href: "/print-list", alias: "print list roster" },
+          {
+            label: "ឯកសារសិស្ស",
+            href: "/print-center?category=student",
+            alias: "student documents id card parent codes age height print list",
+          },
+
+          // Reached from a row or from the Print Center, never from this menu.
+          { label: "ព័ត៌មានសិស្ស", href: "/students", hidden: true, alias: "student detail" },
+          { label: "បោះពុម្ពកាតសិស្ស", href: "/id-student", hidden: true, alias: "id card student print" },
+          { label: "លេខកូដសិស្ស (ឪពុកម្តាយ)", href: "/print-student-codes", hidden: true, alias: "parent codes print" },
+          { label: "វិភាគអាយុ និងកម្ពស់", href: "/print-student-age", hidden: true, alias: "age height analysis" },
+          { label: "បោះពុម្ពបញ្ជីឈ្មោះ", href: "/print-list", hidden: true, alias: "print list roster" },
         ],
       },
       {
         id: "attendance",
         label: "វត្តមាន",
         icon: CalendarCheck,
-        href: "/attendance/monthly",
+        // The module's front door is where attendance is RECORDED. It used to
+        // be the monthly sheet, which only ever read and printed.
+        href: "/attendance/layout",
         alias: "attendance",
         permission: "attendance:view",
         children: [
-          { label: "បញ្ជីវត្តមានប្រចាំខែ", href: "/attendance/monthly", primary: true, alias: "monthly attendance" },
-          { label: "ចុះវត្តមានតាមប្លង់តុ", href: "/attendance/layout", alias: "seating layout attendance" },
-          { label: "អវត្តមានប្រចាំឆ្នាំ", href: "/attendance/yearly", alias: "yearly absence" },
+          { label: "ចុះវត្តមានតាមប្លង់តុ", href: "/attendance/layout", primary: true, alias: "seating layout attendance" },
+          /*
+           * The two attendance SHEETS now live in /print-center, where the rest
+           * of the printable paperwork is. They keep their URLs and their pages
+           * — nothing was reimplemented — and stay declared here, `hidden`, so
+           * `moduleForPath` still resolves the breadcrumb when a teacher
+           * arrives from a print-centre card. Same pattern as
+           * `/yearly-report/promoted` and `/score/template`.
+           */
+          { label: "បញ្ជីវត្តមានប្រចាំខែ", href: "/attendance/monthly", hidden: true, alias: "monthly attendance" },
+          { label: "អវត្តមានប្រចាំឆ្នាំ", href: "/attendance/yearly", hidden: true, alias: "yearly absence" },
         ],
       },
     ],
@@ -223,6 +274,30 @@ export const NAV_SECTIONS: NavSection[] = [
           { label: "លទ្ធផលប្រចាំឆ្នាំ", href: "/yearly-report", alias: "yearly report result" },
           { label: "តារាងកិត្តិយស", href: "/honor-roll", alias: "honor roll" },
           { label: "សៀវភៅសិក្ខាគារិក", href: "/record-book", alias: "record book" },
+          /*
+           * The principal's school-wide analytics view. Declared here rather
+           * than nowhere: it used to be reachable only from a tile in the
+           * dashboard's parallel feature list, so `moduleForPath` matched
+           * nothing and the breadcrumb rendered blank on the one screen in the
+           * app that had no other way back. Gated to a real administrator; the
+           * page redirects everyone else regardless.
+           */
+          {
+            label: "ផ្ទាំងវិភាគសាលា (នាយក)",
+            href: "/administration",
+            alias: "administration school analytics principal",
+            permission: "school_settings:view",
+          },
+          /*
+           * `/yearly-report`'s three detail sheets. Reached from that page's
+           * cards rather than from a menu, so `hidden` — but declared, because
+           * `linkForPath` otherwise falls back to the parent and the breadcrumb
+           * names all three "លទ្ធផលប្រចាំឆ្នាំ". Same reason `/students/[id]`
+           * is declared.
+           */
+          { label: "សិស្សឡើងថ្នាក់", href: "/yearly-report/promoted", hidden: true, alias: "promoted students" },
+          { label: "សិស្សរៀនត្រួត", href: "/yearly-report/repeated", hidden: true, alias: "repeated students" },
+          { label: "លទ្ធផលតាមមុខវិជ្ជា", href: "/yearly-report/subject-results", hidden: true, alias: "subject results" },
         ],
       },
     ],
@@ -337,9 +412,22 @@ export function sectionsForRoles(roles?: RoleName[] | null): NavSection[] {
 
   return NAV_SECTIONS.map((section) => ({
     ...section,
-    modules: section.modules.filter(
-      (m) => !m.permission || hasPermission(effective, m.permission),
-    ),
+    modules: section.modules
+      .filter((m) => !m.permission || hasPermission(effective, m.permission))
+      // Children are filtered by the same rule, one level down. A module a
+      // teacher may see can still hold one destination they may not — see
+      // `NavLink.permission`. A module is never dropped for having lost every
+      // child: its own `href` is always one of them, so it stays reachable.
+      .map((m) =>
+        m.children
+          ? {
+              ...m,
+              children: m.children.filter(
+                (c) => !c.permission || hasPermission(effective, c.permission),
+              ),
+            }
+          : m,
+      ),
   })).filter((section) => section.modules.length > 0)
 }
 

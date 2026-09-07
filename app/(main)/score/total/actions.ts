@@ -9,7 +9,24 @@ import { resolveServerScope, rosterIdsForScope } from '@/lib/utils/serverScope'
 import { requirePermission } from '@/lib/rbac/server'
 import { auditLogBatch } from '@/lib/audit/log'
 
-export async function getAllScoresByPeriod(scoreType: string, scorePeriod: string): Promise<Score[]> {
+/**
+ * `classId` is optional, and mirrors `getScores` in `score/enter/actions.ts`
+ * exactly — including why it must be passed.
+ *
+ * THE BUG THIS CLOSES. `resolveServerScope(user.id)` with no class resolves the
+ * caller's *default* class (oldest active homeroom). The pages that render
+ * these marks resolve `?class=` instead. For a teacher holding one class the
+ * two answers coincide and nothing is visibly wrong; for a teacher holding two,
+ * `/score/total?class=<៥ខ>` drew ៥ខ's roster from the server component and then
+ * fetched the marks against ៥ក's roster — so the grid showed another class's
+ * marks beside these pupils' names, or, when the two rosters do not intersect,
+ * showed nothing at all and read as "no marks entered yet".
+ *
+ * It cannot widen access: `resolveServerScope` honours only a class the caller
+ * holds an active assignment for, and RLS is the boundary regardless. Omitted,
+ * the behaviour is exactly what it was.
+ */
+export async function getAllScoresByPeriod(scoreType: string, scorePeriod: string, classId?: string): Promise<Score[]> {
     const supabase = await createClient()
 
     const { data: { user } } = await supabase.auth.getUser()
@@ -17,7 +34,7 @@ export async function getAllScoresByPeriod(scoreType: string, scorePeriod: strin
 
     // 00007: an assigned teacher reads all subjects for the class, so the
     // roster — not ownership — is the boundary. Legacy accounts keep teacher_id.
-    const scope = await resolveServerScope(user.id)
+    const scope = await resolveServerScope(user.id, classId)
     const rosterIds = await rosterIdsForScope(scope)
 
     let query = supabase
@@ -38,7 +55,8 @@ export async function getAllScoresByPeriod(scoreType: string, scorePeriod: strin
     return data || []
 }
 
-export async function getAnnualAverages(academicYear: string): Promise<Score[]> {
+/** Stored annual rows. `classId` as in `getAllScoresByPeriod` above. */
+export async function getAnnualAverages(academicYear: string, classId?: string): Promise<Score[]> {
     const supabase = await createClient()
 
     const { data: { user } } = await supabase.auth.getUser()
@@ -46,7 +64,7 @@ export async function getAnnualAverages(academicYear: string): Promise<Score[]> 
 
     // 00007: an assigned teacher reads all subjects for the class, so the
     // roster — not ownership — is the boundary. Legacy accounts keep teacher_id.
-    const scope = await resolveServerScope(user.id)
+    const scope = await resolveServerScope(user.id, classId)
     const rosterIds = await rosterIdsForScope(scope)
 
     // Fetch sem1 and sem2 averages from scores table (which might be stored specially, but the old code calculated it on the fly by getting all semester data)
@@ -77,14 +95,16 @@ export async function getAnnualAverages(academicYear: string): Promise<Score[]> 
  * Monthly periods are `${month}-${academicYear}` — e.g. `jan-2025-2026` — so
  * the suffix is unambiguous. Homework periods use an underscore
  * (`2025-2026_jan`) and a different `score_type`, so they cannot collide.
+ *
+ * `classId` as in `getAllScoresByPeriod` above.
  */
-export async function getMonthlyScoresForYear(academicYear: string): Promise<Score[]> {
+export async function getMonthlyScoresForYear(academicYear: string, classId?: string): Promise<Score[]> {
     const supabase = await createClient()
 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return []
 
-    const scope = await resolveServerScope(user.id)
+    const scope = await resolveServerScope(user.id, classId)
     const rosterIds = await rosterIdsForScope(scope)
 
     let query = supabase

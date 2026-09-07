@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { logger } from '@/lib/utils/logger'
+import { chooseAssignment } from '@/lib/utils/defaultClass'
 import type { TeacherAssignmentDetail } from '@/lib/types'
 
 interface TeacherContextValue {
@@ -12,6 +13,11 @@ interface TeacherContextValue {
   activeSubjectId: string | null
   activeAcademicYearId: string | null
   setActiveAssignmentId: (id: string) => void
+  /**
+   * Adopt the class named by `?class=`, so a deep link and the top-bar chip
+   * cannot disagree. See `components/shell/ClassParamSync.tsx`.
+   */
+  syncFromClassId: (classId: string | null) => void
   /** True when the teacher has more than one assignment — drives the switcher UI. */
   hasMultiple: boolean
   /**
@@ -116,8 +122,22 @@ export function TeacherContextProvider({ children }: { children: React.ReactNode
       })
 
       setAssignments(detailed)
+      /*
+       * The default class is `chooseAssignment`'s, not this list's first row.
+       *
+       * The sort above is presentation — it is what the switcher's dropdown
+       * shows, newest year first. Using its head as the default made the
+       * client disagree with `resolveServerScope`, which orders by
+       * `lib/utils/defaultClass.ts`: homeroom first, then *oldest* created.
+       * With two homeroom classes in one year — legal since `/classroom` made
+       * a second class routine — the two rules pick different rows, so the top
+       * bar named one class while every server-rendered figure on the page
+       * came from another. One rule, imported rather than restated.
+       */
       setActiveAssignmentId((prev) =>
-        prev && detailed.some((d) => d.id === prev) ? prev : (detailed[0]?.id ?? null),
+        prev && detailed.some((d) => d.id === prev)
+          ? prev
+          : (chooseAssignment(detailed)?.id ?? null),
       )
     } finally {
       setLoading(false)
@@ -128,6 +148,32 @@ export function TeacherContextProvider({ children }: { children: React.ReactNode
     load()
   }, [load])
 
+  /**
+   * Adopt the class a URL asked for.
+   *
+   * `?class=` is the server's half of the selection, and until now it flowed
+   * one way only: the switcher wrote it, and nothing ever read it back. A
+   * bookmark, a shared link, or one of `/classroom`'s per-class tool links
+   * therefore rendered one class's data under another class's name.
+   *
+   * Resolved through `chooseAssignment` rather than a bare `find`, so a class
+   * the teacher holds both as homeroom and as a subject picks the homeroom row
+   * — the same tie-break the server applies to the same id. An id the teacher
+   * does not hold matches nothing and leaves the selection alone; it is not an
+   * authorisation either way, since `resolveServerScope` validates it again on
+   * every request.
+   */
+  const syncFromClassId = useCallback((classId: string | null) => {
+    if (!classId) return
+    setActiveAssignmentId((prev) => {
+      const current = assignments.find((a) => a.id === prev)
+      if (current?.class_id === classId) return prev
+      return chooseAssignment(assignments, classId)?.class_id === classId
+        ? (chooseAssignment(assignments, classId)?.id ?? prev)
+        : prev
+    })
+  }, [assignments])
+
   const value = useMemo<TeacherContextValue>(() => {
     const active = assignments.find((a) => a.id === activeAssignmentId) ?? null
     return {
@@ -137,12 +183,13 @@ export function TeacherContextProvider({ children }: { children: React.ReactNode
       activeSubjectId: active?.subject_id ?? null,
       activeAcademicYearId: active?.academic_year_id ?? null,
       setActiveAssignmentId,
+      syncFromClassId,
       hasMultiple: assignments.length > 1,
       isLegacy: !loading && assignments.length === 0,
       loading,
       refresh: load,
     }
-  }, [assignments, activeAssignmentId, loading, load])
+  }, [assignments, activeAssignmentId, loading, load, syncFromClassId])
 
   return <TeacherContext.Provider value={value}>{children}</TeacherContext.Provider>
 }

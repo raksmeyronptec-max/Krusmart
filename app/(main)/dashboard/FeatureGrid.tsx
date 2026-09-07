@@ -1,139 +1,142 @@
 'use client'
 
-import { useState } from 'react'
-import { useUserRole } from '@/lib/rbac/useUserRole'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Printer, Scissors,
-    Sparkles, Search,
-    UserPlus, Users, LayoutGrid, CalendarCheck, BookMarked, Send,
-    Edit3, Table2, BarChart3, LineChart, Target, CalendarDays,
-    FolderOpen, Award, PieChart, BookOpen, BookUser, FileBadge,
-    BookOpenCheck, Key, Package, Contact2, Bell, Palette, UserCog,
-    SearchX
-} from 'lucide-react'
+import { SearchX, Search } from 'lucide-react'
+
+import { useUserRole } from '@/lib/rbac/useUserRole'
+import { useClassHref } from '@/lib/hooks/useClassHref'
+import {
+  filterSearchEntries,
+  searchEntries,
+  sectionsForRoles,
+  type NavSearchEntry,
+} from '@/lib/navigation'
 
 /**
- * Tile categories.
+ * មុខងារទាំងអស់ — every destination in the app, grouped and searchable.
  *
- * The grid used to carry 29 independently-chosen gradients — fuchsia beside
- * rose beside amber — which made the page read as decoration rather than as a
- * tool, and gave a teacher no way to find things by shape. Six categories
- * replace them, so colour now means "what kind of work is this".
+ * ── This used to be a second navigation system ─────────────────────────────
  *
- * Only two hues sit outside the brand ramp, and both are semantic rather than
- * decorative: attendance is the success green used for a present mark
- * everywhere else, and achievement is the gold reserved for rankings,
- * certificates and the honour roll.
- */
-const CATEGORY_GRADIENTS = {
-    students:    'from-brand-800 to-brand-600',
-    scores:      'from-brand-700 to-brand-500',
-    attendance:  'from-success to-[#0F8A58]',
-    admin:       'from-brand-950 to-brand-800',
-    tools:       'from-brand-500 to-brand-400',
-    achievement: 'from-gold to-[#C4953A]',
-} as const
-
-type Category = keyof typeof CATEGORY_GRADIENTS
-
-interface AppTile {
-    name: string
-    icon: React.ComponentType<{ className?: string }>
-    url: string
-    category: Category
-    /** Hidden from teachers — the target redirects anyone without an admin role. */
-    adminOnly?: boolean
-}
-
-const apps: AppTile[] = [
-    { name: 'បញ្ចូលព័ត៌មានសិស្ស', icon: UserPlus, url: '/enrollment', category: 'students' },
-    { name: 'បញ្ជីឈ្មោះសិស្ស', icon: Users, url: '/student-list', category: 'students' },
-    { name: 'ចុះវត្តមានតាមប្លង់តុ', icon: LayoutGrid, url: '/attendance/layout', category: 'attendance' },
-    { name: 'បញ្ជីវត្តមានប្រចាំខែ', icon: CalendarCheck, url: '/attendance/monthly', category: 'attendance' },
-    { name: 'បញ្ចូលពិន្ទុកិច្ចការផ្ទះ', icon: BookMarked, url: '/homework/enter', category: 'scores' },
-    { name: 'បញ្ជូនកិច្ចការផ្ទះទៅអាណាព្យាបាល', icon: Send, url: '/homework/send', category: 'scores' },
-    { name: 'បញ្ចូលពិន្ទុ', icon: Edit3, url: '/score/enter', category: 'scores' },
-    { name: 'តារាងពិន្ទុសរុប', icon: Table2, url: '/score/total', category: 'scores' },
-    { name: 'តារាងពិន្ទុ (ទម្រង់ក្រសួង)', icon: Printer, url: '/score/print', category: 'scores' },
-    { name: 'តារាងចំណាត់ថ្នាក់', icon: BarChart3, url: '/ranking', category: 'achievement' },
-    { name: 'វិភាគទិន្នន័យសរុប', icon: LineChart, url: '/score-analyse', category: 'scores' },
-    { name: 'វិភាគតាមមុខវិជ្ជា', icon: Target, url: '/score-analysis/subject', category: 'scores' },
-    { name: 'វិភាគអាយុ និងកម្ពស់', icon: CalendarDays, url: '/print-student-age', category: 'students' },
-    { name: 'រដ្ឋបាលថ្នាក់រៀន (១៣ សៀវភៅ)', icon: FolderOpen, url: '/class-admin', category: 'admin' },
-    { name: 'ផ្ទាំងវិភាគសាលា (នាយក)', icon: LineChart, url: '/administration', category: 'admin', adminOnly: true },
-    { name: 'តារាងកិត្តិយស', icon: Award, url: '/honor-roll', category: 'achievement' },
-    { name: 'បញ្ជីបូកសរុបលទ្ធផលប្រចាំឆ្នាំ', icon: PieChart, url: '/yearly-report', category: 'scores' },
-    { name: 'សៀវភៅតាមដាន', icon: BookOpen, url: '/student-tracking', category: 'admin' },
-    { name: 'សៀវភៅសិក្ខាគារិក', icon: BookUser, url: '/record-book', category: 'admin' },
-    { name: 'ទាញយកវិញ្ញាបនបត្រ', icon: FileBadge, url: '/certificate', category: 'achievement' },
-    { name: 'របាយការណ៍មាតាបិតា', icon: BookOpenCheck, url: '/parent-report', category: 'admin' },
-    { name: 'លេខកូដសិស្ស (ឪពុកម្តាយ)', icon: Key, url: '/print-student-codes', category: 'students' },
-    { name: 'កាលវិភាគសម្អាតថ្នាក់', icon: Sparkles, url: '/cleaning-schedule', category: 'tools' },
-    { name: 'បញ្ជីសារពើភ័ណ្ឌ', icon: Package, url: '/inventory', category: 'tools' },
-    { name: 'បោះពុម្ពកាតសិស្ស', icon: Contact2, url: '/id-student', category: 'students' },
-    { name: 'ផ្ញើសារទៅអាណាព្យាបាល', icon: Bell, url: '/notifications', category: 'tools' },
-    { name: 'សម្ភារៈតុបតែងថ្នាក់', icon: Palette, url: '/decorations', category: 'tools' },
-    { name: 'បំបែកសន្លឹក Poster', icon: Scissors, url: '/poster-splitter', category: 'tools' },
-    { name: 'ព័ត៌មានគណនី', icon: UserCog, url: '/profile', category: 'tools' },
-]
-
-
-/**
- * Every feature, searchable.
+ * It was a hand-written array of twenty-nine tiles: its own labels, its own
+ * URLs, its own six invented colour categories, and its own `adminOnly` flag —
+ * all maintained separately from `lib/navigation.ts`, which the sidebar, the
+ * mobile bar, the breadcrumb and the command palette already read. Two lists of
+ * the same thing drift, and this pair had: the array never gained
+ * `/print-center` (the product's document hub), never gained `/classroom` (the
+ * class manager), never gained `/attendance/yearly`, and carried `/administration`
+ * as its *only* entry point — a route declared in no module, so the breadcrumb
+ * rendered blank once you arrived.
  *
- * This used to *be* the dashboard: 29 equal-weight tiles that a teacher had to
- * scan to find anything. Navigation now lives in the sidebar and the mobile
- * bar, so the grid is no longer the way around the app — but it is still the
- * fastest way to jump straight to a named tool, so it stays here below the
- * summary rather than being deleted.
+ * It also shipped a second search box over that second list, beside a command
+ * palette searching the first. A teacher who typed the same word into each got
+ * different answers.
+ *
+ * So the grid is derived now. `searchEntries` and `filterSearchEntries` are the
+ * palette's own functions, and `sectionsForRoles` is the sidebar's own filter —
+ * adding a route to `lib/navigation.ts` adds it here, with the right label, in
+ * the right group, and a route that is not declared there cannot appear.
+ *
+ * ── Why it still exists at all ─────────────────────────────────────────────
+ *
+ * Navigation is the sidebar's job and has been since the tile wall stopped
+ * being the dashboard. This is the *overview*: one screen showing everything
+ * the product does, which a sidebar of collapsed groups deliberately does not.
+ * It stays below the day's work, never above it.
+ *
+ * Grouping is by module, not by colour. The old palette assigned a gradient per
+ * invented category, which told a teacher what kind of thing a tile was but not
+ * where to find it again; a module heading tells them both, and matches the
+ * sidebar they will use next time.
  */
 export function FeatureGrid() {
-    const [searchTerm, setSearchTerm] = useState('')
-    const { isAdmin } = useUserRole()
+  const { roles } = useUserRole()
+  // The tiles carry the working class like every other link in the app, so
+  // jumping to តារាងចំណាត់ថ្នាក់ from ៥ខ's dashboard ranks ៥ខ.
+  const classHref = useClassHref()
+  const [query, setQuery] = useState('')
 
-    const filteredApps = apps.filter(app =>
-        app.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-        (!app.adminOnly || isAdmin)
-    )
+  // Role-filtered exactly as the sidebar is — `sectionsForRoles` fails open to
+  // `teacher`, so a legacy account with no `user_roles` row still sees every
+  // classroom tool. A destination gated to a principal (`/administration`)
+  // simply is not in the list for anyone else.
+  const entries = useMemo(() => searchEntries(sectionsForRoles(roles)), [roles])
 
-    return (
-        <section aria-labelledby="all-features" className="print:hidden">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <h2 id="all-features" className="text-sm font-bold text-text-heading">មុខងារទាំងអស់</h2>
-                <div className="relative w-full sm:w-72">
-                    <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-text-muted" aria-hidden="true" />
-                    <input
-                        type="search"
-                        placeholder="ស្វែងរកមុខងារ..."
-                        aria-label="ស្វែងរកមុខងារ"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="min-h-11 w-full rounded-xl border border-divider bg-bg-surface pr-3 pl-9 text-sm text-text-heading transition outline-none placeholder:text-text-muted focus:border-brand focus:ring-2 focus:ring-focus-ring/30"
-                    />
-                </div>
-            </div>
+  const visible = useMemo(() => filterSearchEntries(entries, query), [entries, query])
 
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-                {filteredApps.map((app) => (
+  /**
+   * Module label → its destinations, in declaration order.
+   *
+   * A `Map` rather than an object: insertion order is guaranteed for every key
+   * type, so the groups render in the order `NAV_SECTIONS` declares them —
+   * the same order the sidebar shows — instead of whatever key ordering an
+   * object literal happens to produce.
+   */
+  const groups = useMemo(() => {
+    const out = new Map<string, NavSearchEntry[]>()
+    for (const entry of visible) {
+      const bucket = out.get(entry.moduleLabel)
+      if (bucket) bucket.push(entry)
+      else out.set(entry.moduleLabel, [entry])
+    }
+    return [...out]
+  }, [visible])
+
+  return (
+    <section aria-labelledby="all-features" className="print:hidden">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <h2 id="all-features" className="text-sm font-bold text-text-heading">
+          មុខងារទាំងអស់
+        </h2>
+        <div className="relative w-full sm:w-72">
+          <Search
+            className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-text-muted"
+            aria-hidden="true"
+          />
+          <input
+            type="search"
+            placeholder="ស្វែងរកមុខងារ..."
+            aria-label="ស្វែងរកមុខងារ"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="min-h-11 w-full rounded-xl border border-divider bg-bg-surface pr-3 pl-9 text-sm text-text-heading transition outline-none placeholder:text-text-muted focus:border-brand focus:ring-2 focus:ring-focus-ring/30"
+          />
+        </div>
+      </div>
+
+      {groups.length === 0 ? (
+        <p className="py-8 text-center text-sm font-medium text-text-muted">
+          <SearchX className="mx-auto mb-2 h-8 w-8" aria-hidden="true" />
+          រកមិនឃើញមុខងារដែលអ្នកស្វែងរកទេ
+        </p>
+      ) : (
+        <div className="flex flex-col gap-5">
+          {groups.map(([moduleLabel, items]) => (
+            <div key={moduleLabel}>
+              <h3 className="mb-2 text-[12px] font-bold text-text-muted">{moduleLabel}</h3>
+              <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+                {items.map((entry) => (
+                  <li key={entry.id}>
                     <Link
-                        key={app.name}
-                        href={app.url}
-                        className="group flex flex-col items-center gap-2 rounded-xl border border-divider bg-bg-surface p-3 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-focus-ring"
+                      href={classHref(entry.href)}
+                      className="flex h-full min-h-11 items-center gap-2.5 rounded-xl border border-divider bg-bg-surface px-3 py-2.5 text-left shadow-sm transition hover:border-brand-400 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2"
                     >
-                        <span className={`flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-tr ${CATEGORY_GRADIENTS[app.category]} shadow-sm`}>
-                            <app.icon className="h-5 w-5 text-white" />
-                        </span>
-                        <span className="text-[11px] leading-tight font-bold text-text-heading">{app.name}</span>
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-100 text-brand dark:bg-brand-900/60 dark:text-brand-300">
+                        <entry.icon className="h-4 w-4" aria-hidden="true" />
+                      </span>
+                      <span className="min-w-0 text-[11.5px] leading-tight font-bold text-text-heading">
+                        {entry.label}
+                      </span>
                     </Link>
+                  </li>
                 ))}
+              </ul>
             </div>
-
-            {filteredApps.length === 0 && (
-                <p className="py-8 text-center text-sm font-medium text-text-muted">
-                    <SearchX className="mx-auto mb-2 h-8 w-8" aria-hidden="true" />
-                    រកមិនឃើញមុខងារដែលអ្នកស្វែងរកទេ
-                </p>
-            )}
-        </section>
-    )
+          ))}
+        </div>
+      )}
+    </section>
+  )
 }
+
+export default FeatureGrid

@@ -4,8 +4,8 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import {
-    CalendarCheck, Award, CalendarDays, Bookmark, Clock, BookOpen, FolderPlus,
-    Mic, UserCheck, Book, Home, Save, Table2, Loader2, Search, Rows3, Grid3x3,
+    CalendarCheck, Award, CalendarDays, Bookmark, Clock, BookOpen,
+    Mic, UserCheck, Book, Home, Save, Loader2, Search, Rows3, Grid3x3,
     CopyPlus, Users, ListChecks, Gauge, Sparkles, RotateCcw, Check, X,
     SlidersHorizontal, Lock,
 } from 'lucide-react'
@@ -17,6 +17,7 @@ import { notify } from '@/components/ui/feedback/notify'
 import { EmptyState } from '@/components/ui/feedback/EmptyState'
 import { Skeleton } from '@/components/ui/feedback/Skeleton'
 import { PageContainer } from '@/components/shell/PageContainer'
+import { ScoreWorkspaceHeader } from '@/components/score/ScoreWorkspaceHeader'
 import { controlClass, fieldLabel, requiredMark } from '@/components/ui/forms/fieldStyles'
 import Select from '@/components/ui/forms/Select'
 import SearchableSelect from '@/components/ui/forms/SearchableSelect'
@@ -24,7 +25,6 @@ import { ScoreEntryList } from './ScoreEntryList'
 import { ScoreEntryGrid } from './ScoreEntryGrid'
 
 import { getScores, saveScores } from './actions'
-import { addClassSubject } from '@/app/(main)/score/subjects/actions'
 import { clampScoreCell, scoreCellValue } from '@/lib/utils/score-value'
 import { formatMark, letterOrDash, numericCell, styleFor } from '@/lib/utils/score-band'
 import { levelByKey, trackLabel } from '@/lib/onboarding/curriculum'
@@ -41,6 +41,7 @@ import {
     columnsFor, maxScoreByColumn, toSubjectOptions, type SubjectColumn,
 } from '@/lib/scores/template'
 import type { Score, ScoreInput, Student } from '@/lib/types'
+import { useClassHref } from '@/lib/hooks/useClassHref'
 
 /**
  * បញ្ចូលពិន្ទុសិស្ស — the score entry screen.
@@ -85,6 +86,9 @@ const QUICK_SUBJECTS = [
 const cellKey = (studentId: string, columnId: string) => `${studentId}:${columnId}`
 
 export default function ScoreEnterClient({ initialStudents }: { initialStudents: Student[] }) {
+    // Keeps the working class on the way out: a link from this screen to
+    // another class-scoped screen must still be about the same class.
+    const classHref = useClassHref()
     /**
      * The period is seeded from the URL so "កែពិន្ទុ" on the totals table lands
      * on the month it was looking at, and so a teacher can bookmark the screen
@@ -145,11 +149,23 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
     // not what this picker offers.
     const {
         mySubjects: templateSubjects, configured, role, context, scheme,
-        loading: templateLoading, reload: reloadTemplate,
+        loading: templateLoading,
     } = useScoreTemplate(scoreType)
     // The configuration screen is a server component, so the class it should
     // open on has to travel in the URL — client state cannot reach it.
     const { classId: activeClassId } = useActiveClass()
+    /*
+     * Every mark read and written on this screen is scoped by the class.
+     *
+     * `getScores`/`saveScores` have taken a `classId` since the multi-class
+     * work, and their doc comments describe precisely the failure it prevents —
+     * "the roster came from the requested `?class=` while the marks came from
+     * the homeroom, so a subject class showed an empty grid". No call site here
+     * ever passed it, so the parameter existed and the bug did too.
+     *
+     * `?? undefined` keeps a legacy account on `teacher_id` scoping, unchanged.
+     */
+    const scopeClassId = activeClassId ?? undefined
 
     /**
      * The class's period calendar (00029). The month picker offers its periods
@@ -307,7 +323,7 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
 
     const loadData = useCallback(async () => {
         setLoading(true)
-        const records = await getScores(scoreType, scorePeriod)
+        const records = await getScores(scoreType, scorePeriod, scopeClassId)
 
         const next: Record<string, Record<string, string | number | null>> = {}
         initialStudents.forEach(stu => { next[stu.id] = {} })
@@ -325,7 +341,7 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
         setPendingCells(new Set())
         setSavedCells(new Set())
         setLoading(false)
-    }, [scoreType, scorePeriod, initialStudents])
+    }, [scoreType, scorePeriod, initialStudents, scopeClassId])
 
     useEffect(() => {
         // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch: state is set after await, not synchronously during the effect
@@ -355,7 +371,7 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
             return { student_id, subject: cid, score_value: data[student_id]?.[cid] ?? null }
         })
 
-        const res = await saveScores(scoreType, scorePeriod, payload)
+        const res = await saveScores(scoreType, scorePeriod, payload, scopeClassId)
         if (res.error) {
             notify.error('បរាជ័យក្នុងការរក្សាទុកពិន្ទុ៖ ' + res.error)
             return { ok: false, count: 0 }
@@ -367,7 +383,7 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
         setPendingCells(new Set(pendingRef.current))
         setSavedCells(new Set(targets))
         return { ok: true, count: targets.length }
-    }, [scoreType, scorePeriod])
+    }, [scoreType, scorePeriod, scopeClassId])
 
     const flushPending = useCallback(async () => {
         if (timerRef.current) clearTimeout(timerRef.current)
@@ -533,7 +549,7 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
         if (!previousPeriod) return
         setCopying(true)
         try {
-            const records = await getScores('monthly', `${previousPeriod.key}-${academicYear}`)
+            const records = await getScores('monthly', `${previousPeriod.key}-${academicYear}`, scopeClassId)
             const wanted = new Set(cols.map(c => c.id))
             const next = { ...scoresRef.current }
             let filled = 0
@@ -566,7 +582,7 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
         } finally {
             setCopying(false)
         }
-    }, [previousPeriod, academicYear, cols, scheduleAutoSave, maxScoreFor])
+    }, [previousPeriod, academicYear, cols, scheduleAutoSave, maxScoreFor, scopeClassId])
 
     // ------------------------------------------------------------ bulk assign
 
@@ -610,60 +626,22 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
         scheduleAutoSave()
     }
 
-    // ------------------------------------------------------- custom subjects
-
-    /** Which grids a newly added subject appears in. `both` writes two score_types. */
-    type NewSubjectGrids = 'monthly' | 'semester' | 'both'
-
-    const [isAddModalOpen, setIsAddModalOpen] = useState(false)
-    const [newSubName, setNewSubName] = useState('')
-    const [newSubType, setNewSubType] = useState<NewSubjectGrids>('both')
-    const [newSubCols, setNewSubCols] = useState('')
-
-    /**
-     * Add a subject of the teacher's own.
+    /*
+     * ── Subjects are not created from the entry screen ────────────────────
      *
-     * Writes a class-scope `score_template_subjects` row through the same
-     * action `/score/subjects` uses, rather than the retired `custom_subjects`
-     * table (00027). Two consequences worth knowing: the subject is visible to
-     * every colleague on the class instead of only its author — which is the
-     * defect 00027 exists to fix — and the server mints both the subject key
-     * and the column ids, so nothing here can coin an id that collides with the
-     * national key space.
+     * This page carried a "បន្ថែមមុខវិជ្ជា" button beside the subject picker,
+     * which minted a class-scope `score_template_subjects` row on the spot. It
+     * worked, and it was the wrong place for it: a teacher part-way through
+     * typing forty marks was one click from redefining what the class assesses,
+     * and the same subject list is edited on `/score/subjects` — the product's
+     * single configuration surface, which is why `/score/template` is already a
+     * redirect to it.
      *
-     * An account with no class cannot hold a class-scope row at all; the action
-     * returns a Khmer explanation, which is surfaced unchanged.
+     * Two screens minting subjects is how they come to disagree about a class's
+     * curriculum. Nothing was lost: `/score/subjects` owns
+     * "បង្កើតមុខវិជ្ជាផ្ទាល់ខ្លួន", calls the same `addClassSubject`, and the
+     * picker below links straight to it.
      */
-    const submitNewSubject = async () => {
-        if (!newSubName.trim()) {
-            notify.error('សូមបញ្ចូលឈ្មោះមុខវិជ្ជា')
-            return
-        }
-
-        const res = await addClassSubject({
-            label_km: newSubName.trim(),
-            max_score: scheme.maxScore,
-            score_type: newSubType === 'both' ? 'monthly' : newSubType,
-            score_types: newSubType === 'both' ? ['monthly', 'semester'] : [newSubType],
-            group_label: 'មុខវិជ្ជាបន្ថែម',
-            column_labels: newSubCols.trim()
-                ? newSubCols.split(',').map(c => c.trim()).filter(Boolean)
-                : undefined,
-        })
-
-        if (res.error || !res.subjectKey) {
-            notify.error(res.error ?? 'រក្សាទុកមុខវិជ្ជាមិនបានសម្រេច')
-            return
-        }
-
-        await reloadTemplate()
-
-        setIsAddModalOpen(false)
-        setSubject(res.subjectKey)
-        setNewSubName('')
-        setNewSubCols('')
-        notify.success('បានបន្ថែមមុខវិជ្ជាថ្មី')
-    }
 
     // ----------------------------------------------------------------- render
 
@@ -745,42 +723,42 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
                 input[type=number] { -moz-appearance: textfield; }
             `}</style>
 
-            {/* ------------------------------------------------------- hero */}
-            <section className="mb-4 rounded-xl border border-divider bg-bg-surface p-4 shadow-sm md:p-5">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0">
-                        <h1 className="kh-moul text-lg text-brand md:text-xl">បញ្ចូលពិន្ទុសិស្ស</h1>
-                        <p className="mt-1 text-sm text-text-muted">
-                            បញ្ចូលពិន្ទុសម្រាប់មុខវិជ្ជា និងខែដែលបានជ្រើសរើស
-                        </p>
-                        <span className="mt-2 flex flex-wrap items-center gap-2">
-                            {levelContextLabel && (
-                                <span className="inline-flex items-center rounded-full bg-brand-100 px-3 py-1 text-xs font-bold text-brand-800 dark:bg-brand-900/40 dark:text-brand-300">
-                                    {levelContextLabel}
-                                </span>
-                            )}
-                            {/*
-                              A subject teacher sees only their own subjects, so
-                              say why — otherwise a missing subject reads as a
-                              bug rather than as somebody else's responsibility.
-                            */}
-                            {!role.coversWholeClass && (
-                                <span className="inline-flex items-center rounded-full bg-paper px-3 py-1 text-xs font-bold text-text-muted">
-                                    គ្រូមុខវិជ្ជា · បង្ហាញតែមុខវិជ្ជារបស់អ្នក
-                                </span>
-                            )}
+            {/*
+              The workspace header — class, year, subject, period and the four
+              doors, identical on every score screen. This page used to state
+              the level and the subject but never the class it was writing
+              marks against, which is the one fact a teacher holding two
+              classes most needs before typing forty numbers.
+            */}
+            <ScoreWorkspaceHeader
+                title="បញ្ចូលពិន្ទុសិស្ស"
+                description="បញ្ចូលពិន្ទុសម្រាប់មុខវិជ្ជា និងវគ្គដែលបានជ្រើសរើស"
+                academicYear={academicYear}
+                selection={{
+                    scope: scoreType,
+                    monthLabel: activePeriod?.labelKm ?? null,
+                    semester: semester === 'sem2' ? 'sem2' : 'sem1',
+                }}
+                monthId={month}
+                subjectLabel={subjectTitle(subject)}
+                levelLabel={levelContextLabel}
+                notes={
+                    /*
+                      A subject teacher sees only their own subjects, so say why
+                      — otherwise a missing subject reads as a bug rather than as
+                      somebody else's responsibility.
+                    */
+                    !role.coversWholeClass ? (
+                        <span className="rounded-full bg-paper px-2.5 py-0.5 text-xs font-bold text-text-muted">
+                            គ្រូមុខវិជ្ជា · បង្ហាញតែមុខវិជ្ជារបស់អ្នក
                         </span>
-                    </div>
-                    <Link
-                        href="/score/total"
-                        className="flex min-h-11 items-center gap-2 rounded-lg border border-divider bg-bg-surface px-4 text-[13px] font-bold text-text-body transition hover:border-brand-400 hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-                    >
-                        <Table2 className="h-4 w-4" aria-hidden="true" /> តារាងពិន្ទុសរុប
-                    </Link>
-                </div>
+                    ) : null
+                }
+            />
 
+            <section className="mb-4 rounded-xl border border-divider bg-bg-surface p-4 shadow-sm md:p-5">
                 {/* --------------------------------------------- summary pills */}
-                <div className="mt-4 grid gap-2.5 sm:grid-cols-3">
+                <div className="grid gap-2.5 sm:grid-cols-3">
                     <div className="flex items-center gap-3 rounded-lg bg-paper px-3 py-2.5">
                         <Users className="h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
                         <div className="min-w-0">
@@ -846,7 +824,7 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
                         )
                     })}
                     <Link
-                        href="/homework/enter"
+                        href={classHref("/homework/enter")}
                         className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg px-4 text-[13px] font-bold text-text-muted transition hover:text-success focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
                     >
                         <Home className="h-4 w-4" aria-hidden="true" />
@@ -912,14 +890,13 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
                 </div>
 
                 <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <Button size="sm" variant="secondary" printHidden={false} onClick={() => setIsAddModalOpen(true)}>
-                        <FolderPlus className="h-3.5 w-3.5" aria-hidden="true" /> បន្ថែមមុខវិជ្ជា
-                    </Button>
-
-                    {/* The subject list itself is editable per class since the
-                        template's class layer landed; this is the way in. */}
+                    {/*
+                      The one way to change what this class assesses — adding a
+                      subject included. See the note above `loadData` for why
+                      the mint-a-subject dialog that used to sit here is gone.
+                    */}
                     <Link
-                        href="/score/subjects"
+                        href={classHref("/score/subjects")}
                         className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-divider bg-bg-surface px-3 text-xs font-bold text-text-body transition hover:border-brand-400 hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring sm:min-h-8"
                     >
                         <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" /> មុខវិជ្ជាតាមថ្នាក់
@@ -1052,7 +1029,7 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
                         description="ចុះឈ្មោះសិស្សជាមុនសិន រួចត្រឡប់មកបញ្ចូលពិន្ទុ។"
                         action={
                             <Link
-                                href="/student-list"
+                                href={classHref("/student-list")}
                                 className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand px-4 text-sm font-bold text-brand-contrast transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
                             >
                                 <Users className="h-4 w-4" aria-hidden="true" /> ចុះឈ្មោះសិស្ស
@@ -1298,70 +1275,6 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
                     <p className="text-xs text-text-muted">
                         នឹងអនុវត្តលើសិស្ស {toKhmerNumber(visibleStudents.length)} នាក់ក្នុងបញ្ជីបច្ចុប្បន្ន។
                     </p>
-                </div>
-            </Dialog>
-
-            {/*
-              Add a custom subject. The previous overlay had no focus trap, no
-              Escape handler and no accessible name — `Dialog` supplies all three,
-              and rises from the bottom on a phone.
-            */}
-            <Dialog
-                open={isAddModalOpen}
-                onClose={() => setIsAddModalOpen(false)}
-                title="បន្ថែមមុខវិជ្ជាថ្មី"
-                description="មុខវិជ្ជាថ្មីនឹងបង្ហាញនៅក្នុងបញ្ជីជ្រើសរើសមុខវិជ្ជា"
-                footer={
-                    <>
-                        <Button variant="secondary" printHidden={false} onClick={() => setIsAddModalOpen(false)}>
-                            បោះបង់
-                        </Button>
-                        <Button printHidden={false} onClick={submitNewSubject} icon={<Save className="h-4 w-4" />}>
-                            រក្សាទុក
-                        </Button>
-                    </>
-                }
-            >
-                <div className="flex flex-col gap-4">
-                    <div>
-                        <label className={fieldLabel} htmlFor="new-subject-name">
-                            ឈ្មោះមុខវិជ្ជា <span className={requiredMark}>*</span>
-                        </label>
-                        <input
-                            id="new-subject-name"
-                            type="text"
-                            value={newSubName}
-                            onChange={e => setNewSubName(e.target.value)}
-                            className={controlClass(false, 'font-bold')}
-                            placeholder="ឧ. កុំព្យូទ័រ, ភាសាចិន..."
-                        />
-                    </div>
-
-                    <Select
-                        label="ប្រើសម្រាប់"
-                        value={newSubType}
-                        onChange={v => setNewSubType(v as NewSubjectGrids)}
-                        options={[
-                            { value: 'monthly', label: 'ប្រចាំខែ ប៉ុណ្ណោះ' },
-                            { value: 'semester', label: 'ប្រចាំឆមាស ប៉ុណ្ណោះ' },
-                            { value: 'both', label: 'ប្រចាំខែ និងប្រចាំឆមាស' },
-                        ]}
-                    />
-
-                    <div>
-                        <label className={fieldLabel} htmlFor="new-subject-cols">ជួរឈរពិន្ទុ (ជម្រើស)</label>
-                        <p className="mb-2 text-[11px] leading-relaxed text-text-muted">
-                            បើមុខវិជ្ជានេះមានច្រើនជួរឈរ សូមសរសេរខណ្ឌដោយសញ្ញាក្បៀស (,) ឧ. <strong>ទ្រឹស្តី, អនុវត្តន៍</strong>។ បើទុកទទេ វានឹងយកឈ្មោះមុខវិជ្ជាជាជួរឈរតែមួយ។
-                        </p>
-                        <input
-                            id="new-subject-cols"
-                            type="text"
-                            value={newSubCols}
-                            onChange={e => setNewSubCols(e.target.value)}
-                            className={controlClass(false, 'font-bold')}
-                            placeholder="ឧ. ទ្រឹស្តី, អនុវត្តន៍"
-                        />
-                    </div>
                 </div>
             </Dialog>
 

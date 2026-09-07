@@ -8,7 +8,8 @@ export default async function RepeatedStudentsPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>
 }) {
-  const { students, annualScores, settings, academicYear } = await loadAnnualReportData(searchParams)
+  const { students, annualScores, settings, academicYear, derived, threshold } =
+    await loadAnnualReportData(searchParams)
 
   return (
     <PromotionListClient
@@ -17,6 +18,8 @@ export default async function RepeatedStudentsPage({
       annualScores={annualScores}
       settings={settings}
       academicYear={academicYear}
+      derived={derived}
+      threshold={threshold}
     />
   )
 }

@@ -24,10 +24,12 @@ import Select from '@/components/ui/forms/Select'
 import type { AttendanceRecord, Settings, Student } from '@/lib/types'
 import { logger } from '@/lib/utils/logger'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
-import { KHMER_MONTH_LABELS } from '@/lib/constants/months'
+import { KHMER_MONTH_LABELS, KHMER_WEEKDAYS } from '@/lib/constants/months'
 import { ALIGN_CENTER, ALIGN_LEFT, ALIGN_RIGHT, emptyCell, khmerFont, moulFont, THIN_BORDER, type SheetMerge, type SheetRow, type SheetRowMeta } from '@/lib/utils/xlsx'
+import { useClassHref } from '@/lib/hooks/useClassHref'
 
-const days = ["អាទិត្យ", "ច័ន្ទ", "អង្គារ", "ពុធ", "ព្រហស្បតិ៍", "សុក្រ", "សៅរ៍"]
+/** The shared list — the report engine prints the same sheet from it. */
+const days = KHMER_WEEKDAYS
 /** `date` → `studentId` → the mark. The shape the A4 sheet indexes by. */
 type AttendanceByDate = Record<string, Record<string, AttendanceRecord>>
 
@@ -54,6 +56,9 @@ export default function MonthlyAttendanceClient({
     initialRecords: AttendanceRecord[]
     initialSettings: Settings | null
 }) {
+    // Keeps the working class on the way out: a link from this screen to
+    // another class-scoped screen must still be about the same class.
+    const classHref = useClassHref()
     const today = new Date()
     const [month, setMonth] = useState(initialMonth)
     const [year, setYear] = useState(initialYear)
@@ -532,7 +537,7 @@ export default function MonthlyAttendanceClient({
                         បោះពុម្ព
                     </Button>
                     <Link
-                        href="/attendance/yearly"
+                        href={classHref("/attendance/yearly")}
                         className="tap-target inline-flex items-center gap-2 rounded-lg border border-divider bg-bg-surface px-4 py-2 text-sm font-bold text-text-heading transition hover:bg-paper print:hidden"
                     >
                         <CalendarRange className="h-4 w-4" aria-hidden="true" /> អវត្តមានប្រចាំឆ្នាំ

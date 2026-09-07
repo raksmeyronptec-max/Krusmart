@@ -5,7 +5,7 @@ import { getCurrentAcademicYear } from '@/lib/constants/academic'
 import { ACADEMIC_MONTH_IDS, MONTH_LABEL_BY_ID } from '@/lib/constants/months'
 import { simpleAverage, type GradingSchemeConfig } from '@/lib/grading/scheme'
 import { studentAverage } from '@/lib/scores/aggregate'
-import { resolveStudentGradingContext } from '@/lib/utils/serverScope'
+import { enrolmentHistory, resolveStudentGradingContext, type EnrolmentRecord } from '@/lib/utils/serverScope'
 import { scoreNumericValue } from '@/lib/utils/score-value'
 import { subjectLabel } from '@/lib/constants/subjects'
 import { logger } from '@/lib/utils/logger'
@@ -87,6 +87,26 @@ export interface StudentDetail {
   scheme: GradingSchemeConfig
   /** Homework marks for the year, in academic-month then day order. */
   homework: HomeworkMark[]
+  /**
+   * The class this pupil sits in — *theirs*, not the teacher's active one.
+   *
+   * The page is reached by id (a roster row, a search result, a neighbour
+   * arrow), so the ambient class can easily be a different one. Its action
+   * links carry this instead, so "បញ្ចូលពិន្ទុ" from ៦ក's pupil opens ៦ក's
+   * grid rather than silently re-pointing at whatever was selected last.
+   * Null for a legacy pupil with no enrolment row, whose screens are
+   * `teacher_id`-scoped anyway.
+   */
+  classId: string | null
+  /**
+   * Every class this pupil has sat in, newest first.
+   *
+   * The page is meant to be the pupil whole, and enrolment was the section it
+   * did not have: it printed `students.grade`, a free-text column that goes
+   * stale the moment a pupil is promoted, and said nothing about which class
+   * or which year. Empty for a pre-V2 pupil, who has no enrolment rows at all.
+   */
+  enrolments: EnrolmentRecord[]
 }
 
 const RECENT_LIMIT = 12
@@ -192,6 +212,10 @@ export async function getStudentDetail(id: string): Promise<StudentDetail | null
   // The pupil's grading context, resolved once from their own enrolment — this
   // page is reached by id and may have no active class selection at all.
   const grading = await resolveStudentGradingContext(id)
+  // Same enrolment rule the grading context above resolved from — shared, not
+  // repeated, so the page cannot link to one class while grading against
+  // another. `[0]` is the current placement, by `enrolled_at` descending.
+  const enrolments = await enrolmentHistory(id)
 
   const bySubject = new Map<string, number[]>()
   // Per month: subject key → mark, so the month average can weigh each mark by
@@ -256,7 +280,12 @@ export async function getStudentDetail(id: string): Promise<StudentDetail | null
     })
     .map(({ month, day, value }) => ({ month, day, value }))
 
-  return { student, academicYear, attendance, subjects, months, overallAverage, scheme: grading.scheme, homework }
+  return {
+    student, academicYear, attendance, subjects, months, overallAverage,
+    scheme: grading.scheme, homework,
+    classId: enrolments[0]?.classId ?? null,
+    enrolments,
+  }
 }
 
 /**

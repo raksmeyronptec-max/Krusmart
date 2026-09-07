@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { ArrowLeft, Printer, FileSpreadsheet, CalendarDays, CalendarRange, Layers, Award } from 'lucide-react'
 import * as XLSX from 'xlsx-js-style'
-import { getAllScoresByPeriod } from '../score/total/actions'
+import { getAllScoresByPeriod, getMonthlyScoresForYear } from '../score/total/actions'
 import Select from '@/components/ui/forms/Select'
 import type { Settings, Student } from '@/lib/types'
 import { MONTHS_BY_CALENDAR } from '@/lib/constants/months'
@@ -12,9 +13,13 @@ import type { SheetRow } from '@/lib/utils/xlsx'
 import { gradeFor } from '@/lib/grading/scheme'
 import { useScoreTemplate } from '@/lib/hooks/useScoreTemplate'
 import { maxScoreByColumn, resolveTemplate, SYSTEM_PRIMARY_TEMPLATE } from '@/lib/scores/template'
-import {
-    assignRanks, FALLBACK_NUMERIC_KEYS, numericColumnKeys, studentAverage,
-} from '@/lib/scores/aggregate'
+import { useActiveClass } from '@/lib/hooks/useActiveClass'
+import { FALLBACK_NUMERIC_KEYS, numericColumnKeys } from '@/lib/scores/aggregate'
+import { buildPeriodResults } from '@/lib/scores/periodResults'
+import { periodKeysForSemester } from '@/lib/scores/calendar'
+import { useScoreCalendar } from '@/lib/hooks/useScoreCalendar'
+import { getCurrentAcademicYear } from '@/lib/constants/academic'
+import { ScoreWorkspaceHeader } from '@/components/score/ScoreWorkspaceHeader'
 
 /** A student decorated with the per-period scores and the derived ranking fields. */
 type RankedStudent = Student & {
@@ -26,9 +31,38 @@ type RankedStudent = Student & {
     rank: number
 }
 
-export default function RankingClient({ initialStudents, settings}: { initialStudents: Student[], settings: Settings | null }) {
-    const [academicYear, setAcademicYear] = useState('2025-2026')
-    const [currentMode, setCurrentMode] = useState<'monthly'|'semester'|'yearly'>('monthly')
+interface RankingClientProps { initialStudents: Student[]; settings: Settings | null }
+
+function RankingClientInner({ initialStudents, settings }: RankingClientProps) {
+    const searchParams = useSearchParams()
+  /*
+   * The class every mark below is fetched for.
+   *
+   * `getAllScoresByPeriod` resolves the caller's *default* class when it is not
+   * told which one — so a teacher holding two classes saw this screen's roster
+   * (resolved from `?class=` by the page) beside the other class's marks. The
+   * page and the fetch have to name the same class.
+   *
+   * `?? undefined` keeps a pre-V2 account on `teacher_id` scoping, unchanged.
+   */
+  const scopeClassId = useActiveClass().classId ?? undefined
+    /*
+     * Was the literal `'2025-2026'`, which silently became the wrong year every
+     * November — the same defect `/score/enter` was corrected for, left in place
+     * here. The picker below now offers the current year and one either side
+     * instead of three frozen strings, so the list follows the calendar rather
+     * than expiring.
+     */
+    const [academicYear, setAcademicYear] = useState(
+        () => searchParams.get('year') || getCurrentAcademicYear(),
+    )
+    /*
+     * `annual`, not `yearly`. `scores.score_type` is `annual`, the shared layer
+     * is `lib/scores/annual.ts`, and the report is `ranking_annual` — this
+     * screen was the only place in the product calling the same thing `yearly`,
+     * and it had to translate its own vocabulary on the way to every fetch.
+     */
+    const [currentMode, setCurrentMode] = useState<'monthly'|'semester'|'annual'>('monthly')
     const [currentPeriod, setCurrentPeriod] = useState('jan')
     const [loading, setLoading] = useState(false)
     const [showPreview, setShowPreview] = useState(false)
@@ -45,6 +79,18 @@ export default function RankingClient({ initialStudents, settings}: { initialStu
      */
     const { rows: templateRows, context: templateContext, scheme, levelCurriculum } = useScoreTemplate('monthly')
 
+    /** The class's own period calendar (00029) — never a compiled-in split. */
+    const { calendar } = useScoreCalendar()
+
+    /** The current year plus one either side, so the list follows the calendar. */
+    const academicYearOptions = useMemo(() => {
+        const start = parseInt(getCurrentAcademicYear().split('-')[0], 10)
+        return [start - 1, start, start + 1].map((y) => ({
+            value: `${y}-${y + 1}`,
+            label: `${y} - ${y + 1}`,
+        }))
+    }, [])
+
     /** Numeric denominator for one mode, resolved fresh at load time. */
     const keysForMode = (mode: 'monthly' | 'semester') => {
         if (!levelCurriculum) return FALLBACK_NUMERIC_KEYS[mode]
@@ -53,61 +99,100 @@ export default function RankingClient({ initialStudents, settings}: { initialStu
         ))
     }
 
-    const loadData = async (mode: 'monthly'|'semester'|'yearly', period: string) => {
+    /**
+     * Load one period and rank it.
+     *
+     * ── The annual branch used to be a private arithmetic, and a wrong one ──
+     *
+     * It read `sem1_avg` / `sem2_avg` straight off the stored annual row, added
+     * them, and divided by a hand-counted divisor. **Nothing in this
+     * application ever writes an annual row**, so those keys are empty for
+     * every class created here — the ប្រចាំឆ្នាំ button printed `0.00` beside
+     * every pupil's name and ranked them all equal, while `/score/total`'s ឆ្នាំ
+     * tab and the printed `ranking_annual` sheet showed the real year.
+     *
+     * It now composes the year exactly the way they do: `deriveSemesterAverages`
+     * for the derived halves, `buildAnnualResult` to choose stored-first and
+     * fall back — the same two functions, not a copy of their behaviour. The
+     * extra reads are only made in annual mode, so the monthly and semester
+     * buttons issue exactly the one request they always did.
+     */
+    const loadData = async (mode: 'monthly'|'semester'|'annual', period: string) => {
         setLoading(true)
         setCurrentMode(mode)
         setCurrentPeriod(period)
 
-        // For yearly, it might fetch sem1 and sem2, but let's map it based on actions
-        const scoreMode = mode === 'yearly' ? 'annual' : mode
-        let fetchPeriod = ''
-        if (mode === 'monthly') fetchPeriod = `${period}-${academicYear}`
-        else if (mode === 'semester') fetchPeriod = `${period}-${academicYear}`
-        else fetchPeriod = `annual-${academicYear}`
+        const fetchPeriod = mode === 'annual'
+            ? `annual-${academicYear}`
+            : `${period}-${academicYear}`
 
-        const records = await getAllScoresByPeriod(scoreMode, fetchPeriod)
+        /*
+         * Annual needs three more reads to derive a year the stored sheet does
+         * not carry: both semesters' exam marks and the year's monthly marks.
+         * `Promise.all` so it is one round trip's latency, not four.
+         */
+        const [records, sem1Rows, sem2Rows, monthlyRows] = await Promise.all([
+            getAllScoresByPeriod(mode, fetchPeriod, scopeClassId),
+            mode === 'annual'
+                ? getAllScoresByPeriod('semester', `sem1-${academicYear}`, scopeClassId)
+                : Promise.resolve([]),
+            mode === 'annual'
+                ? getAllScoresByPeriod('semester', `sem2-${academicYear}`, scopeClassId)
+                : Promise.resolve([]),
+            mode === 'annual'
+                ? getMonthlyScoresForYear(academicYear, scopeClassId)
+                : Promise.resolve([]),
+        ])
 
+        const templateFor = (m: 'monthly' | 'semester') => resolveTemplate(
+            templateRows.length > 0 ? templateRows : SYSTEM_PRIMARY_TEMPLATE, m, templateContext,
+        )
+        const effectiveMode = mode === 'annual' ? 'semester' : mode
+        const maxByColumn = maxScoreByColumn(templateFor(effectiveMode))
+
+        /*
+         * Every figure and every rank comes from `buildPeriodResults` — the same
+         * builder `/honor-roll` and `/certificate` call. This screen owns no
+         * arithmetic of its own, which is the only way three presentations of
+         * one question can be guaranteed to give one answer.
+         */
+        const results = buildPeriodResults({
+            studentIds: initialStudents.map(s => s.id),
+            mode,
+            academicYear,
+            records,
+            numericKeys: keysForMode(effectiveMode),
+            maxByColumn,
+            scheme,
+            sem1Exams: sem1Rows,
+            sem2Exams: sem2Rows,
+            monthlyRecords: monthlyRows,
+            monthlyMaxByColumn: maxScoreByColumn(templateFor('monthly')),
+            sem1Months: periodKeysForSemester(calendar, 'sem1'),
+            sem2Months: periodKeysForSemester(calendar, 'sem2'),
+        })
+
+        const byId = new Map(results.map(r => [r.studentId, r]))
         const processedStudents: RankedStudent[] = initialStudents.map(stu => {
-            const studentScores: Record<string, number | string | null> = {}
-            records.filter(r => r.student_id === stu.id).forEach(r => {
-                studentScores[r.subject] = r.score_value
-            })
-            // The derived fields are all overwritten by the pass below.
-            return { ...stu, scores: studentScores, total: 0, average: '0.00', finalAverageForRank: 0, desc: '', rank: 0 }
-        })
-
-        const maxByColumn = maxScoreByColumn(resolveTemplate(
-            templateRows.length > 0 ? templateRows : SYSTEM_PRIMARY_TEMPLATE,
-            mode === 'yearly' ? 'semester' : mode,
-            templateContext,
-        ))
-
-        processedStudents.forEach(stu => {
-            if (mode === 'monthly' || mode === 'semester') {
-                // Shared aggregation: Σscore ÷ Σcoefficient under a secondary
-                // scheme (never a raw total of mixed denominators), the plain
-                // mean this screen always showed under the primary default.
-                const { average, total } = studentAverage(stu.scores, keysForMode(mode), maxByColumn, scheme)
-                stu.total = total
-                stu.average = average === null ? '0.00' : average.toFixed(2)
-                stu.finalAverageForRank = parseFloat(stu.average)
-            } else if (mode === 'yearly') {
-                // Semester averages already sit on the scheme's scale.
-                const s1 = parseFloat(String(stu.scores['sem1_avg'] ?? '0'))
-                const s2 = parseFloat(String(stu.scores['sem2_avg'] ?? '0'))
-                const div = (s1 > 0 ? 1 : 0) + (s2 > 0 ? 1 : 0)
-                stu.total = s1 + s2
-                stu.average = div > 0 ? (stu.total / div).toFixed(2) : "0.00"
-                stu.finalAverageForRank = parseFloat(stu.average)
+            const r = byId.get(stu.id)
+            const result = {
+                ...stu,
+                scores: r?.scores ?? {},
+                total: r?.total ?? 0,
+                // `0.00` for "no result" is this screen's long-standing display;
+                // the printed sheets leave the cell blank, and the two
+                // conventions are documented rather than reconciled.
+                average: r?.average === null || r?.average === undefined ? '0.00' : r.average.toFixed(2),
+                finalAverageForRank: r?.average ?? 0,
+                desc: '',
+                rank: r?.rank ?? 0,
             }
-
             // Shared grading engine, on the class's scheme.
-            const result = gradeFor(stu.finalAverageForRank, scheme)
-            stu.grade = result?.letter ?? '-'
-            stu.desc = result?.label ?? '-'
+            const graded = gradeFor(result.finalAverageForRank, scheme)
+            result.grade = graded?.letter ?? '-'
+            result.desc = graded?.label ?? '-'
+            return result
         })
-
-        assignRanks(processedStudents, s => s.finalAverageForRank, (s, r) => { s.rank = r })
 
         // Restore original order based on order_index
         processedStudents.sort((a,b) => (a.order_index || 0) - (b.order_index || 0))
@@ -188,40 +273,29 @@ export default function RankingClient({ initialStudents, settings}: { initialStu
                         </div>
                     )}
                     
-                    <div className="mb-8 flex flex-col items-start justify-between gap-4 rounded-xl border border-divider bg-bg-surface p-6 shadow-sm md:flex-row md:items-center">
-                        <div className="flex items-center gap-4">
-                            <div>
-                                <h1 className="text-2xl sm:text-3xl kh-moul text-text-heading flex items-center gap-3">
-                                    <span className="bg-brand text-brand-contrast p-2 rounded-xl shadow-lg">
-                                        <Award className="w-6 h-6" />
-                                    </span>
-                                    តារាងចំណាត់ថ្នាក់
-                                </h1>
-                                <p className="text-text-muted mt-1 text-sm font-medium">ជ្រើសរើសខែ ឬ ឆមាសដើម្បីបោះពុម្ភតារាងចំណាត់ថ្នាក់សិស្ស</p>
-                            </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-3 bg-brand-100/50 px-5 py-3 rounded-xl border border-divider shadow-inner">
-                            <div className="bg-white p-1.5 rounded-lg shadow-sm">
-                                <CalendarDays className="w-5 h-5 text-brand" />
-                            </div>
-                            <div>
-                                <label className="text-[11px] font-bold text-brand-500 uppercase tracking-wider block">ឆ្នាំសិក្សា</label>
+                    {/*
+                      The same workspace header the entry grid and the totals
+                      table wear. This screen used to introduce itself with its
+                      own 3xl heading and its own year picker in its own box —
+                      three screens doing one job, each looking like a separate
+                      product. The class it ranks was named nowhere on it.
+                    */}
+                    <ScoreWorkspaceHeader
+                        title="តារាងចំណាត់ថ្នាក់"
+                        description="ជ្រើសរើសវគ្គដើម្បីរៀបចំតារាងចំណាត់ថ្នាក់សិស្ស"
+                        academicYear={academicYear}
+                        actions={
+                            <div className="flex items-center gap-2">
+                                <CalendarDays className="h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
                                 <Select
-                                    variant="ghost"
                                     ariaLabel="ឆ្នាំសិក្សា"
                                     value={academicYear}
                                     onChange={setAcademicYear}
-                                    options={[
-                                        { value: '2024-2025', label: '2024 - 2025' },
-                                        { value: '2025-2026', label: '2025 - 2026' },
-                                        { value: '2026-2027', label: '2026 - 2027' },
-                                    ]}
-                                    className="text-base text-text-heading"
+                                    options={academicYearOptions}
                                 />
                             </div>
-                        </div>
-                    </div>
+                        }
+                    />
 
                     <div className="bg-white rounded-xl shadow-sm border border-divider overflow-hidden grid grid-cols-1 lg:grid-cols-12">
                         <div className="lg:col-span-8 p-6 sm:p-8 border-b lg:border-b-0 lg:border-r border-divider bg-paper/30">
@@ -259,7 +333,7 @@ export default function RankingClient({ initialStudents, settings}: { initialStu
                                 </div>
                             </div>
                             <div className="mt-8 pt-8 border-t border-divider">
-                                <button onClick={() => loadData('yearly', 'annual')} className="select-btn flex-row justify-between px-6 w-full border-gold/30 hover:border-gold hover:text-gold bg-gradient-to-r from-gold/10 to-white">
+                                <button onClick={() => loadData('annual', 'annual')} className="select-btn flex-row justify-between px-6 w-full border-gold/30 hover:border-gold hover:text-gold bg-gradient-to-r from-gold/10 to-white">
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 rounded-xl bg-gold/10 flex items-center justify-center shadow-inner">
                                             <Award className="w-6 h-6 text-gold" />
@@ -384,5 +458,24 @@ export default function RankingClient({ initialStudents, settings}: { initialStu
                 </div>
             )}
         </div>
+    )
+}
+
+/**
+ * `useSearchParams` opts the tree into client rendering, and Next.js refuses to
+ * prerender a component containing one without a boundary. Same reason
+ * `ClassroomClient` and `ClassContextSwitcher` carry their own.
+ *
+ * The year is read from the URL so the workspace tabs mean what they say: a
+ * teacher arriving from `/score/total`'s 2026–2027 view ranks 2026–2027, not
+ * whatever the calendar makes current. The *period* is deliberately not read —
+ * this screen's first view IS a period picker, so carrying one in would be
+ * answering the only question it asks.
+ */
+export default function RankingClient(props: RankingClientProps) {
+    return (
+        <Suspense fallback={null}>
+            <RankingClientInner {...props} />
+        </Suspense>
     )
 }

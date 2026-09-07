@@ -13,6 +13,7 @@ import {
 import { loadTemplateFile } from '@/lib/reporting/report-storage'
 import { activeTemplate, downloadFileName, templateById } from '@/lib/reporting/report-template'
 import { fillXlsxTemplate } from '@/lib/reporting/xlsx-writer'
+import { previewWorkbook, type SheetPreview } from '@/lib/reporting/xlsx-preview'
 import { fillDocxTemplate } from '@/lib/reporting/docx-writer'
 import { isReportType, reportDefinition } from '@/lib/reporting/report-types'
 
@@ -55,20 +56,66 @@ const MIME: Record<string, string> = {
 }
 
 /**
- * Data counts for the pre-generation preview (§15).
+ * How many pupil rows a preview draws.
+ *
+ * The ONE deliberate inexactness in the preview, and the reason it is a
+ * constant rather than a guess: layout is exact — the letterhead, every column,
+ * the summary block and the signatures are the real template's — while a
+ * fifty-pupil class does not push a thousand styled cells across the action
+ * boundary every time the teacher changes the month. Scalars are untouched, so
+ * the tallies under the table still describe the whole class. The UI says how
+ * many rows it is not showing; a short class shown silently would be worse than
+ * no preview at all.
+ */
+const PREVIEW_ROW_LIMIT = 12
+
+export interface PreviewResult {
+  error?: string
+  summary?: {
+    studentCount: number; subjectCount: number; average: number | null
+    periodLabel: string; className: string
+    honorCount?: number; criteriaLabel?: string; criteriaProvisional?: boolean
+  }
+  /** The filled sheet, for spreadsheet reports. */
+  preview?: SheetPreview
+  /** The template the preview was drawn from, so the UI can name it. */
+  templateId?: string
+  /**
+   * Why there is no sheet. `docx` is a Word report, which has no sheet to draw;
+   * `failed` means building one did not work and generation is still offered.
+   */
+  previewUnavailable?: 'docx' | 'failed'
+}
+
+/**
+ * The pre-generation preview (§15).
  *
  * Separate from generating so a teacher can confirm they are about to print the
  * right class and period before a document is built — "32 students, 3 subjects,
  * average 8.24" is the check that catches the wrong month before it reaches
  * paper, not after.
+ *
+ * It also draws the SHEET, because the counts answer "is this the right class?"
+ * and nothing else. They cannot answer "is this the right document?" — which is
+ * the question the ទម្រង់ឯកសារ selector beside them poses and whose entire
+ * consequence is visual. So this fills the chosen template exactly as
+ * `generateReport` does and returns it as a drawable model: same resolver, same
+ * template file, same writer, so the picture cannot disagree with the download.
+ *
+ * SECURITY. The same three checks generation makes, in the same order, because
+ * this reads a template file off disk on a client-supplied id: the permission,
+ * the scope-validated resolve, and — critically — the cross-check that the
+ * template belongs to THIS report. A preview with a weaker guard than the
+ * download would be the hole.
+ *
+ * NO AUDIT ENTRY. `report.generated` means a document left the building. A
+ * preview is not one, and logging it would make the trail claim documents that
+ * were never produced.
  */
 export async function previewReport(
   request: ReportRequest,
-): Promise<{ error?: string; summary?: {
-  studentCount: number; subjectCount: number; average: number | null
-  periodLabel: string; className: string
-  honorCount?: number; criteriaLabel?: string; criteriaProvisional?: boolean
-} }> {
+  templateId?: string,
+): Promise<PreviewResult> {
   if (!isReportType(request.reportType)) return { error: 'របាយការណ៍មិនត្រឹមត្រូវ' }
 
   try {
@@ -79,7 +126,34 @@ export async function previewReport(
 
   const resolved = await resolveReport(request)
   if ('error' in resolved) return { error: resolved.error }
-  return { summary: resolved.summary }
+
+  const summary = resolved.summary
+
+  const template = templateId ? templateById(templateId) : activeTemplate(request.reportType)
+  if (!template || template.reportType !== request.reportType) return { summary }
+  if (template.format === 'docx') return { summary, previewUnavailable: 'docx' }
+
+  // A preview that cannot be built must never block the document that can. Every
+  // failure below returns the counts and lets the teacher generate anyway.
+  try {
+    const loaded = await loadTemplateFile(template.id)
+    if ('error' in loaded) return { summary, previewUnavailable: 'failed' }
+
+    const omittedRows = Math.max(0, resolved.payload.rows.length - PREVIEW_ROW_LIMIT)
+    const buffer = await fillXlsxTemplate(loaded.buffer, {
+      ...resolved.payload,
+      rows: resolved.payload.rows.slice(0, PREVIEW_ROW_LIMIT),
+    })
+
+    return {
+      summary,
+      preview: await previewWorkbook(buffer, { omittedRows }),
+      templateId: template.id,
+    }
+  } catch (e) {
+    logger.error('previewReport:', e)
+    return { summary, previewUnavailable: 'failed' }
+  }
 }
 
 /**

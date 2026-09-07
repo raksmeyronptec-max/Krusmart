@@ -35,6 +35,19 @@ export const ROW_MARKER = '{{#rows}}'
 /** The marker a template puts where the subject columns begin. */
 export const SUBJECT_MARKER = '{{#subjects}}'
 
+/**
+ * The marker for a SECOND header line under the variable region.
+ *
+ * Two ministry attendance forms need it and no score sheet does: a date column
+ * is headed by its day number over its weekday, and a month's absence column
+ * pair is headed by the month over `ច្ប` / `អច្ប`. One header row cannot say
+ * both, and cramming "១ សុក្រ" into a single cell is not the form.
+ *
+ * Optional and additive: a template without this cell behaves exactly as
+ * before, which is every template that shipped before it existed.
+ */
+export const SUBJECT_SUB_MARKER = '{{#subjects.sub}}'
+
 /** Matches any `{{token}}`, capturing the token name. */
 export const TOKEN_RE = /\{\{\s*([#\w.]+)\s*\}\}/g
 
@@ -48,6 +61,17 @@ export interface ReportSubjectColumn {
   key: string
   label: string
   maxScore: number
+  /**
+   * The second header line, written into the sub-marker row when the template
+   * has one (§ the attendance forms).
+   *
+   * ADJACENT COLUMNS SHARING A `label` ARE MERGED in the label row when a
+   * sub-marker row is present — that is how one month heads its `ច្ប` and
+   * `អច្ប` pair. The merging is confined to templates that opt in by carrying
+   * the sub-marker, so no sheet that shipped before this can start merging
+   * headers behind anyone's back.
+   */
+  sublabel?: string
 }
 
 /** One pupil's row. */

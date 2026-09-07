@@ -24,6 +24,7 @@ import {
   assignSubjectTeacher, getCollectionOverview, listAssignableTeachers,
   type CollectionOverview, type SubjectCompletion,
 } from './actions'
+import { useClassHref } from '@/lib/hooks/useClassHref'
 
 /**
  * ការប្រមូលពិន្ទុ — which subjects are in, which are missing, and whose they are.
@@ -45,6 +46,9 @@ const STATUS: Record<SubjectCompletion['status'], {
 }
 
 export default function ScoreCollectClient() {
+  // Keeps the working class on the way out: a link from this screen to
+  // another class-scoped screen must still be about the same class.
+  const classHref = useClassHref()
   const { className } = useActiveClass()
 
   const [scoreType, setScoreType] = useState<'monthly' | 'semester'>('monthly')
@@ -120,7 +124,7 @@ export default function ScoreCollectClient() {
         }
         actions={
           <Link
-            href="/score/total"
+            href={classHref("/score/total")}
             className="flex min-h-11 items-center gap-2 rounded-lg border border-divider bg-bg-surface px-4 text-[13px] font-bold text-text-body transition hover:border-brand-400 hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
           >
             <Table2 className="h-4 w-4" aria-hidden="true" /> តារាងពិន្ទុសរុប

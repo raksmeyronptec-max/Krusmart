@@ -39,7 +39,7 @@ function check(name: string, ok: boolean, detail = '') {
   else { failures += 1; console.error(`  ✗ ${name}${detail ? `\n      ${detail}` : ''}`) }
 }
 
-const TEMPLATE = 'lib/reporting/templates/certificate_v1.docx'
+const TEMPLATE = 'lib/reporting/templates/certificate/certificate_v1.docx'
 const def = REPORT_DEFINITIONS.find((r) => r.type === 'certificate')!
 
 /** Any `{token}` or `{#loop}` left in the document. */

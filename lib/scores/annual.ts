@@ -39,7 +39,9 @@
  * run this under plain node, same as `semester.ts`, `honor.ts` and `calendar.ts`.
  */
 
+import { coefficientAverage } from '../grading/scheme.ts'
 import type { GradingSchemeConfig } from '../grading/scheme.ts'
+import { semesterAverage } from './semester.ts'
 
 /** Subject keys the annual sheet stores its two semester averages under. */
 export const SEM1_KEY = 'sem1_avg'
@@ -187,4 +189,107 @@ export function annualSourceNote(source: AnnualValueSource): string {
   if (source === 'stored') return 'មធ្យមភាគឆមាសយកពីទិន្នន័យដែលបានរក្សាទុក'
   if (source === 'derived') return 'មធ្យមភាគឆមាសគណនាចេញពីពិន្ទុប្រឡង និងពិន្ទុប្រចាំខែ'
   return 'មិនទាន់មានលទ្ធផលឆមាស'
+}
+
+// ---------------------------------------------------------------------------
+// Deriving the two semester figures from a class's raw marks
+// ---------------------------------------------------------------------------
+
+/**
+ * One exam mark, carrying the full mark it was awarded out of.
+ *
+ * `maxScore` travels with the mark because a class may mix denominators —
+ * `coefficientAverage` weighs each by its own មេគុណ, and a mark divorced from
+ * its scale cannot be weighted at all.
+ */
+export interface ExamMark {
+  studentId: string
+  score: number
+  maxScore: number
+}
+
+/** A pupil's two derived semester averages. Either may be null. */
+export interface DerivedSemesters {
+  [studentId: string]: { sem1: number | null; sem2: number | null }
+}
+
+export interface DeriveSemestersInput {
+  studentIds: readonly string[]
+  /** Semester-exam marks, already read off `score_type='semester'` rows. */
+  sem1Exams: readonly ExamMark[]
+  sem2Exams: readonly ExamMark[]
+  /** `studentId → monthId → that month's average`, on the scheme's scale. */
+  monthlyAverages: Record<string, Record<string, number>>
+  /** The class's OWN period calendar split — never a compiled-in month list. */
+  sem1Months: readonly string[]
+  sem2Months: readonly string[]
+  scheme: GradingSchemeConfig
+}
+
+/**
+ * Each pupil's two semester figures, derived from their marks.
+ *
+ * ── Why this is here and not in a screen ───────────────────────────────────
+ *
+ * `buildAnnualResult` answers "stored or derived, and what is the year"; it
+ * takes the derived halves as *inputs*. Composing those halves — average the
+ * semester's exam marks by coefficient, average the pupil's monthly averages
+ * across that semester's periods, then `semesterAverage` the two — was written
+ * inside `/score/total`'s client component, so `/ranking` could not reach it.
+ *
+ * `/ranking`'s yearly mode therefore grew its own arithmetic: two `parseFloat`s
+ * off `sem1_avg`/`sem2_avg` and a hand-counted divisor. Since **nothing in this
+ * application ever writes an annual row**, those keys are always empty, and the
+ * screen printed `0.00` for every pupil of every real class while `/score/total`
+ * and the printed annual reports showed the real year. Three surfaces, one
+ * question, two answers and one of them a constant.
+ *
+ * So the composition moved here, where both callers can reach it, and neither
+ * restates it. It is pure: no fetch, no scope, no `server-only` — the screens
+ * bring the rows, this brings the definition.
+ *
+ * ── The properties that must not drift ─────────────────────────────────────
+ *
+ *   * the exam half is `coefficientAverage`, so a /50 secondary subject and a
+ *     /10 primary one weigh correctly rather than being averaged as bare
+ *     numbers;
+ *   * the coursework half is the plain mean of the pupil's *monthly averages*
+ *     over the semester's months — a month with six subjects does not outweigh
+ *     one with two, because the monthly average was already taken;
+ *   * a month the pupil has no marks in is **absent**, not zero;
+ *   * both halves feed `semesterAverage`, which is where the product's
+ *     "a missing half counts as zero" rule lives. It is not re-decided here.
+ */
+export function deriveSemesterAverages(input: DeriveSemestersInput): DerivedSemesters {
+  const examAverage = (marks: readonly ExamMark[]): Record<string, number | null> => {
+    const byStudent: Record<string, { score: number; maxScore: number }[]> = {}
+    for (const m of marks) {
+      ;(byStudent[m.studentId] ??= []).push({ score: m.score, maxScore: m.maxScore })
+    }
+    const out: Record<string, number | null> = {}
+    for (const [sid, entries] of Object.entries(byStudent)) {
+      out[sid] = coefficientAverage(entries, input.scheme)
+    }
+    return out
+  }
+
+  const exam1 = examAverage(input.sem1Exams)
+  const exam2 = examAverage(input.sem2Exams)
+
+  const coursework = (sid: string, months: readonly string[]): number | null => {
+    const values = months
+      .map((m) => input.monthlyAverages[sid]?.[m])
+      .filter((v): v is number => typeof v === 'number')
+    if (values.length === 0) return null
+    return values.reduce((a, b) => a + b, 0) / values.length
+  }
+
+  const out: DerivedSemesters = {}
+  for (const sid of input.studentIds) {
+    out[sid] = {
+      sem1: semesterAverage(exam1[sid] ?? null, coursework(sid, input.sem1Months)),
+      sem2: semesterAverage(exam2[sid] ?? null, coursework(sid, input.sem2Months)),
+    }
+  }
+  return out
 }

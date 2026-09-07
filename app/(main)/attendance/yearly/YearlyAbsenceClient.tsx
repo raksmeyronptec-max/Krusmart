@@ -10,6 +10,7 @@ import { MONTHS_BY_ACADEMIC_YEAR } from '@/lib/constants/months'
 import { resolveCalendarYear } from '@/lib/constants/academic'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import type { AttendanceRecord, Settings, Student } from '@/lib/types'
+import { useClassHref } from '@/lib/hooks/useClassHref'
 
 /**
  * Yearly absence totals — `attendance/yearly-report.html` restored.
@@ -62,6 +63,9 @@ export function YearlyAbsenceClient({
   settings: Settings | null
   academicYear: string
 }) {
+  // Keeps the working class on the way out: a link from this screen to
+  // another class-scoped screen must still be about the same class.
+  const classHref = useClassHref()
   const rows = useMemo<Row[]>(() => {
     // `YYYY-MM` → month id, so each record is bucketed by string comparison
     // rather than by constructing a Date per row.
@@ -175,7 +179,7 @@ export function YearlyAbsenceClient({
       <div className="no-print mx-auto mt-8 max-w-[1400px] px-4">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <Link
-            href="/attendance/monthly"
+            href={classHref("/attendance/monthly")}
             className="inline-flex w-fit items-center gap-2 rounded-xl bg-bg-surface/50 px-4 py-2 font-bold text-brand shadow-sm backdrop-blur-sm transition hover:text-brand-800"
           >
             <ArrowLeft className="h-5 w-5" /> ត្រឡប់ទៅបញ្ជីវត្តមានប្រចាំខែ

@@ -45,6 +45,7 @@ import {
   type HomeworkScores,
 } from './scores'
 import type { ScoreInput, Settings, Student } from '@/lib/types'
+import { useClassHref } from '@/lib/hooks/useClassHref'
 
 /**
  * បញ្ចូលពិន្ទុកិច្ចការផ្ទះ — the homework mark book.
@@ -93,6 +94,9 @@ export default function HomeworkEnterClient({
   settings,
   scopeClassId,
 }: HomeworkEnterClientProps) {
+  // Keeps the working class on the way out: a link from this screen to
+  // another class-scoped screen must still be about the same class.
+  const classHref = useClassHref()
   const [mode, setMode] = useState<HomeworkMode>('daily')
 
   // The clock cannot be read during render without risking a hydration
@@ -556,7 +560,7 @@ export default function HomeworkEnterClient({
 
             <div className="flex flex-wrap items-center gap-2">
               <Link
-                href="/homework/send"
+                href={classHref("/homework/send")}
                 className="flex min-h-11 items-center gap-2 rounded-lg border border-divider bg-bg-surface px-4 text-[13px] font-bold text-text-body transition hover:border-brand-400 hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
               >
                 <Send className="h-4 w-4" aria-hidden="true" /> បញ្ជូនកិច្ចការ
@@ -656,7 +660,7 @@ export default function HomeworkEnterClient({
               description="ចុះឈ្មោះសិស្សជាមុនសិន រួចត្រឡប់មកបញ្ចូលពិន្ទុកិច្ចការផ្ទះ។"
               action={
                 <Link
-                  href="/student-list"
+                  href={classHref("/student-list")}
                   className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand px-4 text-sm font-bold text-brand-contrast transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
                 >
                   <Users className="h-4 w-4" aria-hidden="true" /> ចុះឈ្មោះសិស្ស

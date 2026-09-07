@@ -1,0 +1,179 @@
+'use client'
+
+import { useState } from 'react'
+import { Minimize2, Maximize2 } from 'lucide-react'
+
+import type { PreviewCell, SheetPreview } from '@/lib/reporting/xlsx-preview'
+import { toKhmerNumber } from '@/lib/utils/khmer-num'
+
+/**
+ * The filled sheet, drawn.
+ *
+ * A picture of the document the teacher is about to download — the letterhead,
+ * the class's own subject columns, the summary block and the signature area —
+ * built from `previewReport`'s model of the very buffer that would have been
+ * saved. It answers the question the counts beside it cannot: not "is this the
+ * right class?" but "is this the right *sheet*?"
+ *
+ * WHY A TABLE AND NOT A CANVAS. The model is a grid of merged, ruled, filled
+ * cells; a `<table>` with `colSpan`/`rowSpan` is what that is. It also stays
+ * selectable and readable to a screen reader, which an image of a spreadsheet
+ * would not be.
+ *
+ * WHY ZOOM. A landscape sheet is thirty columns wide and lives here inside a
+ * dialog. At 100% a teacher sees the first six columns and learns nothing about
+ * the layout, which is the only thing they opened it for. Scaling the whole
+ * table is one transform and keeps every proportion honest — as against
+ * shrinking the font, which would not.
+ *
+ * `FullscreenGrid` is deliberately not reused: it is desktop-only, collapses
+ * under `lg`, and opens its own `useOverlay` overlay, which inside the dialog's
+ * overlay is a focus-trap fight for no gain here.
+ */
+
+/** exceljs width units are roughly characters; ~7px each plus the cell padding. */
+function widthPx(width: number | undefined): number {
+  return Math.round((width ?? 9) * 7 + 5)
+}
+
+/** Points to CSS pixels, for row heights the sheet sets explicitly. */
+function heightPx(height: number | undefined): number | undefined {
+  return height === undefined ? undefined : Math.round(height * (96 / 72))
+}
+
+const ZOOMS = [0.5, 0.75, 1] as const
+
+function cellStyle(cell: PreviewCell): React.CSSProperties {
+  const rule = '1px solid #1e293b'
+  return {
+    fontWeight: cell.bold ? 700 : undefined,
+    fontStyle: cell.italic ? 'italic' : undefined,
+    // The sheet's points are close enough to CSS pixels at this scale, and the
+    // whole table is scaled anyway — what matters is the relative size.
+    fontSize: cell.size ? `${cell.size}px` : undefined,
+    color: cell.color,
+    backgroundColor: cell.fill,
+    textAlign: cell.align,
+    borderTop: cell.border?.top ? rule : undefined,
+    borderLeft: cell.border?.left ? rule : undefined,
+    borderBottom: cell.border?.bottom ? rule : undefined,
+    borderRight: cell.border?.right ? rule : undefined,
+  }
+}
+
+export interface ReportPreviewSheetProps {
+  sheet: SheetPreview
+  /** Named under the sheet, so the teacher knows which version they are seeing. */
+  templateLabel?: string
+}
+
+export function ReportPreviewSheet({ sheet, templateLabel }: ReportPreviewSheetProps) {
+  const [zoom, setZoom] = useState<number>(0.75)
+
+  const totalWidth = sheet.columnWidths.reduce<number>((sum, w) => sum + widthPx(w), 0)
+
+  return (
+    <div className="rounded-lg border border-divider">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-divider px-3 py-2">
+        <p className="text-xs font-bold text-text-heading">
+          មើលឯកសារជាមុន
+          {templateLabel && (
+            <span className="ml-1.5 font-normal text-text-muted">· {templateLabel}</span>
+          )}
+        </p>
+
+        <div className="flex items-center gap-1" role="group" aria-label="ពង្រីក">
+          {ZOOMS.map((z) => (
+            <button
+              key={z}
+              type="button"
+              onClick={() => setZoom(z)}
+              aria-pressed={zoom === z}
+              className={`rounded-md px-2 py-1 text-[11px] font-bold transition ${
+                zoom === z
+                  ? 'bg-brand text-brand-contrast'
+                  : 'text-text-muted hover:bg-bg-app hover:text-text-body'
+              }`}
+            >
+              {z === 0.5 && <Minimize2 className="mr-1 inline h-3 w-3" aria-hidden="true" />}
+              {z === 1 && <Maximize2 className="mr-1 inline h-3 w-3" aria-hidden="true" />}
+              {toKhmerNumber(Math.round(z * 100))}%
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/*
+        Its own horizontal scroller. A landscape sheet is wider than any dialog,
+        and wide content scrolls inside itself here rather than pushing the page
+        sideways. Focusable and labelled, because a scroll region with no
+        focusable child cannot be reached from the keyboard.
+      */}
+      <div
+        tabIndex={0}
+        role="region"
+        aria-label={`មើលឯកសារជាមុន ${sheet.name}`}
+        className="max-h-[46vh] overflow-auto bg-paper p-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+      >
+        <div
+          style={{
+            width: totalWidth * zoom,
+            height: 'fit-content',
+          }}
+        >
+          <table
+            className="border-collapse bg-white text-black"
+            style={{
+              width: totalWidth,
+              tableLayout: 'fixed',
+              transform: `scale(${zoom})`,
+              transformOrigin: 'top left',
+              fontFamily: '"Khmer OS Battambang", "Kantumruy Pro", sans-serif',
+            }}
+          >
+            <colgroup>
+              {sheet.columnWidths.map((w, i) => (
+                <col key={i} style={{ width: widthPx(w) }} />
+              ))}
+            </colgroup>
+            <tbody>
+              {sheet.rows.map((row, r) => (
+                <tr key={r} style={{ height: heightPx(row.height) }}>
+                  {row.cells.map((cell, c) => (
+                    <td
+                      key={c}
+                      colSpan={cell.colSpan}
+                      rowSpan={cell.rowSpan}
+                      style={{
+                        ...cellStyle(cell),
+                        ...(cell.rotate
+                          ? {
+                            writingMode: 'vertical-rl' as const,
+                            transform: 'rotate(180deg)',
+                            whiteSpace: 'nowrap' as const,
+                          }
+                          : { overflow: 'hidden' as const }),
+                        verticalAlign: 'middle',
+                        padding: '1px 3px',
+                      }}
+                    >
+                      {cell.text}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Never a silently short class: say what is not on screen (§36). */}
+      {sheet.omittedRows > 0 && (
+        <p className="border-t border-divider px-3 py-1.5 text-[11px] text-text-muted">
+          បង្ហាញតែជួរដំបូងប៉ុណ្ណោះ — ឯកសារពិតនឹងមានសិស្សបន្ថែម{' '}
+          <span className="font-bold">{toKhmerNumber(sheet.omittedRows)}</span> នាក់ទៀត។
+        </p>
+      )}
+    </div>
+  )
+}

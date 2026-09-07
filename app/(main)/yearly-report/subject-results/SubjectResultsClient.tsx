@@ -16,6 +16,7 @@ import { useScoreTemplate } from '@/lib/hooks/useScoreTemplate'
 import { maxScoreByColumn } from '@/lib/scores/template'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import type { Score, Settings, Student } from '@/lib/types'
+import { useActiveClass } from '@/lib/hooks/useActiveClass'
 
 type Mode = 'monthly' | 'semester'
 
@@ -53,6 +54,17 @@ export function SubjectResultsClient({
   settings: Settings | null
   academicYear: string
 }) {
+  /*
+   * The class every mark below is fetched for.
+   *
+   * `getAllScoresByPeriod` resolves the caller's *default* class when it is not
+   * told which one — so a teacher holding two classes saw this screen's roster
+   * (resolved from `?class=` by the page) beside the other class's marks. The
+   * page and the fetch have to name the same class.
+   *
+   * `?? undefined` keeps a pre-V2 account on `teacher_id` scoping, unchanged.
+   */
+  const scopeClassId = useActiveClass().classId ?? undefined
   // One grading resolution for the whole report; the tally loop below is pure.
   const { subjects: templateSubjects, scheme } = useScoreTemplate('monthly')
   const maxByColumn = useMemo(() => maxScoreByColumn(templateSubjects), [templateSubjects])
@@ -72,10 +84,10 @@ export function SubjectResultsClient({
 
   const load = useCallback(async () => {
     setLoading(true)
-    const rows = await getAllScoresByPeriod(mode, period)
+    const rows = await getAllScoresByPeriod(mode, period, scopeClassId)
     setScores(rows)
     setLoading(false)
-  }, [mode, period])
+  }, [mode, period, scopeClassId])
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch: state is set after await, not synchronously during the effect

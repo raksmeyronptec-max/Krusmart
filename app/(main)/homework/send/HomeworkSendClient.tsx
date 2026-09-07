@@ -16,6 +16,7 @@ import { HomeworkAssignmentToolbar, type BucketFilter } from './HomeworkAssignme
 import { HomeworkAssignmentList } from './HomeworkAssignmentList'
 import { dueInfo, type DueBucket } from './assignmentStatus'
 import type { HomeworkAssignment } from '@/lib/types'
+import { useClassHref } from '@/lib/hooks/useClassHref'
 
 /**
  * ផ្ញើកិច្ចការទៅអាណាព្យាបាល — the homework publisher.
@@ -48,6 +49,9 @@ export default function HomeworkSendClient({
   userId,
   initialAssignments,
 }: HomeworkSendClientProps) {
+  // Keeps the working class on the way out: a link from this screen to
+  // another class-scoped screen must still be about the same class.
+  const classHref = useClassHref()
   const [assignments, setAssignments] = useState<HomeworkAssignment[]>(initialAssignments)
   const [refreshing, setRefreshing] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -186,7 +190,7 @@ export default function HomeworkSendClient({
         description="បង្កើតកិច្ចការផ្ទះ រួចផ្សាយឱ្យអាណាព្យាបាលមើលឃើញក្នុងកម្មវិធីរបស់ពួកគាត់"
         actions={
           <Link
-            href="/homework/enter"
+            href={classHref("/homework/enter")}
             className="flex min-h-11 items-center gap-2 rounded-lg border border-divider bg-bg-surface px-4 text-[13px] font-bold text-text-body transition hover:border-brand-400 hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
           >
             <PenSquare className="h-4 w-4" aria-hidden="true" /> បញ្ចូលពិន្ទុកិច្ចការផ្ទះ

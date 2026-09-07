@@ -3,7 +3,8 @@
 import { Suspense, useState } from 'react'
 import Link from 'next/link'
 import {
-  BookOpen, Check, GraduationCap, Plus, Settings2, UserPlus, Users,
+  BookOpen, CalendarCheck, Check, Edit3, GraduationCap, Plus, Printer,
+  Settings2, UserPlus, Users,
 } from 'lucide-react'
 
 import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
@@ -181,11 +182,27 @@ function ClassroomClientInner({
   )
 }
 
-/** The three screens that only mean something about a particular class. */
+/**
+ * The screens that only mean something about a particular class.
+ *
+ * The first three are the old hub's cards. The last three are the class's
+ * *day*: attendance, marks, and the documents that come out of them. They are
+ * here because the card is where a teacher decides which class they are
+ * working on, and making them go via the sidebar afterwards is where the class
+ * used to get lost — the trip through the menu dropped `?class=` entirely.
+ * That is fixed at the shell now, but the shorter route is still the right
+ * one: pick the class and start the work in one click, not two.
+ *
+ * Six is the ceiling. A seventh turns the card back into the menu this page
+ * was built to replace.
+ */
 const CLASS_TOOLS = [
   { label: 'បញ្ជីសិស្ស', href: '/student-list', icon: Users },
   { label: 'បញ្ចូលសិស្ស', href: '/enrollment', icon: UserPlus },
   { label: 'មុខវិជ្ជា', href: '/score/subjects', icon: BookOpen },
+  { label: 'វត្តមាន', href: '/attendance/monthly', icon: CalendarCheck },
+  { label: 'បញ្ចូលពិន្ទុ', href: '/score/enter', icon: Edit3 },
+  { label: 'បោះពុម្ព', href: '/print-center', icon: Printer },
 ] as const
 
 function ClassCard({
@@ -240,16 +257,32 @@ function ClassCard({
             សិស្ស <span className="font-bold tabular-nums">{toKhmerNumber(cls.studentCount)}</span> នាក់
           </dd>
         </div>
-        {cls.isHomeroom && (
-          <div>
-            <dt className="sr-only">តួនាទី</dt>
-            <dd>
-              <Badge variant="info" size="sm">
-                គ្រូបន្ទុកថ្នាក់
-              </Badge>
-            </dd>
-          </div>
-        )}
+        {/*
+          What this teacher *is* to the class, which decides what every other
+          screen will show them: a homeroom teacher marks the whole curriculum,
+          a subject teacher sees only their own subjects on `/score/enter` and
+          only their own columns on the totals table. Saying it on the card
+          means a missing subject two clicks later reads as somebody else's
+          responsibility rather than as a bug.
+
+          The subjects are counted, not named — see `ClassroomClass.subjectKeys`
+          for why naming them would be an N+1 on this page.
+        */}
+        <div>
+          <dt className="sr-only">តួនាទី</dt>
+          <dd className="flex flex-wrap items-center gap-1.5">
+            {cls.isHomeroom ? (
+              <Badge variant="info" size="sm">គ្រូបន្ទុកថ្នាក់</Badge>
+            ) : (
+              <Badge variant="muted" size="sm">គ្រូមុខវិជ្ជា</Badge>
+            )}
+            {cls.subjectKeys.length > 0 && (
+              <span className="text-text-muted">
+                មុខវិជ្ជា {toKhmerNumber(cls.subjectKeys.length)}
+              </span>
+            )}
+          </dd>
+        </div>
       </dl>
 
       {/*

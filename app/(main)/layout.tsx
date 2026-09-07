@@ -4,6 +4,7 @@ import { resolveActor } from '@/lib/rbac/actor'
 import { onboardingRedirect } from '@/lib/onboarding/state'
 import { SchoolContextProvider } from '@/lib/context/SchoolContext'
 import { TeacherContextProvider } from '@/lib/context/TeacherContext'
+import { ClassParamSync } from '@/components/shell/ClassParamSync'
 
 /**
  * Shell for the teacher app.
@@ -49,6 +50,11 @@ export default async function MainLayout({
   return (
     <SchoolContextProvider>
       <TeacherContextProvider>
+        {/* Makes `?class=` flow back into the context, so a bookmark or a
+            per-class link cannot render one class's data under another class's
+            name. Renders nothing; see the component for why it is not a line
+            inside the provider. */}
+        <ClassParamSync />
         {/* `actor.roles` is already resolved above, so the shell filters the
             navigation with no extra query and no post-hydration flash. */}
         <AppShell roles={actor?.roles}>{children}</AppShell>

@@ -128,3 +128,74 @@ export function assignRanks<T>(
     set(items[i], rank)
   }
 }
+
+/**
+ * One monthly mark, as it comes off a `score_type='monthly'` row.
+ *
+ * `maxScore` travels with it for the same reason it does everywhere else in
+ * this layer: a class may mix denominators, and a mark divorced from its scale
+ * cannot be weighted.
+ */
+export interface MonthlyMark {
+  studentId: string
+  /** The month half of `score_period` — `nov` out of `nov-2025-2026`. */
+  monthId: string
+  score: number
+  maxScore: number
+}
+
+/**
+ * Each pupil's average for each month: `studentId → monthId → average`.
+ *
+ * ── Why this is shared ─────────────────────────────────────────────────────
+ *
+ * It is the coursework half of every semester figure in the product, the trend
+ * line on `/score/total`, and — through `deriveSemesterAverages` — half of
+ * every annual result. It was written inside `/score/total`'s client component,
+ * which is precisely why `/ranking` could not compose a year and invented one
+ * off the always-empty stored keys instead.
+ *
+ * A month with no marks is **absent from the result**, never zero: "not yet
+ * assessed" and "assessed at nothing" are different claims, and the difference
+ * is what stops an unmarked month dragging a semester down.
+ *
+ * `coefficientAverage` is the mean, so a /10 primary month is a plain mean
+ * (មេគុណ 1 per subject) and a /50 secondary one weighs by coefficient. That is
+ * the same function every other average in this layer uses.
+ */
+export function monthlyAveragesByStudent(
+  marks: readonly MonthlyMark[],
+  scheme: GradingSchemeConfig,
+): Record<string, Record<string, number>> {
+  const acc: Record<string, Record<string, { score: number; maxScore: number }[]>> = {}
+  for (const m of marks) {
+    const forStudent = (acc[m.studentId] ??= {})
+    ;(forStudent[m.monthId] ??= []).push({ score: m.score, maxScore: m.maxScore })
+  }
+
+  const out: Record<string, Record<string, number>> = {}
+  for (const [sid, months] of Object.entries(acc)) {
+    out[sid] = {}
+    for (const [mid, entries] of Object.entries(months)) {
+      const avg = coefficientAverage(entries, scheme)
+      if (avg !== null) out[sid][mid] = avg
+    }
+  }
+  return out
+}
+
+/**
+ * The month half of a monthly `score_period`.
+ *
+ * `nov-2025-2026` → `nov`. Sliced from the right by the year's own length
+ * rather than split on the first hyphen, because the academic year contains
+ * two of its own. Returns `null` when the period does not end in the year
+ * asked for, so a stray row cannot be filed under a month it does not belong
+ * to.
+ */
+export function monthIdFromPeriod(scorePeriod: string, academicYear: string): string | null {
+  const suffix = `-${academicYear}`
+  if (!scorePeriod.endsWith(suffix)) return null
+  const monthId = scorePeriod.slice(0, -suffix.length)
+  return monthId.length > 0 ? monthId : null
+}

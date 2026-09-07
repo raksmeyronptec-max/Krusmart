@@ -549,6 +549,102 @@ export async function resolveServerGradingContext(
 }
 
 /**
+ * The class a pupil currently sits in: their most recent enrolment that is not
+ * `withdrawn`.
+ *
+ * One rule, one place. `resolveStudentGradingContext` needs it to pick the
+ * right curriculum and full marks, and `/students/[id]` needs it so the pupil's
+ * page links into *their* class rather than into whichever class the teacher
+ * happens to have active — a pupil reached from a search result may not be in
+ * it at all.
+ *
+ * `.neq('status','withdrawn')` rather than `.eq('status','active')`, for the
+ * reason it is written that way everywhere in this file: a past year's
+ * enrolment is stamped `promoted` or `transferred`, and filtering on active
+ * would leave a pupil with a full history looking unenrolled.
+ *
+ * RLS decides whether the row is visible at all; a pupil the caller may not
+ * read resolves to `null`, which is the same answer as "not enrolled" and
+ * deliberately so.
+ */
+export async function currentEnrolment(
+  studentId: string,
+): Promise<{ classId: string; academicYearId: string | null } | null> {
+  const history = await enrolmentHistory(studentId)
+  const current = history[0]
+  if (!current) return null
+  return { classId: current.classId, academicYearId: current.academicYearId }
+}
+
+/** One row of a pupil's enrolment history, named rather than keyed by id. */
+export interface EnrolmentRecord {
+  classId: string
+  className: string
+  academicYearId: string | null
+  academicYearName: string
+  /** `active`, `promoted`, `transferred` — never `withdrawn`, which is filtered. */
+  status: string
+  enrolledAt: string | null
+}
+
+/**
+ * Every class a pupil has sat in, newest first, withdrawals excluded.
+ *
+ * `/students/[id]` is meant to be the pupil *whole* — identity, enrolment,
+ * attendance, marks, homework — and enrolment was the one section missing. The
+ * page showed `students.grade`, a free-text column on the pupil row, which is
+ * not the same fact as "which class are they enrolled in, in which year, and
+ * with what status": a pupil promoted out of ៥ក into ៦ក keeps a stale `grade`
+ * string until somebody retypes it, while the enrolment rows are what every
+ * roster read in this file actually uses.
+ *
+ * Ordered by `enrolled_at` descending, so `[0]` is the current placement —
+ * which is exactly what `currentEnrolment` returns, so the class a page links
+ * to and the class shown at the top of its history cannot disagree.
+ *
+ * `.neq('status','withdrawn')` for the reason it is written that way
+ * everywhere here: a past year's enrolment is stamped `promoted` or
+ * `transferred`, and filtering on `active` would hide a pupil's whole history.
+ * RLS decides which rows are visible; a class the caller may not read simply
+ * does not come back.
+ */
+export async function enrolmentHistory(studentId: string): Promise<EnrolmentRecord[]> {
+  const supabase = await createClient()
+
+  const { data } = await supabase
+    .from('student_enrollments')
+    // One literal, not a concatenation: supabase-js parses the select string at
+    // the type level and loses the embedded relations if it is built.
+    .select('class_id, academic_year_id, status, enrolled_at, classes(name), academic_years(name)')
+    .eq('student_id', studentId)
+    .neq('status', 'withdrawn')
+    .order('enrolled_at', { ascending: false })
+
+  const rows = (data ?? []) as unknown as {
+    class_id: string
+    academic_year_id: string | null
+    status: string | null
+    enrolled_at: string | null
+    classes?: { name?: string } | { name?: string }[] | null
+    academic_years?: { name?: string } | { name?: string }[] | null
+  }[]
+
+  const one = <T,>(rel: T | T[] | null | undefined): T | undefined =>
+    Array.isArray(rel) ? rel[0] : (rel ?? undefined)
+
+  return rows
+    .filter((r) => typeof r.class_id === 'string')
+    .map((r) => ({
+      classId: r.class_id,
+      className: one(r.classes)?.name ?? '',
+      academicYearId: r.academic_year_id ?? null,
+      academicYearName: one(r.academic_years)?.name ?? '',
+      status: r.status ?? 'active',
+      enrolledAt: r.enrolled_at ?? null,
+    }))
+}
+
+/**
  * The grading context for a surface that starts from a *pupil* rather than a
  * teacher — the parent portal and the parent report, whose reader has no
  * teacher assignment and no active class selection.
@@ -563,18 +659,9 @@ export async function resolveStudentGradingContext(
   studentId: string,
   scoreType: TemplateScoreType = 'monthly',
 ): Promise<ServerGradingContext> {
-  const supabase = await createClient()
+  const enrolment = await currentEnrolment(studentId)
 
-  const { data: enrolment } = await supabase
-    .from('student_enrollments')
-    .select('class_id, academic_year_id')
-    .eq('student_id', studentId)
-    .neq('status', 'withdrawn')
-    .order('enrolled_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  const classId = enrolment?.class_id as string | undefined
+  const classId = enrolment?.classId
   if (!classId) {
     // A legacy pupil with no enrolment row grades exactly as before levels
     // existed — the primary fallback, never an empty or mis-scaled result.
@@ -585,7 +672,7 @@ export async function resolveStudentGradingContext(
     mode: 'v2',
     teacherId: '',
     classId,
-    academicYearId: (enrolment?.academic_year_id as string | null) ?? null,
+    academicYearId: enrolment?.academicYearId ?? null,
   }
   const { rows, context } = await fetchScoreTemplate(scope)
   return buildGradingContext(rows, context, scoreType)

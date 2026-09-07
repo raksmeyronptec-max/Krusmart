@@ -14,6 +14,8 @@ import { maxScoreByColumn } from '@/lib/scores/template'
 import { studentAverage } from '@/lib/scores/aggregate'
 import { scoreCellValue, scoreNumericValue } from '@/lib/utils/score-value'
 import type { Score, Settings, Student } from '@/lib/types'
+import { useClassHref } from '@/lib/hooks/useClassHref'
+import { useActiveClass } from '@/lib/hooks/useActiveClass'
 
 /**
  * តារាងពិន្ទុតាមទម្រង់ក្រសួង — the ministry's printable score sheet.
@@ -64,6 +66,20 @@ export default function ScorePrintClient({
   settings: Settings | null
   academicYear: string
 }) {
+  /*
+   * The class every mark below is fetched for.
+   *
+   * `getAllScoresByPeriod` resolves the caller's *default* class when it is not
+   * told which one — so a teacher holding two classes saw this screen's roster
+   * (resolved from `?class=` by the page) beside the other class's marks. The
+   * page and the fetch have to name the same class.
+   *
+   * `?? undefined` keeps a pre-V2 account on `teacher_id` scoping, unchanged.
+   */
+  const scopeClassId = useActiveClass().classId ?? undefined
+  // Keeps the working class on the way out: a link from this screen to
+  // another class-scoped screen must still be about the same class.
+  const classHref = useClassHref()
   // One grading resolution for the whole sheet; the row loop below is pure.
   const { subjects: templateSubjects, scheme } = useScoreTemplate('monthly')
   const maxByColumn = useMemo(() => maxScoreByColumn(templateSubjects), [templateSubjects])
@@ -78,9 +94,9 @@ export default function ScorePrintClient({
 
   const load = useCallback(async () => {
     setLoading(true)
-    setScores(await getAllScoresByPeriod(mode, period))
+    setScores(await getAllScoresByPeriod(mode, period, scopeClassId))
     setLoading(false)
-  }, [mode, period])
+  }, [mode, period, scopeClassId])
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch: state is set after await, not synchronously during the effect
@@ -205,7 +221,7 @@ export default function ScorePrintClient({
       {/* ---------------------------------------------------------------- UI */}
       <div className="no-print mx-auto max-w-5xl px-4 py-6 md:py-8">
         <Link
-          href="/score/total"
+          href={classHref("/score/total")}
           className="mb-6 inline-flex min-h-11 items-center gap-2 rounded-xl bg-bg-surface/60 px-4 py-2 font-bold text-brand shadow-sm backdrop-blur-sm transition hover:text-brand-800"
         >
           <ArrowLeft className="h-5 w-5" aria-hidden="true" /> ត្រឡប់ទៅតារាងពិន្ទុ

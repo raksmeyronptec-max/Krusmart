@@ -6,6 +6,7 @@ import {
   resolveServerScope,
 } from '@/lib/utils/serverScope'
 import { getCurrentAcademicYear } from '@/lib/constants/academic'
+import { REPORT_CATEGORIES, type ReportCategory } from '@/lib/reporting/report-types'
 import PrintCenterClient from './PrintCenterClient'
 
 export const metadata = { title: 'មជ្ឈមណ្ឌលរបាយការណ៍ និងបោះពុម្ព' }
@@ -36,6 +37,25 @@ export default async function PrintCenterPage({
 
   const requestedClassId = await classIdFromSearchParams(searchParams)
   const scope = await resolveServerScope(user.id, requestedClassId)
+
+  /*
+   * `?category=` opens the centre on one family.
+   *
+   * Read here and passed as a prop rather than through `useSearchParams` in the
+   * client: this page already awaits `searchParams` for `?class=`, so the
+   * category costs nothing, and a `useSearchParams` in `PrintCenterClient`
+   * would drag a Suspense boundary onto a page that needs none.
+   *
+   * Validated against the catalogue — an unknown category opens the full list
+   * rather than an empty screen, because a bad link should degrade to the index
+   * and not to a dead end.
+   */
+  const params = (await searchParams) ?? {}
+  const rawCategory = params.category
+  const requested = Array.isArray(rawCategory) ? rawCategory[0] : rawCategory
+  const initialCategory = REPORT_CATEGORIES.some((c) => c.id === requested)
+    ? (requested as ReportCategory)
+    : null
 
   // Class name and grade for the header (§6). Both are context, not report
   // data: the centre must not fetch a single mark to render itself (§33) — two
@@ -68,6 +88,7 @@ export default async function PrintCenterPage({
       className={className}
       gradeNumber={gradeNumber}
       academicYear={getCurrentAcademicYear()}
+      initialCategory={initialCategory}
     />
   )
 }

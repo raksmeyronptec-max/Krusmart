@@ -50,19 +50,45 @@ function check(name: string, ok: boolean, detail = '') {
   else { failures += 1; console.error(`  ✗ ${name}${detail ? `\n      ${detail}` : ''}`) }
 }
 
-const TEMPLATE = 'lib/reporting/templates/score_monthly_v1.xlsx'
-const RANKING_TEMPLATE = 'lib/reporting/templates/ranking_monthly_v1.xlsx'
+/*
+ * The writer's fixture, deliberately still v1 even though v2 is what
+ * `score_monthly` now generates on. What the long geometry section below tests
+ * is the WRITER — that it widens a region, grows a block, shifts merges and
+ * loses no formatting — and v1 is a shipped, valid template with addresses
+ * those assertions have been written against. Repointing it at v2 would
+ * rewrite a hundred assertions to test the same code. v2 is exercised on its
+ * own terms further down, including the two-column split only it has.
+ */
+const TEMPLATE = 'lib/reporting/templates/scores/score_monthly_v1.xlsx'
+const RANKING_TEMPLATE = 'lib/reporting/templates/ranking/ranking_monthly_v1.xlsx'
 
 // ---------------------------------------------------------------------------
 console.log('\nCatalogue (§19)')
 {
   const ids = REPORT_DEFINITIONS.map(r => r.type)
   check('every report type is unique', new Set(ids).size === ids.length)
-  check('all six categories are represented',
+  check('every category is represented — an empty tab is a dead end',
     REPORT_CATEGORIES.every(c => reportsByCategory(c.id).length > 0),
     REPORT_CATEGORIES.filter(c => reportsByCategory(c.id).length === 0).map(c => c.id).join(', '))
-  check('the sixteen requested reports exist', REPORT_DEFINITIONS.length === 16,
+  // Sixteen when the centre was built; eighteen once the two attendance sheets
+  // moved here out of the វត្តមាន menu; twenty-three now that the five student
+  // documents do the same — the ID card, the parent codes, the roster print,
+  // the age/height sheet and the parent report, which were discoverable only as
+  // menu items under សិស្ស and so were invisible to anyone who looked for them
+  // in the one place §8 says documents are found. All five are `legacy_only`:
+  // indexed, not rebuilt. Pinned so a report cannot appear or vanish from the
+  // Twenty-five with the two remaining §8 documents — the សៀវភៅតាមដាន screen and
+  // the thirteen class-administration books — which print from the browser and
+  // appeared in no index at all. Pinned so a report cannot appear or vanish
+  // from the catalogue without someone saying so.
+  check('the twenty-five catalogued reports exist', REPORT_DEFINITIONS.length === 25,
     `got ${REPORT_DEFINITIONS.length}`)
+  check('the two attendance sheets are catalogued, generate, and keep their screens',
+    reportsByCategory('attendance').map(r => r.type).join(',')
+      === 'attendance_monthly,attendance_yearly'
+    && reportsByCategory('attendance').every(
+      r => r.resolver === true && r.legacyHref?.startsWith('/attendance') === true),
+    reportsByCategory('attendance').map(r => `${r.type}->${r.legacyHref}`).join(' '))
   check('ranking_monthly is in the catalogue (§24.1)',
     REPORT_DEFINITIONS.some(r => r.type === 'ranking_monthly' && r.category === 'ranking'))
   check('and declares a resolver (§24.2)',
@@ -83,13 +109,17 @@ console.log('\nTemplate registry (§6/§7)')
   // `score_annual` is the last report with none — move the example on again
   // rather than weakening the check when it is migrated (§34).
   check('a report with no template reports none', !hasTemplate('score_annual'))
-  check('the active template is v1', activeTemplate('score_monthly')?.version === 1)
-  check('it is addressable by the id recorded in metadata',
-    templateById('score_monthly_v1')?.reportType === 'score_monthly')
+  check('the active template is v2, the school-supplied form',
+    activeTemplate('score_monthly')?.version === 2,
+    String(activeTemplate('score_monthly')?.id))
+  check('the superseded version stays addressable by the id it recorded',
+    templateById('score_monthly_v1')?.reportType === 'score_monthly'
+    && templateById('score_monthly_v1')?.isActive === false)
   check('exactly one active version per report',
     TEMPLATE_REGISTRY.filter(t => t.isActive).length ===
       new Set(TEMPLATE_REGISTRY.filter(t => t.isActive).map(t => t.reportType)).size)
-  check('versions sort newest first', templatesFor('score_monthly')[0].version === 1)
+  check('versions sort newest first',
+    templatesFor('score_monthly').map(t => t.version).join(',') === '2,1')
   check('provenance is stated honestly',
     activeTemplate('score_monthly')?.provenance === 'derived')
 }
@@ -103,7 +133,7 @@ console.log('\nReport availability — no card may over-claim (§10/§11)')
   check('score_monthly is engine-ready', monthly.status === 'engine_ready', monthly.status)
   check('and offers a generate action', monthly.action === 'generate')
   check('and names the template it will use (§28)',
-    monthly.template?.id === 'score_monthly_v1')
+    monthly.template?.id === 'score_monthly_v2', String(monthly.template?.id))
 
   // Picked dynamically rather than named. Naming one meant this block broke
   // every time that report was migrated — three times so far — which is churn,
@@ -387,7 +417,7 @@ console.log('\nranking_monthly (§24)')
   check('and offers generation, not the legacy screen',
     avail.action === 'generate')
   check('template version is recorded (§24.15)',
-    avail.template?.id === 'ranking_monthly_v1' && avail.template?.version === 1)
+    avail.template?.id === 'ranking_monthly_v2' && avail.template?.version === 2)
   check('provenance is derived, never claimed official (§21)',
     avail.template?.provenance === 'derived')
   check('the legacy /ranking route is preserved in the catalogue (§17)',
@@ -576,7 +606,7 @@ console.log('\nranking_semester — catalogue and availability (§24.1-4/13-14)'
   check('with an active template it is engine_ready', avail.status === 'engine_ready', avail.status)
   check('and offers generation, not the legacy screen', avail.action === 'generate')
   check('template version is recorded',
-    avail.template?.id === 'ranking_semester_v1' && avail.template?.version === 1)
+    avail.template?.id === 'ranking_semester_v2' && avail.template?.version === 2)
   check('provenance is derived, never claimed official',
     avail.template?.provenance === 'derived')
   check('the legacy /ranking route is preserved', def.legacyHref === '/ranking')
@@ -712,7 +742,7 @@ console.log('\nsemester ranking — ties and unmarked pupils (§24.7-9)')
 // ---------------------------------------------------------------------------
 console.log('\nranking_semester document (§24.10-15/§25/§26)')
 {
-  const buf = await readFile('lib/reporting/templates/ranking_semester_v1.xlsx')
+  const buf = await readFile('lib/reporting/templates/ranking/ranking_semester_v1.xlsx')
   const tpl = new ExcelJS.Workbook()
   await tpl.xlsx.load(buf as unknown as ArrayBuffer)
   const tplWs = tpl.worksheets[0]
@@ -829,7 +859,7 @@ console.log('\nhonor — catalogue and availability (§21.1-4)')
   check('with an active template it is engine_ready', avail.status === 'engine_ready', avail.status)
   check('and offers generation', avail.action === 'generate')
   check('template version is recorded',
-    avail.template?.id === 'honor_v1' && avail.template?.version === 1)
+    avail.template?.id === 'honor_v2' && avail.template?.version === 2)
   check('provenance is derived, never claimed official (§25)',
     avail.template?.provenance === 'derived')
   check('the legacy /honor-roll route is preserved (§16)', def.legacyHref === '/honor-roll')
@@ -913,7 +943,7 @@ console.log('\nhonor eligibility and boundaries (§19/§21.7-8)')
 // ---------------------------------------------------------------------------
 console.log('\nhonor document (§21.9-12/§13)')
 {
-  const buf = await readFile('lib/reporting/templates/honor_v1.xlsx')
+  const buf = await readFile('lib/reporting/templates/honor/honor_v1.xlsx')
   const tpl = new ExcelJS.Workbook()
   await tpl.xlsx.load(buf as unknown as ArrayBuffer)
   const tplWs = tpl.worksheets[0]
@@ -1004,6 +1034,247 @@ console.log('\nhonor document (§21.9-12/§13)')
   const ow = new ExcelJS.Workbook(); await ow.xlsx.load(one as unknown as ArrayBuffer)
   check('a single honouree with a single subject renders',
     ow.worksheets[0].getRow(FIRST_ROW).getCell(2).value === 'សិស្ស1')
+}
+
+// ---------------------------------------------------------------------------
+/*
+ * EVERY xlsx report is on the school-supplied form, so this is one loop rather
+ * than thirteen sections. What it asserts are the form's own invariants — the
+ * things that are true because they all share `buildSchoolFormTemplate`, and
+ * that break silently when one report drifts off it.
+ *
+ * The table below is the only place a report's geometry is written down twice.
+ * That is the point: it is a second opinion. A spec edited in the builder that
+ * nobody meant to make shows up here as a failure rather than as a crooked
+ * sheet in a teacher's hands.
+ */
+console.log('\nthe school-supplied form — every report on it (§5/§11/§28)')
+{
+  const HEADER_ROW = 11
+
+  /** `lead` counts the fixed columns before the variable region. */
+  const FORM_LAYOUT: Record<string,
+    { lead: number; variable: boolean; tail: string[]; sub?: boolean }> = {
+    score_monthly: { lead: 3, variable: true,
+      tail: ['ពិន្ទុសរុប', 'មធ្យមភាគ', 'ចំណាត់ថ្នាក់', 'និទ្ទេស', 'ផ្សេងៗ'] },
+    score_semester: { lead: 3, variable: true,
+      tail: ['ម.ភាគប្រឡង', 'ម.ភាគប្រចាំខែ', 'ម.ភាគឆមាស', 'ចំណាត់ថ្នាក់', 'និទ្ទេស', 'លទ្ធផល'] },
+    ranking_monthly: { lead: 3, variable: true,
+      tail: ['ពិន្ទុសរុប', 'មធ្យមភាគ', 'និទ្ទេស', 'លទ្ធផល'] },
+    ranking_semester: { lead: 3, variable: true,
+      tail: ['ម.ភាគប្រឡង', 'ម.ភាគប្រចាំខែ', 'មធ្យមភាគឆមាស', 'និទ្ទេស', 'លទ្ធផល'] },
+    ranking_annual: { lead: 3, variable: true,
+      tail: ['ម.ភាគ ឆមាសទី១', 'ម.ភាគ ឆមាសទី២', 'ម.ភាគប្រចាំឆ្នាំ', 'និទ្ទេស', 'លទ្ធផល'] },
+    honor: { lead: 3, variable: true,
+      tail: ['មធ្យមភាគ', 'ចំណាត់ថ្នាក់', 'និទ្ទេស', 'មុខវិជ្ជាមានពិន្ទុ'] },
+    annual_summary: { lead: 3, variable: false,
+      tail: ['ម.ភាគ ឆមាសទី១', 'ម.ភាគ ឆមាសទី២', 'ម.ភាគប្រចាំឆ្នាំ', 'ចំណាត់ថ្នាក់', 'និទ្ទេស', 'លទ្ធផល'] },
+    annual_monthly_ranking: { lead: 3, variable: true,
+      tail: ['ម.ភាគ ឆមាសទី១', 'ម.ភាគ ឆមាសទី២', 'ម.ភាគប្រចាំឆ្នាំ', 'ចំណាត់ថ្នាក់', 'និទ្ទេស', 'លទ្ធផល'] },
+    annual_monthly_average: { lead: 3, variable: true,
+      tail: ['ម.ភាគ ឆមាសទី១', 'ម.ភាគ ឆមាសទី២', 'ម.ភាគប្រចាំឆ្នាំ', 'ចំណាត់ថ្នាក់', 'និទ្ទេស', 'លទ្ធផល'] },
+    annual_subject: { lead: 3, variable: true,
+      tail: ['ម.ភាគប្រចាំឆ្នាំ', 'ចំណាត់ថ្នាក់', 'និទ្ទេស'] },
+    annual_subject_results: { lead: 3, variable: true,
+      tail: ['ជាប់មធ្យមភាគ', 'ជាប់និទ្ទេស ABC', 'ធ្លាក់មធ្យមភាគ', 'មធ្យមភាគ'] },
+    annual_promoted_students: { lead: 4, variable: false,
+      tail: ['ម.ភាគ ឆមាសទី១', 'ម.ភាគ ឆមាសទី២', 'ម.ភាគប្រចាំឆ្នាំ', 'ចំណាត់ថ្នាក់', 'និទ្ទេស'] },
+    annual_repeated_students: { lead: 4, variable: false,
+      tail: ['ម.ភាគ ឆមាសទី១', 'ម.ភាគ ឆមាសទី២', 'ម.ភាគប្រចាំឆ្នាំ', 'ចំណាត់ថ្នាក់', 'និទ្ទេស'] },
+    // The two sheets with a three-row header: their data row is 13, not 12.
+    attendance_monthly: { lead: 3, variable: true, sub: true,
+      tail: ['ច្បាប់', 'អត់ច្បាប់', 'សរុប', 'ផ្សេងៗ'] },
+    attendance_yearly: { lead: 4, variable: true, sub: true,
+      tail: ['ច្ប', 'អច្ប', 'សរុប', 'ច្ប', 'អច្ប', 'សរុប', 'ច្ប', 'អច្ប', 'សរុប', 'ផ្សេងៗ'] },
+  }
+
+  const xlsxReports = TEMPLATE_REGISTRY
+    .filter(t => t.isActive && t.format === 'xlsx')
+    .map(t => t.reportType)
+
+  check('every xlsx report has a form layout declared here',
+    xlsxReports.every(t => t in FORM_LAYOUT)
+    && Object.keys(FORM_LAYOUT).length === xlsxReports.length,
+    `registry ${xlsxReports.length} vs table ${Object.keys(FORM_LAYOUT).length}`)
+  /*
+   * The score sheets are on v2 because each superseded a v1. The two
+   * attendance sheets were born on the form, so their first version IS the
+   * form — pinning "everyone is on v2" would have forced a pointless v1.
+   */
+  const BORN_ON_FORM = new Set(['attendance_monthly', 'attendance_yearly'])
+  check('every report on the form is on its current version',
+    xlsxReports.every(t =>
+      activeTemplate(t as never)?.version === (BORN_ON_FORM.has(t) ? 1 : 2)),
+    xlsxReports.map(t => `${t}:v${activeTemplate(t as never)?.version}`).join(' '))
+
+  const formPayload = (columns: number, pupils: number) => ({
+    scalars: {
+      'school.name': 'សាលាបឋមសិក្សា កគោ',
+      'school.unit1': 'មន្ទីរអប់រំ ខេត្តព្រៃវែង',
+      'school.unit2': 'ការិយាល័យអប់រំ ស្រុកព្រះស្តេច',
+      'class.name': 'ក', 'class.grade': '១', 'class.count': '៥២', 'class.female': '១៩',
+      'period.label': 'ខែមេសា', 'period.semester': 'ឆមាសទី១', 'period.year': '2025-2026',
+      'class.passmark': '៥', 'class.average': 7.4, 'class.months': '៥',
+      'class.subjects': '២២', 'class.scored': '៥០',
+      'class.roll_tally': '៥២ នាក់ ស្រី ១៩ នាក់',
+      'class.passed_tally': '៤៨ នាក់ ស្រី ១៧ នាក់',
+      'class.failed_tally': '២ នាក់ ស្រី ១ នាក់',
+      'class.unmarked_tally': '២ នាក់ ស្រី ១ នាក់',
+      'class.promoted_tally': '៤៨ នាក់ ស្រី ១៧ នាក់',
+      'class.repeated_tally': '២ នាក់ ស្រី ១ នាក់',
+      'class.incomplete_tally': '២ នាក់ ស្រី ១ នាក់',
+      'class.grade_a': '៥ នាក់', 'class.grade_b': '១២ នាក់', 'class.grade_c': '១៨ នាក់',
+      'class.grade_d': '១០ នាក់', 'class.grade_e': '៣ នាក់', 'class.grade_f': '២ នាក់',
+      'honor.count': '៥', 'honor.total': '៥២', 'honor.average': 9.1,
+      'honor.criteria': 'មធ្យមភាគ ≥ ៨', 'honor.provenance': 'លក្ខណៈវិនិច្ឆ័យបណ្ដោះអាសន្ន',
+      'list.rule': 'ម.ភាគប្រចាំឆ្នាំ ≥ ៥', 'list.count': '៤៨',
+      'list.female': '១៧', 'list.average': 7.9,
+      'annual.source': 'គណនាដោយប្រព័ន្ធ',
+      'date.lunar': 'ថ្ងៃអាទិត្យ ៩រោច ខែស្រាពណ៍', 'date.today': 'ថ្ងៃទី ០៦ ខែ កញ្ញា ឆ្នាំ ២០២៦',
+      'province.date': 'ព្រៃវែង',
+      'teacher.name': 'រុន រស្មី', 'director.name': 'ស៊ុន សុភា', 'director.role': 'នាយិកា',
+    },
+    subjects: Array.from({ length: columns }, (_, i) => ({
+      key: `s${i + 1}`, label: `មុខវិជ្ជា${i + 1}`, maxScore: 10,
+    })),
+    rows: Array.from({ length: pupils }, (_, i) => ({
+      values: {
+        'row.no': String(i + 1), 'row.name': `សិស្ស${i + 1}`, 'row.gender': 'ស',
+        'row.student_id': `P${i + 1}`, 'row.excused': 1, 'row.unexcused': 2,
+        'row.absent_total': 3,
+        'row.dob': '01/01/2015', 'row.total': 180 - i, 'row.average': 8.2,
+        'row.rank': String(i + 1), 'row.grade': 'ល្អ', 'row.status': 'ជាប់',
+        'row.exam': 8, 'row.monthly': 8.4, 'row.sem1': 7.9, 'row.sem2': 8.5,
+        'row.subject': `មុខវិជ្ជា${i + 1}`, 'row.subjects': '២២', 'row.marked': '៣០ (១២)',
+        'row.pass': '២៨ (១១)', 'row.pass_abc': '២០ (៨)', 'row.fail': '២ (១)',
+      },
+      subjectValues: Array.from({ length: columns }, () => 8),
+    })),
+  })
+
+  for (const type of xlsxReports) {
+    const layout = FORM_LAYOUT[type]
+    const tpl = activeTemplate(type as never)!
+    const buf = await readFile(`lib/reporting/templates/${tpl.file}`)
+    const gen = async (columns: number, pupils: number) => {
+      const out = await fillXlsxTemplate(buf, formPayload(columns, pupils))
+      const wb = new ExcelJS.Workbook()
+      await wb.xlsx.load(out as unknown as ArrayBuffer)
+      return wb.worksheets[0]
+    }
+
+    console.log(`\n  ${type}`)
+    const COLS = layout.variable ? 22 : 0
+    const ws = await gen(COLS, 9)
+    const SC = layout.lead + 1
+    const tailStart = layout.lead + (layout.variable ? COLS : 0) + 1
+    // A three-row header pushes the repeating block down by one.
+    const firstRow = HEADER_ROW + (layout.sub ? 2 : 1)
+
+    /*
+     * The label row is 11 for every report on the form. On the two sheets with
+     * a three-row header the lead columns are merged down 10-12, so the value
+     * lives on the merge's master at row 10 — the row the header BLOCK starts
+     * on, which is what the assertion has to look at.
+     */
+    const headTop = layout.sub ? HEADER_ROW - 1 : HEADER_ROW
+    check('    the header block starts where every other report\'s does',
+      ws.getRow(headTop).getCell(1).value === 'ល.រ'
+      || ws.getRow(headTop).getCell(1).value === 'ចំណាត់ថ្នាក់',
+      String(ws.getRow(headTop).getCell(1).value))
+
+    if (layout.variable) {
+      check('    the variable region widened from data, not a constant (§11)',
+        ws.getRow(HEADER_ROW).getCell(SC).value === 'មុខវិជ្ជា1'
+        && ws.getRow(HEADER_ROW).getCell(SC + 21).value === 'មុខវិជ្ជា22',
+        String(ws.getRow(HEADER_ROW).getCell(SC + 21).value))
+    }
+
+    const tail = layout.tail.map((_, i) => ws.getRow(HEADER_ROW).getCell(tailStart + i).value)
+    check('    the tail follows it, in the order the spec declares',
+      tail.join('|') === layout.tail.join('|'), tail.join('|'))
+
+    // The pupil's name is the last lead column but one on the sheets that carry
+    // an `អត្តលេខ`; find it rather than assuming column two.
+    const nameCol = layout.lead === 4 && layout.sub ? 3 : 2
+    check('    nine rows expand from the single marked one',
+      String(ws.getRow(firstRow + 8).getCell(nameCol).value ?? '') !== '')
+
+    let leftover = ''
+    ws.eachRow({ includeEmpty: false }, r => r.eachCell({ includeEmpty: false }, c => {
+      const v = typeof c.value === 'string' ? c.value : ''
+      if (v.includes('{{')) leftover = v
+    }))
+    check('    no token survives anywhere in the sheet', leftover === '', leftover)
+
+    check('    A4 landscape, fit-to-width and print titles survived',
+      ws.pageSetup.orientation === 'landscape' && ws.pageSetup.paperSize === 9
+      && ws.pageSetup.fitToWidth === 1
+      && ws.pageSetup.printTitlesRow === `${HEADER_ROW}:${HEADER_ROW}`)
+    check('    the header band survived the round trip',
+      (ws.getRow(HEADER_ROW).getCell(1).fill as ExcelJS.FillPattern)?.fgColor?.argb
+        === 'FFEFF6FF')
+    check('    duplicated rows keep their borders',
+      ws.getRow(firstRow + 5).getCell(1).border?.top?.style === 'thin')
+    check('    the derived-provenance line is printed on the sheet (§31)', (() => {
+      let found = false
+      ws.eachRow({ includeEmpty: false }, r => r.eachCell({ includeEmpty: false }, c => {
+        if (String(c.value ?? '').includes('មិនមែនចម្លងផ្ទាល់ពីឯកសារផ្លូវការ')) found = true
+      }))
+      return found
+    })())
+
+    if (layout.variable) {
+      /*
+       * The two-column split falls ON the subject anchor, which is what keeps
+       * the halves proportional as the region grows. Silent when it breaks: a
+       * left block merged one column short stays three columns wide while the
+       * right half floats off over the tail.
+       */
+      const merges = (ws as unknown as { model: { merges: string[] } }).model.merges
+      const col = (n: number) => ws.getRow(1).getCell(n).address.replace(/\d+/g, '')
+      const lastN = layout.lead + COLS + layout.tail.length
+      check('    the letterhead spans the whole widened sheet',
+        merges.includes(`A1:${col(lastN)}1`), merges.slice(0, 3).join(' '))
+      check('    the left half grows with the region, ending on the anchor',
+        merges.includes(`A5:${col(layout.lead + COLS)}5`), merges.slice(0, 8).join(' '))
+      check('    and the roll on the right rides on the tail',
+        merges.includes(`${col(layout.lead + COLS + 1)}6:${col(lastN)}6`),
+        merges.slice(0, 8).join(' '))
+
+      /*
+       * COLUMN WIDTHS ACROSS THE WIDENED REGION — a regression guard on
+       * `expandSubjectColumns`, which used to re-apply the anchor's width to a
+       * moving target inside its insert loop: each pass pushed the column it
+       * had just sized one to the right and sized that one again, so every
+       * clone but the last came out with no width and the sheet printed
+       * default-width columns under rotated headers. Every value was correct,
+       * which is why it survived — only opening the file shows it. Note 9 is
+       * unusable as a width: exceljs calls it the default and writes no
+       * `<col>` entry at all.
+       */
+      const widthOf = (n: number) => ws.getColumn(n).width
+      check('    every cloned column inherits the anchor\'s width',
+        [0, 1, 10, 20, 21].every(i => widthOf(SC + i) === widthOf(SC)),
+        [0, 1, 10, 20, 21].map(i => `${SC + i}:${widthOf(SC + i)}`).join(' '))
+      check('    and the tail columns keep their own widths past the region',
+        layout.tail.every((_, i) => widthOf(tailStart + i) !== undefined),
+        layout.tail.map((_, i) => `${tailStart + i}:${widthOf(tailStart + i)}`).join(' '))
+    }
+
+    // §35 — an empty class, and a one-pupil class.
+    const empty = await gen(0, 0)
+    let emptyLeftover = ''
+    empty.eachRow({ includeEmpty: false }, r => r.eachCell({ includeEmpty: false }, c => {
+      const v = typeof c.value === 'string' ? c.value : ''
+      if (v.includes('{{')) emptyLeftover = v
+    }))
+    check('    zero pupils and zero columns still yields a usable sheet',
+      emptyLeftover === '', emptyLeftover)
+    const one = await gen(layout.variable ? 1 : 0, 1)
+    check('    a single pupil renders',
+      String(one.getRow(firstRow).getCell(nameCol).value ?? '') !== '')
+  }
 }
 
 if (failures > 0) {

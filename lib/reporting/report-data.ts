@@ -15,10 +15,12 @@ import { resolveTemplate } from '@/lib/scores/template'
 import { applySelection } from '@/lib/scores/selection'
 import { assignRanks, numericColumnKeys, studentAverage } from '@/lib/scores/aggregate'
 import { schemeForLevel } from '@/lib/grading/levelSchemes'
-import { gradeFor } from '@/lib/grading/scheme'
+import { gradeFor, type GradingSchemeConfig } from '@/lib/grading/scheme'
 import { scoreCellValue } from '@/lib/utils/score-value'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
-import { MONTH_LABEL_BY_ID } from '@/lib/constants/months'
+import {
+  KHMER_MONTH_LABELS, KHMER_WEEKDAYS, MONTHS_BY_ACADEMIC_YEAR, MONTH_LABEL_BY_ID,
+} from '@/lib/constants/months'
 import {
   isSemesterId, monthlyComponent, semesterAverage, semesterLabel,
   type SemesterId,
@@ -36,8 +38,10 @@ import type { MonthId } from '@/lib/constants/months'
 import {
   isFemale, schemeLetters, tallyCell, tallySubject,
 } from '@/lib/scores/subject-results'
+import { toKhmerLunarDate } from 'khmer-chhankitek-calendar'
 import { logger } from '@/lib/utils/logger'
-import type { Score, Settings, Student } from '@/lib/types'
+import { resolveCalendarYear } from '@/lib/constants/academic'
+import type { AttendanceRecord, Score, Settings, Student } from '@/lib/types'
 import type { CellValue, ReportPayload, ReportRow, ReportSubjectColumn } from './report-mapper'
 import type { ReportType } from './report-types'
 
@@ -346,9 +350,23 @@ export async function resolveScoreMonthly(
     }
   })
 
+  // The v2 form's summary blocks. `passMark` is the class's own scheme's, as
+  // it is everywhere else — the sheet states the line it split on rather than
+  // asserting one of its own.
+  const marked = data.students.filter((c) => c.average !== null)
+  const formRows = data.students.map((c) => ({
+    average: c.average, female: isFemale(c.student.gender),
+  }))
+
   return {
     payload: {
-      scalars: headerScalars(data, request.academicYear),
+      scalars: {
+        ...headerScalars(data, request.academicYear),
+        ...formScalars(formRows, data.scheme),
+        ...passSummaryScalars(formRows, data.scheme.passMark),
+        'class.passmark': toKhmerNumber(data.scheme.passMark),
+        'class.scored': toKhmerNumber(marked.length),
+      },
       subjects: data.subjects,
       rows,
     },
@@ -424,11 +442,16 @@ export async function resolveRankingMonthly(
 
   const marked = data.students.filter((c) => c.average !== null)
   const passed = marked.filter((c) => (c.average ?? 0) >= data.scheme.passMark).length
+  const formRows = data.students.map((c) => ({
+    average: c.average, female: isFemale(c.student.gender),
+  }))
 
   return {
     payload: {
       scalars: {
         ...headerScalars(data, request.academicYear),
+        ...formScalars(formRows, data.scheme),
+        ...passSummaryScalars(formRows, data.scheme.passMark),
         'class.scored': toKhmerNumber(marked.length),
         'class.passed': toKhmerNumber(passed),
         'class.failed': toKhmerNumber(marked.length - passed),
@@ -625,8 +648,14 @@ async function resolveSemesterClass(
 
 /** Header tokens both semester documents share. */
 function semesterScalars(data: SemesterClassData, academicYear: string) {
+  const rows = data.students.map((c) => ({
+    average: c.average, female: isFemale(c.student.gender),
+  }))
+
   return {
     ...headerScalars(data.base, academicYear),
+    ...formScalars(rows, data.base.scheme),
+    ...passSummaryScalars(rows, data.base.scheme.passMark),
     'period.label': data.periodLabel,
     'period.semester': semesterLabel(data.semester),
     'class.average': data.classAverage === null ? '' : Number(data.classAverage.toFixed(2)),
@@ -841,6 +870,14 @@ export async function resolveHonor(
     payload: {
       scalars: {
         ...headerScalars(base, request.academicYear),
+        // The letterhead's roll and the signature block's dates. The band
+        // block is deliberately absent from this template — see its builder.
+        ...formScalars(
+          base.students.map((c) => ({
+            average: c.average, female: isFemale(c.student.gender),
+          })),
+          base.scheme,
+        ),
         'honor.count': toKhmerNumber(ordered.length),
         'honor.total': toKhmerNumber(base.students.length),
         'honor.average': honorAverage === null ? '' : Number(honorAverage.toFixed(2)),
@@ -1074,11 +1111,102 @@ export async function resolveAnnualClass(
   }
 }
 
+/**
+ * `៥២ នាក់ ស្រី ១៩ នាក់` — a headcount with its female half, the shape the
+ * ministry summary blocks are written in.
+ *
+ * Deliberately NOT `tallyCell`'s `៥២ (១៩)`: that is the subject-results table's
+ * own notation and the two sheets spell the same idea differently on paper.
+ * One helper each, rather than one helper bent to two forms.
+ */
+function personTally(total: number, female: number): string {
+  return `${toKhmerNumber(total)} នាក់ ស្រី ${toKhmerNumber(female)} នាក់`
+}
+
+/**
+ * The supplied form's two summary blocks, for any sheet that prints them.
+ *
+ * `rows` is one entry per pupil: the average the sheet itself shows, and
+ * whether that pupil is female. Counted HERE and not by a formula in the
+ * spreadsheet, on purpose — a `COUNTIF` over the printed column would be a
+ * second judge of who passed beside the scheme's `passMark`, and a second
+ * grader beside `gradeFor` (§11).
+ *
+ * The band keys come from the SCHEME, so a level whose ladder is not A–F
+ * leaves the template's A–F lines blank rather than mislabelling them. The
+ * signature block's date pair is the one `/attendance/monthly` prints: the
+ * lunar reckoning above, the Gregorian one below.
+ */
+function formScalars(
+  rows: { average: number | null; female: boolean }[],
+  scheme: GradingSchemeConfig,
+) {
+  const tally = (subset: typeof rows) =>
+    personTally(subset.length, subset.filter((r) => r.female).length)
+
+  const bands = Object.fromEntries(
+    schemeLetters(scheme).map((letter) => [
+      `class.grade_${letter.toLowerCase()}`,
+      tally(rows.filter((r) => gradeFor(r.average, scheme)?.letter === letter)),
+    ]),
+  )
+
+  const today = new Date()
+  const day = toKhmerNumber(String(today.getDate()).padStart(2, '0'))
+
+  return {
+    'class.female': toKhmerNumber(rows.filter((r) => r.female).length),
+    'class.roll_tally': tally(rows),
+    ...bands,
+    'date.lunar': toKhmerLunarDate(today).lunarDateText,
+    'date.today':
+      `ថ្ងៃទី ${day} ខែ ${KHMER_MONTH_LABELS[today.getMonth()]} ឆ្នាំ ${toKhmerNumber(today.getFullYear())}`,
+  }
+}
+
+/**
+ * The left-hand summary block for a sheet whose verdict is PASS or FAIL.
+ *
+ * `passMark` is the class's own scheme's — the sheet states the line it split
+ * on rather than asserting one of its own. The fourth line is the UNMARKED,
+ * which is a third state and on neither side of that line: a pupil with no
+ * marks has not failed, and counting them as either would be a claim the data
+ * cannot make (§36).
+ */
+function passSummaryScalars(
+  rows: { average: number | null; female: boolean }[],
+  passMark: number,
+) {
+  const tally = (subset: typeof rows) =>
+    personTally(subset.length, subset.filter((r) => r.female).length)
+  const marked = rows.filter((r) => r.average !== null)
+
+  return {
+    'class.passed_tally': tally(marked.filter((r) => (r.average ?? 0) >= passMark)),
+    'class.failed_tally': tally(marked.filter((r) => (r.average ?? 0) < passMark)),
+    'class.unmarked_tally': tally(rows.filter((r) => r.average === null)),
+  }
+}
+
 /** Header tokens every annual document shares, on top of the class letterhead. */
 function annualScalars(data: AnnualClassData, academicYear: string) {
   const marked = data.students.filter((c) => c.annual.average !== null).length
+
+  // The left-hand block is the year's three STATUSES, which only the annual
+  // sheet has — `annualStatus` is its judge, never a threshold retyped here.
+  const withStatus = (want: AnnualStatus) => {
+    const subset = data.students.filter((c) => c.annual.status === want)
+    return personTally(subset.length, subset.filter((c) => isFemale(c.student.gender)).length)
+  }
+
   return {
     ...headerScalars(data.base, academicYear),
+    ...formScalars(
+      data.students.map((c) => ({
+        average: c.annual.average, female: isFemale(c.student.gender),
+      })),
+      data.base.scheme,
+    ),
     'period.label': data.periodLabel,
     'period.year': academicYear,
     'class.average': data.classAverage === null ? '' : Number(data.classAverage.toFixed(2)),
@@ -1087,6 +1215,9 @@ function annualScalars(data: AnnualClassData, academicYear: string) {
     'class.promoted': toKhmerNumber(data.counts.promoted),
     'class.repeated': toKhmerNumber(data.counts.repeated),
     'class.incomplete': toKhmerNumber(data.counts.incomplete),
+    'class.promoted_tally': withStatus('promoted'),
+    'class.repeated_tally': withStatus('repeated'),
+    'class.incomplete_tally': withStatus('incomplete'),
     // Printed on the paper, not buried in metadata (§31).
     'annual.source': annualSourceNote(data.source),
   }
@@ -1124,6 +1255,310 @@ function annualRowValues(
     'row.letter': grade?.letter ?? '',
     'row.rank': average === null ? '' : toKhmerNumber(c.rank),
     'row.status': annualStatusLabel(c.annual.status),
+  }
+}
+
+// ===========================================================================
+// Attendance — the two ministry sheets moved into the print centre
+// ===========================================================================
+
+/**
+ * What a mark means on paper.
+ *
+ * `AP` folds in with `A`, matching `/attendance/yearly` and `/score-analyse`.
+ * The legacy `/attendance/monthly` screen instead leaves `AP` blank, which is
+ * a bug rather than a decision — a mark that exists in the data and prints as
+ * nothing on the sheet. Folding it is the behaviour the other two already
+ * agree on, so this makes two of three, not a fourth opinion.
+ */
+const ATTENDANCE_MARK: Record<string, string> = { P: '✓', L: 'ច', A: 'អ', AP: 'អ' }
+
+/** Excused, unexcused, or neither. The only distinction the sheets tally. */
+function absenceKind(status: string): 'L' | 'A' | null {
+  if (status === 'L') return 'L'
+  if (status === 'A' || status === 'AP') return 'A'
+  return null
+}
+
+/**
+ * The class's attendance over a date range.
+ *
+ * Scoped the way every other roster read in this layer is: by enrolment where
+ * the class is v2, by `teacher_id` where it is legacy. NOT the legacy screen's
+ * `teacher_id`-only filter — on a v2 class that returns the marks the signed-in
+ * teacher entered rather than the class's, which is a different sheet.
+ */
+async function fetchAttendance(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  from: string,
+  to: string,
+  rosterIds: string[] | null,
+  teacherId: string,
+): Promise<AttendanceRecord[]> {
+  let query = supabase
+    .from('attendance')
+    .select('student_id, date, status')
+    .gte('date', from)
+    .lte('date', to)
+
+  query = rosterIds ? query.in('student_id', rosterIds) : query.eq('teacher_id', teacherId)
+
+  const { data, error } = await query
+  if (error) {
+    logger.error('fetchAttendance:', error)
+    return []
+  }
+  return (data ?? []) as AttendanceRecord[]
+}
+
+/**
+ * `attendance_monthly` — របាយការណ៍វត្តមានសិស្សប្រចាំខែ.
+ *
+ * One column per DAY of the requested month — the variable region again, as
+ * `annual_monthly_average` fills it with months and `annual_subject_results`
+ * with grade bands (§22). The number of columns is the month's own length, so
+ * February prints twenty-eight or twenty-nine and never a dead thirty-first.
+ *
+ * Each column is headed by its day number over its weekday, which is what the
+ * sub-header row exists for: a teacher looks down this sheet for Saturdays.
+ */
+export async function resolveAttendanceMonthly(
+  request: ReportRequest,
+): Promise<ResolvedReport | { error: string }> {
+  const base = await resolveMonthlyClass(request)
+  if ('error' in base) return base
+
+  const month = MONTHS_BY_ACADEMIC_YEAR.find((m) => m.id === request.period)
+  if (!month) return { error: 'ខែមិនត្រឹមត្រូវ' }
+
+  const year = Number(resolveCalendarYear(request.academicYear, month.isNextYear))
+  const lastDay = new Date(year, month.index + 1, 0).getDate()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const dateOf = (day: number) => `${year}-${month.num}-${pad(day)}`
+
+  const supabase = await createClient()
+  const records = await fetchAttendance(
+    supabase, dateOf(1), dateOf(lastDay), base.rosterIds, base.teacherId,
+  )
+
+  // student -> date -> status.
+  const byStudent = new Map<string, Record<string, string>>()
+  for (const rec of records) {
+    const bucket = byStudent.get(rec.student_id) ?? {}
+    bucket[String(rec.date).slice(0, 10)] = String(rec.status)
+    byStudent.set(rec.student_id, bucket)
+  }
+
+  const columns: ReportSubjectColumn[] = Array.from({ length: lastDay }, (_, i) => {
+    const day = i + 1
+    return {
+      key: dateOf(day),
+      label: toKhmerNumber(day),
+      // The label row is the day; the row under it is the weekday.
+      sublabel: KHMER_WEEKDAYS[new Date(year, month.index, day).getDay()],
+      maxScore: 0,
+    }
+  })
+
+  const rows: ReportRow[] = base.students.map((c, i) => {
+    const marks = byStudent.get(c.student.id) ?? {}
+    let excused = 0
+    let unexcused = 0
+    for (const column of columns) {
+      const kind = absenceKind(marks[column.key] ?? '')
+      if (kind === 'L') excused += 1
+      if (kind === 'A') unexcused += 1
+    }
+
+    return {
+      values: {
+        'row.no': toKhmerNumber(i + 1),
+        'row.name': c.student.name_kh || c.student.name_en || '',
+        'row.gender': c.student.gender ?? '',
+        'row.student_id': c.student.student_id ?? '',
+        // Blank, not zero: a sheet of noughts is unreadable on paper, and the
+        // legacy screen prints it the same way.
+        'row.excused': excused || null,
+        'row.unexcused': unexcused || null,
+        'row.absent_total': excused + unexcused || null,
+      },
+      subjectValues: columns.map((column) => ATTENDANCE_MARK[marks[column.key] ?? ''] ?? null),
+    }
+  })
+
+  const totals = rows.reduce(
+    (acc, r) => ({
+      excused: acc.excused + Number(r.values['row.excused'] ?? 0),
+      unexcused: acc.unexcused + Number(r.values['row.unexcused'] ?? 0),
+    }),
+    { excused: 0, unexcused: 0 },
+  )
+  const female = base.students.filter((c) => isFemale(c.student.gender)).length
+
+  return {
+    payload: {
+      scalars: {
+        ...headerScalars(base, request.academicYear),
+        ...formScalars(
+          base.students.map((c) => ({ average: null, female: isFemale(c.student.gender) })),
+          base.scheme,
+        ),
+        'class.female': toKhmerNumber(female),
+        'period.label': `ខែ${base.monthLabel}`,
+        'class.days': toKhmerNumber(lastDay),
+        'class.excused': toKhmerNumber(totals.excused),
+        'class.unexcused': toKhmerNumber(totals.unexcused),
+        'class.absent_total': toKhmerNumber(totals.excused + totals.unexcused),
+      },
+      subjects: columns,
+      rows,
+    },
+    summary: {
+      studentCount: base.students.length,
+      subjectCount: columns.length,
+      average: null,
+      periodLabel: base.periodLabel,
+      className: base.className,
+    },
+  }
+}
+
+/**
+ * `attendance_yearly` — ចំនួនសរុបអវត្តមានសិស្សប្រចាំឆ្នាំ.
+ *
+ * TWO columns per month — ច្បាប់ and អច្បាប់ — with the month name merged over
+ * the pair. That is the second thing the sub-header row buys: the columns carry
+ * the same `label`, so the writer spans it across them, and their `sublabel`
+ * says which half is which.
+ *
+ * MONTH ORDER AND THE SEMESTER SPLIT are `MONTHS_BY_ACADEMIC_YEAR`'s and the
+ * screen's — November → October, first six months against the last six. The
+ * ministry's own file runs October → September; `/attendance/yearly` documents
+ * why it does not follow that, and a report which did would put one sheet a
+ * month out of step with every other view in the app.
+ */
+export async function resolveAttendanceYearly(
+  request: ReportRequest,
+): Promise<ResolvedReport | { error: string }> {
+  const base = await resolveMonthlyClass({ ...request, period: 'nov' })
+  if ('error' in base) return base
+
+  const monthCount = MONTHS_BY_ACADEMIC_YEAR.length
+  const sem1 = new Set(MONTHS_BY_ACADEMIC_YEAR.slice(0, monthCount / 2).map((m) => m.id))
+
+  // `YYYY-MM` -> month id, so a record is bucketed by string compare rather
+  // than by building a Date per row — the screen's own approach.
+  const monthByPrefix = new Map<string, string>()
+  for (const m of MONTHS_BY_ACADEMIC_YEAR) {
+    monthByPrefix.set(`${resolveCalendarYear(request.academicYear, m.isNextYear)}-${m.num}`, m.id)
+  }
+
+  const first = MONTHS_BY_ACADEMIC_YEAR[0]
+  const last = MONTHS_BY_ACADEMIC_YEAR[monthCount - 1]
+  const from = `${resolveCalendarYear(request.academicYear, first.isNextYear)}-${first.num}-01`
+  const to = `${resolveCalendarYear(request.academicYear, last.isNextYear)}-${last.num}-31`
+
+  const supabase = await createClient()
+  const records = await fetchAttendance(
+    supabase, from, to, base.rosterIds, base.teacherId,
+  )
+
+  type Counts = { L: number; A: number }
+  const zero = (): Counts => ({ L: 0, A: 0 })
+  const tallies = new Map<string, Record<string, Counts>>()
+  for (const c of base.students) {
+    tallies.set(
+      c.student.id,
+      Object.fromEntries(MONTHS_BY_ACADEMIC_YEAR.map((m) => [m.id, zero()])),
+    )
+  }
+  for (const rec of records) {
+    const months = tallies.get(rec.student_id)
+    if (!months) continue
+    const monthId = monthByPrefix.get(String(rec.date).slice(0, 7))
+    if (!monthId) continue
+    const kind = absenceKind(String(rec.status))
+    if (kind) months[monthId][kind] += 1
+  }
+
+  // One column per month per kind, the month spanning its pair.
+  const columns: ReportSubjectColumn[] = MONTHS_BY_ACADEMIC_YEAR.flatMap((m) => [
+    { key: `${m.id}:L`, label: `ខែ ${m.label}`, sublabel: 'ច្ប', maxScore: 0 },
+    { key: `${m.id}:A`, label: `ខែ ${m.label}`, sublabel: 'អច្ប', maxScore: 0 },
+  ])
+
+  const blank = (n: number) => (n === 0 ? null : n)
+
+  const rows: ReportRow[] = base.students.map((c, i) => {
+    const months = tallies.get(c.student.id) ?? {}
+    const roll = (ids: Set<string> | null) =>
+      MONTHS_BY_ACADEMIC_YEAR.reduce(
+        (acc, m) => (ids && !ids.has(m.id) ? acc : {
+          L: acc.L + (months[m.id]?.L ?? 0),
+          A: acc.A + (months[m.id]?.A ?? 0),
+        }),
+        zero(),
+      )
+    const s1 = roll(sem1)
+    const s2 = roll(new Set(MONTHS_BY_ACADEMIC_YEAR.map((m) => m.id).filter((id) => !sem1.has(id))))
+    const year = { L: s1.L + s2.L, A: s1.A + s2.A }
+
+    return {
+      values: {
+        'row.no': toKhmerNumber(i + 1),
+        'row.student_id': c.student.student_id ?? '',
+        'row.name': c.student.name_kh || c.student.name_en || '',
+        'row.gender': c.student.gender ?? '',
+        'row.sem1_excused': blank(s1.L),
+        'row.sem1_unexcused': blank(s1.A),
+        'row.sem1_total': blank(s1.L + s1.A),
+        'row.sem2_excused': blank(s2.L),
+        'row.sem2_unexcused': blank(s2.A),
+        'row.sem2_total': blank(s2.L + s2.A),
+        'row.year_excused': blank(year.L),
+        'row.year_unexcused': blank(year.A),
+        'row.year_total': blank(year.L + year.A),
+      },
+      subjectValues: columns.map((column) => {
+        const [id, kind] = column.key.split(':')
+        return blank(months[id]?.[kind as 'L' | 'A'] ?? 0)
+      }),
+    }
+  })
+
+  const female = base.students.filter((c) => isFemale(c.student.gender)).length
+  const total = rows.reduce(
+    (acc, r) => ({
+      L: acc.L + Number(r.values['row.year_excused'] ?? 0),
+      A: acc.A + Number(r.values['row.year_unexcused'] ?? 0),
+    }),
+    { L: 0, A: 0 },
+  )
+
+  return {
+    payload: {
+      scalars: {
+        ...headerScalars(base, request.academicYear),
+        ...formScalars(
+          base.students.map((c) => ({ average: null, female: isFemale(c.student.gender) })),
+          base.scheme,
+        ),
+        'class.female': toKhmerNumber(female),
+        'period.label': `ឆ្នាំសិក្សា ${request.academicYear}`,
+        'class.excused': toKhmerNumber(total.L),
+        'class.unexcused': toKhmerNumber(total.A),
+        'class.absent_total': toKhmerNumber(total.L + total.A),
+      },
+      subjects: columns,
+      rows,
+    },
+    summary: {
+      studentCount: base.students.length,
+      subjectCount: columns.length,
+      average: null,
+      periodLabel: `ឆ្នាំសិក្សា ${request.academicYear}`,
+      className: base.className,
+    },
   }
 }
 
@@ -1863,6 +2298,10 @@ export async function resolveReport(
       return resolveAnnualRepeated(request)
     case 'student_tracking_record_book':
       return resolveRecordBook(request)
+    case 'attendance_monthly':
+      return resolveAttendanceMonthly(request)
+    case 'attendance_yearly':
+      return resolveAttendanceYearly(request)
     default:
       return { error: 'របាយការណ៍នេះមិនទាន់ប្រើប្រព័ន្ធបង្កើតឯកសាររួមនៅឡើយទេ' }
   }

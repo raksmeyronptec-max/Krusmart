@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { ArrowLeft, Printer, FileSpreadsheet } from 'lucide-react'
 import { Button } from '@/components/ui/actions/Button'
+import { useClassHref } from '@/lib/hooks/useClassHref'
 import type { Settings } from '@/lib/types'
 
 /**
@@ -39,6 +40,8 @@ export function ReportFrame({
   /** Filters rendered on screen only. */
   controls?: React.ReactNode
 }) {
+  // The back link keeps the class this sheet was generated for.
+  const classHref = useClassHref()
   return (
     <div className="min-h-screen bg-paper text-text-heading pb-10 print:bg-white">
       <style jsx global>{`
@@ -56,7 +59,7 @@ export function ReportFrame({
       <div className="no-print mx-auto mt-8 max-w-7xl px-4">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <Link
-            href="/yearly-report"
+            href={classHref('/yearly-report')}
             className="inline-flex w-fit items-center gap-2 rounded-xl bg-bg-surface/50 px-4 py-2 font-bold text-brand shadow-sm backdrop-blur-sm transition hover:text-brand-800"
           >
             <ArrowLeft className="h-5 w-5" /> ត្រឡប់ទៅរបាយការណ៍ប្រចាំឆ្នាំ

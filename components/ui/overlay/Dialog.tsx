@@ -22,7 +22,7 @@ import { useOverlay } from "./useOverlay"
  * screen. That is a layout switch only; the semantics stay identical.
  */
 
-export type DialogSize = "sm" | "md" | "lg" | "xl"
+export type DialogSize = "sm" | "md" | "lg" | "xl" | "2xl"
 
 export interface DialogProps {
   open: boolean
@@ -46,6 +46,9 @@ const SIZES: Record<DialogSize, string> = {
   md: "sm:max-w-lg",
   lg: "sm:max-w-2xl",
   xl: "sm:max-w-4xl",
+  // Wide enough to judge a landscape sheet's layout without scrolling for every
+  // column. Only the report preview asks for it.
+  "2xl": "sm:max-w-6xl",
 }
 
 export function Dialog({

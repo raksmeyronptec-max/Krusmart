@@ -35,7 +35,7 @@ function check(name: string, ok: boolean, detail = '') {
   else { failures += 1; console.error(`  ✗ ${name}${detail ? `\n      ${detail}` : ''}`) }
 }
 
-const TEMPLATE = 'lib/reporting/templates/student_tracking_record_book_v1.docx'
+const TEMPLATE = 'lib/reporting/templates/tracking/student_tracking_record_book_v1.docx'
 const def = REPORT_DEFINITIONS.find((r) => r.type === 'student_tracking_record_book')!
 const TOKEN_RE = /\{[#/]?[A-Za-z][\w.]*\}/g
 

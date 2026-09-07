@@ -14,6 +14,7 @@ import { MONTHS_BY_ACADEMIC_YEAR } from '@/lib/constants/months'
 import { getCurrentAcademicYear } from '@/lib/constants/academic'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import type { Score, Student } from '@/lib/types'
+import { useActiveClass } from '@/lib/hooks/useActiveClass'
 
 /** Pass/fail tally for one subject, as charted on this page. */
 interface SubjectStat {
@@ -85,6 +86,17 @@ export default function SubjectAnalysisClient({
     students: Student[]
     defaultAcademicYear: string
 }) {
+  /*
+   * The class every mark below is fetched for.
+   *
+   * `getAllScoresByPeriod` resolves the caller's *default* class when it is not
+   * told which one — so a teacher holding two classes saw this screen's roster
+   * (resolved from `?class=` by the page) beside the other class's marks. The
+   * page and the fetch have to name the same class.
+   *
+   * `?? undefined` keeps a pre-V2 account on `teacher_id` scoping, unchanged.
+   */
+  const scopeClassId = useActiveClass().classId ?? undefined
     const [academicYear, setAcademicYear] = useState(defaultAcademicYear || getCurrentAcademicYear())
     // Widened to `string`: `MonthId` is a literal union, and `Select`'s onChange
     // hands back a plain string.
@@ -105,13 +117,13 @@ export default function SubjectAnalysisClient({
         // Both requests are issued together: the trend chart and the period
         // tables are independent, so serialising them would double the wait.
         const [period, year] = await Promise.all([
-            getAllScoresByPeriod('monthly', `${currentPeriod}-${academicYear}`),
-            getMonthlyScoresForYear(academicYear),
+            getAllScoresByPeriod('monthly', `${currentPeriod}-${academicYear}`, scopeClassId),
+            getMonthlyScoresForYear(academicYear, scopeClassId),
         ])
         setPeriodScores(period)
         setYearScores(year)
         setLoading(false)
-    }, [academicYear, currentPeriod])
+    }, [academicYear, currentPeriod, scopeClassId])
 
     useEffect(() => {
         // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch: state is set after await, not synchronously during the effect

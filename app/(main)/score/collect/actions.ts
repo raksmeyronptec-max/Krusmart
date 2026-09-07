@@ -5,6 +5,7 @@ import { getUserRoles, requirePermission } from '@/lib/rbac/server'
 import { isSchoolAdmin } from '@/lib/rbac/permissions'
 import { auditLog } from '@/lib/audit/log'
 import { logger } from '@/lib/utils/logger'
+import { subjectProgress } from '@/lib/scores/completion'
 import { getErrorMessageOr } from '@/lib/utils/errors'
 import {
   fetchScoreTemplate, resolveServerScope, rosterIdsForScope,
@@ -125,41 +126,26 @@ export async function getCollectionOverview(
   }
   const nameOf = (id: string) => ({ id, name: names.get(id) ?? 'គ្រូបង្រៀន' })
 
-  // Marks indexed by column id, so a multi-column subject counts a pupil once.
-  const byColumn = new Map<string, { pupils: Set<string>; teachers: Set<string> }>()
-  for (const row of scoreRows) {
-    const marked = (row.score_value !== null && row.score_value !== undefined)
-      || (typeof row.score_text === 'string' && row.score_text !== '')
-    if (!marked) continue
-    const bucket = byColumn.get(row.subject) ?? { pupils: new Set<string>(), teachers: new Set<string>() }
-    bucket.pupils.add(row.student_id)
-    if (row.teacher_id) bucket.teachers.add(row.teacher_id)
-    byColumn.set(row.subject, bucket)
-  }
+  /*
+   * The counting itself is `lib/scores/completion.ts`'s — the same function the
+   * dashboard's "how far through marking am I" figure calls, so the two cannot
+   * report different progress for the same class and period. What stays here is
+   * the part that is genuinely this screen's: turning teacher *ids* into names,
+   * which needs the profiles read above and which the dashboard does not want.
+   */
+  const progress = subjectProgress(subjects, scoreRows, ids.length)
 
-  const completion: SubjectCompletion[] = subjects.map((subject) => {
-    const pupils = new Set<string>()
-    const contributors = new Set<string>()
-    for (const col of subject.columns) {
-      const bucket = byColumn.get(col.id)
-      if (!bucket) continue
-      bucket.pupils.forEach((p) => pupils.add(p))
-      bucket.teachers.forEach((t) => contributors.add(t))
-    }
-
-    const entered = pupils.size
-    return {
-      subjectKey: subject.subjectKey,
-      label: subject.labelKm,
-      entered,
-      total: ids.length,
-      status: entered === 0 ? 'empty' : entered >= ids.length ? 'complete' : 'partial',
-      teachers: assignments
-        .filter((a) => a.subject_key === subject.subjectKey)
-        .map((a) => nameOf(a.teacher_id as string)),
-      contributors: [...contributors].map(nameOf),
-    }
-  })
+  const completion: SubjectCompletion[] = progress.map((p) => ({
+    subjectKey: p.subjectKey,
+    label: p.label,
+    entered: p.entered,
+    total: p.total,
+    status: p.status,
+    teachers: assignments
+      .filter((a) => a.subject_key === p.subjectKey)
+      .map((a) => nameOf(a.teacher_id as string)),
+    contributors: p.contributorIds.map(nameOf),
+  }))
 
   // Whole-class when the caller holds a homeroom row — or none at all, which
   // is every primary and legacy account.

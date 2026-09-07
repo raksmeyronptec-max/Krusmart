@@ -48,8 +48,8 @@ console.log('\nA. catalogue and availability (§26/§27)')
   check('it is engine_ready', avail.status === 'engine_ready', avail.status)
   check('and offers បង្កើតរបាយការណ៍', avail.actionLabel === 'បង្កើតរបាយការណ៍')
   check('on a derived template (§31)',
-    avail.template?.provenance === 'derived' && avail.template?.id === 'score_semester_v1')
-  check('exactly one active template', activeTemplate('score_semester')?.version === 1)
+    avail.template?.provenance === 'derived' && avail.template?.id === 'score_semester_v2')
+  check('exactly one active template', activeTemplate('score_semester')?.version === 2)
 }
 
 // ---------------------------------------------------------------------------
@@ -116,7 +116,7 @@ console.log('\nC. the arithmetic it inherits (§6/§8)')
 // ---------------------------------------------------------------------------
 console.log('\nD. the document (§39)')
 {
-  const TEMPLATE = 'lib/reporting/templates/score_semester_v1.xlsx'
+  const TEMPLATE = 'lib/reporting/templates/scores/score_semester_v1.xlsx'
   const buf = await readFile(TEMPLATE)
 
   const HEADER = 6          // five letterhead rows, then the header

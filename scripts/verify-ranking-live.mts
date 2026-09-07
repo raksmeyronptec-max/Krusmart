@@ -122,7 +122,7 @@ const ordered = [...computed].sort((a, b) => {
   if (am !== bm) return am ? -1 : 1
   return a.rank - b.rank
 })
-const buf = await readFile('lib/reporting/templates/ranking_monthly_v1.xlsx')
+const buf = await readFile('lib/reporting/templates/ranking/ranking_monthly_v1.xlsx')
 const out = await fillXlsxTemplate(buf, {
   scalars: { 'school.name': 'សាលាបឋមសិក្សា តេស្ត', 'class.name': '៤ក', 'class.grade': '៤',
     'class.count': '៤', 'class.average': 7.67, 'period.label': 'ខែវិច្ឆិកា',
@@ -249,7 +249,7 @@ for (const name of ['សុខា', 'ដារា', 'វិចិត្រ']) {
 }
 
 // The document.
-const semBuf = await readFile('lib/reporting/templates/ranking_semester_v1.xlsx')
+const semBuf = await readFile('lib/reporting/templates/ranking/ranking_semester_v1.xlsx')
 const semOrdered = [...semComputed].sort((a, b) => {
   const am = a.average !== null, bm = b.average !== null
   if (am !== bm) return am ? -1 : 1
@@ -349,7 +349,7 @@ for (const e of eligible) {
 }
 
 // The document.
-const honBuf = await readFile('lib/reporting/templates/honor_v1.xlsx')
+const honBuf = await readFile('lib/reporting/templates/honor/honor_v1.xlsx')
 const honOrdered = [...eligible].sort((a, b) => (b.average ?? 0) - (a.average ?? 0))
 const honOut = await fillXlsxTemplate(honBuf, {
   scalars: {

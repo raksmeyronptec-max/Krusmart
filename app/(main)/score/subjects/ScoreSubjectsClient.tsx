@@ -38,6 +38,7 @@ import { applySubjectSelection, listClassSelection, swapSelectionOrder } from '.
 import { SubjectSelectionList, type SubjectRow } from './SubjectSelectionList'
 import { GridPreview } from './GridPreview'
 import { ScoreCalendarSection } from './ScoreCalendarSection'
+import { useClassHref } from '@/lib/hooks/useClassHref'
 
 /**
  * មុខវិជ្ជាតាមថ្នាក់ — which subjects a class teaches, and which parts of each.
@@ -153,6 +154,9 @@ export default function ScoreSubjectsClient({
   classId: string | null
   className: string
 }) {
+  // Keeps the working class on the way out: a link from this screen to
+  // another class-scoped screen must still be about the same class.
+  const classHref = useClassHref()
   const [rows, setRows] = useState(initialRows)
   const [selection, setSelection] = useState(initialSelection)
   /**
@@ -500,7 +504,7 @@ export default function ScoreSubjectsClient({
             description="ការកែបញ្ជីមុខវិជ្ជាធ្វើឡើងតាមថ្នាក់។ គណនីនេះមិនទាន់មានថ្នាក់ទេ ដូច្នេះវាកំពុងប្រើបញ្ជីមុខវិជ្ជាតាមលំនាំដើមរបស់ក្រសួង។"
             action={
               <Link
-                href="/classroom"
+                href={classHref("/classroom")}
                 className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand px-4 text-sm font-bold text-brand-contrast transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
               >
                 <ListChecks className="h-4 w-4" aria-hidden="true" /> បង្កើតថ្នាក់

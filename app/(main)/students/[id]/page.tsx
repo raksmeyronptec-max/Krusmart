@@ -13,6 +13,7 @@ import { StudentPhoto } from './StudentPhoto'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import { calculateAge, formatKhmerDate } from '@/lib/utils/date'
 import { gradeFor } from '@/lib/grading/scheme'
+import { withClassParam } from '@/lib/utils/classHref'
 import type { Student } from '@/lib/types'
 
 /**
@@ -88,6 +89,21 @@ function NeighbourLink({ student, dir }: { student: Student | null; dir: 'prev' 
   )
 }
 
+/**
+ * What an enrolment status means, in the teacher's words.
+ *
+ * The three that survive the `withdrawn` filter. `promoted` and `transferred`
+ * are *past* placements — a pupil carrying them is not in that class any more,
+ * which is exactly why every roster read in this app filters on `.neq(...)`
+ * rather than `.eq('status','active')`. An unrecognised status prints itself
+ * rather than being silently relabelled.
+ */
+const ENROLMENT_BADGE: Record<string, { label: string; variant: 'success' | 'info' | 'muted' }> = {
+  active: { label: 'កំពុងរៀន', variant: 'success' },
+  promoted: { label: 'បានឡើងថ្នាក់', variant: 'info' },
+  transferred: { label: 'បានផ្ទេរ', variant: 'muted' },
+}
+
 export default async function StudentDetailPage({
   params,
 }: {
@@ -100,7 +116,20 @@ export default async function StudentDetailPage({
   // so a guessed id is indistinguishable from a deleted one.
   if (!detail) notFound()
 
-  const { student: s, academicYear, attendance, subjects, months, overallAverage, scheme, homework } = detail
+  const { student: s, academicYear, attendance, subjects, months, overallAverage, scheme, homework, classId, enrolments } = detail
+  /*
+   * Links carry *this pupil's* class, not the teacher's active one.
+   *
+   * The page is reached by id — from a roster row, a search result, or the
+   * previous/next arrows — so the ambient selection can easily be a different
+   * class. Without this, "បញ្ចូលពិន្ទុ" on a ៦ក pupil's page opened whichever
+   * class was last selected, and the teacher entered a mark for the right
+   * child in the wrong grid. `classId` comes from the pupil's own enrolment.
+   */
+  const href = (target: string) => withClassParam(target, classId)
+
+  /** The pupil's current placement — the newest non-withdrawn enrolment. */
+  const current = enrolments[0] ?? null
   const { prev, next, position, total } = await getRosterNeighbours(id)
   // The pupil's own scheme, resolved once from their enrolment in `getStudentDetail`.
   const grade = gradeFor(overallAverage, scheme)
@@ -117,7 +146,7 @@ export default async function StudentDetailPage({
   return (
     <PageContainer>
       <Link
-        href="/student-list"
+        href={href('/student-list')}
         className="mb-3 inline-flex min-h-11 items-center gap-1.5 rounded-lg text-[13px] font-bold text-text-muted transition hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring print:hidden"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
@@ -134,7 +163,14 @@ export default async function StudentDetailPage({
             <p className="mt-1 text-sm text-text-muted">
               អ.ល {s.student_id || '-'} · {s.gender || '-'}
               {age !== null && <> · អាយុ {toKhmerNumber(age)} ឆ្នាំ</>}
-              {s.grade && <> · ថ្នាក់ {s.grade}</>}
+              {/*
+                The class comes from the pupil's *enrolment*, falling back to
+                `students.grade` only when there is none. The text column is
+                what a pre-V2 pupil has; for everyone else it is a copy that
+                goes stale the moment they are promoted, while the enrolment row
+                is what every roster read in the app actually uses.
+              */}
+              {current ? <> · ថ្នាក់ {current.className}</> : s.grade ? <> · ថ្នាក់ {s.grade}</> : null}
             </p>
             {(flags.some((f) => f.on) || !isNone(s.poor_status) || !isNone(s.orphan_status)) && (
               <div className="mt-2 flex flex-wrap gap-1.5">
@@ -212,6 +248,41 @@ export default async function StudentDetailPage({
         />
       </section>
 
+      {/* ---------------------------------------------------------- enrolment */}
+      {/*
+        Which class, which year, what status — and where the pupil has been.
+        A teacher meeting a parent, or deciding whether a mark belongs to this
+        year at all, needs the placement before any of the figures below it.
+
+        Rendered only when there is an enrolment: a pre-V2 pupil has none, and
+        an empty card headed "ការចុះឈ្មោះ" would state a gap rather than a fact.
+      */}
+      {enrolments.length > 0 && (
+        <Card padding="sm" className="mb-4">
+          <h2 className="mb-2 text-sm font-bold text-text-heading">ការចុះឈ្មោះ</h2>
+          <ol className="flex flex-col gap-1.5">
+            {enrolments.map((e, i) => (
+              <li
+                key={`${e.classId}-${e.academicYearId ?? i}`}
+                className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm"
+              >
+                <span className="font-bold text-text-heading">{e.className || '—'}</span>
+                <span className="text-text-muted">{e.academicYearName || '—'}</span>
+                <Badge
+                  variant={ENROLMENT_BADGE[e.status]?.variant ?? 'muted'}
+                  size="sm"
+                >
+                  {ENROLMENT_BADGE[e.status]?.label ?? e.status}
+                </Badge>
+                {/* The newest row is the placement every other screen scopes
+                    by, so it is worth saying which one that is. */}
+                {i === 0 && <span className="text-xs text-text-muted">ថ្នាក់បច្ចុប្បន្ន</span>}
+              </li>
+            ))}
+          </ol>
+        </Card>
+      )}
+
       {/* ------------------------------------------------------------- actions */}
       <div className="mb-5 flex flex-wrap gap-2 print:hidden">
         {[
@@ -222,7 +293,7 @@ export default async function StudentDetailPage({
         ].map((a) => (
           <Link
             key={a.href}
-            href={a.href}
+            href={href(a.href)}
             className="flex min-h-11 items-center gap-2 rounded-lg border border-divider bg-bg-surface px-4 text-sm font-bold text-text-body transition hover:border-brand-400 hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
           >
             <a.icon className="h-4 w-4" aria-hidden="true" />

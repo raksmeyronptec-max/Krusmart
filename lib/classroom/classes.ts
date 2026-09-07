@@ -88,6 +88,21 @@ export interface ClassroomClass {
    * list the teacher just removed it from.
    */
   assignmentIds: string[]
+  /**
+   * The `subject_key`s this teacher is assigned within the class (00024).
+   *
+   * Empty means whole-class: either a homeroom row, or a legacy assignment
+   * written before `subject_key` existed, whose pre-00024 meaning was exactly
+   * "the whole class". A subject teacher holds one entry per subject they mark.
+   *
+   * KEYS, NOT LABELS. Naming a subject means resolving the class's own template
+   * (level, grade, track), which is two queries *per class* — an N+1 on the one
+   * page whose whole design is two queries however many classes a teacher
+   * holds. The card states the teacher's role and how many subjects it covers,
+   * which is what the list needs to answer; `/score/subjects` names them, one
+   * class at a time, where the resolution is already being done.
+   */
+  subjectKeys: string[]
 }
 
 /**
@@ -164,6 +179,17 @@ export function buildClassList(
       studentCount: counts.get(classId) ?? 0,
       assignmentId: ordered[0].id,
       assignmentIds: ordered.map((r) => r.id),
+      // Deduplicated and sorted: two rows for one subject is not a second
+      // subject, and a stable order keeps the card from reshuffling between
+      // renders for no reason.
+      subjectKeys: [
+        ...new Set(
+          ordered
+            .filter((r) => !r.is_homeroom)
+            .map((r) => r.subject_key)
+            .filter((k): k is string => typeof k === 'string' && k.length > 0),
+        ),
+      ].sort(),
     })
   }
 

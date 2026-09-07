@@ -6,7 +6,8 @@ import ReportFrame from './ReportFrame'
 import { EmptyState } from '@/components/ui/feedback/EmptyState'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import { formatKhmerDate } from '@/lib/utils/date'
-import { annualGrade, buildAnnualRows, PROMOTION_THRESHOLD } from '@/lib/reports/annual'
+import { annualGrade, buildAnnualRows } from '@/lib/reports/annual'
+import type { DerivedSemesters } from '@/lib/scores/annual'
 import type { Score, Settings, Student } from '@/lib/types'
 
 /**
@@ -25,15 +26,26 @@ export function PromotionListClient({
   annualScores,
   settings,
   academicYear,
+  derived,
+  threshold,
 }: {
   mode: 'promoted' | 'repeated'
   students: Student[]
   annualScores: Score[]
   settings: Settings | null
   academicYear: string
+  /**
+   * Each pupil's two semester figures, worked out from their marks.
+   *
+   * Resolved by `loadAnnualReportData`, which holds the scope. Without it both
+   * of these lists were permanently empty — see `lib/reports/annual.ts`.
+   */
+  derived: DerivedSemesters
+  /** The class's own pass mark, not primary's 5.00 restated. */
+  threshold: number
 }) {
   const rows = useMemo(() => {
-    const all = buildAnnualRows(students, annualScores)
+    const all = buildAnnualRows(students, annualScores, derived, threshold)
 
     // A pupil with no annual marks at all belongs on neither list. Treating a
     // missing average as a fail would put the whole class on the repeaters sheet
@@ -43,15 +55,27 @@ export function PromotionListClient({
     return scored
       .filter((r) => (mode === 'promoted' ? r.promoted : !r.promoted))
       .sort((a, b) => (b.average as number) - (a.average as number))
-  }, [students, annualScores, mode])
+  }, [students, annualScores, mode, derived, threshold])
 
   const femaleCount = rows.filter((r) => r.student.gender === 'ស្រី' || r.student.gender === 'F').length
 
   const title = mode === 'promoted' ? 'បញ្ជីរាយនាមសិស្សឡើងថ្នាក់' : 'បញ្ជីរាយនាមសិស្សត្រួតថ្នាក់'
+  /*
+   * Where the year came from, said on the sheet.
+   *
+   * A figure a teacher recorded and one the system worked out from the marks
+   * are different claims, and a promotion decision is the last place to blur
+   * them — the engine's `annual_promoted_students` document carries the same
+   * sentence. `derived` when any listed pupil's year was worked out; a class
+   * whose annual sheet really was filled in says nothing extra.
+   */
+  const anyDerived = rows.some((r) => r.source === 'derived')
+
   const subtitle =
-    mode === 'promoted'
-      ? `សិស្សដែលទទួលបានមធ្យមភាគប្រចាំឆ្នាំចាប់ពី ${PROMOTION_THRESHOLD.toFixed(2)} ឡើងទៅ`
-      : `សិស្សដែលទទួលបានមធ្យមភាគប្រចាំឆ្នាំក្រោម ${PROMOTION_THRESHOLD.toFixed(2)}`
+    (mode === 'promoted'
+      ? `សិស្សដែលទទួលបានមធ្យមភាគប្រចាំឆ្នាំចាប់ពី ${threshold.toFixed(2)} ឡើងទៅ`
+      : `សិស្សដែលទទួលបានមធ្យមភាគប្រចាំឆ្នាំក្រោម ${threshold.toFixed(2)}`)
+    + (anyDerived ? ' · គណនាពីពិន្ទុឆមាស' : '')
 
   const exportExcel = () => {
     const header = ['ល.រ', 'អត្តលេខ', 'គោត្តនាម និងនាម', 'ភេទ', 'ថ្ងៃខែឆ្នាំកំណើត', 'ទីកន្លែងកំណើត', 'ឪពុក/ម្តាយ', 'មធ្យមភាគប្រចាំឆ្នាំ', 'ចំណាត់ថ្នាក់', 'និទ្ទេស']

@@ -15,6 +15,7 @@ import { formatMark, letterOrDash, styleFor } from '@/lib/utils/score-band'
 import { DEFAULT_SCHEME_CONFIG, type GradingSchemeConfig } from '@/lib/grading/scheme'
 import { MONTHS_BY_ACADEMIC_YEAR } from '@/lib/constants/months'
 import type { ColumnGroup, TotalledStudent } from './scoreTotalConfig'
+import { useClassHref } from '@/lib/hooks/useClassHref'
 
 /**
  * សម្រាយ — the read-only analysis of whatever the table is currently showing.
@@ -64,6 +65,9 @@ export function ScoreAnalyticsPanel({
   periodLabel,
   scheme = DEFAULT_SCHEME_CONFIG,
 }: ScoreAnalyticsPanelProps) {
+  // Keeps the working class on the way out: a link from this screen to
+  // another class-scoped screen must still be about the same class.
+  const classHref = useClassHref()
   const panelRef = useRef<HTMLDivElement>(null)
   const isClient = useIsClient()
   useOverlay(open, onClose, panelRef)
@@ -255,7 +259,7 @@ export function ScoreAnalyticsPanel({
 
         <footer className="border-t border-divider px-5 py-3">
           <Link
-            href="/score-analyse"
+            href={classHref("/score-analyse")}
             className="inline-flex items-center gap-1.5 text-sm font-bold text-brand hover:underline"
           >
             វិភាគទិន្នន័យលម្អិត <ArrowUpRight className="h-4 w-4" aria-hidden="true" />

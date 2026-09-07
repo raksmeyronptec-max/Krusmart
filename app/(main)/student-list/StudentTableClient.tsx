@@ -28,6 +28,7 @@ import { StudentCard } from '@/components/ui/views/StudentCard'
 import { StudentCompactTable } from '@/components/ui/views/StudentCompactTable'
 import { AdvancedFilterSidebar, type FilterState as FilterOptions } from '@/components/ui/forms/AdvancedFilterSidebar'
 import { BulkActionBar } from '@/components/ui/actions/BulkActionBar'
+import { useClassHref } from '@/lib/hooks/useClassHref'
 
 const SORT_OPTIONS = [
     { value: 'default', label: 'លំដាប់ដើម' },
@@ -78,6 +79,9 @@ export default function StudentTableClient({
     /** The server-validated class the recovery would enrol into. */
     recoverClassId?: string
 }) {
+    // Keeps the working class on the way out: a link from this screen to
+    // another class-scoped screen must still be about the same class.
+    const classHref = useClassHref()
     const router = useRouter()
     const searchParams = useSearchParams()
     const pathname = usePathname()
@@ -304,13 +308,13 @@ export default function StudentTableClient({
                 actions={
                     <>
                         <Link
-                            href="/enrollment"
+                            href={classHref("/enrollment")}
                             className="flex min-h-11 items-center gap-2 rounded-lg bg-success px-4 text-[13px] font-bold text-white shadow-sm transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
                         >
                             <UserPlus className="h-4 w-4" aria-hidden="true" /> បញ្ចូលសិស្សថ្មី
                         </Link>
                         <Link
-                            href="/print-list"
+                            href={classHref("/print-list")}
                             className="flex min-h-11 items-center gap-2 rounded-lg bg-brand px-4 text-[13px] font-bold text-brand-contrast shadow-sm transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
                         >
                             <Printer className="h-4 w-4" aria-hidden="true" /> ទម្រង់បោះពុម្ព
@@ -443,7 +447,7 @@ export default function StudentTableClient({
                             description="សូមបញ្ចូលសិស្សនៅក្នុងទំព័របញ្ចូលព័ត៌មានសិស្សជាមុនសិន។"
                             action={
                                 <Link
-                                    href="/enrollment"
+                                    href={classHref("/enrollment")}
                                     className="flex min-h-11 items-center gap-2 rounded-lg bg-success px-6 text-sm font-bold text-white shadow-sm transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
                                 >
                                     <UserPlus className="h-4 w-4" aria-hidden="true" /> ទៅកាន់ទំព័របញ្ចូលសិស្ស
@@ -476,6 +480,9 @@ export default function StudentTableClient({
                                     onSort={(col) => setSortKey(col === 'name' ? 'name_asc' : col === 'id' ? 'id_asc' : 'default')}
                                     sortConfig={{ column: sortKey.split('_')[0], direction: sortKey.endsWith('desc') ? 'desc' : 'asc' }}
                                     onAction={(action, s) => {
+                                        // `/students/[id]` scopes itself from the
+                                        // pupil's own enrolment, so the class does
+                                        // not travel here — the pupil is the scope.
                                         if (action === 'view') router.push(`/students/${s.id}`)
                                         else if (action === 'edit') router.push(`/students/${s.id}?edit=true`)
                                         else if (action === 'delete') handleDelete(s)

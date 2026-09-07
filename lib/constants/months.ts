@@ -64,6 +64,18 @@ export const ACADEMIC_MONTH_IDS: readonly MonthId[] = MONTHS_BY_ACADEMIC_YEAR.ma
 export const KHMER_MONTH_LABELS: readonly string[] = MONTHS_BY_CALENDAR.map((m) => m.label)
 
 /**
+ * Khmer weekday names indexed by `Date.prototype.getDay()` — index 0 is អាទិត្យ.
+ *
+ * Here rather than in a component because the monthly attendance sheet is
+ * printed by two different things now: the screen at `/attendance/monthly` and
+ * the report engine's own template. Two copies of this array is two ways for
+ * the same Saturday to be named.
+ */
+export const KHMER_WEEKDAYS: readonly string[] = [
+  'អាទិត្យ', 'ច័ន្ទ', 'អង្គារ', 'ពុធ', 'ព្រហស្បតិ៍', 'សុក្រ', 'សៅរ៍',
+]
+
+/**
  * `'jan'` → `'មករា'`.
  *
  * Keyed by plain `string` rather than {@link MonthId} because callers index it

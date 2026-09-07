@@ -3,6 +3,7 @@ import ExcelJS from 'exceljs'
 import {
   ROW_MARKER,
   SUBJECT_MARKER,
+  SUBJECT_SUB_MARKER,
   fillText,
   hasToken,
   type CellValue,
@@ -42,8 +43,15 @@ import {
  * server action. Do not import it from a client component.
  */
 
-/** Read a cell's text, whatever shape exceljs stored it in. */
-function cellText(cell: ExcelJS.Cell): string {
+/**
+ * Read a cell's text, whatever shape exceljs stored it in.
+ *
+ * Exported because `xlsx-preview.ts` reads the SAME cells back out of the
+ * filled workbook. Two readers that disagree about what a cell says would put
+ * one thing on screen and another in the file, which is precisely the failure
+ * a pre-download preview exists to prevent.
+ */
+export function cellText(cell: ExcelJS.Cell): string {
   const v = cell.value
   if (v === null || v === undefined) return ''
   if (typeof v === 'string') return v
@@ -89,9 +97,10 @@ function colNumber(letters: string): number {
   return out
 }
 
-interface MergeBox { r1: number; c1: number; r2: number; c2: number }
+export interface MergeBox { r1: number; c1: number; r2: number; c2: number }
 
-function parseRange(range: string): MergeBox | null {
+/** `A1:C3` -> a box. `null` for anything that is not a plain A1 range. */
+export function parseRange(range: string): MergeBox | null {
   const [a, b] = range.split(':')
   const ma = a?.match(/^([A-Z]+)(\d+)$/)
   const mb = b?.match(/^([A-Z]+)(\d+)$/)
@@ -100,7 +109,7 @@ function parseRange(range: string): MergeBox | null {
 }
 
 /** The sheet's merge ranges. Not on exceljs's public Worksheet type. */
-function mergeRanges(sheet: ExcelJS.Worksheet): string[] {
+export function mergeRanges(sheet: ExcelJS.Worksheet): string[] {
   const model = (sheet as unknown as { model?: { merges?: string[] } }).model
   return [...(model?.merges ?? [])]
 }
@@ -135,7 +144,27 @@ function expandSubjectColumns(
   if (count <= 1) return { first: anchorCol, last: anchorCol }
 
   const shift = count - 1
-  const width = sheet.getColumn(anchorCol).width
+
+  /*
+   * Column widths, remembered before the splice and restored after.
+   *
+   * `spliceColumns` does not carry them reliably: the anchor's own width was
+   * being re-applied to a moving target inside the insert loop (each pass
+   * pushed the column it had just sized one to the right and sized it again),
+   * so the whole cloned region ended up with none; and a run of tail columns
+   * sharing one width could lose it outright, because exceljs stores adjacent
+   * equal widths as a single `<col min max>` range and the splice does not
+   * re-span it. Both print as a sheet of default-width columns — the exact
+   * formatting loss §5 exists to prevent, and invisible until someone opens
+   * the file, since every value is still correct.
+   */
+  const widths = new Map<number, number>()
+  const columnEnd = Math.max(sheet.columnCount, anchorCol)
+  for (let c = 1; c <= columnEnd; c++) {
+    const w = sheet.getColumn(c).width
+    if (w !== undefined) widths.set(c, w)
+  }
+  const width = widths.get(anchorCol)
 
   // Remember every merge, with the master's content, before disturbing it.
   const saved = mergeRanges(sheet)
@@ -153,8 +182,16 @@ function expandSubjectColumns(
 
   for (let i = 0; i < shift; i++) {
     sheet.spliceColumns(anchorCol + 1, 0, [])
-    const clone = sheet.getColumn(anchorCol + 1 + i)
-    if (width !== undefined) clone.width = width
+  }
+
+  // Put every remembered width back at its shifted index, then give the whole
+  // cloned region the anchor's — a subject column is a copy of the anchor, so
+  // it is as wide as the anchor.
+  for (const [c, w] of widths) {
+    sheet.getColumn(c > anchorCol ? c + shift : c).width = w
+  }
+  if (width !== undefined) {
+    for (let c = anchorCol; c <= anchorCol + shift; c++) sheet.getColumn(c).width = width
   }
 
   // `spliceColumns` carries no per-cell style, so copy the anchor cell's style
@@ -248,6 +285,74 @@ export async function fillXlsxTemplate(
       const cell = sheet.getRow(subjectAnchor.row).getCell(subjectRange.first + i)
       cell.value = subject.label
     })
+
+    /*
+     * The optional second header line, for the two ministry attendance forms.
+     *
+     * A date column is headed by its day number over its weekday; a month's
+     * absence pair by the month over `ច្ប` / `អច្ប`. Neither fits one row, and
+     * the second one also needs the month to SPAN its pair — so where a
+     * template carries the sub-marker, adjacent columns sharing a label are
+     * merged in the label row above.
+     *
+     * Gated on the sub-marker rather than applied always: every score sheet
+     * that shipped before this has distinct adjacent labels today, but a class
+     * that ever grew two columns with one name would silently start printing
+     * them merged. Opting in per template keeps that impossible.
+     */
+    const subAnchor = findMarker(sheet, SUBJECT_SUB_MARKER)
+    if (subAnchor) {
+      payload.subjects.forEach((subject, i) => {
+        const cell = sheet.getRow(subAnchor.row).getCell(subjectRange.first + i)
+        cell.value = subject.sublabel ?? null
+      })
+
+      /*
+       * The caption over the whole region — `កាលបរិច្ឆេទ`, `អវត្តមានប្រចាំខែ`.
+       *
+       * Merged HERE and not in the template, because a one-column region cannot
+       * express "span the region": a merge needs two cells, and before
+       * expansion there is only one. `expandSubjectColumns` can widen a merge
+       * it finds, not invent one — so the row above the labels is merged across
+       * the region once its true width is known.
+       *
+       * Confined to templates carrying the sub-marker, and to a cell that
+       * already has a caption in it. A template without both is untouched.
+       */
+      const capRow = subjectAnchor.row - 1
+      if (capRow >= 1 && payload.subjects.length > 1) {
+        const caption = sheet.getRow(capRow).getCell(subjectRange.first)
+        const captionText = cellText(caption)
+        if (captionText) {
+          const style = { ...caption.style }
+          sheet.mergeCells(capRow, subjectRange.first, capRow, subjectRange.last)
+          const master = sheet.getRow(capRow).getCell(subjectRange.first)
+          master.value = captionText
+          master.style = style
+        }
+      }
+
+      // Merge runs of equal label, left to right. `mergeCells` clears the
+      // slaves, so the master's value is written back afterwards.
+      let runStart = 0
+      const flush = (end: number) => {
+        if (end <= runStart) return
+        const c1 = subjectRange.first + runStart
+        const c2 = subjectRange.first + end
+        const master = sheet.getRow(subjectAnchor.row).getCell(c1)
+        const value = master.value
+        sheet.mergeCells(subjectAnchor.row, c1, subjectAnchor.row, c2)
+        sheet.getRow(subjectAnchor.row).getCell(c1).value = value
+      }
+      for (let i = 1; i <= payload.subjects.length; i++) {
+        const same = i < payload.subjects.length
+          && payload.subjects[i].label === payload.subjects[runStart].label
+        if (!same) {
+          flush(i - 1)
+          runStart = i
+        }
+      }
+    }
   }
 
   // ---------------------------------------------------------- 4. pupils

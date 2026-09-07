@@ -68,6 +68,17 @@ console.log('\nA. catalogue (§26)')
     reportsByCategory('yearly').map((r) => r.type).join(',') === FAMILY.join(','))
 }
 
+/**
+ * The version each report is expected to generate on.
+ *
+ * Pinned rather than read from the registry, so superseding a layout is a
+ * deliberate two-line change here and never something a template edit can do
+ * silently. `annual_monthly_average` is on v2 — the school-supplied form.
+ */
+const ACTIVE_TEMPLATE_ID: Record<string, string> = Object.fromEntries(
+  FAMILY.map((t) => [t, `${t}_v2`]),
+)
+
 // ---------------------------------------------------------------------------
 console.log('\nB. availability (§27/§28)')
 {
@@ -78,7 +89,8 @@ console.log('\nB. availability (§27/§28)')
     check(`  and offers បង្កើតរបាយការណ៍`,
       avail.action === 'generate' && avail.actionLabel === 'បង្កើតរបាយការណ៍')
     check(`  on a derived template, never claimed official (§31)`,
-      avail.template?.provenance === 'derived' && avail.template?.id === `${type}_v1`)
+      avail.template?.provenance === 'derived'
+      && avail.template?.id === ACTIVE_TEMPLATE_ID[type], avail.template?.id)
   }
 }
 
@@ -219,13 +231,16 @@ function pupilPayload(columns: number, pupils: number, labels?: string[]): Repor
 const LAYOUT: Record<string, { header: number; lead: number; variable: boolean }> = {
   // Six letterhead rows then the header; the two promotion sheets carry a
   // seventh title (the rule they filter on) so their header sits one lower.
-  annual_summary: { header: 7, lead: 4, variable: false },
-  annual_monthly_ranking: { header: 7, lead: 4, variable: true },
-  annual_monthly_average: { header: 7, lead: 4, variable: true },
-  annual_subject: { header: 7, lead: 4, variable: true },
-  annual_subject_results: { header: 7, lead: 3, variable: true },
-  annual_promoted_students: { header: 8, lead: 5, variable: false },
-  annual_repeated_students: { header: 8, lead: 5, variable: false },
+  // Every one of them is on the school-supplied form now: a letterhead ten
+  // rows deep, the header on row 11, and no `អត្តលេខ` column. The two
+  // promotion lists carry a fourth lead column, the pupil's date of birth.
+  annual_summary: { header: 11, lead: 3, variable: false },
+  annual_monthly_ranking: { header: 11, lead: 3, variable: true },
+  annual_monthly_average: { header: 11, lead: 3, variable: true },
+  annual_subject: { header: 11, lead: 3, variable: true },
+  annual_subject_results: { header: 11, lead: 3, variable: true },
+  annual_promoted_students: { header: 11, lead: 4, variable: false },
+  annual_repeated_students: { header: 11, lead: 4, variable: false },
 }
 
 for (const type of FAMILY) {
@@ -272,7 +287,7 @@ for (const type of FAMILY) {
     && ws.pageSetup.printTitlesRow === `${layout.header}:${layout.header}`)
   check('    header fill survived',
     (ws.getRow(layout.header).getCell(1).fill as ExcelJS.FillPattern)?.fgColor?.argb
-      === 'FFEFF6EE')
+      === 'FFEFF6FF')
   check('    duplicated rows keep their borders',
     ws.getRow(first + 5).getCell(1).border?.top?.style === 'thin')
   check('    the derived-provenance line is printed on the sheet (§31)',
@@ -314,13 +329,34 @@ console.log('\nG. the month region is the real calendar (§21)')
   await wb.xlsx.load(out as unknown as ArrayBuffer)
   const ws = wb.worksheets[0]
 
+  const { header, lead } = LAYOUT.annual_monthly_average
+  const first = lead + 1
   check('twelve academic-year months expand as twelve columns',
-    ws.getRow(7).getCell(5).value === labels[0]
-    && ws.getRow(7).getCell(5 + 11).value === labels[11], `${ws.getRow(7).getCell(5).value}`)
+    ws.getRow(header).getCell(first).value === labels[0]
+    && ws.getRow(header).getCell(first + 11).value === labels[11],
+    `${ws.getRow(header).getCell(first).value}`)
   check('the year starts at វិច្ឆិកា, the Cambodian school year\'s first month',
     labels[0] === 'វិច្ឆិកា')
   check('and the tail still follows the twelfth month',
-    ws.getRow(7).getCell(5 + 12).value === 'ម.ភាគ ឆមាសទី១')
+    ws.getRow(header).getCell(first + 12).value === 'ម.ភាគ ឆមាសទី១')
+
+  /*
+   * v2's two-column letterhead splits ON the subject anchor, which is what
+   * keeps the halves proportional as the month region grows. Asserted here
+   * because the split is invisible in the builder's output and silent when it
+   * breaks: a left block merged one column short stays three columns wide
+   * while the right half floats off over the tail.
+   */
+  const merges = (ws as unknown as { model: { merges: string[] } }).model.merges
+  const lastCol = ws.getRow(1).getCell(lead + 12 + 6).address.replace(/\d+/g, '')
+  const anchorCol = ws.getRow(1).getCell(lead + 12).address.replace(/\d+/g, '')
+  const afterAnchor = ws.getRow(1).getCell(lead + 12 + 1).address.replace(/\d+/g, '')
+  check('the letterhead spans the whole widened sheet',
+    merges.includes(`A1:${lastCol}1`), merges.slice(0, 3).join(' '))
+  check('the left half grows with the month region, ending on the anchor',
+    merges.includes(`A5:${anchorCol}5`), merges.slice(0, 8).join(' '))
+  check('and the roll on the right rides on the tail',
+    merges.includes(`${afterAnchor}6:${lastCol}6`), merges.slice(0, 8).join(' '))
 }
 
 console.log(

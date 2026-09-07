@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/actions/Button'
 import { ArrowLeft, Printer, Award, Calendar, Bookmark } from 'lucide-react'
 import { notify } from '@/components/ui/feedback/notify'
-import { getAllScoresByPeriod } from '../score/total/actions'
+import { getAllScoresByPeriod, getMonthlyScoresForYear } from '../score/total/actions'
 import Select from '@/components/ui/forms/Select'
 import type { Settings, Student } from '@/lib/types'
 import { MONTHS_BY_CALENDAR } from '@/lib/constants/months'
@@ -12,9 +12,14 @@ import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import { letterFor } from '@/lib/grading/scheme'
 import { useScoreTemplate } from '@/lib/hooks/useScoreTemplate'
 import { maxScoreByColumn, resolveTemplate, SYSTEM_PRIMARY_TEMPLATE } from '@/lib/scores/template'
-import {
-    assignRanks, FALLBACK_NUMERIC_KEYS, numericColumnKeys, studentAverage,
-} from '@/lib/scores/aggregate'
+import { useActiveClass } from '@/lib/hooks/useActiveClass'
+import { FALLBACK_NUMERIC_KEYS, numericColumnKeys } from '@/lib/scores/aggregate'
+import { buildPeriodResults } from '@/lib/scores/periodResults'
+import { defaultHonorCriteria, evaluateHonor, HONOR_CRITERIA_PROVENANCE } from '@/lib/scores/honor'
+import { periodKeysForSemester } from '@/lib/scores/calendar'
+import { useScoreCalendar } from '@/lib/hooks/useScoreCalendar'
+import { getCurrentAcademicYear } from '@/lib/constants/academic'
+import type { ScoreScope } from '@/lib/scores/workspace'
 
 /** A student decorated with the per-period scores and the derived ranking fields. */
 type RankedStudent = Student & {
@@ -26,9 +31,28 @@ type RankedStudent = Student & {
 }
 
 export default function HonorRollClient({ initialStudents, settings}: { initialStudents: Student[], settings: Settings | null }) {
-    const [academicYear, setAcademicYear] = useState('2025-2026')
-    const [currentMode, setCurrentMode] = useState<'monthly'|'semester'|'yearly'>('monthly')
+  /*
+   * The class every mark below is fetched for.
+   *
+   * `getAllScoresByPeriod` resolves the caller's *default* class when it is not
+   * told which one — so a teacher holding two classes saw this screen's roster
+   * (resolved from `?class=` by the page) beside the other class's marks. The
+   * page and the fetch have to name the same class.
+   *
+   * `?? undefined` keeps a pre-V2 account on `teacher_id` scoping, unchanged.
+   */
+  const scopeClassId = useActiveClass().classId ?? undefined
+    // Was the literal `'2025-2026'`, which silently became the wrong year every
+    // November — the same defect `/score/enter` and `/ranking` were corrected for.
+    const [academicYear, setAcademicYear] = useState(getCurrentAcademicYear)
+    // `annual`, not `yearly`: the name the schema, the shared layer and the
+    // report all use. This screen was translating its own vocabulary.
+    const [currentMode, setCurrentMode] = useState<ScoreScope>('monthly')
     const [currentPeriod, setCurrentPeriod] = useState('jan')
+    /** Why a pupil is or is not listed — shown beside the podium. */
+    const [criteriaLabel, setCriteriaLabel] = useState('')
+    /** Pupils who cleared the criteria but do not fit the five podium cards. */
+    const [alsoEligible, setAlsoEligible] = useState<RankedStudent[]>([])
     const [loading, setLoading] = useState(false)
     const [showPreview, setShowPreview] = useState(false)
     const [topStudents, setTopStudents] = useState<RankedStudent[]>([])
@@ -41,6 +65,15 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
      */
     const { rows: templateRows, context: templateContext, scheme, levelCurriculum } = useScoreTemplate('monthly')
 
+    /** The class's own period calendar (00029) — never a compiled-in split. */
+    const { calendar } = useScoreCalendar()
+
+    /** The current year plus one either side, so the list follows the calendar. */
+    const academicYearOptions = useMemo(() => {
+        const start = parseInt(getCurrentAcademicYear().split('-')[0], 10)
+        return [start - 1, start, start + 1].map((y) => `${y}-${y + 1}`)
+    }, [])
+
     const keysForMode = (mode: 'monthly' | 'semester') => {
         if (!levelCurriculum) return FALLBACK_NUMERIC_KEYS[mode]
         return numericColumnKeys(resolveTemplate(
@@ -48,65 +81,130 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
         ))
     }
 
-    const loadData = async (mode: 'monthly'|'semester'|'yearly', period: string) => {
+    /**
+     * Load one period and decide who is honoured.
+     *
+     * ── Two defects closed here ───────────────────────────────────────────
+     *
+     * THE YEAR. The annual branch read `sem1_avg` / `sem2_avg` off the stored
+     * sheet, added them, and divided by a hand-counted divisor. Nothing in this
+     * application writes an annual row, so it honoured five pupils on `0.00`
+     * each, ranked equal. It now composes the year through `buildPeriodResults`
+     * — `deriveSemesterAverages` then `buildAnnualResult`, the same pair
+     * `/score/total` and the printed annual sheets use.
+     *
+     * THE RULE. Eligibility was `.slice(0, 5)` after ranking — a property of the
+     * podium's five cards, not a criterion. A class where everybody failed
+     * still produced five honourees; a class where twenty pupils scored 9.5
+     * honoured five of them; and a teacher asking "why is this pupil not on the
+     * list?" could only be told "someone else was fifth", which is not a reason
+     * a parent can be given. `evaluateHonor` decides now, against criteria whose
+     * defaults are read from the class's own grading scheme
+     * (`lib/scores/honor.ts`) — the same rule the printed `honor` report applies,
+     * so screen and sheet finally name the same pupils.
+     *
+     * The podium is still five cards, because that is what the layout holds.
+     * Everyone else who qualified is listed under it rather than silently
+     * dropped, which is the difference between a layout and a policy.
+     */
+    const loadData = async (mode: ScoreScope, period: string) => {
         setLoading(true)
         setCurrentMode(mode)
         setCurrentPeriod(period)
 
-        const scoreMode = mode === 'yearly' ? 'annual' : mode
-        let fetchPeriod = ''
-        if (mode === 'monthly') fetchPeriod = `${period}-${academicYear}`
-        else if (mode === 'semester') fetchPeriod = `${period}-${academicYear}`
-        else fetchPeriod = `annual-${academicYear}`
+        const fetchPeriod = mode === 'annual'
+            ? `annual-${academicYear}`
+            : `${period}-${academicYear}`
 
-        const records = await getAllScoresByPeriod(scoreMode, fetchPeriod)
+        // The three extra reads a derived year needs, made only in annual mode.
+        const [records, sem1Rows, sem2Rows, monthlyRows] = await Promise.all([
+            getAllScoresByPeriod(mode, fetchPeriod, scopeClassId),
+            mode === 'annual'
+                ? getAllScoresByPeriod('semester', `sem1-${academicYear}`, scopeClassId)
+                : Promise.resolve([]),
+            mode === 'annual'
+                ? getAllScoresByPeriod('semester', `sem2-${academicYear}`, scopeClassId)
+                : Promise.resolve([]),
+            mode === 'annual'
+                ? getMonthlyScoresForYear(academicYear, scopeClassId)
+                : Promise.resolve([]),
+        ])
 
-        const processedStudents: RankedStudent[] = initialStudents.map(stu => {
-            const studentScores: Record<string, number | string | null> = {}
-            records.filter(r => r.student_id === stu.id).forEach(r => {
-                studentScores[r.subject] = r.score_value
+        const templateFor = (m: 'monthly' | 'semester') => resolveTemplate(
+            templateRows.length > 0 ? templateRows : SYSTEM_PRIMARY_TEMPLATE, m, templateContext,
+        )
+        const effectiveMode = mode === 'annual' ? 'semester' : mode
+        const maxByColumn = maxScoreByColumn(templateFor(effectiveMode))
+        const monthlyMaxByColumn = maxScoreByColumn(templateFor('monthly'))
+        const numericKeys = keysForMode(effectiveMode)
+
+        // Every figure and every rank comes from the shared builder; this screen
+        // owns no arithmetic of its own.
+        const results = buildPeriodResults({
+            studentIds: initialStudents.map(s => s.id),
+            mode,
+            academicYear,
+            records,
+            numericKeys,
+            maxByColumn,
+            scheme,
+            sem1Exams: sem1Rows,
+            sem2Exams: sem2Rows,
+            monthlyRecords: monthlyRows,
+            monthlyMaxByColumn,
+            sem1Months: periodKeysForSemester(calendar, 'sem1'),
+            sem2Months: periodKeysForSemester(calendar, 'sem2'),
+        })
+
+        const criteria = defaultHonorCriteria(scheme)
+
+        const eligible: RankedStudent[] = []
+        for (const r of results) {
+            const student = initialStudents.find(s => s.id === r.studentId)
+            if (!student) continue
+
+            const verdict = evaluateHonor({
+                average: r.average,
+                scores: r.scores,
+                subjectKeys: numericKeys,
+                maxByColumn,
+            }, criteria, scheme)
+            if (!verdict.eligible) continue
+
+            eligible.push({
+                ...student,
+                scores: r.scores,
+                total: r.total,
+                average: r.average === null ? '0.00' : r.average.toFixed(2),
+                finalAverageForRank: r.average ?? 0,
+                rank: r.rank,
+                grade: letterFor(r.average ?? 0, scheme),
             })
-            // The derived fields are all overwritten by the pass below.
-            return { ...stu, scores: studentScores, total: 0, average: '0.00', finalAverageForRank: 0, rank: 0 }
-        })
+        }
 
-        const maxByColumn = maxScoreByColumn(resolveTemplate(
-            templateRows.length > 0 ? templateRows : SYSTEM_PRIMARY_TEMPLATE,
-            mode === 'yearly' ? 'semester' : mode,
-            templateContext,
-        ))
+        // Best first — this IS a league table, unlike the register the builder
+        // hands back in roster order.
+        eligible.sort((a, b) => a.rank - b.rank || b.finalAverageForRank - a.finalAverageForRank)
 
-        processedStudents.forEach(stu => {
-            if (mode === 'monthly' || mode === 'semester') {
-                const { average, total } = studentAverage(stu.scores, keysForMode(mode), maxByColumn, scheme)
-                stu.total = total
-                stu.average = average === null ? '0.00' : average.toFixed(2)
-                stu.finalAverageForRank = parseFloat(stu.average)
-            } else if (mode === 'yearly') {
-                // Semester averages already sit on the scheme's scale.
-                const s1 = parseFloat(String(stu.scores['sem1_avg'] ?? '0'))
-                const s2 = parseFloat(String(stu.scores['sem2_avg'] ?? '0'))
-                const div = (s1 > 0 ? 1 : 0) + (s2 > 0 ? 1 : 0)
-                stu.total = s1 + s2
-                stu.average = div > 0 ? (stu.total / div).toFixed(2) : "0.00"
-                stu.finalAverageForRank = parseFloat(stu.average)
-            }
-
-            stu.grade = letterFor(stu.finalAverageForRank, scheme)
-        })
-
-        assignRanks(processedStudents, s => s.finalAverageForRank, (s, r) => { s.rank = r })
-
-        // Get Top 5 (or those with average > 0)
-        const top5 = processedStudents.filter(s => s.finalAverageForRank > 0).slice(0, 5)
-
-        if (top5.length === 0) {
-            notify.error('មិនទាន់មានទិន្នន័យពិន្ទុគ្រប់គ្រាន់ទេ សូមបញ្ចូលពិន្ទុជាមុនសិន')
+        if (eligible.length === 0) {
+            /*
+             * A class can honour nobody, and saying so is the point of a
+             * criterion. The old message blamed missing data because the old
+             * rule could only fail that way; this one distinguishes "no marks
+             * yet" from "nobody cleared the bar", which are different answers
+             * and lead to different actions.
+             */
+            const anyMarks = results.some(r => r.average !== null)
+            notify.error(anyMarks
+                ? `គ្មានសិស្សណាឈានដល់លក្ខខណ្ឌទេ (${criteria.label})`
+                : 'មិនទាន់មានទិន្នន័យពិន្ទុគ្រប់គ្រាន់ទេ សូមបញ្ចូលពិន្ទុជាមុនសិន')
             setLoading(false)
             return
         }
 
-        setTopStudents(top5)
+        setCriteriaLabel(criteria.label)
+        setTopStudents(eligible.slice(0, 5))
+        setAlsoEligible(eligible.slice(5))
         setLoading(false)
         setShowPreview(true)
     }
@@ -251,7 +349,7 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
                                     <button onClick={() => setCurrentMode('semester')} className={`select-btn ${currentMode === 'semester' ? 'bg-bg-surface shadow text-brand' : 'text-text-muted hover:bg-paper'}`}>
                                         <Bookmark className="w-4 h-4" /> ប្រចាំឆមាស
                                     </button>
-                                    <button onClick={() => setCurrentMode('yearly')} className={`select-btn ${currentMode === 'yearly' ? 'bg-bg-surface shadow text-brand' : 'text-text-muted hover:bg-paper'}`}>
+                                    <button onClick={() => setCurrentMode('annual')} className={`select-btn ${currentMode === 'annual' ? 'bg-bg-surface shadow text-brand' : 'text-text-muted hover:bg-paper'}`}>
                                         <Award className="w-4 h-4" /> ប្រចាំឆ្នាំ
                                     </button>
                                 </div>
@@ -264,11 +362,11 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
                                         ariaLabel="ឆ្នាំសិក្សា"
                                         value={academicYear}
                                         onChange={setAcademicYear}
-                                        options={['2024-2025', '2025-2026', '2026-2027']}
+                                        options={academicYearOptions}
                                     />
                                 </div>
 
-                                {currentMode !== 'yearly' && (
+                                {currentMode !== 'annual' && (
                                     <div>
                                         <label className="block font-bold text-text-body mb-2">{currentMode === 'monthly' ? 'ជ្រើសរើសខែ' : 'ជ្រើសរើសឆមាស'}</label>
                                         <Select
@@ -347,6 +445,26 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
                                         <h3 className="kh-moul text-[10pt] text-brand">
                                             {currentMode === 'monthly' ? `ប្រចាំខែ ${MONTHS_BY_CALENDAR.find(m => m.id === currentPeriod)?.label}` : currentMode === 'semester' ? `ប្រចាំឆមាសទី${currentPeriod === 'sem1' ? '១' : '២'}` : 'ប្រចាំឆ្នាំ'}
                                         </h3>
+                                        {/*
+                                          THE RULE, PRINTED ON THE SHEET.
+                                          The product has no official honour
+                                          criterion, and these thresholds are
+                                          derived from the class's own grading
+                                          scheme rather than chosen by anyone —
+                                          `HONOR_CRITERIA_PROVENANCE` says so.
+                                          A sheet that lists pupils without
+                                          stating why invites the reader to
+                                          assume a ministry rule; the printed
+                                          `honor` report carries the same
+                                          sentence, so screen and document make
+                                          the same claim.
+                                        */}
+                                        {criteriaLabel && (
+                                            <p className="mt-0.5 text-[8pt] font-normal text-text-muted">
+                                                លក្ខខណ្ឌ៖ {criteriaLabel}
+                                                {HONOR_CRITERIA_PROVENANCE === 'derived' && ' (កំណត់តាមមាត្រដ្ឋានពិន្ទុរបស់ថ្នាក់)'}
+                                            </p>
+                                        )}
                                     </div>
 
                                     <div className="honor-grid w-full flex-1 z-10">
@@ -376,6 +494,26 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
                                             )
                                         })}
                                     </div>
+
+                                    {/*
+                                      Everyone else who cleared the criteria.
+                                      The podium holds five cards and a class
+                                      can honour more than five pupils —
+                                      dropping the rest silently is exactly how
+                                      a layout turns into a policy. Listed as
+                                      names rather than cards, because they are
+                                      the same claim at a smaller size.
+                                    */}
+                                    {alsoEligible.length > 0 && (
+                                        <div className="w-full z-10 mb-2 px-2">
+                                            <p className="text-[9pt] font-normal leading-relaxed">
+                                                <span className="kh-moul text-[9pt]">សិស្សដែលឈានដល់លក្ខខណ្ឌផងដែរ៖ </span>
+                                                {alsoEligible
+                                                    .map((stu) => `${stu.name_kh || stu.full_name} (${toKhmerNumber(stu.average)})`)
+                                                    .join(' · ')}
+                                            </p>
+                                        </div>
+                                    )}
 
                                     <div className="w-full mt-auto mb-0 z-10 flex flex-col items-center">
                                         <div className="flex justify-end w-full mb-1">

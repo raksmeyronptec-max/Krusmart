@@ -4,18 +4,21 @@ import { useState, useCallback, useEffect } from 'react'
 import { Button } from '@/components/ui/actions/Button'
 import { Award, RefreshCw, Image as ImageIcon, Camera, Printer, ListOrdered } from 'lucide-react'
 import { notify } from '@/components/ui/feedback/notify'
-import { getAllScoresByPeriod } from '../score/total/actions'
+import { getAllScoresByPeriod, getMonthlyScoresForYear } from '../score/total/actions'
 import Select from '@/components/ui/forms/Select'
-import type { Score, Settings, Student } from '@/lib/types'
+import type { Settings, Student } from '@/lib/types'
 import { MONTHS_BY_ACADEMIC_YEAR } from '@/lib/constants/months'
 import { letterFor } from '@/lib/grading/scheme'
 import { useScoreTemplate } from '@/lib/hooks/useScoreTemplate'
 import { maxScoreByColumn, resolveTemplate, SYSTEM_PRIMARY_TEMPLATE } from '@/lib/scores/template'
 import { levelByKey, trackLabel } from '@/lib/onboarding/curriculum'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
-import {
-    assignRanks, FALLBACK_NUMERIC_KEYS, numericColumnKeys, studentAverage,
-} from '@/lib/scores/aggregate'
+import { useActiveClass } from '@/lib/hooks/useActiveClass'
+import { FALLBACK_NUMERIC_KEYS, numericColumnKeys } from '@/lib/scores/aggregate'
+import { buildPeriodResults } from '@/lib/scores/periodResults'
+import { periodKeysForSemester } from '@/lib/scores/calendar'
+import { useScoreCalendar } from '@/lib/hooks/useScoreCalendar'
+import type { ScoreScope } from '@/lib/scores/workspace'
 
 /** A student decorated with the scores and ranking fields the certificate prints. */
 type ProcessedStudent = Student & {
@@ -28,7 +31,27 @@ type ProcessedStudent = Student & {
 
 
 export default function CertificateClient({ initialStudents, settings }: { initialStudents: Student[], settings: Settings | null }) {
-    const [scoreType, setScoreType] = useState('monthly')
+  /*
+   * The class every mark below is fetched for.
+   *
+   * `getAllScoresByPeriod` resolves the caller's *default* class when it is not
+   * told which one — so a teacher holding two classes saw this screen's roster
+   * (resolved from `?class=` by the page) beside the other class's marks. The
+   * page and the fetch have to name the same class.
+   *
+   * `?? undefined` keeps a pre-V2 account on `teacher_id` scoping, unchanged.
+   */
+  const scopeClassId = useActiveClass().classId ?? undefined
+    /*
+     * `annual`, not `yearly`.
+     *
+     * This was a bare `useState('monthly')` holding `'yearly'` for the third
+     * option, and line 95 passed it straight to `getAllScoresByPeriod` as the
+     * `score_type` — a value that exists nowhere in `scores`, which stores
+     * `annual`. So ប្រចាំឆ្នាំ fetched zero rows, always, on top of the dead
+     * arithmetic below it. Typed now, so the compiler refuses the fourth name.
+     */
+    const [scoreType, setScoreType] = useState<ScoreScope>('monthly')
     const [academicYear, setAcademicYear] = useState('2025-2026')
     const [month, setMonth] = useState('nov')
     const [semester, setSemester] = useState('sem1')
@@ -67,6 +90,9 @@ export default function CertificateClient({ initialStudents, settings }: { initi
      */
     const { rows: templateRows, context: templateContext, scheme, levelCurriculum } = useScoreTemplate('monthly')
 
+    /** The class's own period calendar (00029) — never a compiled-in split. */
+    const { calendar } = useScoreCalendar()
+
     /** The class's curriculum, said on the panel so the paper is signed in context (§9). */
     const levelContextLabel = (() => {
         const level = templateContext?.levelKey ? levelByKey(templateContext.levelKey) : undefined
@@ -78,51 +104,82 @@ export default function CertificateClient({ initialStudents, settings }: { initi
         return parts.join(' · ')
     })()
 
+    /**
+     * Load the period the certificate will state.
+     *
+     * The annual branch used to add `sem1_avg` and `sem2_avg` and divide by two
+     * unconditionally — so a pupil with one recorded semester was certified at
+     * half their result, and since nothing in this application writes an annual
+     * row, every real class certified `0.00`. Composed through
+     * `buildPeriodResults` now: `deriveSemesterAverages` then
+     * `buildAnnualResult`, which is stored-first, derived-otherwise, and which
+     * averages a single recorded semester to itself rather than to half of it.
+     *
+     * A certificate is the most consequential thing this product prints. It
+     * must carry the same figure `/score/total` shows and the same figure the
+     * engine's `certificate` document writes — which it now does by
+     * construction, because all three call the same builder.
+     */
     const loadData = useCallback(async () => {
         const period = getScorePeriod()
-        const records = await getAllScoresByPeriod(scoreType, period)
 
-        const mode = scoreType === 'monthly' || scoreType === 'semester' ? scoreType : 'semester'
-        const subjectsForMode = resolveTemplate(
-            templateRows.length > 0 ? templateRows : SYSTEM_PRIMARY_TEMPLATE, mode, templateContext,
+        const [records, sem1Rows, sem2Rows, monthlyRows] = await Promise.all([
+            getAllScoresByPeriod(scoreType, period, scopeClassId),
+            scoreType === 'annual'
+                ? getAllScoresByPeriod('semester', `sem1-${academicYear}`, scopeClassId)
+                : Promise.resolve([]),
+            scoreType === 'annual'
+                ? getAllScoresByPeriod('semester', `sem2-${academicYear}`, scopeClassId)
+                : Promise.resolve([]),
+            scoreType === 'annual'
+                ? getMonthlyScoresForYear(academicYear, scopeClassId)
+                : Promise.resolve([]),
+        ])
+
+        const templateFor = (m: 'monthly' | 'semester') => resolveTemplate(
+            templateRows.length > 0 ? templateRows : SYSTEM_PRIMARY_TEMPLATE, m, templateContext,
         )
+        const mode = scoreType === 'annual' ? 'semester' : scoreType
+        const subjectsForMode = templateFor(mode)
         const keys = levelCurriculum ? numericColumnKeys(subjectsForMode) : FALLBACK_NUMERIC_KEYS[mode]
         const maxByColumn = maxScoreByColumn(subjectsForMode)
-        
+
+        const results = buildPeriodResults({
+            studentIds: initialStudents.map(s => s.id),
+            mode: scoreType,
+            academicYear,
+            records,
+            numericKeys: keys,
+            maxByColumn,
+            scheme,
+            sem1Exams: sem1Rows,
+            sem2Exams: sem2Rows,
+            monthlyRecords: monthlyRows,
+            monthlyMaxByColumn: maxScoreByColumn(templateFor('monthly')),
+            sem1Months: periodKeysForSemester(calendar, 'sem1'),
+            sem2Months: periodKeysForSemester(calendar, 'sem2'),
+        })
+
+        const byId = new Map(results.map(r => [r.studentId, r]))
         const processedStudents: ProcessedStudent[] = initialStudents.map(stu => {
-            const studentScores: Record<string, number | null> = {}
-            records.filter((r: Score) => r.student_id === stu.id).forEach((r: Score) => {
-                studentScores[r.subject] = r.score_value
-            })
-            return { ...stu, scores: studentScores }
-        })
-
-        processedStudents.forEach(stu => {
-            if (scoreType === 'yearly') {
-                // Semester averages already sit on the scheme's scale.
-                const s1 = parseFloat(String(stu.scores['sem1_avg'] ?? '0'))
-                const s2 = parseFloat(String(stu.scores['sem2_avg'] ?? '0'))
-                stu.total = s1 + s2
-                stu.average = (stu.total / 2).toFixed(2)
-                stu.finalAverageForRank = parseFloat(stu.average)
-            } else {
-                const { average, total } = studentAverage(stu.scores, keys, maxByColumn, scheme)
-                stu.total = total
-                stu.average = average === null ? '0.00' : average.toFixed(2)
-                stu.finalAverageForRank = parseFloat(stu.average)
+            const r = byId.get(stu.id)
+            return {
+                ...stu,
+                scores: (r?.scores ?? {}) as Record<string, number | null>,
+                total: r?.total ?? 0,
+                // `0.00` for "no result" is this screen's long-standing display.
+                average: r?.average === null || r?.average === undefined ? '0.00' : r.average.toFixed(2),
+                finalAverageForRank: r?.average ?? 0,
+                rank: r?.rank ?? 0,
+                grade: letterFor(r?.average ?? 0, scheme),
             }
-
-            stu.grade = letterFor(stu.finalAverageForRank, scheme)
         })
-
-        assignRanks(
-            processedStudents,
-            stu => stu.finalAverageForRank || 0,
-            (stu, r) => { stu.rank = r },
-        )
 
         setStudentsData(processedStudents)
-    }, [scoreType, initialStudents, getScorePeriod, templateRows, templateContext, scheme, levelCurriculum])
+    }, [
+        scoreType, academicYear, initialStudents, getScorePeriod, templateRows,
+        templateContext, scheme, levelCurriculum, scopeClassId, calendar,
+    ])
 
     useEffect(() => {
         // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch: state is set after await, not synchronously during the effect
@@ -258,7 +315,7 @@ export default function CertificateClient({ initialStudents, settings }: { initi
                                     <div className="flex bg-paper p-1 rounded-xl">
                                         <button onClick={() => setScoreType('monthly')} className={`flex-1 py-2 rounded-lg font-bold transition text-sm ${scoreType === 'monthly' ? 'bg-bg-surface shadow text-brand' : 'text-text-muted hover:bg-paper'}`}>ប្រចាំខែ</button>
                                         <button onClick={() => setScoreType('semester')} className={`flex-1 py-2 rounded-lg font-bold transition text-sm ${scoreType === 'semester' ? 'bg-bg-surface shadow text-brand' : 'text-text-muted hover:bg-paper'}`}>ប្រចាំឆមាស</button>
-                                        <button onClick={() => setScoreType('yearly')} className={`flex-1 py-2 rounded-lg font-bold transition text-sm ${scoreType === 'yearly' ? 'bg-bg-surface shadow text-brand' : 'text-text-muted hover:bg-paper'}`}>ប្រចាំឆ្នាំ</button>
+                                        <button onClick={() => setScoreType('annual')} className={`flex-1 py-2 rounded-lg font-bold transition text-sm ${scoreType === 'annual' ? 'bg-bg-surface shadow text-brand' : 'text-text-muted hover:bg-paper'}`}>ប្រចាំឆ្នាំ</button>
                                     </div>
                                 </div>
 

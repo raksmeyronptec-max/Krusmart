@@ -17,6 +17,7 @@ import { PageContainer, PageHeader } from "@/components/shell/PageContainer"
 import Select from "@/components/ui/forms/Select"
 import SearchableSelect from "@/components/ui/forms/SearchableSelect"
 import { useActiveClass } from "@/lib/hooks/useActiveClass"
+import { useClassHref } from "@/lib/hooks/useClassHref"
 import { CLASS_PARAM } from "@/lib/utils/scopeParam"
 import { calculateAge } from "@/lib/utils/date"
 import { getErrorMessage } from "@/lib/utils/errors"
@@ -54,7 +55,8 @@ function formatSavedAt(timestamp: number) {
 export default function EnrollmentPage() {
   const router = useRouter()
   const urlSearchParams = useSearchParams()
-  const { classId: contextClassId, loading: classLoading } = useActiveClass()
+  const { classId: contextClassId, className, loading: classLoading } = useActiveClass()
+  const classHref = useClassHref()
 
   // Which class this form writes into. The URL param wins: onboarding links
   // here as /enrollment?class=<id>, and it is available immediately while
@@ -242,7 +244,7 @@ export default function EnrollmentPage() {
       leavingRef.current = true
       clearDraft()
       notify.success(`បានរក្សាទុក ${values.studentName} ដោយជោគជ័យ។`)
-      router.push("/student-list")
+      router.push(classHref("/student-list"))
     } catch (error: unknown) {
       setSubmitError(`មានបញ្ហាក្នុងការរក្សាទុកទិន្នន័យ៖ ${getErrorMessage(error)}`)
       setShowConfirm(false)
@@ -286,7 +288,7 @@ export default function EnrollmentPage() {
       leavingRef.current = true
       notify.success(`បានបញ្ចូលសិស្ស ${toKhmerNumber(students.length)} នាក់ដោយជោគជ័យ។`)
       setShowImport(false)
-      router.push("/student-list")
+      router.push(classHref("/student-list"))
       return null
     } catch (error: unknown) {
       const message = `មានបញ្ហាក្នុងការនាំចូល៖ ${getErrorMessage(error)}`
@@ -301,7 +303,20 @@ export default function EnrollmentPage() {
     <PageContainer>
       <PageHeader
         title="ចុះឈ្មោះសិស្សថ្មី"
-        description="បំពេញព័ត៌មានចាំបាច់ជាមុនសិន ហើយបន្ថែមព័ត៌មានលម្អិតតាមតម្រូវការ។"
+        /*
+         * WHICH CLASS RECEIVES THIS PUPIL — said before the first field.
+         *
+         * The form has always written into `activeClassId`; it had never shown
+         * it. A teacher holding two classes filled forty fields with no way to
+         * tell which roster the pupil would land in, and a misplaced pupil is
+         * corrected by a transfer, not by an edit. The class name is the
+         * context's, so it is the same class `?class=` sends to the server.
+         */
+        description={
+          className
+            ? `សិស្សនឹងចូលក្នុងថ្នាក់ ${className} — បំពេញព័ត៌មានចាំបាច់ជាមុនសិន ហើយបន្ថែមព័ត៌មានលម្អិតតាមតម្រូវការ។`
+            : 'បំពេញព័ត៌មានចាំបាច់ជាមុនសិន ហើយបន្ថែមព័ត៌មានលម្អិតតាមតម្រូវការ។'
+        }
         actions={
           <>
             <Button type="button" variant="ghost" size="sm" icon={<RotateCcw className="h-4 w-4" />}
@@ -317,7 +332,7 @@ export default function EnrollmentPage() {
               នាំចូល
             </Button>
             <Button type="button" variant="secondary" size="sm" icon={<List className="h-4 w-4" />}
-              onClick={() => router.push("/student-list")}>
+              onClick={() => router.push(classHref("/student-list"))}>
               បញ្ជីសិស្ស
             </Button>
           </>

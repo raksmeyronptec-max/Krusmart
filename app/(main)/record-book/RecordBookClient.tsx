@@ -23,8 +23,21 @@ import type { AttendanceRecord, Score, Settings, Student } from '@/lib/types'
  * so the booklet always reflects what the gradebook currently holds.
  */
 
-/** The 13 semester subjects, in the order the printed form lists them. */
-const SUBJECTS: { key: string; label: string }[] = [
+/**
+ * The 13 primary semester columns, in the order the ministry form lists them.
+ *
+ * NOW A FALLBACK, NOT THE ANSWER. This screen printed exactly these thirteen
+ * whatever class it was opened for, so a lower-secondary class got a sheet of
+ * primary subject names with every mark blank — the `sem_kh_*` column ids do
+ * not exist in its curriculum. The engine's `student_tracking_record_book`
+ * takes its columns from the class's own template, and a screen and its printed
+ * counterpart naming different subjects is exactly what §11 forbids.
+ *
+ * Kept because it is still the right answer when there is no template to
+ * resolve: a pre-V2 account has no class, and `SYSTEM_PRIMARY_TEMPLATE` is
+ * what it has always been graded against.
+ */
+const FALLBACK_SUBJECTS: { key: string; label: string }[] = [
   { key: 'sem_kh_reading', label: 'អំណាន' },
   { key: 'sem_kh_listening_speaking', label: 'ស្តាប់-និយាយ' },
   { key: 'sem_kh_dictation', label: 'សរសេរតាមអាន' },
@@ -40,8 +53,14 @@ const SUBJECTS: { key: string; label: string }[] = [
   { key: 'sem_sport', label: 'កីឡា' },
 ]
 
-/** Section គ — the behavioural columns, which hold words rather than marks. */
-const BEHAVIOUR: { key: string; label: string }[] = [
+/**
+ * Section គ — the behavioural columns, which hold words rather than marks.
+ *
+ * Fallback for the same reason as above. In a resolved template these are the
+ * columns carrying `type: 'select'` — a property of the data, not a name
+ * prefix, so a curriculum that words them differently still splits correctly.
+ */
+const FALLBACK_BEHAVIOUR: { key: string; label: string }[] = [
   { key: 'sem_eval_knowledge', label: 'ចំណេះដឹង' },
   { key: 'sem_eval_skill', label: 'បំណិន-ចំណេះធ្វើ' },
   { key: 'sem_eval_moral', label: 'តម្លៃ-សីលធម៌' },
@@ -73,7 +92,39 @@ export default function RecordBookClient({
   // The class's grading scheme, resolved once for the whole book — the record
   // sheet prints an annual letter, which must be the letter every other
   // surface shows for the same pupil.
-  const { scheme } = useScoreTemplate('semester')
+  const { subjects: templateSubjects, scheme } = useScoreTemplate('semester')
+
+  /**
+   * The columns this class actually assesses, split the way the form is laid
+   * out: marks in section ខ, worded assessments in section គ.
+   *
+   * Flattened to COLUMNS, not subjects — `scores.subject` stores a
+   * `SubjectColumn.id`, and the printed form lists អំណាន and តែងសេចក្តី as their
+   * own rows rather than folding them into ភាសាខ្មែរ. The split is
+   * `type === 'select'`, which is how the template marks a dropdown whose value
+   * lands in `score_text`; it is a fact about the column rather than a guess
+   * from its name.
+   *
+   * Falls back to the compiled-in primary lists when the template resolves
+   * nothing — a legacy account with no class, which is exactly the world those
+   * lists were written for.
+   */
+  const { subjects: SUBJECTS, behaviour: BEHAVIOUR } = useMemo(() => {
+    const marks: { key: string; label: string }[] = []
+    const worded: { key: string; label: string }[] = []
+
+    for (const subject of templateSubjects) {
+      for (const column of subject.columns) {
+        const entry = { key: column.id, label: column.label }
+        if (column.type === 'select') worded.push(entry)
+        else marks.push(entry)
+      }
+    }
+
+    return marks.length > 0
+      ? { subjects: marks, behaviour: worded.length > 0 ? worded : FALLBACK_BEHAVIOUR }
+      : { subjects: FALLBACK_SUBJECTS, behaviour: FALLBACK_BEHAVIOUR }
+  }, [templateSubjects])
 
   /**
    * `student → subject → { sem1, sem2, annual }`, plus the absence tally.

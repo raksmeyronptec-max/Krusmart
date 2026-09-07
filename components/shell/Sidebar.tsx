@@ -14,6 +14,7 @@ import { moduleForPath, sectionsForRoles, type NavModule, type NavSection } from
 import { NAV_COLLAPSED_COOKIE, NAV_GROUP_COOKIE, writeNavPref } from "@/lib/constants/navPrefs"
 import { useSchoolContext } from "@/lib/context/SchoolContext"
 import { useActiveClass } from "@/lib/hooks/useActiveClass"
+import { useClassHref } from "@/lib/hooks/useClassHref"
 import { Badge } from "@/components/ui/feedback/Badge"
 import type { RoleName } from "@/lib/types"
 import { RailFlyout } from "./RailFlyout"
@@ -331,6 +332,12 @@ function ModuleRow({
   onToggleGroup: (id: string) => void
 }) {
   const panelId = useId()
+  // Navigation carries the working class. Without this a teacher who selected
+  // ៥ខ and then clicked ពិន្ទុ in the rail arrived with no `?class=` at all,
+  // and `resolveServerScope` served their *default* class's marks under a top
+  // bar that still said ៥ខ. Routes that do not read the parameter get their
+  // href back untouched — see `lib/utils/classHref.ts`.
+  const classHref = useClassHref()
   const children = useMemo(
     () => (module.children ?? []).filter((c) => !c.hidden),
     [module.children],
@@ -365,7 +372,7 @@ function ModuleRow({
         )}
 
         <Link
-          href={module.href}
+          href={classHref(module.href)}
           aria-current={state === "on" ? "page" : undefined}
           data-state={state}
           className={`nav-row flex min-w-0 flex-1 items-center gap-2.5 rounded-lg py-1 pr-1 pl-3 text-[13px] transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring ${
@@ -428,7 +435,7 @@ function ModuleRow({
                       />
                     )}
                     <Link
-                      href={child.href}
+                      href={classHref(child.href)}
                       aria-current={on ? "page" : undefined}
                       title={child.label}
                       className={`flex min-h-[26px] items-center rounded-md px-2 py-0.5 text-[12.5px] transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring ${
@@ -471,6 +478,7 @@ function CollapsedRail({
   onExpand: () => void
 }) {
   const { open, toggle, close, triggerRef, menuRef } = useMenu<HTMLDivElement>()
+  const classHref = useClassHref()
   // The anchor is *state*, not a ref: `RailFlyout` positions itself from it
   // during render, and a ref read at that point is not guaranteed to be the
   // value React is rendering with.
@@ -561,7 +569,7 @@ function CollapsedRail({
                     </button>
                   ) : (
                     <Link
-                      href={module.href}
+                      href={classHref(module.href)}
                       aria-current={state === "on" ? "page" : undefined}
                       aria-label={module.label}
                       className={face}

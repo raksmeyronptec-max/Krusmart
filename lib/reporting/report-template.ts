@@ -79,19 +79,68 @@ export interface DocumentTemplate {
  * reproducible from the version it recorded.
  */
 export const TEMPLATE_REGISTRY: DocumentTemplate[] = [
+  // ------------------------------------------------------------ attendance
+  {
+    id: 'attendance_monthly_v1',
+    reportType: 'attendance_monthly',
+    version: 1,
+    label: 'បញ្ជីវត្តមានប្រចាំខែ — ទម្រង់សាលា (v1)',
+    format: 'xlsx',
+    file: 'attendance/attendance_monthly_v1.xlsx',
+    educationLevel: 'primary',
+    grades: [],
+    isActive: true,
+    provenance: 'derived',
+    notes:
+      'ជួរឈរមួយក្នុងមួយថ្ងៃនៃខែ ក្បាលតារាងបីជួរ (កាលបរិច្ឆេទ · ថ្ងៃទី · ថ្ងៃ)។ '
+      + 'តួលេខទាំងអស់មកពីតារាង attendance តាមវិសាលភាពថ្នាក់ដូចរបាយការណ៍ពិន្ទុដដែល។',
+  },
+  {
+    id: 'attendance_yearly_v1',
+    reportType: 'attendance_yearly',
+    version: 1,
+    label: 'អវត្តមានប្រចាំឆ្នាំ — ទម្រង់សាលា (v1)',
+    format: 'xlsx',
+    file: 'attendance/attendance_yearly_v1.xlsx',
+    educationLevel: 'primary',
+    grades: [],
+    isActive: true,
+    provenance: 'derived',
+    notes:
+      'ជួរឈរពីរក្នុងមួយខែ (ច្ប · អច្ប) ដោយឈ្មោះខែឃ្លុំពីលើ រួចឆមាស និងប្រចាំឆ្នាំ។ '
+      + 'លំដាប់ខែ វិច្ឆិកា → តុលា តាមកម្មវិធី មិនមែន តុលា → កញ្ញា តាមឯកសារចាស់ទេ។',
+  },
   {
     id: 'score_monthly_v1',
     reportType: 'score_monthly',
     version: 1,
     label: 'ទម្រង់ក្រសួង (v1)',
     format: 'xlsx',
-    file: 'score_monthly_v1.xlsx',
+    file: 'scores/score_monthly_v1.xlsx',
+    educationLevel: 'primary',
+    grades: [],
+    // Superseded by v2. Kept in the registry, not deleted: a document generated
+    // before the change recorded this id, and it must stay reproducible.
+    isActive: false,
+    provenance: 'derived',
+    notes:
+      'បង្កើតចេញពីទម្រង់ដែល /score/print បង្ហាញរួចហើយ — មិនមែនចម្លងផ្ទាល់ពីឯកសារក្រសួងទេ។',
+  },
+  {
+    id: 'score_monthly_v2',
+    reportType: 'score_monthly',
+    version: 2,
+    label: 'តារាងសរុបពិន្ទុប្រចាំខែ — ទម្រង់សាលា (v2)',
+    format: 'xlsx',
+    file: 'scores/score_monthly_v2.xlsx',
     educationLevel: 'primary',
     grades: [],
     isActive: true,
     provenance: 'derived',
     notes:
-      'បង្កើតចេញពីទម្រង់ដែល /score/print បង្ហាញរួចហើយ — មិនមែនចម្លងផ្ទាល់ពីឯកសារក្រសួងទេ។',
+      'ក្បាលលិខិតពីរជួរ បញ្ជីសង្ខេបតាមលទ្ធផល និងតាមនិទ្ទេស ព្រមទាំងកន្លែងចុះហត្ថលេខា '
+      + 'តាមទម្រង់ដែលសាលាផ្តល់មក។ ពិន្ទុសរុប មធ្យមភាគ ចំណាត់ថ្នាក់ និងនិទ្ទេស '
+      + 'មកពីប្រព័ន្ធគណនារបស់កម្មវិធី មិនមែនពីរូបមន្តក្នុងសន្លឹកទេ។',
   },
   {
     id: 'ranking_monthly_v1',
@@ -99,13 +148,30 @@ export const TEMPLATE_REGISTRY: DocumentTemplate[] = [
     version: 1,
     label: 'តារាងចំណាត់ថ្នាក់ប្រចាំខែ (v1)',
     format: 'xlsx',
-    file: 'ranking_monthly_v1.xlsx',
+    file: 'ranking/ranking_monthly_v1.xlsx',
+    educationLevel: 'primary',
+    grades: [],
+    // Superseded by the school-supplied form (v2). Kept, not deleted: a
+    // document generated before the change recorded this id.
+    isActive: false,
+    provenance: 'derived',
+    notes:
+      'បង្កើតចេញពីទម្រង់ដែល /ranking បង្ហាញរួចហើយ — មិនមែនចម្លងផ្ទាល់ពីឯកសារក្រសួងទេ។',
+  },
+  {
+    id: 'ranking_monthly_v2',
+    reportType: 'ranking_monthly',
+    version: 2,
+    label: 'តារាងចំណាត់ថ្នាក់ប្រចាំខែ — ទម្រង់សាលា (v2)',
+    format: 'xlsx',
+    file: 'ranking/ranking_monthly_v2.xlsx',
     educationLevel: 'primary',
     grades: [],
     isActive: true,
     provenance: 'derived',
     notes:
-      'បង្កើតចេញពីទម្រង់ដែល /ranking បង្ហាញរួចហើយ — មិនមែនចម្លងផ្ទាល់ពីឯកសារក្រសួងទេ។',
+      'ក្បាលលិខិតពីរជួរ បញ្ជីសង្ខេប និងកន្លែងចុះហត្ថលេខា តាមទម្រង់ដែលសាលាផ្តល់មក។ '
+      + 'តួលេខទាំងអស់មកពីប្រព័ន្ធគណនារបស់កម្មវិធី មិនមែនពីរូបមន្តក្នុងសន្លឹកទេ។',
   },
   {
     id: 'ranking_semester_v1',
@@ -113,13 +179,30 @@ export const TEMPLATE_REGISTRY: DocumentTemplate[] = [
     version: 1,
     label: 'តារាងចំណាត់ថ្នាក់ឆមាស (v1)',
     format: 'xlsx',
-    file: 'ranking_semester_v1.xlsx',
+    file: 'ranking/ranking_semester_v1.xlsx',
+    educationLevel: 'primary',
+    grades: [],
+    // Superseded by the school-supplied form (v2). Kept, not deleted: a
+    // document generated before the change recorded this id.
+    isActive: false,
+    provenance: 'derived',
+    notes:
+      'បង្ហាញម.ភាគប្រឡង និងម.ភាគប្រចាំខែដាច់ដោយឡែក — មិនមែនចម្លងផ្ទាល់ពីឯកសារក្រសួងទេ។',
+  },
+  {
+    id: 'ranking_semester_v2',
+    reportType: 'ranking_semester',
+    version: 2,
+    label: 'តារាងចំណាត់ថ្នាក់ឆមាស — ទម្រង់សាលា (v2)',
+    format: 'xlsx',
+    file: 'ranking/ranking_semester_v2.xlsx',
     educationLevel: 'primary',
     grades: [],
     isActive: true,
     provenance: 'derived',
     notes:
-      'បង្ហាញម.ភាគប្រឡង និងម.ភាគប្រចាំខែដាច់ដោយឡែក — មិនមែនចម្លងផ្ទាល់ពីឯកសារក្រសួងទេ។',
+      'ក្បាលលិខិតពីរជួរ បញ្ជីសង្ខេប និងកន្លែងចុះហត្ថលេខា តាមទម្រង់ដែលសាលាផ្តល់មក។ '
+      + 'តួលេខទាំងអស់មកពីប្រព័ន្ធគណនារបស់កម្មវិធី មិនមែនពីរូបមន្តក្នុងសន្លឹកទេ។',
   },
   {
     id: 'honor_v1',
@@ -127,13 +210,30 @@ export const TEMPLATE_REGISTRY: DocumentTemplate[] = [
     version: 1,
     label: 'តារាងកិត្តិយស (v1)',
     format: 'xlsx',
-    file: 'honor_v1.xlsx',
+    file: 'honor/honor_v1.xlsx',
+    educationLevel: 'primary',
+    grades: [],
+    // Superseded by the school-supplied form (v2). Kept, not deleted: a
+    // document generated before the change recorded this id.
+    isActive: false,
+    provenance: 'derived',
+    notes:
+      'ទាំងទម្រង់ និងលក្ខណៈវិនិច្ឆ័យជាបណ្ដោះអាសន្ន — ក្រសួងមិនទាន់មានច្បាប់កិត្តិយសផ្លូវការក្នុងប្រព័ន្ធនេះទេ។',
+  },
+  {
+    id: 'honor_v2',
+    reportType: 'honor',
+    version: 2,
+    label: 'បញ្ជីសិស្សពូកែ — ទម្រង់សាលា (v2)',
+    format: 'xlsx',
+    file: 'honor/honor_v2.xlsx',
     educationLevel: 'primary',
     grades: [],
     isActive: true,
     provenance: 'derived',
     notes:
-      'ទាំងទម្រង់ និងលក្ខណៈវិនិច្ឆ័យជាបណ្ដោះអាសន្ន — ក្រសួងមិនទាន់មានច្បាប់កិត្តិយសផ្លូវការក្នុងប្រព័ន្ធនេះទេ។',
+      'ក្បាលលិខិតពីរជួរ បញ្ជីសង្ខេប និងកន្លែងចុះហត្ថលេខា តាមទម្រង់ដែលសាលាផ្តល់មក។ '
+      + 'តួលេខទាំងអស់មកពីប្រព័ន្ធគណនារបស់កម្មវិធី មិនមែនពីរូបមន្តក្នុងសន្លឹកទេ។',
   },
   {
     id: 'ranking_annual_v1',
@@ -141,13 +241,30 @@ export const TEMPLATE_REGISTRY: DocumentTemplate[] = [
     version: 1,
     label: 'តារាងចំណាត់ថ្នាក់ប្រចាំឆ្នាំ (v1)',
     format: 'xlsx',
-    file: 'ranking_annual_v1.xlsx',
+    file: 'ranking/ranking_annual_v1.xlsx',
+    educationLevel: 'primary',
+    grades: [],
+    // Superseded by the school-supplied form (v2). Kept, not deleted: a
+    // document generated before the change recorded this id.
+    isActive: false,
+    provenance: 'derived',
+    notes:
+      'បង្ហាញម.ភាគឆមាសទាំងពីរ និងលទ្ធផលប្រចាំឆ្នាំ។ ប្រភពម.ភាគឆមាស (រក្សាទុក ឬគណនា) បោះពុម្ពលើសន្លឹកតែម្ដង។',
+  },
+  {
+    id: 'ranking_annual_v2',
+    reportType: 'ranking_annual',
+    version: 2,
+    label: 'តារាងចំណាត់ថ្នាក់ប្រចាំឆ្នាំ — ទម្រង់សាលា (v2)',
+    format: 'xlsx',
+    file: 'ranking/ranking_annual_v2.xlsx',
     educationLevel: 'primary',
     grades: [],
     isActive: true,
     provenance: 'derived',
     notes:
-      'បង្ហាញម.ភាគឆមាសទាំងពីរ និងលទ្ធផលប្រចាំឆ្នាំ។ ប្រភពម.ភាគឆមាស (រក្សាទុក ឬគណនា) បោះពុម្ពលើសន្លឹកតែម្ដង។',
+      'ក្បាលលិខិតពីរជួរ បញ្ជីសង្ខេប និងកន្លែងចុះហត្ថលេខា តាមទម្រង់ដែលសាលាផ្តល់មក។ '
+      + 'តួលេខទាំងអស់មកពីប្រព័ន្ធគណនារបស់កម្មវិធី មិនមែនពីរូបមន្តក្នុងសន្លឹកទេ។',
   },
   {
     id: 'certificate_v1',
@@ -155,7 +272,7 @@ export const TEMPLATE_REGISTRY: DocumentTemplate[] = [
     version: 1,
     label: 'បណ្ណសរសើរ (v1)',
     format: 'docx',
-    file: 'certificate_v1.docx',
+    file: 'certificate/certificate_v1.docx',
     educationLevel: 'primary',
     grades: [],
     isActive: true,
@@ -169,13 +286,30 @@ export const TEMPLATE_REGISTRY: DocumentTemplate[] = [
     version: 1,
     label: 'បញ្ជីបូកលទ្ធផលសរុប (v1)',
     format: 'xlsx',
-    file: 'annual_summary_v1.xlsx',
+    file: 'yearly/annual_summary_v1.xlsx',
+    educationLevel: 'primary',
+    grades: [],
+    // Superseded by the school-supplied form (v2). Kept, not deleted: a
+    // document generated before the change recorded this id.
+    isActive: false,
+    provenance: 'derived',
+    notes:
+      'លទ្ធផលពេញមួយឆ្នាំក្នុងមួយសន្លឹក — ឆមាសទាំងពីរ ម.ភាគ និទ្ទេស ចំណាត់ថ្នាក់ និងលទ្ធផល។ បង្កើតដោយ KruSmart។',
+  },
+  {
+    id: 'annual_summary_v2',
+    reportType: 'annual_summary',
+    version: 2,
+    label: 'បញ្ជីបូកលទ្ធផលសរុបប្រចាំឆ្នាំ — ទម្រង់សាលា (v2)',
+    format: 'xlsx',
+    file: 'yearly/annual_summary_v2.xlsx',
     educationLevel: 'primary',
     grades: [],
     isActive: true,
     provenance: 'derived',
     notes:
-      'លទ្ធផលពេញមួយឆ្នាំក្នុងមួយសន្លឹក — ឆមាសទាំងពីរ ម.ភាគ និទ្ទេស ចំណាត់ថ្នាក់ និងលទ្ធផល។ បង្កើតដោយ KruSmart។',
+      'ក្បាលលិខិតពីរជួរ បញ្ជីសង្ខេប និងកន្លែងចុះហត្ថលេខា តាមទម្រង់ដែលសាលាផ្តល់មក។ '
+      + 'តួលេខទាំងអស់មកពីប្រព័ន្ធគណនារបស់កម្មវិធី មិនមែនពីរូបមន្តក្នុងសន្លឹកទេ។',
   },
   {
     id: 'annual_monthly_ranking_v1',
@@ -183,13 +317,30 @@ export const TEMPLATE_REGISTRY: DocumentTemplate[] = [
     version: 1,
     label: 'ចំណាត់ថ្នាក់ និងនិទ្ទេស (v1)',
     format: 'xlsx',
-    file: 'annual_monthly_ranking_v1.xlsx',
+    file: 'yearly/annual_monthly_ranking_v1.xlsx',
+    educationLevel: 'primary',
+    grades: [],
+    // Superseded by the school-supplied form (v2). Kept, not deleted: a
+    // document generated before the change recorded this id.
+    isActive: false,
+    provenance: 'derived',
+    notes:
+      'ជួរឈរមួយក្នុងមួយខែតាមប្រតិទិនពិន្ទុរបស់ថ្នាក់ បង្ហាញចំណាត់ថ្នាក់ប្រចាំខែ។ បង្កើតដោយ KruSmart។',
+  },
+  {
+    id: 'annual_monthly_ranking_v2',
+    reportType: 'annual_monthly_ranking',
+    version: 2,
+    label: 'ចំណាត់ថ្នាក់ និងនិទ្ទេសប្រចាំឆ្នាំ — ទម្រង់សាលា (v2)',
+    format: 'xlsx',
+    file: 'yearly/annual_monthly_ranking_v2.xlsx',
     educationLevel: 'primary',
     grades: [],
     isActive: true,
     provenance: 'derived',
     notes:
-      'ជួរឈរមួយក្នុងមួយខែតាមប្រតិទិនពិន្ទុរបស់ថ្នាក់ បង្ហាញចំណាត់ថ្នាក់ប្រចាំខែ។ បង្កើតដោយ KruSmart។',
+      'ក្បាលលិខិតពីរជួរ បញ្ជីសង្ខេប និងកន្លែងចុះហត្ថលេខា តាមទម្រង់ដែលសាលាផ្តល់មក។ '
+      + 'តួលេខទាំងអស់មកពីប្រព័ន្ធគណនារបស់កម្មវិធី មិនមែនពីរូបមន្តក្នុងសន្លឹកទេ។',
   },
   {
     id: 'annual_monthly_average_v1',
@@ -197,13 +348,31 @@ export const TEMPLATE_REGISTRY: DocumentTemplate[] = [
     version: 1,
     label: 'មធ្យមភាគប្រចាំឆ្នាំ (v1)',
     format: 'xlsx',
-    file: 'annual_monthly_average_v1.xlsx',
+    file: 'yearly/annual_monthly_average_v1.xlsx',
+    educationLevel: 'primary',
+    grades: [],
+    // Superseded by v2. Kept in the registry, not deleted: a document generated
+    // before the change recorded this id, and it must stay reproducible.
+    isActive: false,
+    provenance: 'derived',
+    notes:
+      'មធ្យមភាគប្រចាំខែ ឆមាស និងប្រចាំឆ្នាំក្នុងតារាងតែមួយ។ បង្កើតដោយ KruSmart។',
+  },
+  {
+    id: 'annual_monthly_average_v2',
+    reportType: 'annual_monthly_average',
+    version: 2,
+    label: 'មធ្យមភាគប្រចាំឆ្នាំ — ទម្រង់សាលា (v2)',
+    format: 'xlsx',
+    file: 'yearly/annual_monthly_average_v2.xlsx',
     educationLevel: 'primary',
     grades: [],
     isActive: true,
     provenance: 'derived',
     notes:
-      'មធ្យមភាគប្រចាំខែ ឆមាស និងប្រចាំឆ្នាំក្នុងតារាងតែមួយ។ បង្កើតដោយ KruSmart។',
+      'ក្បាលលិខិតពីរជួរ បញ្ជីសង្ខេបតាមលទ្ធផល និងតាមនិទ្ទេស ព្រមទាំងកន្លែងចុះហត្ថលេខា '
+      + 'តាមទម្រង់ដែលសាលាផ្តល់មក។ ពិន្ទុសរុប មធ្យមភាគ ចំណាត់ថ្នាក់ និងនិទ្ទេស '
+      + 'មកពីប្រព័ន្ធគណនារបស់កម្មវិធី មិនមែនពីរូបមន្តក្នុងសន្លឹកទេ។',
   },
   {
     id: 'annual_subject_v1',
@@ -211,13 +380,30 @@ export const TEMPLATE_REGISTRY: DocumentTemplate[] = [
     version: 1,
     label: 'មុខវិជ្ជាប្រចាំឆ្នាំ (v1)',
     format: 'xlsx',
-    file: 'annual_subject_v1.xlsx',
+    file: 'yearly/annual_subject_v1.xlsx',
+    educationLevel: 'primary',
+    grades: [],
+    // Superseded by the school-supplied form (v2). Kept, not deleted: a
+    // document generated before the change recorded this id.
+    isActive: false,
+    provenance: 'derived',
+    notes:
+      'មុខវិជ្ជាមកពីទម្រង់ពិន្ទុរបស់ថ្នាក់ — ទទឹងតារាងប្រែតាមចំនួនមុខវិជ្ជា។ បង្កើតដោយ KruSmart។',
+  },
+  {
+    id: 'annual_subject_v2',
+    reportType: 'annual_subject',
+    version: 2,
+    label: 'មធ្យមភាគតាមមុខវិជ្ជាប្រចាំឆ្នាំ — ទម្រង់សាលា (v2)',
+    format: 'xlsx',
+    file: 'yearly/annual_subject_v2.xlsx',
     educationLevel: 'primary',
     grades: [],
     isActive: true,
     provenance: 'derived',
     notes:
-      'មុខវិជ្ជាមកពីទម្រង់ពិន្ទុរបស់ថ្នាក់ — ទទឹងតារាងប្រែតាមចំនួនមុខវិជ្ជា។ បង្កើតដោយ KruSmart។',
+      'ក្បាលលិខិតពីរជួរ បញ្ជីសង្ខេប និងកន្លែងចុះហត្ថលេខា តាមទម្រង់ដែលសាលាផ្តល់មក។ '
+      + 'តួលេខទាំងអស់មកពីប្រព័ន្ធគណនារបស់កម្មវិធី មិនមែនពីរូបមន្តក្នុងសន្លឹកទេ។',
   },
   {
     id: 'annual_subject_results_v1',
@@ -225,13 +411,30 @@ export const TEMPLATE_REGISTRY: DocumentTemplate[] = [
     version: 1,
     label: 'លទ្ធផលតាមមុខវិជ្ជា (v1)',
     format: 'xlsx',
-    file: 'annual_subject_results_v1.xlsx',
+    file: 'yearly/annual_subject_results_v1.xlsx',
+    educationLevel: 'primary',
+    grades: [],
+    // Superseded by the school-supplied form (v2). Kept, not deleted: a
+    // document generated before the change recorded this id.
+    isActive: false,
+    provenance: 'derived',
+    notes:
+      'ជួរដេកជាមុខវិជ្ជា មិនមែនសិស្ស។ ច្បាប់ជាប់/ធ្លាក់ដូចទំព័រ /yearly-report/subject-results ដដែល។ បង្កើតដោយ KruSmart។',
+  },
+  {
+    id: 'annual_subject_results_v2',
+    reportType: 'annual_subject_results',
+    version: 2,
+    label: 'លទ្ធផលតាមមុខវិជ្ជាប្រចាំឆ្នាំ — ទម្រង់សាលា (v2)',
+    format: 'xlsx',
+    file: 'yearly/annual_subject_results_v2.xlsx',
     educationLevel: 'primary',
     grades: [],
     isActive: true,
     provenance: 'derived',
     notes:
-      'ជួរដេកជាមុខវិជ្ជា មិនមែនសិស្ស។ ច្បាប់ជាប់/ធ្លាក់ដូចទំព័រ /yearly-report/subject-results ដដែល។ បង្កើតដោយ KruSmart។',
+      'ក្បាលលិខិតពីរជួរ បញ្ជីសង្ខេប និងកន្លែងចុះហត្ថលេខា តាមទម្រង់ដែលសាលាផ្តល់មក។ '
+      + 'តួលេខទាំងអស់មកពីប្រព័ន្ធគណនារបស់កម្មវិធី មិនមែនពីរូបមន្តក្នុងសន្លឹកទេ។',
   },
   {
     id: 'annual_promoted_students_v1',
@@ -239,13 +442,30 @@ export const TEMPLATE_REGISTRY: DocumentTemplate[] = [
     version: 1,
     label: 'សិស្សឡើងថ្នាក់ (v1)',
     format: 'xlsx',
-    file: 'annual_promoted_students_v1.xlsx',
+    file: 'yearly/annual_promoted_students_v1.xlsx',
+    educationLevel: 'primary',
+    grades: [],
+    // Superseded by the school-supplied form (v2). Kept, not deleted: a
+    // document generated before the change recorded this id.
+    isActive: false,
+    provenance: 'derived',
+    notes:
+      'លក្ខណៈវិនិច្ឆ័យបោះពុម្ពលើសន្លឹក។ សិស្សដែលមិនទាន់មានលទ្ធផលមិនស្ថិតក្នុងបញ្ជីទេ។ បង្កើតដោយ KruSmart។',
+  },
+  {
+    id: 'annual_promoted_students_v2',
+    reportType: 'annual_promoted_students',
+    version: 2,
+    label: 'បញ្ជីរាយនាមសិស្សឡើងថ្នាក់ — ទម្រង់សាលា (v2)',
+    format: 'xlsx',
+    file: 'yearly/annual_promoted_students_v2.xlsx',
     educationLevel: 'primary',
     grades: [],
     isActive: true,
     provenance: 'derived',
     notes:
-      'លក្ខណៈវិនិច្ឆ័យបោះពុម្ពលើសន្លឹក។ សិស្សដែលមិនទាន់មានលទ្ធផលមិនស្ថិតក្នុងបញ្ជីទេ។ បង្កើតដោយ KruSmart។',
+      'ក្បាលលិខិតពីរជួរ បញ្ជីសង្ខេប និងកន្លែងចុះហត្ថលេខា តាមទម្រង់ដែលសាលាផ្តល់មក។ '
+      + 'តួលេខទាំងអស់មកពីប្រព័ន្ធគណនារបស់កម្មវិធី មិនមែនពីរូបមន្តក្នុងសន្លឹកទេ។',
   },
   {
     id: 'annual_repeated_students_v1',
@@ -253,13 +473,30 @@ export const TEMPLATE_REGISTRY: DocumentTemplate[] = [
     version: 1,
     label: 'សិស្សត្រួតថ្នាក់ (v1)',
     format: 'xlsx',
-    file: 'annual_repeated_students_v1.xlsx',
+    file: 'yearly/annual_repeated_students_v1.xlsx',
+    educationLevel: 'primary',
+    grades: [],
+    // Superseded by the school-supplied form (v2). Kept, not deleted: a
+    // document generated before the change recorded this id.
+    isActive: false,
+    provenance: 'derived',
+    notes:
+      'ជាគូបំពេញនឹងបញ្ជីឡើងថ្នាក់ — សិស្សម្នាក់ស្ថិតក្នុងបញ្ជីតែមួយប៉ុណ្ណោះ។ បង្កើតដោយ KruSmart។',
+  },
+  {
+    id: 'annual_repeated_students_v2',
+    reportType: 'annual_repeated_students',
+    version: 2,
+    label: 'បញ្ជីរាយនាមសិស្សត្រួតថ្នាក់ — ទម្រង់សាលា (v2)',
+    format: 'xlsx',
+    file: 'yearly/annual_repeated_students_v2.xlsx',
     educationLevel: 'primary',
     grades: [],
     isActive: true,
     provenance: 'derived',
     notes:
-      'ជាគូបំពេញនឹងបញ្ជីឡើងថ្នាក់ — សិស្សម្នាក់ស្ថិតក្នុងបញ្ជីតែមួយប៉ុណ្ណោះ។ បង្កើតដោយ KruSmart។',
+      'ក្បាលលិខិតពីរជួរ បញ្ជីសង្ខេប និងកន្លែងចុះហត្ថលេខា តាមទម្រង់ដែលសាលាផ្តល់មក។ '
+      + 'តួលេខទាំងអស់មកពីប្រព័ន្ធគណនារបស់កម្មវិធី មិនមែនពីរូបមន្តក្នុងសន្លឹកទេ។',
   },
   {
     id: 'student_tracking_record_book_v1',
@@ -267,7 +504,7 @@ export const TEMPLATE_REGISTRY: DocumentTemplate[] = [
     version: 1,
     label: 'សៀវភៅសិក្ខាគារិក (v1)',
     format: 'docx',
-    file: 'student_tracking_record_book_v1.docx',
+    file: 'tracking/student_tracking_record_book_v1.docx',
     educationLevel: 'primary',
     grades: [],
     isActive: true,
@@ -281,13 +518,30 @@ export const TEMPLATE_REGISTRY: DocumentTemplate[] = [
     version: 1,
     label: 'តារាងពិន្ទុឆមាស (v1)',
     format: 'xlsx',
-    file: 'score_semester_v1.xlsx',
+    file: 'scores/score_semester_v1.xlsx',
+    educationLevel: 'primary',
+    grades: [],
+    // Superseded by the school-supplied form (v2). Kept, not deleted: a
+    // document generated before the change recorded this id.
+    isActive: false,
+    provenance: 'derived',
+    notes:
+      'តារាងពិន្ទុតាមលំដាប់បញ្ជីឈ្មោះ — ម.ភាគប្រឡង និងម.ភាគប្រចាំខែបង្ហាញដាច់ដោយឡែក។ មិនមែនចម្លងផ្ទាល់ពីឯកសារក្រសួងទេ។',
+  },
+  {
+    id: 'score_semester_v2',
+    reportType: 'score_semester',
+    version: 2,
+    label: 'តារាងសរុបពិន្ទុឆមាស — ទម្រង់សាលា (v2)',
+    format: 'xlsx',
+    file: 'scores/score_semester_v2.xlsx',
     educationLevel: 'primary',
     grades: [],
     isActive: true,
     provenance: 'derived',
     notes:
-      'តារាងពិន្ទុតាមលំដាប់បញ្ជីឈ្មោះ — ម.ភាគប្រឡង និងម.ភាគប្រចាំខែបង្ហាញដាច់ដោយឡែក។ មិនមែនចម្លងផ្ទាល់ពីឯកសារក្រសួងទេ។',
+      'ក្បាលលិខិតពីរជួរ បញ្ជីសង្ខេប និងកន្លែងចុះហត្ថលេខា តាមទម្រង់ដែលសាលាផ្តល់មក។ '
+      + 'តួលេខទាំងអស់មកពីប្រព័ន្ធគណនារបស់កម្មវិធី មិនមែនពីរូបមន្តក្នុងសន្លឹកទេ។',
   },
 ]
 

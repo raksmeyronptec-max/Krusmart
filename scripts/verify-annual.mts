@@ -68,11 +68,11 @@ console.log('\nB. availability (§27)')
   check('the card offers generation, not the legacy screen', avail.action === 'generate')
   check('and says so in Khmer (§43)', avail.actionLabel === 'បង្កើតរបាយការណ៍')
   check('the template version is recorded (§44)',
-    avail.template?.id === 'ranking_annual_v1' && avail.template?.version === 1)
+    avail.template?.id === 'ranking_annual_v2' && avail.template?.version === 2)
   check('provenance is derived, never claimed official (§31)',
     avail.template?.provenance === 'derived')
   check('exactly one active template for the report',
-    activeTemplate('ranking_annual')?.id === 'ranking_annual_v1')
+    activeTemplate('ranking_annual')?.id === 'ranking_annual_v2')
 }
 
 // ---------------------------------------------------------------------------
@@ -223,7 +223,7 @@ console.log('\nI. ranking semantics are the canonical ones (§37)')
 // ---------------------------------------------------------------------------
 console.log('\nJ. the document (§39)')
 {
-  const TEMPLATE = 'lib/reporting/templates/ranking_annual_v1.xlsx'
+  const TEMPLATE = 'lib/reporting/templates/ranking/ranking_annual_v1.xlsx'
   const buf = await readFile(TEMPLATE)
   const HEADER_ROW = 7          // six letterhead rows, then the header
   const SUBJECT_COL = 5         // ល.រ · ចំណាត់ថ្នាក់ · នាម · ភេទ · {{#subjects}}
@@ -369,11 +369,42 @@ console.log('\nK. the screen and the report share ONE annual definition (§9)')
   // the rule again, which is exactly what these checks catch.
   const client = readFileSync('app/(main)/score/total/ScoreTotalClient.tsx', 'utf8')
   const resolver = readFileSync('lib/reporting/report-data.ts', 'utf8')
+  // The third surface. `/ranking`'s ប្រចាំឆ្នាំ button asks the same question
+  // as the other two and, until the shared derivation existed, answered it with
+  // a private arithmetic off `sem1_avg`/`sem2_avg` — keys nothing in this
+  // application writes, so it printed `0.00` for every pupil of every class
+  // while the screen and the sheet showed the real year.
+  const ranking = readFileSync('app/(main)/ranking/RankingClient.tsx', 'utf8')
 
   check('the screen resolves the year through the shared layer',
     client.includes('buildAnnualResult('))
   check('the report resolves the year through the same function',
     resolver.includes('buildAnnualResult('))
+  /*
+   * The three league-table screens now share ONE builder rather than each
+   * importing the annual layer for itself. That is the stronger property and
+   * this is where it is pinned: `buildPeriodResults` is the only client-side
+   * place a year is composed, and the screens must go through it.
+   */
+  const builder = readFileSync('lib/scores/periodResults.ts', 'utf8')
+  const honor = readFileSync('app/(main)/honor-roll/HonorRollClient.tsx', 'utf8')
+  const certificate = readFileSync('app/(main)/certificate/CertificateClient.tsx', 'utf8')
+
+  check('the shared builder resolves the year stored-first, derived-otherwise',
+    builder.includes('buildAnnualResult(') && builder.includes('deriveSemesterAverages('))
+  for (const [name, src] of [
+    ['ranking', ranking], ['honour roll', honor], ['certificate', certificate],
+  ] as const) {
+    check(`the ${name} screen composes its period through the shared builder`,
+      src.includes('buildPeriodResults('))
+    check(`the ${name} screen no longer adds the stored keys itself`,
+      !/parseFloat\(String\(stu\.scores\['sem[12]_avg'\]/.test(src)
+      && !src.includes("'sem1_avg'"))
+    check(`the ${name} screen calls the year \`annual\``,
+      !/'yearly'/.test(src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[ \t]*\/\/.*$/gm, '')))
+  }
+  check('none of them counts its own divisor',
+    ![ranking, honor, certificate].some((src) => /\(s1 > 0 \? 1 : 0\)/.test(src)))
 
   // The exact shape of the old private arithmetic: two `parseFloat`s off the
   // stored keys, a hand-counted divisor, and a `/ 2`.
@@ -390,12 +421,23 @@ console.log('\nK. the screen and the report share ONE annual definition (§9)')
     client.includes('SEM1_KEY') && resolver.includes('SEM1_KEY')
     && !client.includes("'sem1_avg'"))
 
-  // The derived half must be the canonical semester layer on BOTH sides.
-  check('the screen derives its semesters with semesterAverage',
-    client.includes('semesterAverage('))
-  check('and takes its month split from the class calendar, not a literal list',
-    client.includes('periodKeysForSemester('))
-  check('the report does the same',
+  // The derived half must be the canonical semester layer on every side.
+  //
+  // Pinned to `deriveSemesterAverages` rather than to `semesterAverage`
+  // appearing somewhere in the file: the composition — average the exams by
+  // coefficient, average the monthly averages over the semester's periods,
+  // `semesterAverage` the two — is what actually has to be identical, and a
+  // file can contain the inner call while composing the outer rule its own way.
+  // That is exactly how `/ranking` came to disagree.
+  check('the screen composes its semesters with the shared derivation',
+    client.includes('deriveSemesterAverages('))
+  check('and the builder the other three screens use does too',
+    builder.includes('deriveSemesterAverages('))
+  check('every screen takes the month split from the class calendar, not a literal list',
+    [client, ranking, honor, certificate].every((src) => src.includes('periodKeysForSemester(')))
+  check('and the monthly half is the shared mean on both paths',
+    client.includes('monthlyAveragesByStudent(') && builder.includes('monthlyAveragesByStudent('))
+  check('the report derives with the same semester layer',
     resolver.includes('semesterAverage(') && resolver.includes('periodKeysForSemester('))
 
   // Provenance is shown on both surfaces, not just the paper.

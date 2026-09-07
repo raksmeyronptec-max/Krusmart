@@ -16,6 +16,8 @@ import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import { templatesFor } from '@/lib/reporting/report-template'
 import type { ReportDefinition } from '@/lib/reporting/report-types'
 import { generateReport, listCertificateCandidates, previewReport } from './actions'
+import { ReportPreviewSheet } from './ReportPreviewSheet'
+import type { SheetPreview } from '@/lib/reporting/xlsx-preview'
 import type { CertificateCandidate } from '@/lib/reporting/report-data'
 
 /**
@@ -33,12 +35,18 @@ import type { CertificateCandidate } from '@/lib/reporting/report-data'
  * built from — so it cannot describe a document different from the one that
  * generates.
  *
+ * It draws the SHEET too, not only the counts. The counts answer "is this the
+ * right class and month?"; they cannot answer "is this the right document?" —
+ * which is exactly what the ទម្រង់ឯកសារ selector beside them asks, and whose
+ * whole consequence is visual. So the panel fills the chosen template through
+ * the same writer the download uses and renders the result. Spreadsheet reports
+ * only: a Word document has no sheet to draw, and it says so rather than
+ * showing an approximation of one.
+ *
  * Generating does not close the dialog (§24). The file downloads once — a
  * browser that saves silently to a Downloads folder gives no evidence anything
  * happened — and the dialog then states what was produced, with the download
- * available again. The one thing it does NOT offer is a preview: nothing in
- * this product renders an .xlsx or a .docx in the browser, and a button that
- * cannot do what it says is worse than an absent one (§46).
+ * available again.
  */
 export function GenerateReportDialog({
   report,
@@ -62,6 +70,14 @@ export function GenerateReportDialog({
     periodLabel: string; className: string
     honorCount?: number; criteriaLabel?: string; criteriaProvisional?: boolean
   } | null>(null)
+  /*
+   * The filled sheet, and why there isn't one when there isn't. Held beside
+   * `summary` rather than inside it because the counts still answer their own
+   * question when the picture cannot be drawn — a preview that fails to build
+   * must not take the rest of the panel down with it, nor block generation.
+   */
+  const [sheet, setSheet] = useState<SheetPreview | null>(null)
+  const [sheetMissing, setSheetMissing] = useState<'docx' | 'failed' | null>(null)
   const [loading, setLoading] = useState(false)
   const [busy, setBusy] = useState(false)
 
@@ -100,6 +116,8 @@ export function GenerateReportDialog({
   if (key !== seeded) {
     setSeeded(key)
     setSummary(null)
+    setSheet(null)
+    setSheetMissing(null)
     setTemplateId(templates[0]?.id ?? '')
     setCandidates(null)
     setChosen(new Set())
@@ -110,22 +128,31 @@ export function GenerateReportDialog({
     if (!report) return
     setLoading(true)
     try {
-      const res = await previewReport({
-        reportType: report.type,
-        classId: classId ?? undefined,
-        academicYear,
-        period: periodValue,
-      })
+      const res = await previewReport(
+        {
+          reportType: report.type,
+          classId: classId ?? undefined,
+          academicYear,
+          period: periodValue,
+        },
+        // The version the teacher picked, so switching v1/v2 redraws rather
+        // than leaving a sheet on screen that is not the one about to be built.
+        templateId || undefined,
+      )
       if (res.error) {
         notify.error(res.error)
         setSummary(null)
+        setSheet(null)
+        setSheetMissing(null)
         return
       }
       setSummary(res.summary ?? null)
+      setSheet(res.preview ?? null)
+      setSheetMissing(res.previewUnavailable ?? null)
     } finally {
       setLoading(false)
     }
-  }, [report, classId, academicYear, periodValue])
+  }, [report, classId, academicYear, periodValue, templateId])
 
   useEffect(() => {
     if (!report) return
@@ -231,6 +258,9 @@ export function GenerateReportDialog({
       onClose={onClose}
       title={report.label}
       description={report.description}
+      /* A landscape sheet needs the room; every other state keeps the dialog
+         the size it has always been. */
+      size={sheet ? '2xl' : 'md'}
       footer={
         generated ? (
           <>
@@ -497,6 +527,30 @@ export function GenerateReportDialog({
             </p>
           )}
         </div>
+
+        {/* ------------------------------------------------- the sheet itself */}
+        {loading ? (
+          <div className="rounded-lg border border-divider p-3" role="status" aria-busy="true">
+            <span className="sr-only">កំពុងរៀបចំឯកសារជាមុន...</span>
+            <Skeleton className="mb-2 h-4 w-1/3 rounded" />
+            <Skeleton className="h-40 w-full rounded" />
+          </div>
+        ) : sheet ? (
+          <ReportPreviewSheet
+            sheet={sheet}
+            templateLabel={templates.find((t) => t.id === templateId)?.label}
+          />
+        ) : sheetMissing === 'docx' ? (
+          /* A Word document is a page per pupil, not a sheet — say that rather
+             than draw an approximation of a layout nobody will receive (§46). */
+          <p className="rounded-lg border border-divider p-3 text-[11px] text-text-muted">
+            ការមើលឯកសារជាមុនមានសម្រាប់ឯកសារ Excel។ ឯកសារ Word នេះនឹងបង្កើត ១ ទំព័រក្នុងមួយសិស្ស។
+          </p>
+        ) : sheetMissing === 'failed' ? (
+          <p className="rounded-lg border border-warning/40 bg-warning/5 p-3 text-[11px] text-text-body">
+            មិនអាចបង្ហាញឯកសារជាមុនបានទេ — ប៉ុន្តែការបង្កើតឯកសារនៅដំណើរការធម្មតា។
+          </p>
+        ) : null}
 
         {busy && (
           <p className="flex items-center gap-2 text-xs text-text-muted" role="status">

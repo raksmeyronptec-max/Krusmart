@@ -3,7 +3,7 @@ import { AdminPage, NoSchool } from '../AdminPage'
 import { TeachersTable } from './TeachersTable'
 import { AssignSubjectFields } from './AssignSubjectFields'
 import { AdminCreateForm, SelectField } from '../AdminForm'
-import { assignTeacher } from '../actions'
+import { assignTeacher, listAssignableSubjects } from '../actions'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 
 export default async function AdminTeachersPage() {
@@ -13,6 +13,29 @@ export default async function AdminTeachersPage() {
   const [teachers, classes, staff] = await Promise.all([
     getTeachers(scope), getClasses(scope), getStaffOptions(scope),
   ])
+
+  /*
+   * `subject_key` → Khmer label, for the assignment rows.
+   *
+   * Resolved once per *class that actually holds an assignment* — not once per
+   * assignment row, which for a secondary teacher with three subjects in one
+   * class would resolve the same template three times. `listAssignableSubjects`
+   * is the same function the assignment form's picker uses, so a subject is
+   * named identically wherever it appears in this console.
+   *
+   * A class whose template cannot be resolved contributes nothing, and the
+   * table falls back to printing the key. An unresolvable subject is a fact
+   * worth seeing.
+   */
+  const assignedClassIds = [...new Set(
+    teachers.flatMap((t) => t.assignments.filter((a) => a.subjectKey).map((a) => a.classId)),
+  )]
+  const subjectLabels: Record<string, string> = {}
+  for (const result of await Promise.all(assignedClassIds.map(listAssignableSubjects))) {
+    if ('options' in result) {
+      for (const option of result.options) subjectLabels[option.value] = option.label
+    }
+  }
 
   return (
     <AdminPage
@@ -38,7 +61,7 @@ export default async function AdminTeachersPage() {
         </label>
       </AdminCreateForm>
 
-      <TeachersTable teachers={teachers} />
+      <TeachersTable teachers={teachers} subjectLabels={subjectLabels} />
     </AdminPage>
   )
 }

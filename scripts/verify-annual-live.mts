@@ -296,7 +296,7 @@ console.log('\n-- ranking_annual, from live data --')
     ordered.filter((r) => r.annual.average !== null)
       .every((r, i, a) => i === 0 || a[i - 1].rank <= r.rank))
 
-  const buf = await readFile('lib/reporting/templates/ranking_annual_v1.xlsx')
+  const buf = await readFile('lib/reporting/templates/ranking/ranking_annual_v1.xlsx')
   const payload: ReportPayload = {
     scalars: {
       'school.name': 'សាលាបឋមសិក្សា តេស្ត', 'class.name': '៤ក', 'class.grade': '៤',
@@ -340,7 +340,7 @@ console.log('\n-- certificate, from live data --')
   check('no unmarked pupil is certified',
     !eligible.some((r) => r.annual.average === null))
 
-  const buf = await readFile('lib/reporting/templates/certificate_v1.docx')
+  const buf = await readFile('lib/reporting/templates/certificate/certificate_v1.docx')
   const payload: ReportPayload = {
     scalars: {
       'school.name': 'សាលាបឋមសិក្សា តេស្ត', 'school.unit1': 'ការិយាល័យតេស្ត',
@@ -406,7 +406,7 @@ console.log('\n-- record book, from live data --')
     .select('student_id, date, status').in('student_id', rosterIds)
   check('attendance is readable under RLS (empty is fine)', attendance !== null)
 
-  const buf = await readFile('lib/reporting/templates/student_tracking_record_book_v1.docx')
+  const buf = await readFile('lib/reporting/templates/tracking/student_tracking_record_book_v1.docx')
   const subjects = semesterSubjects.map((s) => ({
     key: s.columns[0].id, label: s.labelKm, maxScore: s.maxScore,
   }))

@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import { createPortal } from 'react-dom'
 import {
     Calendar, Award, GraduationCap, CalendarDays, Clock, Bookmark, Settings2,
-    Lock, Unlock, Printer, CloudUpload, Table2, Check, X, Search,
+    Lock, Unlock, Printer, CloudUpload, Check, X, Search,
     Users, TrendingUp, Gauge, AlertTriangle, SlidersHorizontal, ChevronDown,
     MoreVertical, Eye, PencilLine, FileSpreadsheet, PieChart, Trash2, FileText,
     Columns3, PlusCircle, Trophy, LayoutList, Grid3x3, ArrowUpDown,
@@ -21,6 +21,11 @@ import { notify } from '@/components/ui/feedback/notify'
 import { Dialog } from '@/components/ui/overlay/Dialog'
 import { useConfirm } from '@/components/ui/overlay/ConfirmDialog'
 import { PageContainer } from '@/components/shell/PageContainer'
+import { ScoreWorkspaceHeader } from '@/components/score/ScoreWorkspaceHeader'
+import {
+    SCORE_WORKSPACE_TABS, periodLabel as periodLabelFor, scopeLabel, workspaceTabHref,
+    type ScorePeriodSelection,
+} from '@/lib/scores/workspace'
 import { controlClass } from '@/components/ui/forms/fieldStyles'
 import Select from '@/components/ui/forms/Select'
 
@@ -35,8 +40,12 @@ import {
 } from '@/lib/grading/scheme'
 import { maxScoreByColumn, resolveTemplate } from '@/lib/scores/template'
 import {
-    SEM1_KEY, SEM2_KEY, annualSourceNote, buildAnnualResult, storedAnnualValue,
-    type AnnualValueSource,
+    monthIdFromPeriod, monthlyAveragesByStudent, type MonthlyMark,
+} from '@/lib/scores/aggregate'
+import {
+    SEM1_KEY, SEM2_KEY, annualSourceNote, buildAnnualResult, deriveSemesterAverages,
+    storedAnnualValue,
+    type AnnualValueSource, type DerivedSemesters, type ExamMark,
 } from '@/lib/scores/annual'
 import { levelByKey, trackLabel } from '@/lib/onboarding/curriculum'
 import { scoreCellValue, scoreNumericValue } from '@/lib/utils/score-value'
@@ -65,6 +74,7 @@ import { ScoreTotalPrint } from './ScoreTotalPrint'
 import { FullscreenGrid } from '@/components/ui/data/FullscreenGrid'
 import { exportScoreTotal } from './exportScoreTotal'
 import type { Score, ScoreInput, Settings, Student } from '@/lib/types'
+import { useClassHref } from '@/lib/hooks/useClassHref'
 
 /**
  * តារាងពិន្ទុសិស្សសរុប — the whole class, every subject, one period.
@@ -102,7 +112,8 @@ type ScoreMap = Record<string, number | string | null>
  * The two semester figures this screen would compute for a pupil from their
  * marks, when no stored annual row exists. Empty in every mode but ឆ្នាំ.
  */
-type DerivedSemesters = Record<string, { sem1: number | null; sem2: number | null }>
+// `DerivedSemesters` is imported from `lib/scores/annual.ts`: the shape is
+// part of the shared definition, not this screen's private view of it.
 
 function computeRows(
     students: Student[],
@@ -231,6 +242,9 @@ export default function ScoreTotalClient({
     initialStudents: Student[]
     settings: Settings | null
 }) {
+    // Keeps the working class on the way out: a link from this screen to
+    // another class-scoped screen must still be about the same class.
+    const classHref = useClassHref()
     const searchParams = useSearchParams()
 
     // ------------------------------------------------------- period selection
@@ -344,7 +358,14 @@ export default function ScoreTotalClient({
     } = useScoreTemplate(currentMode === 'annual' ? 'semester' : currentMode)
     // The template screen is a server component, so the class it should open on
     // has to travel in the URL — client state cannot reach it.
+    //
+    // It is also what every score fetch below is scoped by. Without it those
+    // actions resolved the teacher's *default* class while this page's roster
+    // came from `?class=`, so a second class rendered its own pupils beside the
+    // first class's marks. `?? undefined` because a legacy account has no class
+    // and must keep falling through to `teacher_id` scoping.
     const { classId: activeClassId } = useActiveClass()
+    const scopeClassId = activeClassId ?? undefined
 
     const PASS_MARK = scheme.passMark
     const MAX_SCORE = scheme.maxScore
@@ -376,10 +397,10 @@ export default function ScoreTotalClient({
 
     const loadRecords = useCallback(async () => {
         setLoading(true)
-        setRecords(await getAllScoresByPeriod(currentMode, scorePeriod))
+        setRecords(await getAllScoresByPeriod(currentMode, scorePeriod, scopeClassId))
         setEdits({})
         setLoading(false)
-    }, [currentMode, scorePeriod])
+    }, [currentMode, scorePeriod, scopeClassId])
 
     useEffect(() => {
         // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch: state is set after await, not synchronously during the effect
@@ -391,13 +412,13 @@ export default function ScoreTotalClient({
     // selected month, run sequentially, on a classroom connection.
     useEffect(() => {
         let alive = true
-        getMonthlyScoresForYear(academicYear).then(rows => {
+        getMonthlyScoresForYear(academicYear, scopeClassId).then(rows => {
             // Stamped with the year it was fetched for, so a slow response for
             // last year cannot be read as this year's trend.
             if (alive) setYearMonthly({ year: academicYear, rows })
         })
         return () => { alive = false }
-    }, [academicYear])
+    }, [academicYear, scopeClassId])
 
     // Only in ឆ្នាំ mode: the two semester exam periods the derived fallback
     // needs. Skipped entirely in the other modes, so the monthly and semester
@@ -406,13 +427,13 @@ export default function ScoreTotalClient({
         if (currentMode !== 'annual') return
         let alive = true
         Promise.all([
-            getAllScoresByPeriod('semester', `sem1-${academicYear}`),
-            getAllScoresByPeriod('semester', `sem2-${academicYear}`),
+            getAllScoresByPeriod('semester', `sem1-${academicYear}`, scopeClassId),
+            getAllScoresByPeriod('semester', `sem2-${academicYear}`, scopeClassId),
         ]).then(([sem1, sem2]) => {
             if (alive) setAnnualExams({ year: academicYear, sem1, sem2 })
         })
         return () => { alive = false }
-    }, [currentMode, academicYear])
+    }, [currentMode, academicYear, scopeClassId])
 
     /**
      * Full mark per *monthly* column, for the semester's monthly component —
@@ -433,30 +454,23 @@ export default function ScoreTotalClient({
 
     /** studentId → monthId → that month's average across every marked subject. */
     const monthlyAverages = useMemo(() => {
-        const acc: Record<string, Record<string, { score: number; maxScore: number }[]>> = {}
         const source = yearMonthly?.year === academicYear ? yearMonthly.rows : []
+        const marks: MonthlyMark[] = []
         for (const r of source) {
             const value = scoreNumericValue(r)
             if (value === null) continue
-            const monthId = r.score_period.slice(0, r.score_period.length - academicYear.length - 1)
-            const forStudent = (acc[r.student_id] ??= {})
-            ;(forStudent[monthId] ??= []).push({
+            const monthId = monthIdFromPeriod(r.score_period, academicYear)
+            if (monthId === null) continue
+            marks.push({
+                studentId: r.student_id,
+                monthId,
                 score: value,
                 maxScore: monthlyMaxByColumn[r.subject] ?? scheme.maxScore,
             })
         }
-
-        const out: Record<string, Record<string, number>> = {}
-        for (const [sid, months] of Object.entries(acc)) {
-            out[sid] = {}
-            for (const [mid, entries] of Object.entries(months)) {
-                // Plain mean under the default scheme — unchanged — and the
-                // /50 coefficient average under a secondary one.
-                const avg = coefficientAverage(entries, scheme)
-                if (avg !== null) out[sid][mid] = avg
-            }
-        }
-        return out
+        // The mean itself is `lib/scores/aggregate.ts`'s, so `/ranking` composes
+        // its year from the same monthly figures this screen shows.
+        return monthlyAveragesByStudent(marks, scheme)
     }, [yearMonthly, academicYear, monthlyMaxByColumn, scheme])
 
     /** Class average per month — the trend line in the analysis panel. */
@@ -489,61 +503,45 @@ export default function ScoreTotalClient({
     /**
      * Each pupil's two semester figures, derived from their marks.
      *
-     * The SAME composition `resolveAnnualClass` performs server-side:
-     * `semesterAverage(exam, coursework)` per semester, where the coursework
-     * half is `monthlyComponent` over that semester's periods on the class's own
-     * calendar. Nothing is re-derived — both halves come from the shared
-     * helpers, so the screen cannot produce a number the printed sheet would
-     * not.
+     * The composition itself now lives in `lib/scores/annual.ts` as
+     * `deriveSemesterAverages`, so `/ranking`'s yearly mode can reach it — it
+     * could not before, and grew its own arithmetic off the always-empty
+     * `sem1_avg`/`sem2_avg` keys, printing `0.00` for every pupil of every real
+     * class. This component brings the rows; the definition is shared.
      *
      * Empty outside ឆ្នាំ mode, and empty until the two requests land, in which
      * case `buildAnnualResult` simply falls through to the stored sheet — the
      * behaviour this tab had before.
      */
     const annualDerived = useMemo<DerivedSemesters>(() => {
-        const out: DerivedSemesters = {}
-        if (currentMode !== 'annual') return out
-        if (!annualExams || annualExams.year !== academicYear) return out
+        if (currentMode !== 'annual') return {}
+        if (!annualExams || annualExams.year !== academicYear) return {}
 
-        const examAverage = (rows: Score[]): Record<string, number | null> => {
-            const byStudent: Record<string, { score: number; maxScore: number }[]> = {}
+        /** `Score[]` as the shared derivation wants it: mark plus its own full mark. */
+        const marks = (rows: Score[]): ExamMark[] => {
+            const out: ExamMark[] = []
             for (const r of rows) {
                 const value = scoreNumericValue(r)
                 if (value === null) continue
-                ;(byStudent[r.student_id] ??= []).push({
+                out.push({
+                    studentId: r.student_id,
                     score: value,
                     maxScore: maxByColumn[r.subject] ?? scheme.maxScore,
                 })
             }
-            const acc: Record<string, number | null> = {}
-            for (const [sid, entries] of Object.entries(byStudent)) {
-                acc[sid] = coefficientAverage(entries, scheme)
-            }
-            return acc
+            return out
         }
 
-        const exam1 = examAverage(annualExams.sem1)
-        const exam2 = examAverage(annualExams.sem2)
-
-        // The class's own period calendar (00029), never a compiled-in split.
-        const months1 = periodKeysForSemester(calendar, 'sem1')
-        const months2 = periodKeysForSemester(calendar, 'sem2')
-
-        const coursework = (sid: string, months: readonly string[]): number | null => {
-            const values = months
-                .map((m) => monthlyAverages[sid]?.[m])
-                .filter((v): v is number => typeof v === 'number')
-            if (values.length === 0) return null
-            return values.reduce((a, b) => a + b, 0) / values.length
-        }
-
-        for (const stu of initialStudents) {
-            out[stu.id] = {
-                sem1: semesterAverage(exam1[stu.id] ?? null, coursework(stu.id, months1)),
-                sem2: semesterAverage(exam2[stu.id] ?? null, coursework(stu.id, months2)),
-            }
-        }
-        return out
+        return deriveSemesterAverages({
+            studentIds: initialStudents.map((s) => s.id),
+            sem1Exams: marks(annualExams.sem1),
+            sem2Exams: marks(annualExams.sem2),
+            monthlyAverages,
+            // The class's own period calendar (00029), never a compiled-in split.
+            sem1Months: periodKeysForSemester(calendar, 'sem1'),
+            sem2Months: periodKeysForSemester(calendar, 'sem2'),
+            scheme,
+        })
     }, [
         currentMode, annualExams, academicYear, initialStudents,
         monthlyAverages, calendar, maxByColumn, scheme,
@@ -752,7 +750,7 @@ export default function ScoreTotalClient({
         if (payload.length === 0) return
 
         setSaving(true)
-        const res = await saveScores(currentMode, scorePeriod, payload)
+        const res = await saveScores(currentMode, scorePeriod, payload, scopeClassId)
         if (res.error) {
             notify.error('បរាជ័យក្នុងការរក្សាទុកពិន្ទុ៖ ' + res.error)
         } else {
@@ -803,12 +801,40 @@ export default function ScoreTotalClient({
         return () => document.removeEventListener('mousedown', onDown)
     }, [toolsOpen])
 
-    const modeLabel = currentMode === 'monthly' ? 'ប្រចាំខែ' : currentMode === 'semester' ? 'ប្រចាំឆមាស' : 'ប្រចាំឆ្នាំ'
-    const periodLabel = currentMode === 'monthly' ? `ខែ${MONTH_LABEL_BY_ID[month] ?? month}`
-        : currentMode === 'semester' ? (semester === 'sem1' ? 'ឆមាសទី១' : 'ឆមាសទី២')
-        : `ឆ្នាំសិក្សា ${academicYear}`
+    /*
+     * The period, named by the shared vocabulary rather than by three inline
+     * ternaries.
+     *
+     * The month label comes from the class's own calendar (00029), not from
+     * `MONTH_LABEL_BY_ID`: a school that merges មីនា–មេសា into one period must
+     * read its own name back here, exactly as `/score/enter` does. The month
+     * table only knows about months.
+     */
+    const activePeriodLabel = useMemo(
+        () => calendar.find(p => p.key === month)?.labelKm ?? MONTH_LABEL_BY_ID[month] ?? month,
+        [calendar, month],
+    )
 
-    const enterHref = `/score/enter?mode=${currentMode === 'annual' ? 'monthly' : currentMode}&year=${encodeURIComponent(academicYear)}${currentMode === 'semester' ? `&semester=${semester}` : `&month=${month}`}`
+    const selection: ScorePeriodSelection = useMemo(() => ({
+        scope: currentMode,
+        monthLabel: activePeriodLabel,
+        semester: semester === 'sem2' ? 'sem2' : 'sem1',
+    }), [currentMode, activePeriodLabel, semester])
+
+    const modeLabel = scopeLabel(currentMode)
+    const periodLabel = periodLabelFor(selection)
+
+    /*
+     * "កែពិន្ទុ" on a row, and everywhere else this screen sends a teacher to
+     * the entry grid. Built by `workspaceTabHref`, so it carries the class as
+     * well as the period — it used to carry the period alone, which meant
+     * fixing one cell from a second class's totals opened the *default*
+     * class's November grid.
+     */
+    const enterHref = workspaceTabHref(
+        SCORE_WORKSPACE_TABS[0],
+        { classId: activeClassId, academicYear, selection, monthId: month },
+    )
 
     const openPrint = (subset?: TotalledStudent[]) => {
         setPrintRows(subset ?? null)
@@ -910,45 +936,36 @@ export default function ScoreTotalClient({
                 .score-grid input[type=number] { -moz-appearance: textfield; }
             `}</style>
 
-            {/* ---------------------------------------------------------- header */}
-            <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-3">
-                    <span className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand text-brand-contrast shadow-md sm:flex">
-                        <Table2 className="h-5 w-5" aria-hidden="true" />
-                    </span>
-                    <div className="min-w-0">
-                        <h1 className="kh-moul text-lg text-brand md:text-xl">តារាងពិន្ទុសិស្សសរុប</h1>
-                        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-sm text-text-muted">
-                            <span>ពិន្ទុ{modeLabel} {periodLabel} · ឆ្នាំសិក្សា {academicYear}</span>
-                            {levelContextLabel && (
-                                <span className="rounded-full bg-brand-100 px-2.5 py-0.5 text-xs font-bold text-brand-800 dark:bg-brand-900/40 dark:text-brand-300">
-                                    {levelContextLabel}
-                                </span>
-                            )}
-                            {annualSource !== null && (
-                                /* Which source the ឆ្នាំ figures came from, said out
-                                   loud. A stored average a teacher recorded and one
-                                   the system worked out from the marks are different
-                                   claims, and the printed annual reports carry the
-                                   same sentence — so the screen and the sheet agree
-                                   about their own provenance, not just their
-                                   numbers. */
-                                <span className="rounded-full bg-paper px-2.5 py-0.5 text-xs text-text-muted">
-                                    {annualSourceNote(annualSource)}
-                                </span>
-                            )}
-                        </p>
-                    </div>
-                </div>
+            {/*
+              The same workspace header `/score/enter` wears — class, year,
+              period, and the four doors. The bespoke header this replaced said
+              "ពិន្ទុប្រចាំខែ ខែវិច្ឆិកា · ឆ្នាំសិក្សា 2026-2027" and never named the
+              class the figures belonged to.
 
-                <div className="flex flex-wrap items-center gap-2">
-                    <Link
-                        href={enterHref}
-                        className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-success px-4 text-sm font-bold text-white transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-                    >
-                        <PlusCircle className="h-4 w-4" aria-hidden="true" /> បញ្ចូលពិន្ទុ
-                    </Link>
-
+              The "បញ្ចូលពិន្ទុ" button is gone from the actions: it is the first
+              tab now, and a button and a tab pointing at the same screen is one
+              destination wearing two hats.
+            */}
+            <ScoreWorkspaceHeader
+                title="តារាងពិន្ទុសិស្សសរុប"
+                academicYear={academicYear}
+                selection={selection}
+                monthId={month}
+                levelLabel={levelContextLabel}
+                notes={
+                    annualSource !== null ? (
+                        /* Which source the ឆ្នាំ figures came from, said out
+                           loud. A stored average a teacher recorded and one the
+                           system worked out from the marks are different claims,
+                           and the printed annual reports carry the same sentence
+                           — so the screen and the sheet agree about their own
+                           provenance, not just their numbers. */
+                        <span className="rounded-full bg-paper px-2.5 py-0.5 text-xs text-text-muted">
+                            {annualSourceNote(annualSource)}
+                        </span>
+                    ) : null
+                }
+                actions={<>
                     <Button
                         variant={isEditLocked ? 'secondary' : 'warning'}
                         printHidden={false}
@@ -976,7 +993,9 @@ export default function ScoreTotalClient({
                                     { label: 'បោះពុម្ពតារាង', icon: Printer, run: () => openPrint() },
                                     { label: 'សម្រាយទិន្នន័យ', icon: PieChart, run: () => setAnalyticsOpen(true) },
                                     { label: 'ជ្រើសរើសជួរឈរ', icon: Columns3, run: () => setColumnsModalOpen(true) },
-                                    { label: 'តារាងទម្រង់ក្រសួង', icon: FileText, href: '/score/print' },
+                                    // Scoped like every other door out of this
+                                    // screen — the ministry sheet is about a class.
+                                    { label: 'តារាងទម្រង់ក្រសួង', icon: FileText, href: classHref('/score/print') },
                                 ] as { label: string; icon: LucideIcon; run?: () => void; href?: string }[]).map(item => item.href ? (
                                     <Link
                                         key={item.label}
@@ -999,8 +1018,8 @@ export default function ScoreTotalClient({
                             </div>
                         )}
                     </div>
-                </div>
-            </header>
+                </>}
+            />
 
             {/* ------------------------------------------------------ stat cards */}
             <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -1280,7 +1299,7 @@ export default function ScoreTotalClient({
                         description="ចុះឈ្មោះសិស្សជាមុនសិន រួចត្រឡប់មកមើលតារាងពិន្ទុ។"
                         action={
                             <Link
-                                href="/student-list"
+                                href={classHref("/student-list")}
                                 className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand px-4 text-sm font-bold text-brand-contrast transition hover:bg-brand-hover"
                             >
                                 <Users className="h-4 w-4" aria-hidden="true" /> ចុះឈ្មោះសិស្ស
@@ -1770,6 +1789,9 @@ function FilterChip({ label, onClear }: { label: string; onClear: () => void }) 
  * it the moment the row is near the bottom edge.
  */
 function RowMenu({ student, enterHref }: { student: TotalledStudent; enterHref: string }) {
+    // `enterHref` already carries the class; these two did not, so a parent
+    // report opened from a second class's totals produced the default class's.
+    const classHref = useClassHref()
     const [open, setOpen] = useState(false)
     const [rect, setRect] = useState<DOMRect | null>(null)
     const buttonRef = useRef<HTMLButtonElement>(null)
@@ -1792,8 +1814,8 @@ function RowMenu({ student, enterHref }: { student: TotalledStudent; enterHref: 
     const items = [
         { label: 'មើលលម្អិត', icon: Eye, href: `/students/${student.id}` },
         { label: 'កែពិន្ទុ', icon: PencilLine, href: enterHref },
-        { label: 'របាយការណ៍អាណាព្យាបាល', icon: FileText, href: '/parent-report' },
-        { label: 'បោះពុម្ពប័ណ្ណសិស្ស', icon: Printer, href: '/id-student' },
+        { label: 'របាយការណ៍អាណាព្យាបាល', icon: FileText, href: classHref('/parent-report') },
+        { label: 'បោះពុម្ពប័ណ្ណសិស្ស', icon: Printer, href: classHref('/id-student') },
     ]
 
     return (

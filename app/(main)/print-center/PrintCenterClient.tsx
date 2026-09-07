@@ -3,8 +3,20 @@
 import { useId, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
-  ArrowUpRight, Award, BookOpen, ClipboardList, FileSpreadsheet, FileText,
-  GraduationCap, Printer, ScrollText, Search, Trophy, X,
+  ArrowUpRight,
+  Award,
+  BookOpen,
+  CalendarCheck,
+  ClipboardList,
+  FileSpreadsheet,
+  FileText,
+  GraduationCap,
+  Printer,
+  ScrollText,
+  Search,
+  Trophy,
+  Users,
+  X,
 } from 'lucide-react'
 
 import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
@@ -17,6 +29,7 @@ import {
   REPORT_CATEGORIES, REPORT_DEFINITIONS,
   type ReportCategory, type ReportDefinition, type ReportFormat,
 } from '@/lib/reporting/report-types'
+import { withClassParam } from '@/lib/utils/classHref'
 import { reportAvailability, type ReportAvailability } from '@/lib/reporting/report-template'
 import { GenerateReportDialog } from './GenerateReportDialog'
 
@@ -58,11 +71,13 @@ import { GenerateReportDialog } from './GenerateReportDialog'
 
 const CATEGORY_ICON: Record<ReportCategory, typeof FileText> = {
   scores: FileSpreadsheet,
+  attendance: CalendarCheck,
   ranking: Trophy,
   honor: Award,
   certificate: ScrollText,
   yearly: ClipboardList,
   tracking: BookOpen,
+  student: Users,
 }
 
 /**
@@ -113,13 +128,22 @@ export default function PrintCenterClient({
   className,
   gradeNumber,
   academicYear,
+  initialCategory = null,
 }: {
   classId: string | null
   className: string
   gradeNumber: number | null
   academicYear: string
+  /**
+   * The family to open on, from `?category=` — already validated by the page.
+   *
+   * It is the *initial* value, not a controlled one: once here, the category
+   * row is the teacher's to change, and a URL that kept snapping the filter
+   * back would make those buttons look broken.
+   */
+  initialCategory?: ReportCategory | null
 }) {
-  const [category, setCategory] = useState<ReportCategory | null>(null)
+  const [category, setCategory] = useState<ReportCategory | null>(initialCategory)
   const [query, setQuery] = useState('')
   const [generating, setGenerating] = useState<ReportDefinition | null>(null)
   const searchId = useId()
@@ -139,8 +163,20 @@ export default function PrintCenterClient({
     )
   }, [query])
 
-  const withClass = (href: string) =>
-    classId ? `${href}${href.includes('?') ? '&' : '?'}class=${encodeURIComponent(classId)}` : href
+  /*
+   * Every link out of this screen carries the class it was built for.
+   *
+   * Through the shared `withClassParam`, not a local append: that helper
+   * consults `CLASS_SCOPED_ROUTES`, so a report whose screen does not read a
+   * class does not get `?class=` bolted into a URL a teacher may share. The
+   * hand-rolled version here appended it to everything.
+   *
+   * The pure function rather than `useClassHref`, for the same reason the
+   * dashboard uses it: this screen already knows which class its cards describe
+   * — it was handed the id the server resolved — so it scopes to that one
+   * rather than re-reading the address bar.
+   */
+  const withClass = (href: string) => withClassParam(href, classId)
 
   const families = category
     ? REPORT_CATEGORIES.filter((c) => c.id === category)

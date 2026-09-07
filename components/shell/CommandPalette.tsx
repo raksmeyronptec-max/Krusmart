@@ -4,6 +4,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { CornerDownLeft, Search } from "lucide-react"
 import { Dialog } from "@/components/ui/overlay/Dialog"
+import { useClassHref } from "@/lib/hooks/useClassHref"
 import {
   filterSearchEntries,
   searchEntries,
@@ -67,6 +68,7 @@ function PaletteBody({
   onClose: () => void
 }) {
   const router = useRouter()
+  const classHref = useClassHref()
   const [query, setQuery] = useState("")
   const [activeIndex, setActiveIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -93,9 +95,11 @@ function PaletteBody({
     (entry: NavSearchEntry | undefined) => {
       if (!entry) return
       onClose()
-      router.push(entry.href)
+      // The palette is navigation like any other: jumping to តារាងពិន្ទុសរុប
+      // from ៥ខ's roster must land on ៥ខ, not on the default class.
+      router.push(classHref(entry.href))
     },
-    [onClose, router],
+    [onClose, router, classHref],
   )
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {

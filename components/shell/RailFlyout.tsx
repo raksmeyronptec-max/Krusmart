@@ -4,6 +4,7 @@ import { useLayoutEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import Link from "next/link"
 import { useIsClient } from "@/components/ui/overlay/useIsClient"
+import { useClassHref } from "@/lib/hooks/useClassHref"
 import type { NavLink, NavModule } from "@/lib/navigation"
 
 const MARGIN = 8
@@ -33,6 +34,8 @@ export function RailFlyout({
   panelRef: React.RefObject<HTMLDivElement | null>
 }) {
   const isClient = useIsClient()
+  // Same rule as the rail behind it: a submenu entry keeps the working class.
+  const classHref = useClassHref()
   const [box, setBox] = useState<{ top: number; left: number; maxHeight: number } | null>(null)
 
   const children = (navModule.children ?? []).filter((c) => !c.hidden)
@@ -96,7 +99,7 @@ export function RailFlyout({
           return (
             <li key={child.href}>
               <Link
-                href={child.href}
+                href={classHref(child.href)}
                 role="menuitem"
                 onClick={onNavigate}
                 aria-current={on ? "page" : undefined}
