@@ -377,4 +377,75 @@ changes, and should be moved rather than weakened:
 
 ---
 
+---
+
+## 13. Follow-up — the live suites are green again
+
+Done immediately after Phase 13, and it **resolves two of the items §11 and §12 above carry
+forward**. Those sections describe the state as Phase 13 left it and are not rewritten; this is
+what changed.
+
+**`scripts/validate-rls.mjs` runs.** `pg` is deliberately not a dependency of the app — the header
+of `validate-migrations.mjs` documents an out-of-tree install — so nothing in `package.json`
+changed:
+
+```
+mkdir -p /tmp/pgc && cd /tmp/pgc && npm init -y && npm i pg
+PG_MODULE=/tmp/pgc/node_modules/pg/lib/index.js node scripts/validate-rls.mjs
+```
+
+**64/64 behavioural checks pass.**
+
+**`verify-ranking-live` and `verify-annual-live` pass — 35/35 including `--live`.** They had been
+failing since Phase 7. Diagnosed first: all eight failures were **one cause**, and it was not the
+one on record.
+
+| Failing checks | Cause |
+| --- | --- |
+| roster is 35, not 5 (×4) | 30 pupils created through the app, enrolled in ៤ក |
+| class selection is 4, not 3 (×2) | `sem_behavior_all` ticked in `/score/subjects` |
+| year-wide fetch returns 115, not 22 (×1) | 93 marks under `sep-2025-2026` from app use |
+| `annual`: class selects three subjects (×1) | the same fourth subject |
+
+The audit's recorded explanation — *"the fixture writes semester exam marks under monthly column
+ids"* — **does not reproduce**. The semester marks are written under `kh_listen` / `math_num` and
+resolve correctly; every semester assertion was already passing.
+
+Two real bugs sat behind the drift, and both are fixed:
+
+1. **The fixture shared its class with a playground.** `primary_ranking_teacher.sql` seeded into
+   `៤ក`, which is also the class `ranktest@krusmart.local` is used to browse the app with. It seeds
+   **`៤ខ តេស្ត`** now — its own class, in the same school — and both harnesses target that id.
+2. **The enrolment step swept the account's whole roster in.** It read
+   `SELECT id FROM public.students WHERE teacher_id = <the teacher>`, so one pupil created in the
+   app became one more pupil in the harness's roster. It **enumerates the five ids** now.
+
+Plus the reason the file had to be hand-edited before every use: the teacher's uuid was a literal
+(`45ba9888-…`) that named a user this machine does not have (`42ab1439-…`). Every statement
+resolves the account from `auth.users` by email instead, so the file applies unedited.
+
+**Nothing the app created was touched.** The fixture's three DELETEs are bounded to its own class
+and its own five pupil ids, and to periods it seeds. `៤ក` kept all 30 of its pupils, their 68 marks
+and its 4 subjects; it is simply no longer part of any assertion. The five fixture pupils moved out
+of it rather than being dual-enrolled — a pupil actively enrolled in two classes of one year is a
+state `currentEnrolment` cannot read correctly.
+
+One harness assertion changed, and not to make anything pass: `assignments?.[0]?.class_id === CLASS`
+became `assignments.some(a => a.class_id === CLASS)` in both files. The account legitimately holds
+more than one class, and everything below the check scopes to `CLASS` explicitly — the property
+worth asserting is that the teacher is assigned to the fixture class, never the order the rows come
+back in.
+
+`CLAUDE.md` records the rule this leaves behind: **do not point a fixture at a class anybody
+browses.**
+
+| Gate | After the follow-up |
+| --- | --- |
+| `npm run lint` / `typecheck` | clean |
+| `npm run verify` | 32/32 |
+| `npm run verify:live` | **35/35** |
+| `scripts/validate-rls.mjs` | **64/64** |
+
+---
+
 *Phase 13 complete. Stopping here — Phase 14 is not started.*

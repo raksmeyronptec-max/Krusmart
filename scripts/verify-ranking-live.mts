@@ -33,7 +33,10 @@ import { defaultHonorCriteria, evaluateHonor } from '../lib/scores/honor.ts'
 
 const URL = 'http://127.0.0.1:54321'
 const ANON = 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH'
-const CLASS = 'a0000000-0000-0000-0000-000000000005'
+// The fixture's OWN class (៤ខ តេស្ត), not ៤ក. The two used to be the same
+// row, so every pupil, mark and subject added through the app landed in
+// the middle of this harness's assertions — see the fixture's header.
+const CLASS = 'a0000000-0000-0000-0000-000000000015'
 
 let fail = 0
 const check = (n: string, ok: boolean, d = '') => {
@@ -50,7 +53,13 @@ const uid = auth!.user!.id
 // --- the queries the resolver makes, under this user's RLS ------------------
 const { data: assignments } = await sb.from('teacher_assignments')
   .select('class_id, is_homeroom, status').eq('teacher_id', uid).eq('status', 'active')
-check('their assignment resolves (scope)', assignments?.[0]?.class_id === CLASS)
+// `.some`, not `[0]`: the account holds other classes it is used to browse
+// the app with, and their order is not something this harness should assert.
+// Everything below scopes to CLASS explicitly, so what matters here is only
+// that the teacher really is assigned to it.
+check('their assignment resolves (scope)',
+  (assignments ?? []).some(a => a.class_id === CLASS),
+  `got ${(assignments ?? []).map(a => a.class_id).join(', ')}`)
 
 const { data: enrol } = await sb.from('student_enrollments')
   .select('student_id').eq('class_id', CLASS).neq('status', 'withdrawn')

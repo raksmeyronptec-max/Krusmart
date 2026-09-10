@@ -12,11 +12,11 @@ npm run build      # next build (prebuild regenerates the report templates)
 npm start          # next start
 npm run lint       # eslint (flat config, eslint-config-next core-web-vitals + typescript)
 npm run typecheck  # tsc --noEmit
-npm run verify     # the 31 offline verification harnesses
+npm run verify     # the 32 offline verification harnesses
 npm run check      # lint + typecheck + verify, in that order — run this before you finish
 ```
 
-**No Jest, but not "no tests".** `scripts/verify-*.mts` holds 34 harnesses — 31 offline, 3 opt-in
+**No Jest, but not "no tests".** `scripts/verify-*.mts` holds 35 harnesses — 32 offline, 3 opt-in
 (`*-live.mts`, which need a running local Supabase stack plus the fixtures in
 `supabase/fixtures/`). They are the closest thing this repository has to a test suite, and every
 section below cites the one that pins it. `verify-all.mjs` discovers them from the filesystem and
@@ -412,6 +412,8 @@ Same class, same subjects, same averages, same ranks — so a ranking sheet cann
 The record book deliberately fixes two things the legacy `/record-book` screen does that a new report may not: it hard-codes thirteen subjects (here they come from the class's template) and carries its own month→semester split (here absences bucket by the class's own `score_calendar_periods`).
 
 `scripts/verify-ranking-live.mts` and `scripts/verify-annual-live.mts` are opt-in and need a running local stack plus `supabase/fixtures/primary_ranking_teacher.sql` (and, for the second, `second_teacher_isolation.sql` — a class the caller does **not** teach, so "a forged `class_id` reaches nothing" is provable rather than vacuous). They are the only tests that exercise a real JWT, RLS and the class scope rather than stubbing the data.
+
+**The fixtures own their classes, and that is load-bearing.** `primary_ranking_teacher.sql` used to seed into `៤ក` — the same class the `ranktest` account is used to browse the app with — and its enrolment step read `SELECT id FROM students WHERE teacher_id = <the teacher>`, which sweeps *every* pupil the account owns into the fixture's class. Between them, thirty app-created pupils, ninety-three September marks and a fourth subject drifted into the middle of both harnesses' assertions, and the two live suites failed for four phases while being carried forward as "known fixture drift". The fixture seeds `៤ខ តេស្ត` now, enumerates the five pupil ids it enrols, and bounds its three DELETEs to its own class and its own five pupils. It also resolves the teacher from `auth.users` by email rather than from a hardcoded uuid the header asked you to hand-edit — which is the other half of how it went stale. **Do not point a fixture at a class anybody browses.**
 
 The offline suites are `verify-reporting`, `verify-annual`, `verify-annual-family`, `verify-certificate`, `verify-record-book` and `verify-score-semester`. Several pin a template-less report as their "not ready" example; when that report is migrated the check fails **on purpose** — move the example to another genuinely unmigrated report rather than weakening it.
 

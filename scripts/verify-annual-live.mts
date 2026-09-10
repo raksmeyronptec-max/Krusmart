@@ -49,7 +49,10 @@ import type { ReportPayload } from '../lib/reporting/report-mapper.ts'
 
 const URL = 'http://127.0.0.1:54321'
 const ANON = 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH'
-const CLASS = 'a0000000-0000-0000-0000-000000000005'
+// The fixture's OWN class (៤ខ តេស្ត), not ៤ក. The two used to be the same
+// row, so every pupil, mark and subject added through the app landed in
+// the middle of this harness's assertions — see the fixture's header.
+const CLASS = 'a0000000-0000-0000-0000-000000000015'
 const OTHER_CLASS = 'c0000000-0000-0000-0000-000000000001'
 const YEAR = '2025-2026'
 
@@ -71,7 +74,11 @@ const uid = auth.user.id
 console.log('\n-- scope, under RLS --')
 const { data: assignments } = await sb.from('teacher_assignments')
   .select('class_id, academic_year_id').eq('teacher_id', uid).eq('status', 'active')
-check('their assignment resolves to ៤ក', assignments?.[0]?.class_id === CLASS)
+// `.some`, not `[0]` — see verify-ranking-live for why the order of this
+// account's assignments is not a property worth asserting.
+check('their assignment resolves to the fixture class',
+  (assignments ?? []).some(a => a.class_id === CLASS),
+  `got ${(assignments ?? []).map(a => a.class_id).join(', ')}`)
 
 const { data: enrol } = await sb.from('student_enrollments')
   .select('student_id').eq('class_id', CLASS).neq('status', 'withdrawn')
