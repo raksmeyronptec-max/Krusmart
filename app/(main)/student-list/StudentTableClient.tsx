@@ -134,14 +134,71 @@ export default function StudentTableClient({
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1)
     const [pageSize, setPageSize] = useState(20)
+
+    /**
+     * The pupil `/enrollment` just created, if this screen was reached from it.
+     *
+     * ── The failure this closes (Phase 12 F1) ─────────────────────────────
+     *
+     * Saving a pupil pushes here. The roster sorts oldest-first (`default` puts
+     * `order_index` then `created_at` ASCENDING) and pages at twenty, so on a
+     * class of thirty-five the pupil a teacher had just spent forty fields
+     * creating was the last row of PAGE TWO — present, correct, and off the
+     * screen they were returned to. The toast said it had worked; the screen
+     * showed a list the new pupil was not in. On a phone it is worse: twenty
+     * rows plus a header is several screens and a pagination control away.
+     *
+     * Held in state rather than read from the URL on every render, because the
+     * parameter is CONSUMED — cleared below, so a refresh does not re-announce
+     * a pupil added ten minutes ago and a shared link does not mark somebody
+     * else's screen.
+     */
+    const [highlightId, setHighlightId] = useState<string | null>(null)
     const [isSavingOrder, setIsSavingOrder] = useState(false)
     const { confirm, dialog } = useConfirm()
 
-    // Update URL query when debounced search changes
+    /*
+     * Consume `?new=`: adopt it, then take it out of the address bar.
+     *
+     * Adopted DURING RENDER rather than in an effect — the same adjustment
+     * `GenerateReportDialog` makes when it re-seeds on a new report. It is a
+     * derivation from a prop-like input, not a synchronisation with an external
+     * system, so an effect would paint the roster once without the mark and
+     * then again with it. `consumedNew` is the guard that makes it run once.
+     *
+     * Only when the pupil is actually in the roster. A stale parameter — a
+     * refresh after the pupil was deleted, a link pasted into another class —
+     * marks nothing rather than pointing at a row that is not there.
+     */
+    const requestedNew = searchParams.get('new')
+    const [consumedNew, setConsumedNew] = useState<string | null>(null)
+    if (requestedNew && requestedNew !== consumedNew) {
+        setConsumedNew(requestedNew)
+        setHighlightId(students.some((s) => s.id === requestedNew) ? requestedNew : null)
+    }
+
+    /*
+     * ONE writer for the query string.
+     *
+     * Taking `new` back out of the URL is an external sync, so it belongs in an
+     * effect — but it must be THIS effect. A second one deleting the parameter
+     * beside this one did not work: both read `searchParams` from the same
+     * render, so this one rebuilt the query from a value that still contained
+     * `new` and put it straight back. Two effects writing one string is a race
+     * whoever is declared last wins, and the symptom was a parameter that
+     * survived being deleted.
+     *
+     * Dropping it matters for two reasons: a refresh must not re-announce a
+     * pupil added ten minutes ago, and a link a teacher shares must not mark
+     * somebody else's screen. The mark itself already lives in state by the
+     * time this runs — the render-phase block above adopted it — so removing
+     * the parameter takes nothing off the page.
+     */
     useEffect(() => {
         const params = new URLSearchParams(searchParams.toString())
         if (debouncedQuery) params.set('q', debouncedQuery)
         else params.delete('q')
+        params.delete('new')
         router.replace(`${pathname}?${params.toString()}`, { scroll: false })
     }, [debouncedQuery, searchParams, pathname, router])
 
@@ -192,6 +249,57 @@ export default function StudentTableClient({
     const page = Math.min(currentPage, totalPages)
     const startIdx = (page - 1) * pageSize
     const rows = visible.slice(startIdx, startIdx + pageSize)
+
+    /**
+     * Open on the page the just-added pupil is actually on.
+     *
+     * Computed against `visible` — the sorted, filtered list this screen
+     * RENDERS — and never against `students`. That is the whole subtlety: the
+     * raw roster and the rendered one differ by sort, by search and by every
+     * filter in the sidebar, so a page number derived from the raw array points
+     * at the right index of the wrong list, and lands the teacher one page away
+     * from the pupil while looking like it worked.
+     *
+     * Once per pupil, and during render for the reason the block above is:
+     * this is where the page number comes from, not a side effect of arriving.
+     * `jumpedFor` is what stops it re-firing when `pageSize` changes and
+     * dragging a teacher who has since paged elsewhere back again — help on
+     * arrival is help, help on every render is a screen that will not stay put.
+     */
+    const [jumpedFor, setJumpedFor] = useState<string | null>(null)
+    if (highlightId && jumpedFor !== highlightId) {
+        const index = visible.findIndex((s) => s.id === highlightId)
+        // Filtered out, or not in this class: the row is unreachable, so there
+        // is no page to go to, and nothing is marked. Deliberately does NOT
+        // record the attempt — the roster may still be arriving, and the next
+        // render should look again.
+        if (index !== -1) {
+            setJumpedFor(highlightId)
+            setCurrentPage(Math.floor(index / pageSize) + 1)
+        }
+    }
+
+    /** The pupil behind the mark, for the announcement and the row badge. */
+    const highlighted = useMemo(
+        () => (highlightId ? visible.find((s) => s.id === highlightId) ?? null : null),
+        [highlightId, visible],
+    )
+
+    /*
+     * ...and bring the row into view once it is on screen.
+     *
+     * Keyed on the page as well as the pupil, so it runs after the jump above
+     * has actually rendered that page rather than against the page we arrived
+     * on. `prefers-reduced-motion` is honoured: a list that lurches is a
+     * vestibular trigger, and the scroll is a convenience either way.
+     */
+    useEffect(() => {
+        if (!highlightId) return
+        const row = document.querySelector(`[data-student-row="${CSS.escape(highlightId)}"]`)
+        if (!(row instanceof HTMLElement)) return
+        const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        row.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'center' })
+    }, [highlightId, page, viewMode])
 
     // Handlers
     const handleSelect = (id: string, checked: boolean) => {
@@ -359,6 +467,43 @@ export default function StudentTableClient({
                 <RecoverRosterBanner count={legacyRecoverableCount} classId={recoverClassId} />
             )}
 
+            {/*
+              "Did that work?" — answered on the SCREEN, not only in a toast.
+              A toast is gone in four seconds and is announced by nothing; this
+              is a `role="status"`, so it reaches a screen reader on arrival and
+              stays readable for as long as the teacher needs it.
+
+              It names the row's position as well as the pupil, because on a
+              roster of thirty-five "she is on page two" is the fact that was
+              missing. The link is the confirmation a teacher actually wants —
+              the record they just typed, to check it.
+            */}
+            {highlighted && (
+                <div
+                    role="status"
+                    className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-success/40 bg-success/10 px-4 py-2.5 text-sm print:hidden"
+                >
+                    <UserPlus className="h-4 w-4 shrink-0 text-success" aria-hidden="true" />
+                    <span className="text-text-body">
+                        បានបញ្ចូល <strong className="text-text-heading">{highlighted.name_kh}</strong> ក្នុងបញ្ជីរួចរាល់
+                        {totalPages > 1 && ` · ទំព័រ ${toKhmerNumber(page)}`}
+                    </span>
+                    <Link
+                        href={`/students/${highlighted.id}`}
+                        className="font-bold text-brand underline underline-offset-2 hover:text-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                    >
+                        មើលព័ត៌មាន
+                    </Link>
+                    <button
+                        type="button"
+                        onClick={() => setHighlightId(null)}
+                        className="ml-auto min-h-11 rounded-md px-2 text-xs font-bold text-text-muted transition hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                    >
+                        បិទ
+                    </button>
+                </div>
+            )}
+
             {/* Sticky Header Bar */}
             <div className="sticky top-0 z-30 mb-6 flex flex-col gap-3 border-b border-divider bg-bg-surface/90 p-4 pb-4 pt-4 backdrop-blur-md md:flex-row md:items-center print:hidden rounded-b-xl shadow-sm">
                 <div className="relative min-w-0 flex-1">
@@ -485,6 +630,7 @@ export default function StudentTableClient({
                                         key={student.id}
                                         student={student}
                                         index={startIdx + idx}
+                                        highlighted={student.id === highlightId}
                                         isSelected={selectedIds.has(student.id)}
                                         onToggleSelect={(id) => handleSelect(id, !selectedIds.has(id))}
                                         onDelete={(s) => handleDelete(s)}
@@ -495,6 +641,7 @@ export default function StudentTableClient({
                             <div className="overflow-hidden rounded-2xl border border-divider bg-paper shadow-sm">
                                 <StudentCompactTable
                                     students={rows}
+                                    highlightId={highlightId}
                                     selectedIds={selectedIds}
                                     onToggleSelect={(id) => handleSelect(id, !selectedIds.has(id))}
                                     onToggleAll={() => handleSelectAll(!allSelected)}

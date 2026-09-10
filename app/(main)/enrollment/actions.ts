@@ -183,15 +183,32 @@ export async function createStudent(formData: FormData, classId?: string) {
 
   const row = { teacher_id: user.id, ...fields }
 
+  /*
+   * The id is returned to the caller, and that is the point of selecting it on
+   * BOTH paths (see the `return` at the foot of this action).
+   *
+   * The v2 branch already read it back because `enrolOrCompensate` needs it.
+   * The legacy branch did not, so a pre-V2 account had no id to hand back and
+   * `/student-list` could not mark the pupil it had just been sent to find.
+   * Reading it costs the insert nothing — `students_select_own` gates on
+   * `teacher_id = auth.uid()`, which is the row just written.
+   */
+  let createdId: string | null = null
+
   if (scope.mode === 'legacy') {
     // Pre-V2 account: exactly the write this action always made. teacher_id
     // is the only boundary there is; no enrolment row exists or is needed.
-    const { error } = await supabase.from('students').insert(row)
+    const { data: created, error } = await supabase
+      .from('students')
+      .insert(row)
+      .select('id')
+      .single()
 
     if (error) {
       logger.error(error)
       return { error: friendlyDbError(error, 'single') }
     }
+    createdId = created?.id ?? null
   } else {
     const { data: created, error } = await supabase
       .from('students')
@@ -210,6 +227,7 @@ export async function createStudent(formData: FormData, classId?: string) {
     // Without this row the student is invisible in v2 — see enrolOrCompensate.
     const enrol = await enrolOrCompensate(supabase, scope, [created.id])
     if (enrol.error) return { error: enrol.error }
+    createdId = created.id
   }
 
   // Identity fields only. The trail records that a student was enrolled and by
@@ -226,7 +244,20 @@ export async function createStudent(formData: FormData, classId?: string) {
   })
 
   revalidatePath('/student-list')
-  return { success: true }
+  /*
+   * `studentId` is what lets the roster answer "did that work?".
+   *
+   * A teacher returned to `/student-list` after saving used to be shown a list
+   * sorted oldest-first and paged at twenty, so on a class of thirty-five the
+   * pupil they had just spent forty fields creating was the last row of page
+   * two — off-screen, unmarked, and indistinguishable from not having saved at
+   * all (Phase 12 F1). The toast answered the question; the screen did not.
+   *
+   * Nullable rather than optional: a caller must be able to tell "no id came
+   * back" from "the id is coming later", and `/enrollment` falls back to the
+   * plain roster link when it is null rather than putting `new=null` in a URL.
+   */
+  return { success: true, studentId: createdId }
 }
 
 export async function importStudents(students: StudentImportRow[], classId?: string) {

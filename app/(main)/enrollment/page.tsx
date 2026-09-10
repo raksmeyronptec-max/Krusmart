@@ -298,9 +298,29 @@ export default function EnrollmentPage() {
           ? `បានកែព័ត៌មាន ${values.studentName} ដោយជោគជ័យ។`
           : `បានរក្សាទុក ${values.studentName} ដោយជោគជ័យ។`,
       )
-      // Back to the pupil after an edit — the record you just changed — and to
-      // the roster after an enrolment, where the new pupil now appears.
-      router.push(editingId ? `/students/${editingId}` : classHref("/student-list"))
+      /*
+       * Back to the pupil after an edit — the record you just changed — and to
+       * the roster after an enrolment, NAMING the pupil that was just created.
+       *
+       * `?new=` is what makes it findable. The roster sorts oldest-first and
+       * pages at twenty, so on a class of thirty-five the new pupil is the last
+       * row of page two: present, correct, and off the screen the teacher was
+       * returned to (Phase 12 F1). The parameter tells `/student-list` which
+       * page to open and which row to mark.
+       *
+       * Through `classHref`, so `withClassParam` merges the two parameters
+       * rather than this line hand-building a query string — and so a pupil
+       * created without an id coming back (there is no such path today, but a
+       * null is representable) falls back to the plain roster link instead of
+       * putting the word "null" in the address bar.
+       */
+      // `in`, because `result` is the union of both actions' returns and only
+      // `createStudent` mints an id — an edit already knows which pupil it is.
+      const createdId = result && 'studentId' in result ? result.studentId : null
+      const roster = createdId
+        ? classHref(`/student-list?new=${encodeURIComponent(createdId)}`)
+        : classHref("/student-list")
+      router.push(editingId ? `/students/${editingId}` : roster)
     } catch (error: unknown) {
       setSubmitError(`មានបញ្ហាក្នុងការរក្សាទុកទិន្នន័យ៖ ${getErrorMessage(error)}`)
       setShowConfirm(false)

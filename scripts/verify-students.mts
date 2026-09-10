@@ -410,6 +410,81 @@ check('a teacher transfer never stamps `promoted`',
   teacherEnrol.includes("closingStatus: 'transferred'") && !teacherEnrol.includes("'promoted'"),
   'promotion is a year-end decision made across a class, not a side effect of fixing a typo')
 
+// ---------------------------------------------------------------------------
+// The pupil a teacher just created is on the screen they are returned to
+// ---------------------------------------------------------------------------
+/**
+ * Phase 12 F1. `/enrollment` pushes to `/student-list` after a save; the roster
+ * sorts oldest-first and pages at twenty, so on a class of thirty-five the
+ * pupil a teacher had just spent forty fields creating was the last row of PAGE
+ * TWO — present, correct, and off the screen. The toast said it had worked; the
+ * screen showed a list the pupil was not in.
+ *
+ * Every link in that chain fails silently on its own: an action that stops
+ * returning the id, a redirect that drops the parameter, a roster that reads it
+ * and does nothing. So all three are checked.
+ */
+console.log('\nthe pupil you just created is findable:')
+
+const createAction = code(join(root, 'app/(main)/enrollment/actions.ts'))
+check('createStudent hands back the id it minted',
+  /return \{ success: true, studentId: createdId \}/.test(createAction),
+  'without an id the roster has nothing to look for')
+check('...on the legacy path too, not only under v2',
+  (createAction.match(/\.insert\(row\)\s*\n?\s*\.select\('id'\)/g) ?? []).length >= 1 &&
+  createAction.includes('createdId = created?.id ?? null'),
+  'a pre-V2 account creates pupils through the same form and deserves the same answer')
+
+const enrolClient = code(join(root, 'app/(main)/enrollment/page.tsx'))
+check('the redirect names the new pupil',
+  /\/student-list\?new=\$\{encodeURIComponent\(createdId\)\}/.test(enrolClient),
+  'the parameter is what tells the roster which page to open')
+check('...through classHref, so the class travels with it',
+  /classHref\(`\/student-list\?new=/.test(enrolClient),
+  'a hand-built query string here would drop ?class= and land on another roster')
+check('...and falls back to the plain roster when there is no id',
+  enrolClient.includes('classHref("/student-list")'),
+  'never the string "null" in the address bar')
+
+const rosterClient = code(join(root, 'app/(main)/student-list/StudentTableClient.tsx'))
+check('the roster reads the parameter', rosterClient.includes("searchParams.get('new')"))
+check('...pages to the pupil rather than leaving them off-screen',
+  rosterClient.includes('setCurrentPage(Math.floor(index / pageSize) + 1)'))
+/**
+ * THE SUBTLE ONE. `visible` is the sorted, filtered list actually rendered;
+ * `students` is the raw roster. They differ by sort, by search and by every
+ * filter in the sidebar, so a page number derived from the raw array is the
+ * right index of the wrong list — and lands a teacher one page away from the
+ * pupil while looking like it worked.
+ */
+check('...computed against the list it RENDERS, not the raw roster',
+  /const index = visible\.findIndex\(/.test(rosterClient),
+  'students.findIndex here would be correct on an unsorted, unfiltered class only')
+check('...and consumes the parameter, so a refresh does not re-announce it',
+  rosterClient.includes("params.delete('new')"))
+/**
+ * And exactly one effect writes the query string. A second one deleting `new`
+ * beside the search-sync effect does not work: both read `searchParams` from
+ * the same render, so the search sync rebuilds the query from a value that
+ * still contains `new` and puts it straight back. Observed, not theorised.
+ */
+check('...from the ONE effect that owns the query string',
+  (rosterClient.match(/router\.replace\(/g) ?? []).length === 1,
+  'two effects writing one URL is a race the last one declared wins')
+
+/** Never colour alone, on either view — and the grid is the phone default. */
+check('the announcement is a live region, not only a toast',
+  rosterClient.includes('role="status"') && rosterClient.includes('បានបញ្ចូល'),
+  'a toast is gone in four seconds and is announced to nobody')
+check('the table row carries the word as well as the tint',
+  code(join(root, 'components/ui/views/StudentCompactTable.tsx')).includes('ទើបបញ្ចូល'))
+check('and so does the card, which is the default view on a phone',
+  code(join(root, 'components/ui/views/StudentCard.tsx')).includes('ទើបបញ្ចូល'))
+check('the mark is distinct from the pupil\'s own សិស្សថ្មី flag',
+  code(join(root, 'components/ui/views/StudentCard.tsx')).includes('is_new_student') &&
+  code(join(root, 'components/ui/views/StudentCard.tsx')).includes("label: 'ទើបបញ្ចូល'"),
+  'one is a fact about the year, the other about the last few seconds')
+
 console.log(
   failures === 0
     ? '\n✓ pupils: one profile, one enrolment rule, one document index.'

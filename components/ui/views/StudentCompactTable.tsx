@@ -6,6 +6,19 @@ import { toKhmerNumber } from '@/lib/utils/khmer-num'
 
 interface StudentCompactTableProps {
   students: Student[]
+  /**
+   * The pupil just created by `/enrollment`, marked so it can be picked out.
+   *
+   * NEVER the only signal, and never colour alone: the row also carries a
+   * ទើបបញ្ចូល badge, and `/student-list` states the same fact in a
+   * `role="status"` above the table. A tint on one of twenty rows is not an
+   * answer for a teacher who cannot see it.
+   *
+   * Distinct from `is_new_student`, which is a fact about the PUPIL — new to
+   * the school this year — and is stored on the row. This is a fact about the
+   * last few seconds.
+   */
+  highlightId?: string | null
   selectedIds: Set<string>
   onToggleSelect: (id: string) => void
   onToggleAll: () => void
@@ -16,6 +29,7 @@ interface StudentCompactTableProps {
 
 export function StudentCompactTable({
   students,
+  highlightId = null,
   selectedIds,
   onToggleSelect,
   onToggleAll,
@@ -88,7 +102,15 @@ export function StudentCompactTable({
             return (
               <tr 
                 key={student.id} 
-                className={`group cursor-pointer transition-colors hover:bg-brand/5 ${isSelected ? 'bg-brand/5' : 'bg-paper'}`}
+                // `data-student-row` is what `/student-list` scrolls to once it
+                // has paged to the row; the sticky cells below read `bg-inherit`,
+                // so setting the tint here carries across the frozen columns.
+                data-student-row={student.id}
+                className={`group cursor-pointer transition-colors hover:bg-brand/5 ${
+                  student.id === highlightId
+                    ? 'bg-success/10 ring-1 ring-inset ring-success/40'
+                    : isSelected ? 'bg-brand/5' : 'bg-paper'
+                }`}
                 onClick={() => onAction('view', student)}
               >
                 <td className="sticky left-0 z-10 w-12 border-r border-divider bg-inherit p-4" onClick={(e) => e.stopPropagation()}>
@@ -121,6 +143,13 @@ export function StudentCompactTable({
                     <span className="font-kh-moul text-[14px] font-bold text-text-heading" title={student.name_kh}>
                       {student.name_kh}
                     </span>
+                    {/* The word, beside the tint. Colour carries no meaning on
+                        its own here — see `highlightId`. */}
+                    {student.id === highlightId && (
+                      <span className="shrink-0 rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-bold text-success">
+                        ទើបបញ្ចូល
+                      </span>
+                    )}
                   </div>
                 </td>
                 

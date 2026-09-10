@@ -13,9 +13,17 @@ interface StudentCardProps {
   onDelete: (student: Student) => void
   className?: string
   index?: number // For staggered animation
+  /**
+   * This is the pupil `/enrollment` just created (Phase 12 F1).
+   *
+   * Carried by a ទើបបញ្ចូល badge as well as the tint — colour alone says
+   * nothing to a teacher who cannot see it, and the grid is the DEFAULT view on
+   * a phone, which is exactly where the pupil was hardest to find.
+   */
+  highlighted?: boolean
 }
 
-export function StudentCard({ student, isSelected, onToggleSelect, onDelete, className = '', index = 0 }: StudentCardProps) {
+export function StudentCard({ student, isSelected, onToggleSelect, onDelete, className = '', index = 0, highlighted = false }: StudentCardProps) {
   const [isSwiped, setIsSwiped] = useState(false)
   const touchStartX = useRef<number | null>(null)
   
@@ -40,6 +48,11 @@ export function StudentCard({ student, isSelected, onToggleSelect, onDelete, cla
   }
 
   const badges = []
+  // First, so `slice(0, 3)` below can never drop it — a pupil with three
+  // standing badges is exactly the case where the teacher needs this one.
+  // Distinct from `សិស្សថ្មី`, which is a fact about the pupil's year rather
+  // than about the last few seconds.
+  if (highlighted) badges.push({ label: 'ទើបបញ្ចូល', color: 'bg-success/15 text-success' })
   if (student.is_new_student) badges.push({ label: 'សិស្សថ្មី', color: 'bg-brand/10 text-brand' })
   if (student.poor_status && student.poor_status !== 'គ្មាន') badges.push({ label: student.poor_status, color: 'bg-danger/10 text-danger' })
   if (student.orphan_status && student.orphan_status !== 'ទេ') badges.push({ label: student.orphan_status, color: 'bg-warning/10 text-warning-text' })
@@ -52,11 +65,27 @@ export function StudentCard({ student, isSelected, onToggleSelect, onDelete, cla
 
   return (
     <div 
-      className={`relative overflow-hidden rounded-2xl border ${isSelected ? 'border-brand/40 ring-1 ring-brand/20 bg-brand/5' : 'border-divider bg-paper'} shadow-sm transition-all dialog-enter ${className}`}
+      data-student-row={student.id}
+      className={`relative overflow-hidden rounded-2xl border ${
+        highlighted ? 'border-success/50 ring-1 ring-success/40'
+        : isSelected ? 'border-brand/40 ring-1 ring-brand/20 bg-brand/5'
+        : 'border-divider bg-paper'
+      } shadow-sm transition-all dialog-enter ${className}`}
       style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'both' }}
     >
       {/* Background Actions (revealed on swipe) */}
-      <div className="absolute inset-y-0 right-0 flex w-32 items-center justify-end bg-paper">
+      {/*
+        Hidden until swiped, rather than merely covered.
+        They were relying on the foreground being an OPAQUE `bg-paper` to hide
+        them — so the moment that layer took a translucent tint (the ទើបបញ្ចូល
+        mark below), the កែ and លុប icons showed through the right-hand third of
+        the card as if it were half-swiped. Opacity states what is meant here;
+        "something opaque happens to be on top of it" did not.
+      */}
+      <div
+        aria-hidden={!isSwiped}
+        className={`absolute inset-y-0 right-0 flex w-32 items-center justify-end bg-paper transition-opacity duration-200 ${isSwiped ? 'opacity-100' : 'opacity-0'}`}
+      >
         <Link 
           href={`/students/${student.id}?edit=true`}
           className="flex h-full w-16 flex-col items-center justify-center gap-1 bg-brand/10 text-brand transition-colors hover:bg-brand/20"
@@ -75,7 +104,9 @@ export function StudentCard({ student, isSelected, onToggleSelect, onDelete, cla
 
       {/* Foreground Card */}
       <div 
-        className={`relative flex flex-col bg-paper p-4 transition-transform duration-300 ease-out ${isSwiped ? '-translate-x-32' : 'translate-x-0'}`}
+        // The foreground sits over the swipe actions, so the tint has to be on
+        // THIS layer — a background on the bordered wrapper would be hidden.
+        className={`relative flex flex-col ${highlighted ? 'bg-success/10' : 'bg-paper'} p-4 transition-transform duration-300 ease-out ${isSwiped ? '-translate-x-32' : 'translate-x-0'}`}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
