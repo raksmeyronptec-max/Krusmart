@@ -119,7 +119,7 @@ export default function UpdatePasswordPage() {
             <button 
                 type="submit" 
                 disabled={isLoading || password.length < 6 || confirmPassword.length < 6}
-                className="btn-pulse w-full bg-brand hover:bg-brand-800 disabled:opacity-50 text-white font-bold py-3.5 rounded-lg transition shadow-md flex justify-center items-center mt-6"
+                className="btn-pulse w-full bg-brand hover:bg-brand-800 disabled:opacity-50 text-brand-contrast font-bold py-3.5 rounded-lg transition shadow-md flex justify-center items-center mt-6"
             >
                 {isLoading ? <Loader2 className="animate-spin w-5 h-5" /> : 'ផ្លាស់ប្តូរពាក្យសម្ងាត់'}
             </button>

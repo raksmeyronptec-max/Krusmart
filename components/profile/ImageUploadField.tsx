@@ -146,7 +146,7 @@ export default function ImageUploadField({
               aria-busy={busy}
               aria-describedby={helper ? helperId : undefined}
               onClick={() => inputRef.current?.click()}
-              className="tap-target inline-flex cursor-pointer items-center gap-2 rounded-lg border border-divider bg-bg-surface px-3.5 py-2 text-[13px] font-bold text-brand shadow-sm transition hover:bg-brand-100 focus-visible:ring-2 focus-visible:ring-focus-ring disabled:cursor-not-allowed disabled:opacity-50"
+              className="tap-target inline-flex cursor-pointer items-center gap-2 rounded-lg border border-divider bg-bg-surface px-3.5 py-2 text-[13px] font-bold text-brand shadow-sm transition hover:bg-brand-soft focus-visible:ring-2 focus-visible:ring-focus-ring disabled:cursor-not-allowed disabled:opacity-50"
             >
               {busy ? (
                 <span

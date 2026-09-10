@@ -1,9 +1,8 @@
 'use client'
 
 import { useState, useCallback, useEffect, useMemo } from 'react'
-import { ArrowLeft, PieChart, BarChart2, TrendingUp, Trophy, AlertTriangle, User } from 'lucide-react'
-import Link from 'next/link'
-import { getAllScoresByPeriod, getMonthlyScoresForYear } from '../../score/total/actions'
+import { PieChart, BarChart2, TrendingUp, Trophy, AlertTriangle, User } from 'lucide-react'
+import { getAllScoresByPeriod, getMonthlyScoresForYear } from '../score/total/actions'
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend,
     ResponsiveContainer, LineChart, Line,
@@ -79,7 +78,7 @@ function numericValue(r: Score): number | null {
     return Number.isFinite(v) ? v : null
 }
 
-export default function SubjectAnalysisClient({
+export default function SubjectAnalysisView({
     students,
     defaultAcademicYear,
 }: {
@@ -240,20 +239,16 @@ export default function SubjectAnalysisClient({
     const bottomFive = ranked.length > 5 ? ranked.slice(-5).reverse() : [...ranked].reverse()
 
     return (
-        <div className="min-h-screen bg-paper print:bg-bg-surface pb-10">
-            <div className="max-w-7xl mx-auto py-8 px-4">
-                <Link href="/dashboard" className="inline-flex items-center gap-2 text-brand font-bold mb-6 hover:bg-brand-100 p-2 rounded-xl transition">
-                    <ArrowLeft className="w-5 h-5" /> ត្រឡប់ទៅទំព័រដើម
-                </Link>
-
+        <>
+            <div>
                 <div className="bg-bg-surface p-6 rounded-xl shadow-sm border border-divider mb-8">
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                         <div className="flex items-center gap-4">
-                            <div className="p-3 bg-brand-100 text-brand rounded-xl">
+                            <div className="p-3 bg-brand-soft text-brand-on-soft rounded-xl">
                                 <PieChart className="w-6 h-6" />
                             </div>
                             <div>
-                                <h1 className="text-2xl kh-moul text-text-heading">វិភាគតាមមុខវិជ្ជា</h1>
+                                <p className="text-2xl kh-moul text-text-heading">វិភាគតាមមុខវិជ្ជា</p>
                                 <p className="text-text-muted font-bold">ប្រៀបធៀបភាគរយសិស្សជាប់ និងធ្លាក់តាមមុខវិជ្ជា</p>
                             </div>
                         </div>
@@ -339,7 +334,7 @@ export default function SubjectAnalysisClient({
                                           `connectNulls` joins across months with no marks yet, so a
                                           part-filled year reads as one line rather than as fragments.
                                         */}
-                                        <Line type="monotone" dataKey="average" name="មធ្យមភាគថ្នាក់" stroke="#0054a6" strokeWidth={2} dot={{ r: 3 }} connectNulls />
+                                        <Line type="monotone" dataKey="average" name="មធ្យមភាគថ្នាក់" stroke="var(--brand)" strokeWidth={2} dot={{ r: 3 }} connectNulls />
                                         {studentId && (
                                             <Line
                                                 type="monotone"
@@ -367,7 +362,7 @@ export default function SubjectAnalysisClient({
                             </div>
                             <div className="bg-bg-surface p-6 rounded-xl shadow-sm border border-divider">
                                 <h2 className="font-bold text-lg text-text-body mb-4 flex items-center gap-2">
-                                    <AlertTriangle className="w-5 h-5 text-warning" /> សិស្សត្រូវជួយ ៥ នាក់ · {subjectLabel}
+                                    <AlertTriangle className="w-5 h-5 text-warning-text" /> សិស្សត្រូវជួយ ៥ នាក់ · {subjectLabel}
                                 </h2>
                                 <RankTable rows={bottomFive} emptyLabel="មិនមានទិន្នន័យ" tone="danger" />
                             </div>
@@ -429,7 +424,7 @@ export default function SubjectAnalysisClient({
                     </div>
                 )}
             </div>
-        </div>
+        </>
     )
 }
 

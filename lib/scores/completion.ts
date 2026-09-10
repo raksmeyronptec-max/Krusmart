@@ -116,6 +116,58 @@ export function subjectProgress(
   })
 }
 
+/**
+ * How many pupils carry a mark across a SET of subjects — the entry screen's
+ * question, and the one figure this module was missing.
+ *
+ * ── Why it belongs here ───────────────────────────────────────────────────
+ *
+ * `/score/enter` had its own copy, and the copy disagreed. It counted a pupil
+ * as entered when a **numeric** cell in a **non-`select`** column carried a
+ * value; `isMarked` counts `score_text` as a mark, because the `sem_eval_*`
+ * columns are Khmer words and a rated pupil is a marked pupil (migration
+ * 00012). So a pupil marked only with a rating read as *done* on
+ * `/score/collect` and the dashboard, and as *not started* on the very screen
+ * the teacher was typing into.
+ *
+ * The module header of this file says marking progress is "counted once for two
+ * screens". There were three. This is the third.
+ *
+ * ── Why it is not `subjectProgress` ───────────────────────────────────────
+ *
+ * `subjectProgress` answers "for each subject, how many pupils" — the right
+ * question for `/score/collect`, which lists subjects. The entry grid shows one
+ * period's columns and asks "how many of my pupils have I got through", which is
+ * a UNION across the displayed subjects, not a sum: a pupil marked in two of
+ * them is one pupil, and summing would count them twice.
+ *
+ * For a single subject the two must agree exactly, and
+ * `scripts/verify-score-workspace.mts` asserts that they do.
+ */
+export function rosterProgress(
+  subjects: readonly EffectiveSubject[],
+  rows: readonly MarkRow[],
+  rosterSize: number,
+): { entered: number; total: number; percent: number } {
+  const columns = new Set(subjects.flatMap((s) => s.columns.map((c) => c.id)))
+  const pupils = new Set<string>()
+
+  for (const row of rows) {
+    if (!columns.has(row.subject)) continue
+    if (!isMarked(row)) continue
+    pupils.add(row.student_id)
+  }
+
+  // Clamped for the reason `completionSummary` clamps: a pupil who left the
+  // class mid-period can still carry a mark, and a bar past 100% reads as a bug.
+  const entered = Math.min(pupils.size, rosterSize)
+  return {
+    entered,
+    total: rosterSize,
+    percent: rosterSize === 0 ? 0 : Math.round((entered / rosterSize) * 100),
+  }
+}
+
 export interface CompletionSummary {
   /** Subjects the class is expected to mark this period. */
   subjects: number

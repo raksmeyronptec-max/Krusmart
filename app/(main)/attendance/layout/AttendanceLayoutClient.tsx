@@ -8,11 +8,13 @@ import { saveAttendance, saveAttendanceBulk, getAttendanceForDate, getLockedDate
 import ThreeClassroom from './ThreeClassroom'
 import Select from '@/components/ui/forms/Select'
 import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
+import { ClassContextBar } from '@/components/shell/ClassContextBar'
 import { BottomSheet } from '@/components/ui/overlay/BottomSheet'
 import { useConfirm } from '@/components/ui/overlay/ConfirmDialog'
 import { notify } from '@/components/ui/feedback/notify'
 import { controlClass } from '@/components/ui/forms/fieldStyles'
 import { RosterCheckIn, type MarkStatus } from './RosterCheckIn'
+import { RegisterTally } from './RegisterTally'
 import { useActiveClass } from '@/lib/hooks/useActiveClass'
 import type { AttendanceRecord, Student } from '@/lib/types'
 import { STORAGE_KEYS } from '@/lib/constants/storage'
@@ -350,7 +352,7 @@ export default function AttendanceLayoutClient({
 
         return (
             <div key={seatId} onClick={() => handleSeatClick(seatId)} 
-                 className={`seat empty ${extraClasses} border-2 border-dashed border-divider bg-paper text-text-muted rounded-xl flex items-center justify-center text-xs font-bold cursor-pointer transition-colors hover:border-brand-500 hover:bg-brand-100 hover:text-brand-500`}>
+                 className={`seat empty ${extraClasses} border-2 border-dashed border-divider bg-paper text-text-muted rounded-xl flex items-center justify-center text-xs font-bold cursor-pointer transition-colors hover:border-brand-500 hover:bg-brand-soft hover:text-brand-500`}>
                 <span>+</span>
             </div>
         )
@@ -477,15 +479,22 @@ export default function AttendanceLayoutClient({
                 }
             />
 
+            {/* Which class is being marked present. Self-gating: renders only on class-scoped routes,
+                and nothing at all for a pre-V2 account. */}
+            <ClassContextBar />
+
             {isLocked && (
                 <div
                     role="status"
-                    className="mb-4 flex items-start gap-2 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning print:hidden"
+                    className="mb-4 flex items-start gap-2 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-text print:hidden"
                 >
                     <Lock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
                     <span>{LOCKED_HINT}</span>
                 </div>
             )}
+
+            {/* Have I finished? Above the switcher, so all three views answer it. */}
+            <RegisterTally students={students} marks={attendanceHistory[date] ?? {}} />
 
             {/*
               The view switcher. `2d` and `3d` are hidden below `lg` rather than
@@ -660,7 +669,7 @@ export default function AttendanceLayoutClient({
                                 key={s.id || s.uid || ''}
                                 type="button"
                                 onClick={() => assignStudent(s.id || s.uid || '')}
-                                className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-transparent p-3 text-left transition hover:border-divider hover:bg-brand-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring dark:hover:bg-brand-900/40"
+                                className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-transparent p-3 text-left transition hover:border-divider hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring dark:hover:bg-brand-900/40"
                             >
                                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-brand dark:bg-brand-900/60 dark:text-brand-300">
                                     {s.gender === 'ស្រី' ? 'ស' : 'ប'}

@@ -1,17 +1,26 @@
 'use client'
 
-import { CalendarCheck, CheckCircle2, XCircle, Clock, FileText } from 'lucide-react'
+import { CalendarCheck, CheckCircle2, XCircle, FileText } from 'lucide-react'
 import { PortalHeader, EmptyState } from '../../PortalHeader'
 import { useParent } from '../../ParentContext'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import type { AttendanceRecord } from '@/lib/types'
 import type { AttendanceSummary } from '../../queries'
 
+/**
+ * How each mark looks here. What each mark *means* is not decided on this
+ * screen — `lib/attendance/status.ts` holds that, and this portal used to
+ * disagree with it: `L` was shown as មកយឺត and counted as attending, while the
+ * teacher who entered it had pressed a button labelled ច្បាប់.
+ *
+ * `L` and `AP` are the same mark, so they get the same tile; the dedicated
+ * "late" tile is gone because nothing in this product records lateness.
+ */
 const STATUS = {
   P:  { key: 'present'    as const, tone: 'text-pp-success', bg: 'bg-pp-success/10', Icon: CheckCircle2 },
-  L:  { key: 'late'       as const, tone: 'text-pp-warning',   bg: 'bg-pp-warning/10',   Icon: Clock },
-  A:  { key: 'absent'     as const, tone: 'text-pp-danger',    bg: 'bg-pp-danger/10',    Icon: XCircle },
-  AP: { key: 'permission' as const, tone: 'text-pp-info',    bg: 'bg-pp-info/10',    Icon: FileText },
+  L:  { key: 'permission' as const, tone: 'text-pp-warning', bg: 'bg-pp-warning/10', Icon: FileText },
+  A:  { key: 'absent'     as const, tone: 'text-pp-danger',  bg: 'bg-pp-danger/10',  Icon: XCircle },
+  AP: { key: 'permission' as const, tone: 'text-pp-warning', bg: 'bg-pp-warning/10', Icon: FileText },
 }
 
 export default function AttendanceClient({
@@ -24,11 +33,12 @@ export default function AttendanceClient({
   const { t } = useParent()
 
   // Spread first so STATUS's own `key` is not clobbered by the literal.
+  // Three tiles, not four: `excused` already folds `L` and `AP` together, which
+  // is what they always meant.
   const tiles = [
-    { ...STATUS.P,  value: summary.present },
-    { ...STATUS.L,  value: summary.late },
-    { ...STATUS.A,  value: summary.absent },
-    { ...STATUS.AP, value: summary.permission },
+    { ...STATUS.P, value: summary.present },
+    { ...STATUS.L, value: summary.excused },
+    { ...STATUS.A, value: summary.unexcused },
   ]
 
   return (
@@ -46,7 +56,7 @@ export default function AttendanceClient({
           </p>
         </div>
 
-        <div className="mb-6 grid grid-cols-2 gap-3">
+        <div className="mb-6 grid grid-cols-3 gap-3">
           {tiles.map((tile) => (
             <div key={tile.key} className="rounded-2xl border bg-card-dark p-4" style={{ borderColor: 'var(--pp-card-border)' }}>
               <span className={`mb-2 inline-flex h-9 w-9 items-center justify-center rounded-lg ${tile.bg}`}>

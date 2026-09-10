@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { createClient } from '@/lib/supabase/server'
+import { tallyAttendance } from '@/lib/attendance/status'
 import { getUserRoles } from '@/lib/rbac/server'
 import { parseSchemeConfig, type GradingSchemeConfig } from '@/lib/grading/scheme'
 import type {
@@ -100,9 +101,9 @@ export async function getSchoolStats(scope: AdminScope): Promise<SchoolStats> {
       : Promise.resolve({ data: [] as { score_value: number | null }[] }),
   ])
 
-  const marks = (attendance.data ?? []) as { status: string }[]
-  const present = marks.filter((m) => m.status === 'P').length
-  const attendanceRate = marks.length ? Math.round((present / marks.length) * 1000) / 10 : null
+  // The console's rate is the same rate the teacher app and the parent portal
+  // show — same numerator, same denominator, one definition.
+  const attendanceRate = tallyAttendance((attendance.data ?? []) as { status: string }[]).rate
 
   const values = ((scores.data ?? []) as { score_value: number | null }[])
     .map((s) => s.score_value)

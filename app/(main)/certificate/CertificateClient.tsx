@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import { Button } from '@/components/ui/actions/Button'
-import { Award, RefreshCw, Image as ImageIcon, Camera, Printer, ListOrdered } from 'lucide-react'
+import { RefreshCw, Image as ImageIcon, Camera, Printer, ListOrdered } from 'lucide-react'
 import { notify } from '@/components/ui/feedback/notify'
 import { getAllScoresByPeriod, getMonthlyScoresForYear } from '../score/total/actions'
 import Select from '@/components/ui/forms/Select'
@@ -14,6 +14,8 @@ import { maxScoreByColumn, resolveTemplate, SYSTEM_PRIMARY_TEMPLATE } from '@/li
 import { levelByKey, trackLabel } from '@/lib/onboarding/curriculum'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import { useActiveClass } from '@/lib/hooks/useActiveClass'
+import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
+import { ClassContextBar } from '@/components/shell/ClassContextBar'
 import { FALLBACK_NUMERIC_KEYS, numericColumnKeys } from '@/lib/scores/aggregate'
 import { buildPeriodResults } from '@/lib/scores/periodResults'
 import { periodKeysForSemester } from '@/lib/scores/calendar'
@@ -224,7 +226,7 @@ export default function CertificateClient({ initialStudents, settings }: { initi
     const selectedStudentsData = studentsData.filter(s => selectedStudentIds.includes(s.id))
 
     return (
-        <div className="text-text-heading pb-20 print:bg-white print:m-0 print:p-0">
+        <PageContainer className="text-text-heading print:m-0 print:p-0">
             <style jsx global>{`
                 .font-battambang { font-family: 'Battambang', cursive; }
 
@@ -290,21 +292,18 @@ export default function CertificateClient({ initialStudents, settings }: { initi
                 }
             `}</style>
 
-            <div className="no-print max-w-[1200px] mx-auto px-4 py-6">
-                <div className="flex items-center gap-4 mb-6">
-                    <div>
-                        <h1 className="text-2xl kh-moul text-brand flex items-center gap-3">
-                            <Award className="w-8 h-8 text-gold" /> បោះពុម្ពបណ្ណសរសើរ (Certificates)
-                        </h1>
-                        <p className="text-text-muted text-sm mt-1">ទាញយកទិន្នន័យពិន្ទុ និងចំណាត់ថ្នាក់ ដើម្បីបញ្ចូលក្នុងស៊ុមបណ្ណសរសើរដោយស្វ័យប្រវត្តិ</p>
-                    </div>
-                </div>
+            <div className="no-print">
+                <PageHeader
+                    title="បោះពុម្ពបណ្ណសរសើរ"
+                    description="ទាញយកទិន្នន័យពិន្ទុ និងចំណាត់ថ្នាក់ ដើម្បីបញ្ចូលក្នុងស៊ុមបណ្ណសរសើរដោយស្វ័យប្រវត្តិ"
+                />
+                <ClassContextBar />
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div className="flex flex-col gap-6">
                         <div className="bg-bg-surface p-6 rounded-xl shadow-sm border border-divider">
                             <h2 className="font-bold text-lg mb-4 flex items-center gap-2 text-text-body">
-                                <span className="bg-brand-100 text-brand w-6 h-6 rounded-full flex items-center justify-center text-sm">1</span> ជ្រើសរើសទិន្នន័យ
+                                <span className="bg-brand-soft text-brand-on-soft w-6 h-6 rounded-full flex items-center justify-center text-sm">1</span> ជ្រើសរើសទិន្នន័យ
                             </h2>
                             
                             <div className="space-y-4">
@@ -368,7 +367,7 @@ export default function CertificateClient({ initialStudents, settings }: { initi
 
                         <div className="bg-bg-surface p-6 rounded-xl shadow-sm border border-divider">
                             <h2 className="font-bold text-lg mb-4 flex items-center gap-2 text-text-body">
-                                <span className="bg-brand-100 text-brand w-6 h-6 rounded-full flex items-center justify-center text-sm">2</span> រូបភាពស៊ុម & ព័ត៌មាន
+                                <span className="bg-brand-soft text-brand-on-soft w-6 h-6 rounded-full flex items-center justify-center text-sm">2</span> រូបភាពស៊ុម & ព័ត៌មាន
                             </h2>
 
                             <div className="space-y-4">
@@ -440,7 +439,7 @@ export default function CertificateClient({ initialStudents, settings }: { initi
                         <div className="p-4 border-b border-divider bg-paper flex flex-col gap-4">
                             <div className="flex flex-wrap justify-between items-center gap-3">
                                 <h2 className="font-bold text-lg flex items-center gap-2 text-text-body">
-                                    <span className="bg-brand-100 text-brand w-6 h-6 rounded-full flex items-center justify-center text-sm">3</span> បញ្ជីសិស្សទទួលបានចំណាត់ថ្នាក់
+                                    <span className="bg-brand-soft text-brand-on-soft w-6 h-6 rounded-full flex items-center justify-center text-sm">3</span> បញ្ជីសិស្សទទួលបានចំណាត់ថ្នាក់
                                 </h2>
                                 <div className="flex items-center gap-3 bg-bg-surface p-1.5 rounded-xl border border-divider shadow-sm w-full sm:w-auto justify-between">
                                     <span className="text-sm text-text-muted font-bold px-3">បានជ្រើសរើស: {selectedStudentIds.length} នាក់</span>
@@ -551,6 +550,6 @@ export default function CertificateClient({ initialStudents, settings }: { initi
                     </div>
                 ))}
             </div>
-        </div>
+        </PageContainer>
     )
 }

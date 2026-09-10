@@ -12,6 +12,9 @@ import type { BookDefinition, BookField } from '@/lib/class-admin/books'
 import { printableFields } from '@/lib/class-admin/books'
 import type { ClassAdminEntry, Settings } from '@/lib/types'
 import { createBookEntry, deleteBookEntry, listBookEntries, updateBookEntry } from '../actions'
+import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
+import { ClassContextBar } from '@/components/shell/ClassContextBar'
+import { useClassHref } from '@/lib/hooks/useClassHref'
 
 /**
  * Editor and printable sheet for one of the 13 class-administration books.
@@ -45,6 +48,9 @@ export default function BookClient({
   const [editId, setEditId] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
   const { confirm, dialog } = useConfirm()
+  // The book index is class-scoped, and this is the only link on the screen
+  // that leaves for it — so it has to carry the class the book was opened for.
+  const classHref = useClassHref()
 
   const landscape = book.orientation === 'landscape'
   const columns = printableFields(book)
@@ -155,7 +161,7 @@ export default function BookClient({
   }
 
   return (
-    <div className="font-battambang print:bg-white">
+    <PageContainer className="font-battambang">
       <style jsx global>{`
         .print-container { display: none; }
         @media print {
@@ -177,23 +183,27 @@ export default function BookClient({
       `}</style>
 
       {/* ---------------------------------------------------------------- UI */}
-      <div className="no-print mx-auto max-w-6xl px-4 py-6 md:py-8">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <Link
-            href="/class-admin"
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-divider bg-bg-surface px-4 py-2 font-bold text-brand shadow-sm transition hover:border-brand-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-          >
-            <ArrowLeft className="h-5 w-5" aria-hidden="true" /> ត្រឡប់ទៅបញ្ជីសៀវភៅ
-          </Link>
-          <Button variant="danger" printHidden={false} onClick={() => window.print()}>
-            <Printer className="h-4 w-4" aria-hidden="true" /> បោះពុម្ព
-          </Button>
-        </div>
+      <div className="no-print">
+        <PageHeader
+          title={book.title}
+          description="រដ្ឋបាលថ្នាក់រៀន — កត់ត្រា និងបោះពុម្ព"
+          actions={
+            <>
+              <Link
+                href={classHref('/class-admin')}
+                className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-divider bg-bg-surface px-4 text-[13px] font-bold text-brand transition hover:border-brand-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+              >
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" /> បញ្ជីសៀវភៅ
+              </Link>
+              <Button variant="danger" printHidden={false} onClick={() => window.print()}>
+                <Printer className="h-4 w-4" aria-hidden="true" /> បោះពុម្ព
+              </Button>
+            </>
+          }
+        />
+        <ClassContextBar />
 
         <div className="rounded-xl border border-divider bg-bg-surface p-5 shadow-lg md:p-8">
-          <h1 className="kh-moul mb-6 border-b border-divider pb-4 text-lg text-brand md:text-xl dark:text-brand-300">
-            {book.title}
-          </h1>
 
           {/* Entry form */}
           <form
@@ -202,7 +212,7 @@ export default function BookClient({
           >
             <h2 className="mb-4 flex items-center gap-2 font-bold text-text-heading">
               {editId ? (
-                <><Edit className="h-5 w-5 text-warning" aria-hidden="true" /> កែប្រែកំណត់ត្រា</>
+                <><Edit className="h-5 w-5 text-warning-text" aria-hidden="true" /> កែប្រែកំណត់ត្រា</>
               ) : (
                 <><PlusCircle className="h-5 w-5 text-success" aria-hidden="true" /> បញ្ចូលកំណត់ត្រាថ្មី</>
               )}
@@ -295,7 +305,7 @@ export default function BookClient({
       </div>
 
       {/* ------------------------------------------------------------- Print */}
-      <div className="print-container bg-white text-black">
+      <div className="print-container text-black">
         <div className="mb-5 text-center">
           <h3 className="kh-moul mb-1 text-[13pt]">ព្រះរាជាណាចក្រកម្ពុជា</h3>
           <h3 className="kh-moul text-[13pt]">ជាតិ សាសនា ព្រះមហាក្សត្រ</h3>
@@ -359,6 +369,6 @@ export default function BookClient({
         </div>
       </div>
       {dialog}
-    </div>
+    </PageContainer>
   )
 }

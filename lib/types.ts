@@ -334,6 +334,16 @@ export type NotificationInput = Omit<Notification, 'id' | 'teacher_id' | 'create
 export interface HomeworkAssignment {
   id: string
   teacher_id: string
+  /**
+   * The class this assignment was published to (migration 00032).
+   *
+   * `null` means it predates the column and keeps its original reach — every
+   * parent of every pupil the teacher teaches. It is an **address**, not a
+   * label: the parent-side RLS policy reads it to decide who may see the row,
+   * which is why it is resolved server-side from the caller's own assignments
+   * and never accepted from the browser.
+   */
+  class_id: string | null
   subject: string
   title: string
   description: string | null
@@ -343,10 +353,15 @@ export interface HomeworkAssignment {
   created_at: string
 }
 
-/** Fields the assignment form submits; `teacher_id` is added server-side. */
+/**
+ * Fields the assignment form submits.
+ *
+ * `teacher_id` and `class_id` are both added server-side — see the note on
+ * `class_id` above for why the second one may not come from the client.
+ */
 export type HomeworkAssignmentInput = Omit<
   HomeworkAssignment,
-  'id' | 'teacher_id' | 'created_at' | 'status'
+  'id' | 'teacher_id' | 'class_id' | 'created_at' | 'status'
 > & { status?: string }
 
 /**
@@ -532,6 +547,19 @@ export interface TeacherAssignment {
 /** A teacher assignment joined to the names needed to render the context switcher. */
 export interface TeacherAssignmentDetail extends TeacherAssignment {
   class_name: string
+  /**
+   * The class's grade, embedded from `grades` on the assignment read.
+   *
+   * `null` is a real and expected state, not a bug: `grades_select_member`
+   * (00003) gates the row on the caller's `current_school_ids()`, and a legacy
+   * account has no class at all. Surfaces print an honest dash for it —
+   * `classes.name` is generated from the grade number but is free text by the
+   * time it reaches here, so deriving the grade back out of it would be a
+   * guess, and a wrong grade is worse than an absent one.
+   */
+  grade_name?: string | null
+  /** `grades.sort_order`, the grade number — 1–12, or `null` when unresolved. */
+  grade_number?: number | null
   subject_name?: string | null
   academic_year_name: string
   school_id: string

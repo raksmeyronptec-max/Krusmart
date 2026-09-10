@@ -47,8 +47,8 @@ export function NoSchool() {
   return (
     <div className="mx-auto max-w-7xl p-4 md:p-8">
       <div className="rounded-xl border border-warning/30 bg-warning/10 p-8 text-center">
-        <p className="font-bold text-warning">គណនីរបស់អ្នកមិនទាន់បានភ្ជាប់ជាមួយសាលាណាមួយទេ។</p>
-        <p className="mt-2 text-sm text-warning">
+        <p className="font-bold text-warning-text">គណនីរបស់អ្នកមិនទាន់បានភ្ជាប់ជាមួយសាលាណាមួយទេ។</p>
+        <p className="mt-2 text-sm text-warning-text">
           សូមទាក់ទងអ្នកគ្រប់គ្រងប្រព័ន្ធ ដើម្បីភ្ជាប់គណនីរបស់អ្នកទៅសាលារៀន។
         </p>
       </div>

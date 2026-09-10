@@ -121,17 +121,31 @@ export interface ScoreWorkspaceTab {
 
 /**
  * The workspace's secondary navigation, in the order the work happens:
- * enter the marks, read the totals, rank them, look for the pattern.
+ * enter the marks, read the totals, rank them, look for the pattern — and see
+ * how much is still missing.
+ *
+ * `/score/collect` is the fifth door, and it belongs here rather than in the
+ * menu it used to hide in (`hidden: true`, under ពិន្ទុ). "How much of this
+ * period is still unmarked" is the question a teacher asks *between* entering
+ * and reading, and it was reachable only from the dashboard's progress tile.
+ * `lib/scores/completion.ts` already guarantees it and the dashboard count the
+ * same figure; putting it in the strip means the teacher can get to it from the
+ * grid they are looking at.
  *
  * `/score/subjects` is deliberately NOT a tab. It configures *what the class
  * assesses*, which is a different question from *what the pupils scored*, and
  * it is reached from the picker on `/score/enter` and from `/classroom`. A
  * configuration screen sitting in a row of result screens invites a teacher to
  * change the curriculum while looking for a mark.
+ *
+ * `/score/print` is not a tab either: it is a DOCUMENT, and documents are
+ * indexed in the Print Center (§27). A tab strip that mixed screens and sheets
+ * would be the competing document menu that index exists to replace.
  */
 export const SCORE_WORKSPACE_TABS: readonly ScoreWorkspaceTab[] = [
   { id: 'enter', label: 'បញ្ចូលពិន្ទុ', href: '/score/enter', carriesPeriod: true },
   { id: 'total', label: 'តារាងសរុប', href: '/score/total', carriesPeriod: true },
+  { id: 'collect', label: 'ការប្រមូលពិន្ទុ', href: '/score/collect', carriesPeriod: false },
   { id: 'ranking', label: 'ចំណាត់ថ្នាក់', href: '/ranking', carriesPeriod: false },
   { id: 'analysis', label: 'វិភាគ', href: '/score-analyse', carriesPeriod: false },
 ] as const

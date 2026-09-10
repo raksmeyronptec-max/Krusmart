@@ -2,13 +2,16 @@
 
 import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/actions/Button'
-import { BookUser, Printer, Users } from 'lucide-react'
+import { Printer, Users } from 'lucide-react'
 import SearchableSelect from '@/components/ui/forms/SearchableSelect'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import { gradeFor } from '@/lib/grading/scheme'
 import { useScoreTemplate } from '@/lib/hooks/useScoreTemplate'
 import { scoreCellValue } from '@/lib/utils/score-value'
 import type { AttendanceRecord, Score, Settings, Student } from '@/lib/types'
+import { markFor } from '@/lib/attendance/status'
+import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
+import { ClassContextBar } from '@/components/shell/ClassContextBar'
 
 /**
  * សៀវភៅសិក្ខាគារិក — one A4 landscape sheet per student.
@@ -166,11 +169,18 @@ export default function RecordBookClient({
     for (const row of attendance) {
       const entry = map.get(row.student_id)
       if (!entry) continue
-      if (row.status !== 'A' && row.status !== 'AP') continue
+      /*
+       * The same defect the engine's `resolveRecordBook` carried: this read
+       * `A` and `AP` and skipped `L`, so the ច្បាប់ column of the printed book
+       * was structurally empty — `AP` is written by nothing, and `L`, the mark
+       * the register actually records, never reached either column.
+       */
+      const mark = markFor(row.status)
+      if (!mark || mark.inClass) continue
 
       const month = Number(row.date.slice(5, 7))
       const half = month >= 11 || month <= 3 ? entry.absent.s1 : entry.absent.s2
-      if (row.status === 'AP') half.ap += 1
+      if (mark.excused) half.ap += 1
       else half.a += 1
     }
 
@@ -180,7 +190,7 @@ export default function RecordBookClient({
   const sheets = selectedId ? students.filter((s) => s.id === selectedId) : students
 
   return (
-    <div className="min-h-screen font-battambang print:bg-white">
+    <PageContainer className="font-battambang">
       <style jsx global>{`
         .print-container { display: none; }
         @media print {
@@ -203,19 +213,14 @@ export default function RecordBookClient({
       `}</style>
 
       {/* ---------------------------------------------------------------- UI */}
-      <div className="no-print mx-auto max-w-5xl px-4 py-6 md:py-8">
+      <div className="no-print">
+        <PageHeader
+          title="សៀវភៅសិក្ខាគារិក"
+          description={`ទំហំ A4 ផ្តេក — មួយសន្លឹកក្នុងមួយសិស្ស · ឆ្នាំសិក្សា ${academicYear}`}
+        />
+        <ClassContextBar />
+
         <div className="rounded-xl border border-divider bg-bg-surface p-6 shadow-lg md:p-8">
-          <div className="mb-6 flex items-center gap-3 border-b border-divider pb-4">
-            <div className="rounded-full bg-success/10 p-3 text-success dark:bg-success/10 dark:text-success">
-              <BookUser className="h-6 w-6" aria-hidden="true" />
-            </div>
-            <div>
-              <h1 className="kh-moul text-xl text-brand md:text-2xl dark:text-brand-300">សៀវភៅសិក្ខាគារិក</h1>
-              <p className="mt-1 text-sm text-text-muted">
-                ទំហំ A4 ផ្តេក — មួយសន្លឹកក្នុងមួយសិស្ស · ឆ្នាំសិក្សា {academicYear}
-              </p>
-            </div>
-          </div>
 
           <div className="mb-6 grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
             <div>
@@ -406,6 +411,6 @@ export default function RecordBookClient({
           )
         })}
       </div>
-    </div>
+    </PageContainer>
   )
 }

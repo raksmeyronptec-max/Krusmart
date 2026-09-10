@@ -7,13 +7,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm run dev      # next dev
-npm run build    # next build
-npm start        # next start
-npm run lint     # eslint (flat config, eslint-config-next core-web-vitals + typescript)
+npm run dev        # next dev
+npm run build      # next build (prebuild regenerates the report templates)
+npm start          # next start
+npm run lint       # eslint (flat config, eslint-config-next core-web-vitals + typescript)
+npm run typecheck  # tsc --noEmit
+npm run verify     # the 31 offline verification harnesses
+npm run check      # lint + typecheck + verify, in that order — run this before you finish
 ```
 
-No test framework is configured — there is nothing to run for tests. Type errors surface via `npm run build` (`tsc` is `noEmit`).
+**No Jest, but not "no tests".** `scripts/verify-*.mts` holds 34 harnesses — 31 offline, 3 opt-in
+(`*-live.mts`, which need a running local Supabase stack plus the fixtures in
+`supabase/fixtures/`). They are the closest thing this repository has to a test suite, and every
+section below cites the one that pins it. `verify-all.mjs` discovers them from the filesystem and
+runs them concurrently, printing nothing on success.
+
+Each harness exists because a specific invariant was broken at least once, and several are
+written to fail **on purpose** when a placeholder they use as an example is finally implemented —
+move the example rather than weakening the check. A change that touches a shared rule should
+extend a harness, not merely pass the existing ones.
+
+`scripts/validate-rls.mjs` is separate again: a real Postgres connection to a local stack, proving
+the RLS policies behaviourally rather than structurally — **64 checks**, and the only thing in the
+repository that can demonstrate a cross-tenant hole. Run it as
+`supabase start && node scripts/validate-rls.mjs`.
 
 Requires `.env.local` with `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` (see `.env.example`). The other env vars are the five Cloudflare R2 keys — `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` (all server-only) and `NEXT_PUBLIC_R2_PUBLIC_URL` (the read-only CDN host) — which back every image upload; unset, uploads report a failure and everything else works. There is no service-role key anywhere, so **every** data path goes through RLS as the logged-in user — the only exceptions are the two SECURITY DEFINER functions, `create_teacher_organisation` (migration 00017) and `backfill_teacher_enrolments` (migration 00018, redefined in 00019), both keyed entirely on `auth.uid()`.
 
@@ -31,7 +48,7 @@ Next.js 16 App Router + React 19, Tailwind v4, Supabase (auth + Postgres).
 
 | Tree | Purpose | Gate |
 | --- | --- | --- |
-| `app/(main)/` | The teacher app — ~30 features, the bulk of the code. `/classroom` is the class manager and the front door for class · student · subject | Session via `proxy.ts`; layout redirects parents away |
+| `app/(main)/` | The teacher app — 45 routes, the bulk of the code. `/classroom` is the class manager and the front door for class · student · subject | Session via `proxy.ts`; layout redirects parents away |
 | `app/admin/` | School console (owner / principal / school_admin) | `app/admin/layout.tsx` calls `getUserRoles()` + `isSchoolAdmin()` server-side before any child renders |
 | `app/parent/(portal)/` | Parent portal — dashboard, grades, attendance, homework, family, student card | Real Supabase auth + `parent_students` link (migration 00010) |
 | `app/login/` | Multi-role sign-in: `/login` (universal) plus `/login/{owner,admin,teacher,parent}`, `choose-workspace`, `reset-password`, `update-password` | Public |
@@ -60,7 +77,15 @@ The dashboard's "មុខងារទាំងអស់" grid is **derived from
 
 Because every printable view now sits under the shell, the shell disappears on paper via two attributes handled in `globals.css`: `data-app-chrome` → `display:none`, `data-app-frame` → `display:contents` (drops the box from layout while keeping children, so an A4 sheet measures the same as before the shell existed). Keep both attributes on any new frame element.
 
-[lib/navigation.ts](lib/navigation.ts) is the information architecture: `NAV_MODULES` groups the flat routes into ten modules, and `moduleForPath` drives both the sidebar highlight and the breadcrumb. URLs are deliberately *not* renamed to match the grouping. A detail route reached from a row rather than a menu (e.g. `/students/[id]`) still has to be declared, with `hidden: true`.
+[lib/navigation.ts](lib/navigation.ts) is the information architecture: `NAV_MODULES` groups the flat routes into twelve modules across four sections, and `moduleForPath` drives both the sidebar highlight and the breadcrumb. URLs are deliberately *not* renamed to match the grouping. A detail route reached from a row rather than a menu (e.g. `/students/[id]`) still has to be declared, with `hidden: true`.
+
+**Every `(main)` route sits in the same frame, and it is checked.** Phase 0 measured the seam: 16 of 45 routes used `PageContainer` / `PageHeader` and the other 29 hand-rolled a container between them across **six** different content widths, each with its own `<h1>` treatment and its own vertical rhythm. No individual screen was wrong; the product read as a collection of pages because the joins did not line up. The contract is written at the top of [components/shell/PageContainer.tsx](components/shell/PageContainer.tsx) and `scripts/verify-page-frame.mts` is the half that fails the build — R1 the container, R2 no page height or background of its own, R3 a declared header rather than a loose `<h1>`, R4 a class-scoped route says *which* class, R5 none of the six competing columns, R6 a fixed-millimetre sheet sits in a `.preview-scroll`.
+
+An A4 sheet legitimately has its own width and its own headings, so lines carrying a print marker are removed before R5 is applied. What a sheet must not do is wrap the whole route.
+
+**[`ClassContextBar`](components/shell/ClassContextBar.tsx) answers "which class am I in?" once.** Presentation only: it reads `useActiveClass()`, gates on `isClassScopedPath(pathname)` — the *same* list `withClassParam` uses, never a second array — and holds no state, no selector and no storage. Three states, and the middle one matters: not class-scoped renders nothing, a legacy or still-loading account renders nothing, and a resolved class renders `class · grade · year` with an honest `ថ្នាក់ទី —` where the grade is genuinely unknown.
+
+**`/administration` is a redirect to `/admin/dashboard`.** It used to render an invented school of 1,250 pupils and a per-teacher radar chart; of its six headline figures only two are computable and `dropoutRisk` has no definition anywhere in this product. Rebuilding it would have created a second school-analytics surface in the teacher tree. It stays declared `hidden` so the breadcrumb resolves mid-redirect, and the actor check runs **before** the hand-off so a parent is refused at the door rather than inside the admin tree.
 
 ### Page pattern
 
@@ -168,6 +193,8 @@ The wizard state is **derived from `Actor`, never stored** — same principle as
 | `00029_score_calendar_periods.sql` | `score_calendar_periods` — which months a school grades as one period, read by `periodForDate`/`fetchScoreCalendar`. |
 | `00030_audit_logs_select_own.sql` | One SELECT policy, `actor_id = auth.uid()`, so the dashboard's សកម្មភាពថ្មីៗ can read the rows the teacher themselves wrote. Still no UPDATE and no DELETE. |
 | `00031_teacher_class_creation.sql` | Lets a teacher of a school create a grade and a class in it, and staff **themselves** onto that class. Adds `classes.created_by` (defaulted to `auth.uid()`) — the key the self-assignment policy is written on — plus `is_school_teacher()` and two definer lookups. Widens no existing policy: renaming, deleting and staffing anybody else stay administrator-only. |
+| `00032_homework_assignments_class_scope.sql` | `homework_assignments.class_id`, nullable and never backfilled — `/homework/send` was the last class-scoped workflow in the product with no class dimension, so a teacher holding two classes published one list to both classes' parents. **Replaces** 00001's INSERT/UPDATE policies rather than supplementing them: permissive policies are ORed, so an added policy would have widened rather than narrowed. `is_class_of_my_child()` keeps a parent's reach on a NULL-class row, which is every row written before this. |
+| `00033_enrolment_requires_relationship.sql` | Closes the enrolment counterpart of the hole 00011 closed for marks. 00003's write policy authorises by CLASS and never by STUDENT, so **any form master could enrol any pupil id into their own class** — including from another school — and thereby acquire read access through 00006/00007. Demonstrated `201 Created` across two schools before the fix. Keeps 00003's class predicate character-for-character and ANDs `can_enrol_student()` onto it. |
 
 `supabase/legacy/` holds superseded partial snapshots — **do not apply them**. `supabase/README.md` still describes the pre-V2 world in places (it claims the scores conflict key omits `teacher_id`, and that there is no classes table); the migrations and this file are the newer account. Verify against the live project before relying on any of it.
 
@@ -179,11 +206,13 @@ The wizard state is **derived from `Actor`, never stored** — same principle as
 
 **The attention line said ក្រោម ៥ whatever the class marked out of.** It is `scheme.passMark` now — 25 on a /50 secondary class.
 
-**Marking progress is counted once for two screens.** [lib/scores/completion.ts](lib/scores/completion.ts) (pure) holds the three rules that are easy to get subtly wrong: a mark is `score_value` **or** `score_text` (the `sem_eval_*` columns are Khmer words); a pupil counts **once per subject**, not once per column, so a seven-column subject is not seven times as marked; and the denominator is always the **roster**, so an untouched subject reads `0 / 42` and never `0 / 0`. `/score/collect` and the dashboard both call `subjectProgress`, so the bar and that screen's rows cannot disagree — the bar says how much is left, that page says which.
+**Marking progress is counted once for three screens.** [lib/scores/completion.ts](lib/scores/completion.ts) (pure) holds the three rules that are easy to get subtly wrong: a mark is `score_value` **or** `score_text` (the `sem_eval_*` columns are Khmer words); a pupil counts **once per subject**, not once per column, so a seven-column subject is not seven times as marked; and the denominator is always the **roster**, so an untouched subject reads `0 / 42` and never `0 / 0`. `/score/collect` and the dashboard call `subjectProgress`, so the bar and that screen's rows cannot disagree — the bar says how much is left, that page says which. `/score/enter` calls `rosterProgress`, which answers the entry grid's own question — how many *pupils* have been got through, unioned across the displayed subjects rather than summed, since a pupil marked in two of them is one pupil. It used to count that inline and drop `score_text`, so a pupil carrying only a Khmer rating read as done on the other two screens and as not started on the one being typed into; `verify-score-workspace.mts` §8 now runs the two functions against the same rows and asserts they agree for a single subject.
 
 **Recent activity needed migration 00030.** `audit_logs` had exactly two policies: insert-your-own and select-if-`is_school_admin`. A teacher wrote to the trail on every save and could read none of it, so the section would have rendered empty for every teacher, for ever. 00030 adds one policy — `actor_id = auth.uid()` — plus the `(actor_id, created_at DESC)` index that predicate needs. It adds **no UPDATE and no DELETE**: the trail stays append-only, and `/admin/audit-logs` is untouched because permissive SELECT policies are ORed. `auditLogBatch` writes **one** row carrying `metadata.count` — forty marks is one `score.updated` row with `count: 40` — so the feed reads that metadata rather than counting rows, which would say "១ ប្រអប់" for a class of forty. Consecutive identical actions are still folded, counts summed, because saving the same grid eight times should not push yesterday off the screen. An action with no Khmer phrasing is **dropped, not printed raw**: a feed that occasionally prints `class_template.selection_applied` reads as a leak rather than a history, and the label map is written from real call sites because the `AuditAction` union ends in `(string & {})` and so documents nothing.
 
 **There is no separate report-shortcut row.** The Print Center is the single document hub (§8), so the quick action points there rather than the dashboard growing its own list of favourite reports — which is exactly the competing menu the `FeatureGrid` rewrite removed.
+
+**Progress is measured against the work a teacher can do.** `ServerGradingContext` carries two subject lists and neither screen decides for itself: `subjects` is the whole curriculum and is what every average, rank, certificate and report reads — *narrowing a template must never narrow an average* — while `taughtSubjects` is that list narrowed by `class_template_subjects`, i.e. exactly what `/score/enter`'s grid offers. The dashboard and `/score/collect` count progress over the second. Fed the first, they told a class teaching three subjects that thirty-two more were outstanding and pinned the bar near 9% for ever, because the other thirty-two could not be marked at all. `applySelection` returns the full list for a class that has configured nothing, so an account that never opened `/score/subjects` is unchanged.
 
 `scripts/verify-dashboard.mts` pins all of it, including that the old flat-bucket fold and the literal ៥ do not come back.
 
@@ -250,6 +279,48 @@ The third level, `subject_id` UUID → `public.subjects`, never reconciled with 
 - **A teacher's own subjects are ordinary class-scope template rows** since 00027. There is no second store: `/score/enter`'s add-subject dialog and `/score/subjects` both call `addClassSubject`, which mints the key server-side (`cls_`) and never lets the browser coin one. Converted rows carry the `cs_` prefix, which is what makes 00027's rollback able to find exactly its own rows. Three prefixes, three origins — `hs_`/`kh_`/`math_`/`sem_` national, `cls_` teacher-added, `cs_` converted — and none of them collide.
 - **The `assessments` feature was removed, not migrated.** The table (00003) and `scores.assessment_id` exist, but nothing ever wrote a score against an assessment and no report read one; for self-serve schools the creation form's `class_subjects` picker was empty, so it could not even be used. The admin UI, action and queries are gone; the tables stay untouched. If assessment-style grading is ever built, key it on `subject_key`, not `class_subject_id`.
 
+### Attendance: four marks, one meaning
+
+`attendance.status` is free TEXT with four values in play, no CHECK constraint, and — until
+[lib/attendance/status.ts](lib/attendance/status.ts) — nothing declaring what any of them meant.
+Eleven surfaces each decided for themselves, and they did not agree.
+
+**`L` is ច្បាប់ — an absence the school permitted.** That is what the only screen that writes a
+status calls its own button, what the monthly register prints as "ច", what the yearly sheet gives
+a ច្ប column of its own, and what the printed parent report counts under អវត្តមាន. The **parent
+portal** read it as `មកយឺត` — arrived late — and added it to the numerator of the attendance
+rate, so a pupil their teacher recorded as away with permission was shown to their own parent as
+present and on time. The sheet the teacher hands over and the portal that parent signs into
+stated different rates for the same days.
+
+**`AP` is a legacy spelling of `L`.** Declared by the type, written by nothing, counted as an
+absence by five readers and dropped silently by five others. `report-data.ts` disagreed with
+*itself*: `absenceKind` folded it into unexcused while `resolveRecordBook`, 800 lines later,
+counted it as the excused half — and that same resolver read `A` and `AP` while describing them
+as "the two statuses the attendance feature writes", so it skipped every `L`. **The excused
+column of every printed record book was structurally zero.**
+
+Two rules do all the work now, and every counting surface reads them:
+
+- **`inClass` is the only question a rate may ask, and only `P` answers yes.** Permission excuses
+  an absence; it does not undo it. `unexcused` answers "is this child truant", which is a
+  different question and is on the page beside it.
+- **The denominator is days recorded, not days in the month.** A register kept for nine days of
+  twenty describes nine days.
+
+`tallyAttendance()` is the arithmetic; `markFor()` tolerates a value this application does not
+know and counts it as `unknown` rather than folding it into something it is not. `ENTRY_MARKS`
+holds the three a teacher may write — offering both spellings of one mark is how the
+disagreement started. `scripts/verify-attendance.mts` runs the module and then checks that no
+surface has grown a private copy, including the exact ratio the two parent-facing screens
+disagreed about.
+
+The register's completion strip lives in
+[`RegisterTally`](<app/(main)/attendance/layout/RegisterTally.tsx>) **above** the view switcher,
+not inside the list view where it started — the seating plan and the 3D room are the two views a
+desk user is most likely to pick, and neither distinguishes "not marked" from "marked present" at
+a glance.
+
 ### Students: one pupil, one enrolment rule, one document index
 
 `/students/[id]` is the pupil **whole** — identity, enrolment, attendance, marks, homework, performance — and it is the only screen that aggregates them; every fact is still *written* on the screen that owns it (`/enrollment` for the record, `/score/enter` for marks, `/attendance/layout` for the register), which is why they are linked and not duplicated.
@@ -264,9 +335,20 @@ Its action links carry the **pupil's** class, not the teacher's active one: the 
 
 The `សិស្ស` nav module therefore lists **four** entries, not eight — roster, enrolment, tracking, and `ឯកសារសិស្ស` pointing at `/print-center?category=student` (the page validates the category against the catalogue and falls back to the full index). The four document routes stay declared as `hidden`, so `moduleForPath` still resolves them and `/student-list`'s own toolbar links keep working.
 
+**A teacher can move a pupil between their own classes.** A pupil's class *is* their enrolment, so before this the only remedy for a misplacement was to delete and re-enter, destroying the id every score and attendance row hangs off. The close-then-open sequence lives once in [lib/enrolment/move.ts](lib/enrolment/move.ts) and **authorises nobody** — deliberately, because a shared write that quietly applied one caller's rule would silently widen or narrow the other. The two callers differ *only* in who they let through: the admin console by `requirePermission('enrollments:update')`, the teacher app by being form master of **both** ends, with ownership of the `students` row standing in when there is no enrolment to leave. It always stamps `transferred`, never `promoted` — promotion is a year-end decision across a class, not a side effect of fixing a typo. 00003 has granted homeroom teachers this since V2; only the application withheld it.
+
 `scripts/verify-students.mts` fails when a new `window.print()` screen is not catalogued — you must either catalogue it or record *why* it is not a document in its `NOT_DOCUMENTS` map, and a stale exclusion fails too.
 
 ### Results: three screens, one answer
+
+**លទ្ធផល is a module of its own.** `/ranking`, `/score/collect`, `/score-analyse` and
+`/honor-roll` were `hidden: true` children of ពិន្ទុ, so the brief's "RESULTS" step had no
+representation in navigation at all — the three screens below existed and nothing offered them
+together. They are one module now, with `/ranking` as the front door, and the ពិន្ទុ module's own
+front door moved from `/score/total` to `/score/enter`: a teacher who clicks ពិន្ទុ means to enter
+marks, not to read them. No URL moved. `verify-navigation.mts` asserts each of the four is offered
+by លទ្ធផល and hidden in no other module.
+
 
 `/ranking`, `/honor-roll` and `/certificate` are three presentations of one question — how did this class do in this period, and in what order. Each carried its own copy of the answer, and all three copies had the **same** defect in the annual branch: two `parseFloat`s off `sem1_avg`/`sem2_avg` and a hand-counted divisor. Since nothing in this application writes an annual row, all three printed `0.00` beside every pupil of every real class, ranked equal, while `/score/total` and the printed sheets showed the real year. One bug written three times is one missing module.
 
@@ -279,6 +361,8 @@ The `សិស្ស` nav module therefore lists **four** entries, not eight —
 **`/record-book` hard-coded thirteen primary columns**, so a lower-secondary class printed primary subject names with every mark blank — the `sem_kh_*` column ids do not exist in its curriculum. It resolves from the class's semester template now, splitting marks from worded assessments on `column.type === 'select'` (a fact about the column, not a guess from its name). The compiled-in list survives as `FALLBACK_SUBJECTS` for a pre-V2 account with no template to resolve.
 
 **Teacher assignments can be undone.** `removeAssignment` had existed in `app/admin/actions.ts` since the console was built — permission-gated, audited, revalidating — and was called from nowhere, so a teacher who left kept RLS access to the class and kept appearing in `/score/collect`. The console lists each assignment as its own row (class · subject, labelled through the same `listAssignableSubjects` the assignment form's picker uses) with a confirming remove control.
+
+**A rank is an ordering position; a placing is a claim.** `assignRanks` weighs a null average as 0, which is what puts unmarked pupils last and lets a screen sort a whole roster in one pass — but a pupil who was never marked has not placed anywhere. `report-data.ts` said so five times (`average === null ? '' : …`) and **no screen said it once**, so `/ranking` printed "៤" beside pupils the ranking sheet built from the same figures left blank. `placing()` in [lib/scores/periodResults.ts](lib/scores/periodResults.ts) is that rule, beside the result it is a property of, and both surfaces read the one copy.
 
 `scripts/verify-score-workspace.mts` §6 pins the three league tables to the one builder; `verify-annual.mts` §K pins all four surfaces to `deriveSemesterAverages`; `verify-ux-consistency.mts` covers reachability, the single shell, the named class, the record book and the assignment removal.
 
@@ -301,7 +385,7 @@ The layout unit is the **family**, not the report: six panels of compact rows, f
 
 **A semester average is defined once**, in [lib/scores/semester.ts](lib/scores/semester.ts): `(examAverage + monthlyComponent) / 2`, where the coursework half averages the pupil's per-month averages across `monthsForSemester()`. `/score/total` and `ranking_semester` both call it, so they cannot disagree. Two properties are deliberate and asserted: a missing *subject* is skipped inside each half, but a missing *half* counts as **zero** (exam 8 with no coursework → 4.0) — the product's existing definition, preserved; and the month split is now semester-aware (sem1 = nov–mar, sem2 = apr–oct), fixing a bug where `/score/total` applied nov–mar to **both** semesters.
 
-**There is no official honour criterion.** `/honor-roll` selects `.slice(0, 5)` after ranking — that is its podium layout (five cards), not a policy, and no document defines one. [lib/scores/honor.ts](lib/scores/honor.ts) therefore does **not** reproduce top-N: it evaluates configurable criteria whose defaults are read from the class's own grading scheme (`minAverage` = the scheme's ល្អ/B band — 8 on /10, 40 on /50; `noFailingSubject` = the scheme's `passMark`), so nothing is a number someone typed. `HONOR_CRITERIA_PROVENANCE = 'derived'` travels into the payload and is **printed on the sheet** alongside the rule. A strong class can honour everyone; a weak one honours nobody — which a top-N rule cannot express. Legacy `/honor-roll` keeps its top-5 behaviour and therefore disagrees with the report; that is documented, not reconciled.
+**There is no official honour criterion.** `/honor-roll` used to select `.slice(0, 5)` after ranking — a property of the podium's five cards, not a policy, and no document defines one. [lib/scores/honor.ts](lib/scores/honor.ts) therefore does **not** reproduce top-N: it evaluates configurable criteria whose defaults are read from the class's own grading scheme (`minAverage` = the scheme's ល្អ/B band — 8 on /10, 40 on /50; `noFailingSubject` = the scheme's `passMark`), so nothing is a number someone typed. `HONOR_CRITERIA_PROVENANCE = 'derived'` travels into the payload and is **printed on the sheet** alongside the rule. A strong class can honour everyone; a weak one honours nobody — which a top-N rule cannot express. **The screen has been converged onto the same rule** (see the Results section): the podium still holds five, everyone else who qualified is listed beneath rather than silently dropped, and the criterion is printed on the sheet. The earlier note here saying the two were left to disagree is out of date.
 
 **Fifteen reports run on the engine**, every one of them for primary. Three shared resolvers produce all of them, which is what stops fourteen layouts becoming fourteen arithmetics:
 
@@ -333,6 +417,10 @@ The offline suites are `verify-reporting`, `verify-annual`, `verify-annual-famil
 
 **One place decides what a card may claim.** `reportAvailability()` in `report-template.ts` derives four states — `engine_ready` (resolver + active template), `needs_template` (resolver, nothing to print onto), `legacy_only` (no resolver, but a working screen), `not_implemented` — and returns the badge, tone, action and template together. The Print Center renders that verdict; it never recomputes "ready" itself. `ReportDefinition.resolver` says only that a data resolver exists, which is deliberately *not* the same as "can be generated".
 
+**A sheet is paper, and it says so once.** Eleven screens render an A4 sheet and they held two contradictory theories of what one is — *paper always* (`bg-white text-black`, nine of them) and *a themed card that becomes paper when printed* (`bg-bg-surface print:bg-white`, the other two). Every dark-mode defect on a document screen was a fragment of one theory inside the other: `/print-list` declared its ground and not its ink, so 202 names inherited `--foreground` and printed near-white on white paper; `/inventory` and `/cleaning-schedule` did the reverse and **printed a navy block**, because an element background survives `@media print` and `print-color-adjust` is exact.
+
+Paper won, because a document screen is a preview of a printed thing — the same reason the shell disappears via `display: contents` rather than being restyled. The contract is `.print-container, .print-sheet { background: #FFFFFF; color: #111827 }` in `@layer components`, and the layer is load-bearing: a sheet that means something else by its ink (`/ranking` prints navy) says so with a utility class, and a utility must keep winning the cascade. Adding a printable screen means adding one of those two class names; `scripts/verify-documents.mts` fails if a sheet has neither, or if one grounds itself in a theme token.
+
 **Cell addresses appear in no TypeScript file.** Templates carry `{{class.name}}`, `{{#rows}}`, `{{#subjects}}`; the writer finds the markers and fills them, so moving a column is an edit to the .xlsx alone.
 
 **exceljs, not `xlsx-js-style`, for template filling.** SheetJS's community build drops images, headers/footers and page setup on a read→write round trip — exactly what must be preserved. Both libraries stay: `xlsx-js-style` constructs sheets from nothing, exceljs round-trips existing ones. **Merges are handled by hand** in `expandSubjectColumns`: `spliceColumns` neither shifts merge ranges nor preserves merged masters' values, which silently blanks the letterhead — see `scripts/verify-reporting.mts`.
@@ -343,10 +431,14 @@ Template files are **build artefacts**, not committed blobs: `npm run build:temp
 
 `localStorage` is still the real store for seating and tutorial state. **Never type the key as a literal** — all of them are in [lib/constants/storage.ts](lib/constants/storage.ts) as `STORAGE_KEYS`.
 
+It is a support mechanism, not a store for anything load-bearing. **The active class in particular never goes here**: two tabs must not disagree about which class is being edited, so it lives in `TeacherContext` and travels in the URL. Core data belongs in Postgres; do not introduce new critical system state into this table.
+
 | Key | Status |
 | --- | --- |
 | `seatingConfig` / `seatingLayout` | Live store for `attendance/layout`. |
 | `lastTutorialPage`, `studentsCache` | Live. |
+| `enrollmentDraft` | Live — an unsaved `/enrollment` form. Suppressed in **both** directions while editing an existing pupil: a draft must not overwrite a real record, and editing one must not overwrite the draft. |
+| `pendingLevel` | Live, and a *hint* only. The education level a brand-new teacher picked before signing in, carried across Google OAuth in `sessionStorage` and **re-validated server-side** by `createOrganisation`. |
 | `inventoryItems` | **Migrated to Supabase** (`inventory_items`, migration 00012); the localStorage reader survives only for the one-time import. Nothing writes to the key any more. |
 | `customSubjects` | **Gone.** 00012 moved it to the `custom_subjects` table; 00027 then moved that into `score_template_subjects` and deleted the reader, the hook and the actions. The key is no longer read by anything. |
 
@@ -413,9 +505,15 @@ The only surviving native `<select>`s are the score-grid cells in `score/enter` 
 
 ## Conventions
 
-- **Tailwind v4, CSS-first.** No `tailwind.config.*`. Theme tokens, brand colors (`#0054a6` / `#4facfe`), fonts, keyframes and the `.kh-moul` / `.animate-gradient-text` utilities all live in [app/globals.css](app/globals.css) under `@theme inline` / `@layer utilities`. Dark mode is class-based via `@custom-variant dark` + `next-themes`.
+- **Tailwind v4, CSS-first.** No `tailwind.config.*`. The brand ramp, theme tokens, fonts, keyframes and the `.kh-moul` / `.animate-gradient-text` utilities all live in [app/globals.css](app/globals.css) under `@theme inline` / `@layer utilities`. Dark mode is class-based via `@custom-variant dark` + `next-themes`. **`#0054a6` and `#4facfe` were the brand before that ramp replaced them** — they survived in the documents until `/parent-report` was printing a fourteen-token letterhead in a blue the product no longer had. The paper navy is brand-800 `#1D3E73`; `verify-documents.mts` D5 keeps the retired literals out of rendered code.
 - **Semantic tokens.** `globals.css` also defines a light/dark-aware ramp — `bg-bg-app`, `bg-bg-surface`, `bg-paper`, `border-divider`, `text-text-heading` / `-body` / `-muted`, `bg-brand`, `text-brand-contrast`, `ring-focus-ring` — driven by CSS vars on `:root` / `.dark`. Use these instead of hard-coded hex or raw `gray-*` pairs.
+- **A fill and the ink on it have to move together.** The brand *ramp* is fixed in both themes by design (`bg-brand-800` must mean the same navy on a light page and a dark one); the *semantic* tokens flip. Pair them wrongly and the result is invisible at night, silently and in one theme only. Three pairs exist for exactly this, and each replaced a real defect:
+  - `bg-brand-soft` / `text-brand-on-soft` — the quiet brand chip. `bg-brand-100 text-brand` measured **1.96:1** on dark across 43 elements, because the ramp stayed pale while `--brand` flipped to cyan.
+  - `text-brand-contrast` on a `bg-brand` fill — `text-white` measured **2.13:1** on the dark cyan.
+  - `text-warning-text` / `text-danger-text` — `--warning` and `--danger` are tuned as fills and 10% tints; as *labels* they measure 2.39:1 and 3.94:1 on the light ground. The fill must not move, so the label gets its own token.
+
+  `scripts/verify-design-system.mts` computes those ratios from the tokens rather than trusting them. Four status colours are still used as labels below 4.5:1 (`text-success`, `text-danger`, `text-brand-500`, `text-gold`) — values and counts in `docs/phase10-implementation.md` §4.
 - **Khmer typography.** `Hanuman` for body text, `Moul` for display headings — apply display styling with the `kh-moul` class, not a font utility. `<html lang="km">`. Both are self-hosted through `next/font/google` in [app/layout.tsx](app/layout.tsx), which redeclares `--font-hanuman` / `--font-moul` on `<body>` with hashed family names; the literals in `globals.css` are only the fallback. The Tailwind utility is `font-hanuman` — there is no `font-kantumruy` any more, and a component must not re-declare `font-family: 'Hanuman'` locally, because that literal names a font nothing loads.
-- **Printing is a first-class feature.** ~12 clients call `window.print()` with an inline `@media print` block (`@page { size: A4 ... }`, `.no-print`, `.print-container`). Follow the existing block, and keep the `data-app-chrome` / `data-app-frame` shell contract above intact. Excel export uses `xlsx-js-style`; PDF uses `html2pdf.js` / `jspdf`.
+- **Printing is a first-class feature.** ~21 clients call `window.print()`. The baseline — the `body` reset and `.no-print` / `.print-hide` — is declared **once** in `globals.css`; a page keeps its own `@page` (size and margin are genuinely per-document) and does not restate the rest. Keep the `data-app-chrome` / `data-app-frame` shell contract and the `.print-container` / `.print-sheet` paper contract intact. Excel export uses `xlsx-js-style`; PDF uses `html2pdf.js` / `jspdf`.
 - **Notable dependencies:** `khmer-chhankitek-calendar` (Khmer lunar dates on the monthly attendance sheet), `three` (3D classroom seating in `attendance/layout/ThreeClassroom.tsx`), `recharts` (score analysis), `react-hot-toast` (all user feedback — `Toaster` mounted in the root layout), `lucide-react` (icons).
 - **`public/introduction/`** holds standalone HTML tutorial pages loaded into `/tutorial`; **`public/previews/`** and [lib/data/decorations.ts](lib/data/decorations.ts) back the classroom-decoration catalog (Google Drive links, no DB).

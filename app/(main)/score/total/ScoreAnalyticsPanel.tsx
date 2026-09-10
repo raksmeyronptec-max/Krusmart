@@ -180,7 +180,7 @@ export function ScoreAnalyticsPanel({
               {/* ---------------------------------------------- subjects */}
               <section>
                 <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-text-heading">
-                  <BarChart3 className="h-4 w-4 text-warning" aria-hidden="true" />
+                  <BarChart3 className="h-4 w-4 text-warning-text" aria-hidden="true" />
                   មធ្យមភាគតាមមុខវិជ្ជា
                   <span className="font-normal text-text-muted">(ទាបបំផុតនៅលើគេ)</span>
                 </h3>

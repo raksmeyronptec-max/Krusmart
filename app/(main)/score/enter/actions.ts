@@ -6,6 +6,7 @@ import type { ActionResult, Score, ScoreInput } from '@/lib/types'
 import { logger } from '@/lib/utils/logger'
 import {
     fetchScoreCalendar, resolveServerScope, rosterIdsForScope, resolveServerGradingContext,
+    resolveClassTeachingRole,
 } from '@/lib/utils/serverScope'
 import { auditLogBatch } from '@/lib/audit/log'
 import { clampScoreCell, splitScoreCell } from '@/lib/utils/score-value'
@@ -112,7 +113,55 @@ export async function saveScores(scoreType: string, scorePeriod: string, scoresD
         scoreType === 'semester' || scoreType === 'annual' || scoreType === 'homework'
             ? scoreType
             : 'monthly'
-    const { maxByColumn } = await resolveServerGradingContext(user.id, classId, templateScoreType)
+    const { maxByColumn, subjects: classSubjects } =
+        await resolveServerGradingContext(user.id, classId, templateScoreType)
+
+    /*
+     * WHOSE SUBJECTS — the server half of "a subject teacher may only enter
+     * their own subjects".
+     *
+     * That rule was real but UI-only: `/score/enter`'s picker offers
+     * `mySubjects`, and nothing checked the payload. RLS cannot close it either
+     * — 00011 makes a writer prove a relationship to the STUDENT, which a
+     * subject teacher of the class genuinely has, and the database has no way
+     * to know that `math_num` is not their column.
+     *
+     * The consequence was not a silent overwrite: `scores_owner_period_uniq`
+     * carries `teacher_id`, so a foreign write lands as a SECOND row beside the
+     * real teacher's rather than replacing it — two rows for one pupil, one
+     * subject, one period, and nothing in the product to say which is the mark.
+     *
+     * ── The three bounds that make this safe ──────────────────────────────
+     *
+     *   coversWholeClass   homeroom teachers, primary teachers and every legacy
+     *                      account come back true and are not touched at all.
+     *                      The rule bites only the secondary subject teacher it
+     *                      was written for.
+     *   defined columns    a column the class's template does not define passes
+     *                      through — homework saves here too, and `hw_5` is in
+     *                      no template. Same boundary the clamp above draws,
+     *                      for the same reason.
+     *   fails open         `resolveClassTeachingRole` returns whole-class on a
+     *                      failed read, so a database hiccup can never lock a
+     *                      teacher out of entering marks.
+     */
+    if (scope.mode === 'v2') {
+        const role = await resolveClassTeachingRole(user.id, scope.classId)
+        if (!role.coversWholeClass) {
+            const mine = new Set(
+                classSubjects
+                    .filter((s) => role.subjectKeys.includes(s.subjectKey))
+                    .flatMap((s) => s.columns.map((c) => c.id)),
+            )
+            const definedByClass = new Set(classSubjects.flatMap((s) => s.columns.map((c) => c.id)))
+            const refused = scoresData.filter(
+                (s) => definedByClass.has(s.subject) && !mine.has(s.subject),
+            )
+            if (refused.length > 0) {
+                return { error: 'អ្នកអាចបញ្ចូលពិន្ទុបានតែមុខវិជ្ជាដែលបានប្រគល់ឱ្យអ្នកប៉ុណ្ណោះ' }
+            }
+        }
+    }
 
     const clampCell = (s: ScoreInput): string | number | null => {
         const max = maxByColumn[s.subject]

@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { Button } from '@/components/ui/actions/Button'
+import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
 import { Maximize2, Minimize2 } from "lucide-react"
 
 const teamMembers = [
@@ -27,9 +28,20 @@ export default function TeamPage() {
     const [openIframeIndex, setOpenIframeIndex] = useState<number | null>(null);
 
     return (
-        <div className="min-h-screen bg-bg-app dark:bg-bg-app pb-24 transition-colors duration-500 font-sans">
-            
-            <main className="pt-8 md:pt-16 pb-20 px-4 md:px-8 max-w-4xl mx-auto">
+        <PageContainer>
+            <PageHeader
+                title="ក្រុមការងារ KruSmart"
+                description="អ្នកអភិវឌ្ឍន៍ និងអ្នករចនាដែលបង្កើតកម្មវិធីនេះ"
+            />
+
+            {/*
+              A reading column, not a page column. `PageContainer` caps the page
+              at 1600px, which is right for a data table and wrong for prose —
+              so this page narrows its own content, the way `/enrollment` does.
+              It no longer opens its own `<main>`: `AppShell` renders one, and a
+              second landmark makes the skip link ambiguous.
+            */}
+            <div className="mx-auto max-w-3xl">
                 
                 {/* Brand Logo & Header */}
                 <section className="flex flex-col items-center justify-center mb-16">
@@ -119,7 +131,7 @@ export default function TeamPage() {
                         </div>
                     </div>
                 )}
-            </main>
-        </div>
+            </div>
+        </PageContainer>
     )
 }

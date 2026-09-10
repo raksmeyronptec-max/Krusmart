@@ -12,10 +12,13 @@ import SearchableSelect from '@/components/ui/forms/SearchableSelect'
 import type { AttendanceRecord, Score, Settings, Student } from '@/lib/types'
 import { ACADEMIC_MONTH_IDS, MONTHS_BY_CALENDAR, MONTH_LABEL_BY_ID, MONTH_NUM_BY_ID, isMonthId } from '@/lib/constants/months'
 import { calculateAge } from '@/lib/utils/date'
+import { tallyAttendance } from '@/lib/attendance/status'
 import { letterFor } from '@/lib/grading/scheme'
 import { useScoreTemplate } from '@/lib/hooks/useScoreTemplate'
 import { maxScoreByColumn } from '@/lib/scores/template'
 import { FALLBACK_NUMERIC_KEYS, numericColumnKeys, studentAverage } from '@/lib/scores/aggregate'
+import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
+import { ClassContextBar } from '@/components/shell/ClassContextBar'
 
 const subjectsConfig = [
     { key: 'kh_listen', label: 'ភាសាខ្មែរ (ស្តាប់)' }, { key: 'kh_speak', label: 'ភាសាខ្មែរ (និយាយ)' },
@@ -231,17 +234,15 @@ export default function ParentReportClient({ initialStudents, settings }: { init
         const actualYear = isNextYear ? yEnd : yStart
         const targetDatePrefix = `${actualYear}-${MONTH_NUM_BY_ID[month]}`
 
-        let p=0, l=0, a=0
-        allAttendance.forEach(att => {
-            if (att.student_id === sid && att.date.startsWith(targetDatePrefix)) {
-                if (att.status === 'P') p++
-                if (att.status === 'L') l++
-                if (att.status === 'A') a++
-            }
-        })
+        // One vocabulary. The hand-written filters this replaces dropped `AP`,
+        // so a legacy excused day was invisible on the sheet and absent from
+        // the denominator of its own rate.
+        const t = tallyAttendance(
+            allAttendance.filter(att => att.student_id === sid && att.date.startsWith(targetDatePrefix)),
+        )
+        const p = t.present, l = t.excused, a = t.unexcused
 
-        const totalDays = p + l + a
-        const attRate = totalDays > 0 ? ((p / totalDays) * 100).toFixed(0) : 100
+        const attRate = t.rate === null ? 100 : t.rate.toFixed(0)
 
         setReportData({
             student,
@@ -320,7 +321,7 @@ export default function ParentReportClient({ initialStudents, settings }: { init
     }
 
     return (
-        <div className="bg-paper min-h-screen text-[var(--text-heading)] font-battambang pb-10 print:bg-white print:m-0 print:p-0">
+        <PageContainer className="font-battambang print:m-0 print:p-0">
             <style jsx global>{`
                 .font-battambang { font-family: 'Battambang', cursive; }
 
@@ -345,20 +346,20 @@ export default function ParentReportClient({ initialStudents, settings }: { init
             `}</style>
 
             {loading && (
-                <div style={{ display: 'flex', position: 'fixed', inset: 0, background: 'rgba(255,255,255,0.9)', zIndex: 2000, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}>
+                <div style={{ display: 'flex', position: 'fixed', inset: 0, background: 'color-mix(in srgb, var(--background) 90%, transparent)', zIndex: 2000, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}>
                     <Loader2 className="w-12 h-12 animate-spin text-brand mb-4" />
                     <p className="kh-moul text-brand text-lg animate-pulse">កំពុងរៀបចំទិន្នន័យ...</p>
                 </div>
             )}
 
-            <nav className="no-print border-b border-divider bg-bg-surface/95 p-4 shadow-sm backdrop-blur-md">
-                <div className="container mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 xl:flex-row">
-                    <div className="w-full xl:w-auto">
-                        <h1 className="kh-moul text-lg text-brand">របាយការណ៍ជូនមាតាបិតា</h1>
-                        <p className="text-xs font-bold text-text-muted">ជ្រើសរើសសិស្ស និងខែ រួចបោះពុម្ព</p>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
+            {/* The bordered nav band this screen opened with sat directly under
+                `TopNav`'s own. Its four controls are the header's actions now. */}
+            <div className="no-print">
+                <PageHeader
+                    title="របាយការណ៍ជូនមាតាបិតា"
+                    description="ជ្រើសរើសសិស្ស និងខែ រួចបោះពុម្ព"
+                    actions={
+                    <div className="flex flex-wrap items-center gap-3">
                         <Select
                             ariaLabel="ឆ្នាំសិក្សា"
                             value={academicYear}
@@ -400,11 +401,13 @@ export default function ParentReportClient({ initialStudents, settings }: { init
                             </Button>
                         </div>
                     </div>
-                </div>
-            </nav>
+                    }
+                />
+                <ClassContextBar />
+            </div>
 
             {!reportData ? (
-                <div className="container mx-auto max-w-3xl mt-10 p-8 text-center no-print">
+                <div className="mx-auto max-w-3xl mt-10 p-8 text-center no-print">
                     <div className="flex flex-col items-center rounded-xl border border-divider bg-bg-surface p-10 shadow-sm">
                         <div className="w-20 h-20 bg-brand-100 text-brand-500 rounded-full flex items-center justify-center mb-4">
                             <Contact className="w-10 h-10" />
@@ -414,7 +417,13 @@ export default function ParentReportClient({ initialStudents, settings }: { init
                     </div>
                 </div>
             ) : (
-                <div id="printContainer" className="print-container bg-white w-full max-w-[21cm] min-h-[29.7cm] my-8 mx-auto p-[1.5cm] rounded-lg shadow-lg border border-slate-100 print:block">
+                <div className="preview-scroll">
+                {/* `preview-scroll` confines the sheet's overflow to itself. These
+                    sheets are a fixed 21cm/297mm (~794/1122px); without it the
+                    page BODY scrolls sideways on a phone, dragging the nav and
+                    every control off-screen. `globals.css` neutralises the rule
+                    under `@media print`, so pagination is unaffected. */}
+                <div id="printContainer" className="print-container w-full max-w-[21cm] min-h-[29.7cm] my-8 mx-auto p-[1.5cm] rounded-lg shadow-lg border border-slate-100 print:block">
                     
                     <div className="flex justify-between items-start mb-6 print:mb-2 relative">
                         <div className="text-left leading-relaxed pt-[35pt] print:pt-[5pt]">
@@ -430,18 +439,18 @@ export default function ParentReportClient({ initialStudents, settings }: { init
                     </div>
 
                     <div className="text-center mb-6 print:mb-2">
-                        <h1 className="kh-moul text-[16px] text-[#0054a6] uppercase underline underline-offset-8 decoration-2 mb-2 print:mb-1">សៀវភៅតាមដានការសិក្សា និងអវត្តមាន</h1>
-                        <p className="font-bold text-[13px] text-gray-700">ប្រចាំខែ <span className="text-[#0054a6]">{MONTH_LABEL_BY_ID[month]}</span> ឆ្នាំសិក្សា <span>{academicYear}</span></p>
+                        <h1 className="kh-moul text-[16px] text-[#1D3E73] uppercase underline underline-offset-8 decoration-2 mb-2 print:mb-1">សៀវភៅតាមដានការសិក្សា និងអវត្តមាន</h1>
+                        <p className="font-bold text-[13px] text-gray-700">ប្រចាំខែ <span className="text-[#1D3E73]">{MONTH_LABEL_BY_ID[month]}</span> ឆ្នាំសិក្សា <span>{academicYear}</span></p>
                     </div>
 
                     <div className="flex items-center gap-6 print:gap-3 mb-6 print:mb-2 bg-blue-50/50 p-4 print:p-2 rounded-xl border border-blue-100 print-break-inside-avoid">
                         <div className="relative">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={reportData.student.photo_url || `https://api.dicebear.com/7.x/notionists/svg?seed=${reportData.student.id}`} className="w-20 h-20 print:w-14 print:h-14 rounded-lg object-cover border-2 border-[#0054a6] shadow-sm bg-white" alt="Student" />
+                            <img src={reportData.student.photo_url || `https://api.dicebear.com/7.x/notionists/svg?seed=${reportData.student.id}`} className="w-20 h-20 print:w-14 print:h-14 rounded-lg object-cover border-2 border-[#1D3E73] shadow-sm bg-white" alt="Student" />
                             <div className="absolute -bottom-2 -right-2 bg-white px-2 py-0.5 rounded text-[10px] font-bold border shadow-sm">ID: {reportData.student.id}</div>
                         </div>
                         <div className="flex-1 grid grid-cols-2 gap-y-2 print:gap-y-0.5 gap-x-8 text-[13px]">
-                            <div className="flex border-b border-gray-200 pb-1"><span className="w-28 text-gray-600">នាមត្រកូល និងនាម៖</span> <span className="kh-moul text-[#0054a6]">{reportData.student.name_kh || reportData.student.full_name}</span></div>
+                            <div className="flex border-b border-gray-200 pb-1"><span className="w-28 text-gray-600">នាមត្រកូល និងនាម៖</span> <span className="kh-moul text-[#1D3E73]">{reportData.student.name_kh || reportData.student.full_name}</span></div>
                             <div className="flex border-b border-gray-200 pb-1"><span className="w-16 text-gray-600">ភេទ៖</span> <span className="font-bold">{reportData.student.gender}</span></div>
                             <div className="flex border-b border-gray-200 pb-1"><span className="w-28 text-gray-600">ថ្ងៃខែឆ្នាំកំណើត៖</span> <span className="font-bold">{reportData.student.dob}</span></div>
                             <div className="flex border-b border-gray-200 pb-1"><span className="w-16 text-gray-600">អាយុ៖</span> <span className="font-bold">{calculateAge(reportData.student.dob) ?? '-'} ឆ្នាំ</span></div>
@@ -453,8 +462,8 @@ export default function ParentReportClient({ initialStudents, settings }: { init
                         
                         <div className="lg:col-span-2 print:col-span-2 print-break-inside-avoid">
                             <div className="flex items-center gap-2 mb-3 print:mb-1">
-                                <div className="w-6 h-6 print:w-5 print:h-5 rounded-full bg-[#0054a6] text-white flex items-center justify-center font-bold text-xs">១</div>
-                                <h2 className="kh-moul text-[13px] text-[#0054a6]">លទ្ធផលនៃការសិក្សា</h2>
+                                <div className="w-6 h-6 print:w-5 print:h-5 rounded-full bg-[#1D3E73] text-white flex items-center justify-center font-bold text-xs">១</div>
+                                <h2 className="kh-moul text-[13px] text-[#1D3E73]">លទ្ធផលនៃការសិក្សា</h2>
                             </div>
                             
                             <table className="w-full border-collapse text-[13px] report-table">
@@ -472,14 +481,14 @@ export default function ParentReportClient({ initialStudents, settings }: { init
                                         <tr key={idx}>
                                             <td className="text-center font-bold text-gray-500 border border-slate-300 p-1">{idx + 1}</td>
                                             <td className="font-medium text-gray-800 border border-slate-300 p-1 px-2">{s.label}</td>
-                                            <td className={`text-center font-bold border border-slate-300 p-1 ${parseFloat(s.score) < (s.max !== undefined ? s.max * (scheme.passMark / scheme.maxScore) : scheme.passMark) ? 'text-red-500' : 'text-[#0054a6]'}`}>{s.score}{s.max !== undefined ? ` /${s.max}` : ''}</td>
+                                            <td className={`text-center font-bold border border-slate-300 p-1 ${parseFloat(s.score) < (s.max !== undefined ? s.max * (scheme.passMark / scheme.maxScore) : scheme.passMark) ? 'text-red-500' : 'text-[#1D3E73]'}`}>{s.score}{s.max !== undefined ? ` /${s.max}` : ''}</td>
                                         </tr>
                                     ))}
                                 </tbody>
-                                <tfoot className="bg-blue-50/50 border-t-2 border-[#0054a6]">
+                                <tfoot className="bg-blue-50/50 border-t-2 border-[#1D3E73]">
                                     <tr>
                                         <td colSpan={2} className="text-right font-bold text-gray-700 border border-slate-300 p-2">ពិន្ទុសរុប៖</td>
-                                        <td className="text-center font-bold text-[#0054a6] text-[14px] print:text-[13px] border border-slate-300 p-2">{reportData.total}</td>
+                                        <td className="text-center font-bold text-[#1D3E73] text-[14px] print:text-[13px] border border-slate-300 p-2">{reportData.total}</td>
                                     </tr>
                                     <tr>
                                         <td colSpan={2} className="text-right font-bold text-gray-700 border border-slate-300 p-2">មធ្យមភាគ៖</td>
@@ -533,7 +542,7 @@ export default function ParentReportClient({ initialStudents, settings }: { init
                                             <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#6b7280' }} />
                                             <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#6b7280' }} domain={[0, scheme.maxScore]} ticks={[0, 1, 2, 3, 4, 5].map(t => t * (scheme.maxScore / 5))} />
                                             <Tooltip contentStyle={{ borderRadius: '8px', fontSize: '12px' }} />
-                                            <Line type="monotone" dataKey="average" stroke="#0054a6" strokeWidth={3} dot={{ r: 4, fill: '#0054a6', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} connectNulls={true} />
+                                            <Line type="monotone" dataKey="average" stroke="#1D3E73" strokeWidth={3} dot={{ r: 4, fill: '#1D3E73', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} connectNulls={true} />
                                         </LineChart>
                                     </ResponsiveContainer>
                                 </div>
@@ -570,18 +579,19 @@ export default function ParentReportClient({ initialStudents, settings }: { init
                         
                         <div className="text-center w-[180px] print:w-[150px]">
                             <p className="mb-2 font-bold">បានឃើញ និងឯកភាព</p>
-                            <p className="kh-moul mb-12 print:mb-6 text-[#0054a6]">{settings?.director_name || "នាយកសាលា"}</p>
+                            <p className="kh-moul mb-12 print:mb-6 text-[#1D3E73]">{settings?.director_name || "នាយកសាលា"}</p>
                         </div>
                         
                         <div className="text-center w-[200px] print:w-[180px]">
                             <p className="mb-2"><span>{settings?.province_date || "......................."}</span>, ថ្ងៃទី.......ខែ.......ឆ្នាំ២០២...</p>
-                            <p className="kh-moul mb-12 print:mb-6 text-[#0054a6]">គ្រូបន្ទុកថ្នាក់</p>
-                            <p className="kh-moul text-[#0054a6]" style={{ marginLeft: '2cm', marginTop: '1.5cm' }}>{settings?.teacher_name || "ឈ្មោះគ្រូ"}</p>
+                            <p className="kh-moul mb-12 print:mb-6 text-[#1D3E73]">គ្រូបន្ទុកថ្នាក់</p>
+                            <p className="kh-moul text-[#1D3E73]" style={{ marginLeft: '2cm', marginTop: '1.5cm' }}>{settings?.teacher_name || "ឈ្មោះគ្រូ"}</p>
                         </div>
                     </div>
 
                 </div>
+                </div>
             )}
-        </div>
+        </PageContainer>
     )
 }

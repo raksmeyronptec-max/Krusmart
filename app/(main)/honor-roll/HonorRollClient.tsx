@@ -20,6 +20,8 @@ import { periodKeysForSemester } from '@/lib/scores/calendar'
 import { useScoreCalendar } from '@/lib/hooks/useScoreCalendar'
 import { getCurrentAcademicYear } from '@/lib/constants/academic'
 import type { ScoreScope } from '@/lib/scores/workspace'
+import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
+import { ClassContextBar } from '@/components/shell/ClassContextBar'
 
 /** A student decorated with the per-period scores and the derived ranking fields. */
 type RankedStudent = Student & {
@@ -210,7 +212,7 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
     }
 
     return (
-        <div className="min-h-screen bg-paper font-battambang print:bg-white pb-10 relative">
+        <PageContainer className="font-battambang relative">
             <style jsx global>{`
                 .font-battambang { font-family: 'Battambang', cursive; }
                 
@@ -314,16 +316,29 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
 
                 .select-btn {
                     display: flex; align-items: center; justify-content: center; gap: 8px;
-                    padding: 12px 24px; background-color: white; border-radius: 12px; font-weight: bold;
+                    padding: 12px 24px; background-color: var(--surface); border-radius: 12px; font-weight: bold;
                     transition: all 0.2s; cursor: pointer; color: var(--text-muted);
                 }
-                .select-btn:hover { background-color: rgba(255,255,255,0.5); }
+                .select-btn:hover { background-color: var(--surface-muted); }
             `}</style>
 
             {!showPreview ? (
                 <>
                     <div className="bg-animate"></div>
-                    <div className="max-w-4xl mx-auto py-8 px-4 no-print relative z-10">
+                    <div className="no-print relative z-10">
+                        {/*
+                          The page title, in the shared header. The card below
+                          keeps its gold rule and its award mark — those are the
+                          screen's character — but the heading that introduced
+                          the page now reads the same as every other screen's,
+                          in the same place.
+                        */}
+                        <PageHeader
+                            title="តារាងកិត្តិយស"
+                            description="សិស្សដែលបំពេញលក្ខខណ្ឌកិត្តិយសសម្រាប់វគ្គដែលបានជ្រើស"
+                        />
+                        <ClassContextBar />
+
                         {loading && (
                             <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-bg-surface/80 backdrop-blur-sm">
                                 <div className="w-16 h-16 border-4 border-divider border-t-blue-600 rounded-full animate-spin"></div>
@@ -337,8 +352,7 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
                                     <Award className="w-8 h-8 text-gold" />
                                 </div>
                             </div>
-                            <h1 className="kh-moul text-xl md:text-2xl text-brand mb-2">តារាងកិត្តិយស (Premium Edition)</h1>
-                            <p className="text-text-muted font-bold mb-8">រចនាបថស៊ុមពណ៌មាស និង សម្រាប់សិស្សឆ្នើមទាំង ៥</p>
+                            <p className="text-text-muted font-bold mb-8">រចនាបថស៊ុមពណ៌មាស សម្រាប់សិស្សឆ្នើម</p>
 
                             <div className="mb-6 flex justify-center w-full overflow-x-auto pb-2">
                                 <div className="inline-flex bg-paper p-1 rounded-xl whitespace-nowrap">
@@ -392,7 +406,10 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
                     </div>
                 </>
             ) : (
-                <div className="relative pt-8 pb-8 bg-divider min-h-screen preview-mode">
+                <div className="relative pt-8 pb-8 bg-divider min-h-[80vh] preview-mode">
+                    {/* The preview backdrop no longer claims the viewport: it
+                        sits inside the shell's content region, which already
+                        fills the page. */}
                     <div className="fixed top-4 right-4 flex flex-col gap-3 z-50 no-print">
                         <Button printHidden={false} onClick={() => window.print()} title="បោះពុម្ភ">
                             <Printer className="w-6 h-6" />
@@ -482,7 +499,7 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
                                                     <div className="flex items-center gap-4 border-t border-slate-100 pt-2 w-full justify-center">
                                                         <div className="flex flex-col items-center">
                                                             <span className="text-[9px] text-text-muted font-bold uppercase tracking-wider mb-0.5">និទ្ទេស</span>
-                                                            <span className={`font-bold text-[14px] ${stu.grade === 'A' ? 'text-gold' : stu.grade === 'B' ? 'text-brand-500' : stu.grade === 'C' ? 'text-warning' : 'text-brand'}`}>{stu.grade}</span>
+                                                            <span className={`font-bold text-[14px] ${stu.grade === 'A' ? 'text-gold' : stu.grade === 'B' ? 'text-brand-500' : stu.grade === 'C' ? 'text-warning-text' : 'text-brand'}`}>{stu.grade}</span>
                                                         </div>
                                                         <div className="flex flex-col items-center">
                                                             <span className="text-[9px] text-text-muted font-bold uppercase tracking-wider mb-0.5">មធ្យមភាគ</span>
@@ -539,6 +556,6 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
                     </div>
                 </div>
             )}
-        </div>
+        </PageContainer>
     )
 }

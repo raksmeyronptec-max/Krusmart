@@ -73,7 +73,7 @@ export function StudentCompactTable({
             let attColor = 'text-text-muted'
             if (student.attendance_rate !== undefined && student.attendance_rate !== null) {
               if (student.attendance_rate >= 80) attColor = 'text-success font-medium'
-              else if (student.attendance_rate >= 60) attColor = 'text-warning font-medium'
+              else if (student.attendance_rate >= 60) attColor = 'text-warning-text font-medium'
               else attColor = 'text-danger font-bold'
             }
 
@@ -81,7 +81,7 @@ export function StudentCompactTable({
             let scoreColor = 'text-text-muted'
             if (student.overall_average !== undefined && student.overall_average !== null) {
               if (student.overall_average >= 80) scoreColor = 'text-success font-medium'
-              else if (student.overall_average >= 50) scoreColor = 'text-warning font-medium'
+              else if (student.overall_average >= 50) scoreColor = 'text-warning-text font-medium'
               else scoreColor = 'text-danger font-bold'
             }
 
@@ -150,7 +150,7 @@ export function StudentCompactTable({
                       {student.grade_letter && (
                         <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
                           ['A', 'B'].includes(student.grade_letter) ? 'bg-success/10 text-success' : 
-                          ['C', 'D'].includes(student.grade_letter) ? 'bg-warning/10 text-warning' : 
+                          ['C', 'D'].includes(student.grade_letter) ? 'bg-warning/10 text-warning-text' : 
                           'bg-danger/10 text-danger'
                         }`}>
                           {student.grade_letter}

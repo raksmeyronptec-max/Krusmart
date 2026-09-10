@@ -2,10 +2,12 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import {
   ArrowLeft, ChevronLeft, ChevronRight, CalendarCheck, TrendingUp,
-  BookMarked, Edit3, IdCard, Award, Phone,
+  BookMarked, Edit3, FolderOpen, IdCard, Award, Pencil, Phone,
 } from 'lucide-react'
 import { getRosterNeighbours, getStudentDetail } from './queries'
-import { PageContainer } from '@/components/shell/PageContainer'
+import { listTransferTargets } from './actions'
+import { TransferPanel } from './TransferPanel'
+import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
 import { Card } from '@/components/ui/layout/Card'
 import { StatCard } from '@/components/ui/data/StatCard'
 import { Badge, ATTENDANCE_BADGE } from '@/components/ui/feedback/Badge'
@@ -110,7 +112,14 @@ export default async function StudentDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const detail = await getStudentDetail(id)
+  /*
+   * Both reads in parallel: the targets query is independent of the detail one,
+   * and this page already makes several round trips.
+   */
+  const [detail, transferTargets] = await Promise.all([
+    getStudentDetail(id),
+    listTransferTargets(id),
+  ])
 
   // A row belonging to another teacher resolves to `null`, not to an error —
   // so a guessed id is indistinguishable from a deleted one.
@@ -145,13 +154,30 @@ export default async function StudentDetailPage({
 
   return (
     <PageContainer>
-      <Link
-        href={href('/student-list')}
-        className="mb-3 inline-flex min-h-11 items-center gap-1.5 rounded-lg text-[13px] font-bold text-text-muted transition hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring print:hidden"
-      >
-        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-        ត្រឡប់ទៅបញ្ជីឈ្មោះសិស្ស
-      </Link>
+      {/*
+        The pupil is the page. Their name is the title, and the card below
+        repeats it as an `h2` beside their photo — the heading outline needs one
+        `h1` naming the screen, and "ព័ត៌មានសិស្ស" would name the template
+        rather than the pupil.
+
+        No `ClassContextBar` here, deliberately: this page is reached by id from
+        a roster row, a search result or a neighbour arrow, so the ambient class
+        is easily a different one from the pupil's. It states the pupil's OWN
+        enrolment below instead, which is the class its action links carry.
+      */}
+      <PageHeader
+        title={s.name_kh}
+        description={`អ.ល ${s.student_id || '-'}`}
+        actions={
+          <Link
+            href={href('/student-list')}
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-divider bg-bg-surface px-4 text-[13px] font-bold text-text-muted transition hover:border-brand-400 hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            បញ្ជីឈ្មោះសិស្ស
+          </Link>
+        }
+      />
 
       {/* ------------------------------------------------------------ identity */}
       <Card padding="sm" className="mb-4">
@@ -159,7 +185,15 @@ export default async function StudentDetailPage({
           <StudentPhoto url={s.photo_url} name={s.name_kh} />
 
           <div className="min-w-0 flex-1">
-            <h1 className="kh-moul truncate text-lg text-brand md:text-xl">{s.name_kh}</h1>
+            {/*
+              `h2`, and the page's `h1` is the `PageHeader` above.
+
+              The pupil's name is what this card is about, but a page needs one
+              `h1` and it has to be the page's own title — otherwise the
+              breadcrumb, the tab title and the heading outline all name the
+              screen while the only `h1` names a row in it.
+            */}
+            <h2 className="kh-moul truncate text-lg text-brand md:text-xl">{s.name_kh}</h2>
             <p className="mt-1 text-sm text-text-muted">
               អ.ល {s.student_id || '-'} · {s.gender || '-'}
               {age !== null && <> · អាយុ {toKhmerNumber(age)} ឆ្នាំ</>}
@@ -280,20 +314,38 @@ export default async function StudentDetailPage({
               </li>
             ))}
           </ol>
+
+          {/* Correcting the placement, where the placement is shown. */}
+          <TransferPanel
+            studentId={s.id}
+            studentName={s.name_kh}
+            targets={transferTargets}
+          />
         </Card>
       )}
 
       {/* ------------------------------------------------------------- actions */}
       <div className="mb-5 flex flex-wrap gap-2 print:hidden">
         {[
+          /*
+           * Editing the pupil, on the form that owns those thirty fields.
+           *
+           * `withClassParam` leaves it alone — `/enrollment` is class-scoped,
+           * but an edit writes to no class, and appending one here would put a
+           * class in the address bar that the save deliberately ignores. The
+           * pupil id is the whole scope.
+           */
+          { label: 'កែព័ត៌មាន', href: `/enrollment?student=${s.id}`, icon: Pencil, raw: true },
           { label: 'បញ្ចូលពិន្ទុ', href: '/score/enter', icon: Edit3 },
           { label: 'ចុះវត្តមាន', href: '/attendance/layout', icon: CalendarCheck },
           { label: 'បណ្ណសម្គាល់ខ្លួន', href: '/id-student', icon: IdCard },
           { label: 'វិញ្ញាបនបត្រ', href: '/certificate', icon: Award },
+          // The pupil's paperwork, in the one index that holds it (§27).
+          { label: 'ឯកសារសិស្ស', href: '/print-center?category=student', icon: FolderOpen },
         ].map((a) => (
           <Link
             key={a.href}
-            href={href(a.href)}
+            href={'raw' in a && a.raw ? a.href : href(a.href)}
             className="flex min-h-11 items-center gap-2 rounded-lg border border-divider bg-bg-surface px-4 text-sm font-bold text-text-body transition hover:border-brand-400 hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
           >
             <a.icon className="h-4 w-4" aria-hidden="true" />

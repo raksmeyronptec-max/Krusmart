@@ -32,8 +32,8 @@ export interface StudentHistory {
 /** Khmer label + colour per enrollment status. */
 const STATUS: Record<string, { label: string; tone: string }> = {
   active: { label: 'កំពុងសិក្សា', tone: 'bg-success/10 text-success border-success/30' },
-  promoted: { label: 'បានឡើងថ្នាក់', tone: 'bg-brand-100 text-brand border-divider' },
-  transferred: { label: 'បានផ្ទេរ', tone: 'bg-warning/10 text-warning border-warning/30' },
+  promoted: { label: 'បានឡើងថ្នាក់', tone: 'bg-brand-soft text-brand-on-soft border-divider' },
+  transferred: { label: 'បានផ្ទេរ', tone: 'bg-warning/10 text-warning-text border-warning/30' },
   withdrawn: { label: 'បានដកឈ្មោះ', tone: 'bg-danger/10 text-danger border-danger/30' },
 }
 

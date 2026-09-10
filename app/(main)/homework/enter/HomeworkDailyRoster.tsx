@@ -48,7 +48,7 @@ function fieldClass(raw: string | undefined, maxScore: number, extra: string) {
     issue?.level === 'error'
       ? 'border-danger bg-danger/10 text-danger'
       : issue?.level === 'warning'
-        ? 'border-warning bg-warning/10 text-warning'
+        ? 'border-warning bg-warning/10 text-warning-text'
         : markValue(raw) !== null
           ? 'border-success bg-success/10 text-success'
           : 'border-divider bg-bg-surface text-text-heading'
@@ -207,7 +207,7 @@ export function HomeworkDailyRoster({
                     {issue && (
                       <p
                         id={describedBy}
-                        className={`mt-1 text-[11px] font-bold ${issue.level === 'error' ? 'text-danger' : 'text-warning'}`}
+                        className={`mt-1 text-[11px] font-bold ${issue.level === 'error' ? 'text-danger' : 'text-warning-text'}`}
                       >
                         {issue.message}
                       </p>
@@ -293,7 +293,7 @@ export function HomeworkDailyRoster({
               {issue && (
                 <p
                   id={describedBy}
-                  className={`mt-2 text-xs font-bold ${issue.level === 'error' ? 'text-danger' : 'text-warning'}`}
+                  className={`mt-2 text-xs font-bold ${issue.level === 'error' ? 'text-danger' : 'text-warning-text'}`}
                 >
                   {issue.message}
                 </p>

@@ -40,6 +40,7 @@ import { SubjectSelectionList, type SubjectRow } from './SubjectSelectionList'
 import { GridPreview } from './GridPreview'
 import { ScoreCalendarSection } from './ScoreCalendarSection'
 import { useClassHref } from '@/lib/hooks/useClassHref'
+import { ClassContextBar } from '@/components/shell/ClassContextBar'
 
 /**
  * មុខវិជ្ជាតាមថ្នាក់ — which subjects a class teaches, and which parts of each.
@@ -156,7 +157,6 @@ export default function ScoreSubjectsClient({
   initialSelection,
   templateContext,
   classId,
-  className,
 }: {
   initialRows: ScoreTemplateSubjectRow[]
   /** The class's chosen subjects (00028). Empty when it has not configured any. */
@@ -164,7 +164,6 @@ export default function ScoreSubjectsClient({
   /** The class's curriculum context; resolution filters by it (00021). */
   templateContext: TemplateContext | null
   classId: string | null
-  className: string
 }) {
   // Keeps the working class on the way out: a link from this screen to
   // another class-scoped screen must still be about the same class.
@@ -532,11 +531,7 @@ export default function ScoreSubjectsClient({
     <PageContainer>
       <PageHeader
         title="មុខវិជ្ជាតាមថ្នាក់"
-        description={
-          className
-            ? `កំណត់មុខវិជ្ជាដែលថ្នាក់ ${className} បង្រៀន`
-            : 'កំណត់មុខវិជ្ជាដែលថ្នាក់របស់អ្នកបង្រៀន'
-        }
+        description="កំណត់មុខវិជ្ជាដែលថ្នាក់នេះបង្រៀន"
         actions={
           <Link
             href={`/score/enter?class=${encodeURIComponent(classId)}`}
@@ -546,6 +541,8 @@ export default function ScoreSubjectsClient({
           </Link>
         }
       />
+
+      <ClassContextBar />
 
       {/*
         Two tablists, two levels — and they used to be styled identically and
@@ -762,7 +759,7 @@ export default function ScoreSubjectsClient({
             )}
 
             {oddWarning && editMaxTouched && (
-              <p className="mt-2 flex items-start gap-2 rounded-lg bg-warning/10 p-2.5 text-xs text-warning">
+              <p className="mt-2 flex items-start gap-2 rounded-lg bg-warning/10 p-2.5 text-xs text-warning-text">
                 <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                 {oddWarning}
               </p>
@@ -846,7 +843,7 @@ export default function ScoreSubjectsClient({
               </p>
             )}
             {newOddWarning && (
-              <p className="mt-2 flex items-start gap-2 rounded-lg bg-warning/10 p-2.5 text-xs text-warning">
+              <p className="mt-2 flex items-start gap-2 rounded-lg bg-warning/10 p-2.5 text-xs text-warning-text">
                 <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                 {newOddWarning}
               </p>

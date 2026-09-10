@@ -26,7 +26,7 @@ const EMPTY: Ratings = { knowing: 0, applying: 0, analyzing: 0, evaluating: 0 }
 
 /** Each level gets its own colour so the printed bars stay distinguishable. */
 const LEVEL_COLOURS: Record<string, string> = {
-    knowing: '#0054a6',
+    knowing: '#1D3E73',
     applying: '#16A36A',
     analyzing: '#D99614',
     evaluating: '#7c3aed',

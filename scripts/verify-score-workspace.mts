@@ -68,8 +68,11 @@ const {
   SCORE_SCOPES, SCORE_WORKSPACE_TABS, isScoreScope, periodLabel, scopeLabel, workspaceTabHref,
 } = await import('../lib/scores/workspace.ts')
 const { deriveSemesterAverages } = await import('../lib/scores/annual.ts')
-const { monthIdFromPeriod, monthlyAveragesByStudent } = await import('../lib/scores/aggregate.ts')
+const { monthIdFromPeriod, monthlyAveragesByStudent, numericColumnKeys, FALLBACK_NUMERIC_KEYS } =
+  await import('../lib/scores/aggregate.ts')
+const { resolveTemplate, SYSTEM_PRIMARY_TEMPLATE } = await import('../lib/scores/template.ts')
 const { DEFAULT_SCHEME_CONFIG } = await import('../lib/grading/scheme.ts')
+const { subjectProgress, rosterProgress, completionSummary } = await import('../lib/scores/completion.ts')
 
 let failures = 0
 function check(name: string, ok: boolean, detail = '') {
@@ -95,9 +98,12 @@ const read = (p: string) => readFileSync(p, 'utf8')
  * That is fine for what it is used for — the alternative is a parser, and the
  * assertions are about whether a call appears at all, not about where.
  */
+// The `/*` must follow a delimiter or start a line: a naive pattern also
+// matches the one inside `accept="image/*"` and then runs to the next real
+// `*/`, swallowing the code a check was looking for and passing it silently.
 const code = (p: string) =>
   read(p)
-    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/(^|[\s{;,()=>])\/\*[\s\S]*?\*\//g, '$1')
     .replace(/^[ \t]*\/\/.*$/gm, '')
 
 const enter = read('app/(main)/score/enter/ScoreEnterClient.tsx')
@@ -158,7 +164,10 @@ const FETCHERS = [
   'app/(main)/certificate/CertificateClient.tsx',
   'app/(main)/honor-roll/HonorRollClient.tsx',
   'app/(main)/score/print/ScorePrintClient.tsx',
-  'app/(main)/score-analysis/subject/SubjectAnalysisClient.tsx',
+  // Moved out of `/score-analysis/subject` when that route became a redirect
+  // and its screen became a view of `/score-analyse` — same component, same
+  // fetches, so it stays on this list under its new home.
+  'app/(main)/score-analyse/SubjectAnalysisView.tsx',
   'app/(main)/yearly-report/subject-results/SubjectResultsClient.tsx',
   'app/(main)/homework/enter/HomeworkEnterClient.tsx',
 ]
@@ -196,6 +205,7 @@ check('the entry grid has no annual rung, so a year arrives there as monthly',
 const PAGE_FOR: Record<string, string> = {
   '/score/enter': 'app/(main)/score/enter/ScoreEnterClient.tsx',
   '/score/total': 'app/(main)/score/total/ScoreTotalClient.tsx',
+  '/score/collect': 'app/(main)/score/collect/ScoreCollectClient.tsx',
   '/ranking': 'app/(main)/ranking/RankingClient.tsx',
   '/score-analyse': 'app/(main)/score-analyse/ScoreAnalyseClient.tsx',
 }
@@ -315,6 +325,229 @@ check('the podium still holds five, with the rest listed rather than dropped',
 check('the rule is printed on the sheet, with its provenance',
   honourScreen.includes('criteriaLabel') && honourScreen.includes('HONOR_CRITERIA_PROVENANCE'),
   'the product has no official honour criterion — the sheet must not imply one')
+
+// ------------------------------------ 7. the screens and the sheets agree on
+//                                          WHICH SUBJECTS, not just on the sum
+console.log('\n7. ranking ranks the subjects the class actually teaches:')
+
+/**
+ * §6 proves the three league tables share one *arithmetic*. This proves they
+ * share one *input*, which is a separate property and was separately broken.
+ *
+ * `/ranking` resolved `templateRows` and stopped there, while `/score/total`
+ * reads the hook's `classSubjects` and the engine's `resolveMonthlyClass` —
+ * which backs `ranking_monthly`, `ranking_semester` and `ranking_annual` —
+ * composes `applySelection(resolveTemplate(…))`. Same class, same period, same
+ * builder, **different subject set**: a class holding a mark under a subject it
+ * has since de-selected ranked on that mark on screen and not on the sheet
+ * printed from it. Averages and order could both differ, which is exactly the
+ * screen-vs-report disagreement §11 calls a P0.
+ *
+ * Asserted on all three surfaces together, because the property is a relation
+ * between them and pinning any one alone would let the others drift.
+ */
+const NARROWING = {
+  'the ranking screen': 'app/(main)/ranking/RankingClient.tsx',
+  'the report engine': 'lib/reporting/report-data.ts',
+}
+for (const [name, file] of Object.entries(NARROWING)) {
+  check(`${name} narrows the template with applySelection`,
+    code(file).includes('applySelection('),
+    'the class\'s curriculum is not the same list as the subjects it teaches')
+}
+check('/score/total reads the hook\'s already-narrowed classSubjects',
+  code('app/(main)/score/total/ScoreTotalClient.tsx').includes('classSubjects:'))
+
+const rankingSrc = code('app/(main)/ranking/RankingClient.tsx')
+const engineSrc = code('lib/reporting/report-data.ts')
+
+check('the ranking screen resolves its subjects in exactly one place',
+  (rankingSrc.match(/resolveTemplate\(/g) ?? []).length === 1,
+  'two resolutions in one screen is how the denominator and the maxima drift apart')
+check('and its full marks come from that same narrowed resolution',
+  rankingSrc.includes('maxScoreByColumn(narrowedTemplateFor('),
+  'a narrowed subject list weighted by unnarrowed maxima is still two answers')
+
+// -------------------------------- 7b. and the denominator is the SAME RULE
+/**
+ * §7 above proves the two surfaces narrow to the same subjects. This proves
+ * they then count the same COLUMNS — which is a second property, and was
+ * separately broken.
+ *
+ * There are two curriculum worlds. `FALLBACK_NUMERIC_KEYS` carries 29 monthly
+ * and 13 semester primary columns; the compiled-in `SYSTEM_PRIMARY_TEMPLATE`
+ * resolves 16 and 2. The screens gated on `levelCurriculum` and used the legacy
+ * list for the untagged world; `resolveMonthlyClass` did not, and averaged a
+ * legacy class over sixteen columns while the screen beside it used
+ * twenty-nine — dropping every `sci_*`, `soc_*`, `pe_sport`, `health_hygiene`,
+ * `life_skill` and `foreign` mark from the printed sheet.
+ *
+ * The rule is `periodDenominator` now. The strong property is not that both
+ * call it — it is that NEITHER may express the gate itself, because a second
+ * copy of a two-world rule is how the worlds come to disagree again.
+ */
+const fallbackMonthly = numericColumnKeys(resolveTemplate(SYSTEM_PRIMARY_TEMPLATE, 'monthly', null))
+check('the compiled-in template really is narrower than the legacy denominator',
+  fallbackMonthly.length < FALLBACK_NUMERIC_KEYS.monthly.length,
+  `template ${fallbackMonthly.length} vs fallback ${FALLBACK_NUMERIC_KEYS.monthly.length}`)
+
+check('the ranking screen takes its denominator from the shared rule',
+  rankingSrc.includes('periodDenominator('))
+check('and so does the report engine',
+  engineSrc.includes('periodDenominator('))
+
+for (const [name, src] of [['the ranking screen', rankingSrc], ['the report engine', engineSrc]] as const) {
+  check(`${name} does not re-express the two-world gate`,
+    !src.includes('FALLBACK_NUMERIC_KEYS') && !src.includes('numericColumnKeys('),
+    'the gate belongs to periodDenominator alone — a second copy is a second answer')
+}
+
+check('and the rule itself still carries the gate',
+  code('lib/scores/aggregate.ts').includes(
+    'return levelCurriculum ? numericColumnKeys(subjects) : FALLBACK_NUMERIC_KEYS[mode]'),
+  'without it a legacy account\'s denominator shrinks from 29 columns to 16, silently')
+
+/**
+ * The same asymmetry, in the other two things the engine derived from
+ * `context.levelKey` while the screens derived them from what actually
+ * resolved: the grading SCHEME, and whether there is a template at all.
+ */
+check('the report engine gates its scheme on the resolved curriculum, as the screens do',
+  engineSrc.includes('levelCurriculum ? schemeForLevel(context?.levelKey) : schemeForLevel(null)'),
+  'a class with a level but no seeded rows graded /50 on paper and /10 on screen')
+check('and falls back to the compiled-in template when the seeds have not run',
+  engineSrc.includes('templateRows.length > 0 ? templateRows : SYSTEM_PRIMARY_TEMPLATE'),
+  'without it every report printed a blank sheet while the screens rendered normally')
+
+// ---------------------------- 8. one progress figure, for all three screens
+console.log('\n8. marking progress is counted once, not once per screen:')
+
+/**
+ * `lib/scores/completion.ts` says progress is "counted once for two screens".
+ * There were three: `/score/enter` carried its own copy, and the copy used a
+ * different rule — a pupil was entered when a NUMERIC cell in a NON-`select`
+ * column had a value. `isMarked` counts `score_text` too, because the
+ * `sem_eval_*` columns are Khmer words (00012).
+ *
+ * So a pupil carrying only a rating read as DONE on `/score/collect` and the
+ * dashboard, and as NOT STARTED on the screen the teacher was typing into.
+ */
+const PROGRESS_CONSUMERS = {
+  'the entry grid': 'app/(main)/score/enter/ScoreEnterClient.tsx',
+  'the collection view': 'app/(main)/score/collect/actions.ts',
+  'the dashboard': 'app/(main)/dashboard/queries.ts',
+}
+for (const [name, file] of Object.entries(PROGRESS_CONSUMERS)) {
+  check(`${name} reads lib/scores/completion`,
+    code(file).includes("from '@/lib/scores/completion'"))
+}
+check('the entry grid counts no pupils of its own',
+  !/if \(entries\.some\(e => e\.score !== null\)\) entered \+= 1/.test(
+    code('app/(main)/score/enter/ScoreEnterClient.tsx')),
+  'the private loop is what disagreed with the other two screens')
+
+/**
+ * The two figures must agree where they overlap. Run, not read: the module is
+ * pure and node-loadable, so this exercises the real rule rather than asserting
+ * that a call appears in a file.
+ */
+const col = (id: string, type?: string) => ({ id, label: id, ...(type ? { type } : {}) })
+const subj = (key: string, columns: ReturnType<typeof col>[]) => ({
+  subjectKey: key, labelKm: key, groupLabel: null, maxScore: 10,
+  columns, valueKind: 'numeric' as const, sortOrder: 0, origin: 'system' as const,
+})
+
+const khmer = subj('khmer_all', [col('kh_read'), col('kh_write')])
+const maths = subj('math_general', [col('math_num')])
+const rated = subj('sem_eval', [col('sem_eval_effort', 'select')])
+
+const rows = [
+  { student_id: 'a', subject: 'kh_read', score_value: 8, score_text: null },
+  { student_id: 'b', subject: 'kh_write', score_value: 5, score_text: null },
+  // Marked with a Khmer WORD, not a number — the case the private loop dropped.
+  { student_id: 'c', subject: 'sem_eval_effort', score_value: null, score_text: 'ល្អ' },
+  // Same pupil, second subject: a union counts them once, a sum twice.
+  { student_id: 'a', subject: 'math_num', score_value: 7, score_text: null },
+]
+
+check('a pupil marked only with a Khmer rating counts as entered',
+  rosterProgress([rated], rows, 3).entered === 1,
+  `got ${rosterProgress([rated], rows, 3).entered}`)
+
+check('for one subject, rosterProgress equals that subject\'s subjectProgress',
+  rosterProgress([khmer], rows, 3).entered === subjectProgress([khmer], rows, 3)[0].entered,
+  `${rosterProgress([khmer], rows, 3).entered} vs ${subjectProgress([khmer], rows, 3)[0].entered}`)
+
+check('across subjects it unions rather than sums',
+  rosterProgress([khmer, maths], rows, 3).entered === 2,
+  `pupil a is marked in both; got ${rosterProgress([khmer, maths], rows, 3).entered}`)
+
+check('and never reports more pupils than the roster holds',
+  rosterProgress([khmer, maths, rated], rows, 2).entered === 2 &&
+  rosterProgress([khmer, maths, rated], rows, 2).percent === 100,
+  'a pupil who left mid-period still carries a mark; the bar must not pass 100%')
+
+check('an empty roster is 0%, never NaN',
+  rosterProgress([khmer], [], 0).percent === 0)
+
+check('completionSummary still reads the same rows',
+  completionSummary(subjectProgress([khmer, maths, rated], rows, 3)).subjects === 3)
+
+// -------------------------- 9. the boundary is the action, not the keystroke
+console.log('\n9. a mark is validated where it is written:')
+
+/**
+ * §13 of the brief: "Never accept a score that violates the subject template,
+ * the maximum score, a locked period, class scope or teacher assignment
+ * permissions. UI validation is not enough."
+ *
+ * Four of those five were already server-side. The fifth — assignment
+ * permissions — was UI-only: `/score/enter`'s picker offers `mySubjects` and
+ * nothing checked the payload, and RLS cannot close it, because 00011 makes a
+ * writer prove a relationship to the STUDENT and a subject teacher of the class
+ * genuinely has one.
+ */
+const saveSrc = code('app/(main)/score/enter/actions.ts')
+
+check('the write path re-resolves the class rather than trusting the caller',
+  saveSrc.includes('resolveServerScope(user.id, classId)'))
+check('it refuses a locked period by MEMBERSHIP, not by key',
+  saveSrc.includes('p.members.includes(monthId)'),
+  'a direct write to an absorbed month inside a locked merged period must fail too')
+check('it clamps to the template maximum server-side',
+  saveSrc.includes('clampScoreCell(String(s.score_value), max)'))
+check('it splits number from Khmer word, so a rating is not written as NULL',
+  saveSrc.includes('splitScoreCell('))
+check('and it now refuses a subject the caller is not assigned to',
+  saveSrc.includes('resolveClassTeachingRole(') && saveSrc.includes('role.coversWholeClass'))
+
+/**
+ * The three bounds that keep that last check from locking anyone out. Each is a
+ * property of the code, not a promise in a comment.
+ */
+check('...only when the caller does not cover the whole class',
+  /if \(!role\.coversWholeClass\)/.test(saveSrc),
+  'homeroom, primary and every legacy account must be untouched')
+check('...only for columns the class template defines',
+  saveSrc.includes('definedByClass.has(s.subject)'),
+  'homework saves through here too, and `hw_5` is in no template')
+check('...and the role resolver fails OPEN',
+  code('lib/utils/serverScope.ts').includes(
+    "const wholeClass: ClassTeachingRole = { isHomeroom: false, subjectKeys: [], coversWholeClass: true }"),
+  'a failed read must never stop a teacher entering marks')
+
+/**
+ * And the UI must not offer what the boundary will refuse. `/score/total`
+ * deliberately SHOWS the class's whole curriculum to a subject teacher — that
+ * is the right call for reading — but its cells are editable, so without this
+ * it would take the keystroke and fail on save.
+ */
+check('the totals grid marks a foreign column read-only for a subject teacher',
+  code('app/(main)/score/total/ScoreTotalClient.tsx').includes('writableColumns'),
+  'the grid and the action must draw the same line')
+check('and still shows every subject, narrowing only what may be written',
+  code('app/(main)/score/total/ScoreTotalClient.tsx').includes('classSubjects: templateSubjects'),
+  'narrowing the READ would divide a subject teacher\'s ranking by their own subject alone')
 
 console.log(
   failures === 0

@@ -31,6 +31,12 @@ interface TeacherContextValue {
 
 const TeacherContext = createContext<TeacherContextValue | null>(null)
 
+/** The class's grade, as embedded on the assignment row. */
+interface GradeRel {
+  name?: string | null
+  sort_order?: number | null
+}
+
 /** Row shape returned by the embedded select below. */
 interface AssignmentRow {
   id: string
@@ -41,7 +47,23 @@ interface AssignmentRow {
   is_homeroom: boolean
   status: string
   created_at?: string
-  classes?: { name?: string } | { name?: string }[] | null
+  /*
+   * `grades` rides along so the context strip can say ថ្នាក់ទី ៥ beside ៥ក.
+   *
+   * It is an EMBEDDED read, not a second query: the assignment row is already
+   * being fetched with its class, and a per-assignment grade lookup would be an
+   * N+1 in the one provider that wraps every page in the teacher app.
+   *
+   * It can legitimately come back absent — `grades_select_member` (00003) gates
+   * on the caller's `current_school_ids()`, so a teacher whose `profiles`
+   * school hint is unset reads no grade row. `ClassContextBar` prints an honest
+   * dash for that rather than deriving a number from the class name, which is
+   * free text and would be a guess.
+   */
+  classes?:
+    | { name?: string; grades?: GradeRel | GradeRel[] | null }
+    | { name?: string; grades?: GradeRel | GradeRel[] | null }[]
+    | null
   subjects?: { name?: string } | { name?: string }[] | null
   academic_years?:
     | { name?: string; school_id?: string; schools?: { name?: string } | { name?: string }[] }
@@ -84,7 +106,7 @@ export function TeacherContextProvider({ children }: { children: React.ReactNode
         .from('teacher_assignments')
         // Written as one literal, not a concatenation: supabase-js parses the
         // select string at the type level and loses the relations if it is built.
-        .select('id, teacher_id, class_id, subject_id, academic_year_id, is_homeroom, status, created_at, classes(name), subjects(name), academic_years(name, school_id, schools(name))')
+        .select('id, teacher_id, class_id, subject_id, academic_year_id, is_homeroom, status, created_at, classes(name, grades(name, sort_order)), subjects(name), academic_years(name, school_id, schools(name))')
         .eq('teacher_id', user.id)
         .eq('status', 'active')
 
@@ -96,6 +118,8 @@ export function TeacherContextProvider({ children }: { children: React.ReactNode
       const detailed: TeacherAssignmentDetail[] = (data ?? []).map((raw) => {
         const row = raw as AssignmentRow
         const year = one(row.academic_years)
+        const cls = one(row.classes)
+        const grade = one(cls?.grades)
         return {
           id: row.id,
           teacher_id: row.teacher_id,
@@ -105,7 +129,16 @@ export function TeacherContextProvider({ children }: { children: React.ReactNode
           is_homeroom: row.is_homeroom,
           status: row.status,
           created_at: row.created_at,
-          class_name: one(row.classes)?.name ?? '',
+          class_name: cls?.name ?? '',
+          grade_name: grade?.name ?? null,
+          // `grades.sort_order` carries the grade number, the invariant
+          // `resolveClassTemplateContext` already relies on server-side.
+          grade_number:
+            typeof grade?.sort_order === 'number' &&
+            grade.sort_order >= 1 &&
+            grade.sort_order <= 12
+              ? grade.sort_order
+              : null,
           subject_name: one(row.subjects)?.name ?? null,
           academic_year_name: year?.name ?? '',
           school_id: year?.school_id ?? '',

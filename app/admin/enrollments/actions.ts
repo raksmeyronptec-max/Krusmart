@@ -6,7 +6,8 @@ import { requirePermission } from '@/lib/rbac/server'
 import { auditLog } from '@/lib/audit/log'
 import { logger } from '@/lib/utils/logger'
 import { getErrorMessageOr } from '@/lib/utils/errors'
-import type { ActionResult, StudentEnrollment } from '@/lib/types'
+import type { ActionResult } from '@/lib/types'
+import { activeEnrolment, moveEnrolment } from '@/lib/enrolment/move'
 
 /**
  * Enrollment lifecycle: promote, transfer, withdraw.
@@ -23,26 +24,16 @@ import type { ActionResult, StudentEnrollment } from '@/lib/types'
  * Neither is sufficient alone; both are applied.
  */
 
-/** The open enrollment for a student, if any. */
-async function activeEnrollment(studentId: string): Promise<StudentEnrollment | null> {
-  const supabase = await createClient()
-  const { data } = await supabase
-    .from('student_enrollments')
-    .select('*')
-    .eq('student_id', studentId)
-    .eq('status', 'active')
-    .order('enrolled_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-  return (data as StudentEnrollment | null) ?? null
-}
+/** The open enrollment for a student, if any — the shared reader. */
+const activeEnrollment = activeEnrolment
 
 /**
  * Close the open enrollment and open a new one in `targetClassId`.
  *
- * `promoted` and `transferred` differ only in intent — promotion moves a student
- * into the next academic year, transfer moves them sideways within one — so they
- * share this implementation and are distinguished by the recorded status.
+ * The sequence itself lives in `lib/enrolment/move.ts`, shared with the
+ * teacher-facing transfer on `/students/[id]`. This wrapper is the ADMIN's
+ * authorisation and nothing else: two callers, one write, so neither can drift
+ * into closing the old row differently or forgetting to audit.
  */
 async function move(
   studentId: string,
@@ -51,75 +42,19 @@ async function move(
 ): Promise<ActionResult> {
   try {
     const ctx = await requirePermission('enrollments:update')
-    const supabase = await createClient()
-
-    const current = await activeEnrollment(studentId)
-
-    // The destination class determines the new academic year.
-    const { data: targetClass, error: classErr } = await supabase
-      .from('classes')
-      .select('id, academic_year_id, name')
-      .eq('id', targetClassId)
-      .maybeSingle()
-
-    if (classErr || !targetClass) {
-      return { error: 'រកមិនឃើញថ្នាក់គោលដៅទេ' }
-    }
-
-    if (current?.class_id === targetClass.id) {
-      return { error: 'សិស្សនេះស្ថិតនៅក្នុងថ្នាក់នេះរួចហើយ' }
-    }
-
-    // 1. Close the existing enrollment. Kept, not deleted — this row *is* the
-    //    history entry for the year the student is leaving.
-    if (current) {
-      const { error } = await supabase
-        .from('student_enrollments')
-        .update({ status: closingStatus, left_at: new Date().toISOString() })
-        .eq('id', current.id)
-
-      if (error) {
-        logger.error(error)
-        return { error: error.message }
-      }
-    }
-
-    // 2. Open the new one. ON CONFLICT is not available through PostgREST, so a
-    //    repeated submission is caught by the unique constraint and reported
-    //    rather than silently duplicating.
-    const { error: insErr } = await supabase.from('student_enrollments').insert({
-      student_id: studentId,
-      class_id: targetClass.id,
-      academic_year_id: targetClass.academic_year_id,
-      status: 'active',
-    })
-
-    if (insErr) {
-      // 23505 = unique_violation: the student is already enrolled there.
-      if (insErr.code === '23505') {
-        return { error: 'សិស្សនេះមានការចុះឈ្មោះក្នុងថ្នាក់នេះរួចហើយ' }
-      }
-      logger.error(insErr)
-      return { error: insErr.message }
-    }
-
-    await auditLog({
-      action: closingStatus === 'promoted' ? 'enrollment.promoted' : 'enrollment.transferred',
-      entityType: 'student_enrollment',
-      entityId: studentId,
+    const result = await moveEnrolment({
+      studentId,
+      targetClassId,
+      closingStatus,
       schoolId: ctx.activeSchoolId,
-      oldValue: current ? { class_id: current.class_id, academic_year_id: current.academic_year_id } : null,
-      newValue: { class_id: targetClass.id, academic_year_id: targetClass.academic_year_id },
     })
-
-    revalidatePath('/admin/enrollments')
-    return { success: true }
+    if (result.success) revalidatePath('/admin/enrollments')
+    return result
   } catch (error) {
     return { error: getErrorMessageOr(error, 'មានបញ្ហាក្នុងការផ្លាស់ប្តូរថ្នាក់') }
   }
 }
 
-/** Move a student into the next academic year's class. */
 export async function promoteStudent(studentId: string, targetClassId: string): Promise<ActionResult> {
   return move(studentId, targetClassId, 'promoted')
 }

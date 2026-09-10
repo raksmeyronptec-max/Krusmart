@@ -1,11 +1,12 @@
 'use client'
 
-import { ArrowLeft, Key, Printer, Info, Copy, Users } from 'lucide-react'
+import { Printer, Info, Copy, Users } from 'lucide-react'
 import { Button } from '@/components/ui/actions/Button'
-import Link from 'next/link'
 import type { Student } from '@/lib/types'
 import { logger } from '@/lib/utils/logger'
 import { notify } from '@/components/ui/feedback/notify'
+import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
+import { ClassContextBar } from '@/components/shell/ClassContextBar'
 
 export default function PrintStudentCodesClient({ initialStudents, teacherUid }: { initialStudents: Student[], teacherUid: string }) {
 
@@ -23,7 +24,7 @@ export default function PrintStudentCodesClient({ initialStudents, teacherUid }:
     }
 
     return (
-        <div className="min-h-screen bg-paper text-text-heading font-battambang flex flex-col print:bg-bg-surface print:m-0 print:p-0">
+        <PageContainer className="text-text-heading font-battambang flex flex-col print:m-0 print:p-0">
             <style jsx global>{`
                 .print-codes-mode {
                     position: absolute;
@@ -60,25 +61,23 @@ export default function PrintStudentCodesClient({ initialStudents, teacherUid }:
                 }
             `}</style>
 
-            <div className="no-print sticky top-0 z-50 px-4 md:px-8 py-3 bg-bg-surface/90 backdrop-blur-lg border-b border-divider shadow-sm flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <Link href="/dashboard" className="text-text-muted hover:text-brand-hover hover:bg-brand-100 p-2 rounded-xl transition flex items-center gap-2 font-bold">
-                        <ArrowLeft className="w-5 h-5" /> <span className="hidden sm:inline">ត្រឡប់ក្រោយ</span>
-                    </Link>
-                    <div className="h-6 w-px bg-divider"></div>
-                    <h1 className="kh-moul text-lg sm:text-xl text-brand flex items-center gap-2">
-                        <Key className="w-6 h-6 text-brand" /> លេខកូដសិស្ស និង QR Code
-                    </h1>
-                </div>
-                
-                <Button printHidden={false} onClick={printPage}>
-                    <Printer className="w-4 h-4" /> <span className="hidden sm:inline">បោះពុម្ពកាត</span>
-                </Button>
-            </div>
+            {/* The sticky bar this screen opened with sat directly under
+                `TopNav`'s — two bands of chrome, and a back link the
+                `Breadcrumb` already provides. */}
+            <PageHeader
+                title="លេខកូដសិស្ស និង QR Code"
+                description="កាតលេខកូដសម្រាប់ចែកជូនអាណាព្យាបាល ដើម្បីចូល Parent Portal"
+                actions={
+                    <Button printHidden={false} onClick={printPage}>
+                        <Printer className="w-4 h-4" /> <span className="hidden sm:inline">បោះពុម្ពកាត</span>
+                    </Button>
+                }
+            />
+            <ClassContextBar />
 
-            <div className="no-print max-w-5xl mx-auto w-full p-4 sm:p-6 flex-1 flex flex-col">
-                <div className="p-4 bg-warning/10 text-sm text-warning border border-warning/30 rounded-xl mb-6 flex gap-3 items-start shadow-sm">
-                    <Info className="w-5 h-5 flex-shrink-0 mt-0.5 text-warning" />
+            <div className="no-print flex w-full flex-1 flex-col">
+                <div className="p-4 bg-warning/10 text-sm text-warning-text border border-warning/30 rounded-xl mb-6 flex gap-3 items-start shadow-sm">
+                    <Info className="w-5 h-5 flex-shrink-0 mt-0.5 text-warning-text" />
                     <p>សូមចែករំលែក <b>&quot;លេខកូដថ្នាក់&quot;</b> និង <b>&quot;អត្តលេខសិស្ស&quot;</b> ឫឱ្យមាតាបិតាស្កេន <b>&quot;QR Code&quot;</b> ដើម្បីឱ្យពួកគាត់អាចចូលប្រើប្រាស់ Parent Portal បាន។ អ្នកអាចចុចបោះពុម្ពខាងលើ ដើម្បីកាត់កាតចែកសិស្សយកទៅជូនឪពុកម្តាយ។</p>
                 </div>
 
@@ -96,7 +95,7 @@ export default function PrintStudentCodesClient({ initialStudents, teacherUid }:
                                 return (
                                     <div key={s.id} className="border border-divider rounded-xl p-4 bg-paper flex justify-between items-center shadow-sm hover:border-brand hover:shadow-md transition duration-300">
                                         <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 rounded-full border-2 border-white shadow-sm flex items-center justify-center font-bold bg-brand-100 text-brand shrink-0">
+                                            <div className="w-12 h-12 rounded-full border-2 border-white shadow-sm flex items-center justify-center font-bold bg-brand-soft text-brand-on-soft shrink-0">
                                                 {s.gender === 'ស្រី' || s.gender === 'F' ? 'ស' : 'ប'}
                                             </div>
                                             <div className="overflow-hidden">
@@ -156,6 +155,6 @@ export default function PrintStudentCodesClient({ initialStudents, teacherUid }:
                     )
                 })}
             </div>
-        </div>
+        </PageContainer>
     )
 }

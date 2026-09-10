@@ -27,7 +27,7 @@ export default async function AdminGradingPage() {
                     <p className="text-xs text-text-muted">{s.name}</p>
                   </div>
                   {s.isDefault && (
-                    <span className="shrink-0 rounded-full bg-brand-100 px-2 py-0.5 text-xs font-bold text-brand">
+                    <span className="shrink-0 rounded-full bg-brand-soft px-2 py-0.5 text-xs font-bold text-brand-on-soft">
                       លំនាំដើម
                     </span>
                   )}

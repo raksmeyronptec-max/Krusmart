@@ -5,6 +5,7 @@ import { useConfirm } from '@/components/ui/overlay/ConfirmDialog'
 import { Button } from '@/components/ui/actions/Button'
 import { notify } from '@/components/ui/feedback/notify'
 import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
+import { ClassContextBar } from '@/components/shell/ClassContextBar'
 import { Send, Info, AlertTriangle, Award, Paperclip, History, Clock, Trash2, Loader2, MailX } from 'lucide-react'
 import { getNotifications, addNotification, deleteNotification } from './actions'
 import SearchableSelect from '@/components/ui/forms/SearchableSelect'
@@ -94,14 +95,16 @@ export default function NotificationsClient({ initialStudents}: { initialStudent
                 description="ផ្ញើសារជូនដំណឹងទៅអាណាព្យាបាល និងគ្រប់គ្រងសារដែលបានផ្ញើ"
             />
 
-            <div className="container mx-auto max-w-6xl px-4 mt-8">
+            <ClassContextBar />
+
+            <div className="mt-8">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                     
                     {/* Left Column: Compose */}
                     <div className="lg:col-span-5">
                         <div className="bg-white/95 backdrop-blur-md border border-white/50 rounded-xl shadow-[0_10px_25px_rgba(0,0,0,0.05)] p-6 border-t-4 border-t-[var(--brand)]">
                             <div className="flex items-center gap-3 mb-6 border-b pb-4">
-                                <div className="bg-brand-100 p-2 rounded-lg text-brand"><Send className="w-5 h-5" /></div>
+                                <div className="bg-brand-soft p-2 rounded-lg text-brand-on-soft"><Send className="w-5 h-5" /></div>
                                 <h2 className="kh-moul text-lg text-text-heading">បង្កើតសារជូនដំណឹងថ្មី</h2>
                             </div>
 
@@ -130,7 +133,7 @@ export default function NotificationsClient({ initialStudents}: { initialStudent
                                     <div className="grid grid-cols-3 gap-2">
                                         <label className="cursor-pointer">
                                             <input type="radio" name="notifType" value="info" checked={type === 'info'} onChange={() => setType('info')} className="peer hidden" />
-                                            <div className="text-center p-2 rounded-xl border-2 border-divider peer-checked:border-brand-500 peer-checked:bg-brand-100 text-brand font-bold text-xs transition">
+                                            <div className="text-center p-2 rounded-xl border-2 border-divider peer-checked:border-brand-500 peer-checked:bg-brand-soft peer-checked:text-brand-on-soft text-brand font-bold text-xs transition">
                                                 <Info className="w-5 h-5 mx-auto mb-1" /> ព័ត៌មានទូទៅ
                                             </div>
                                         </label>
@@ -174,7 +177,7 @@ export default function NotificationsClient({ initialStudents}: { initialStudent
                                 <h2 className="kh-moul text-text-heading text-base flex items-center gap-2">
                                     <History className="w-5 h-5 text-text-muted" /> ប្រវត្តិសារដែលបានផ្ញើ
                                 </h2>
-                                <span className="bg-brand-100 text-brand px-3 py-1 rounded-full text-xs font-bold">សរុប: {notifications.length}</span>
+                                <span className="bg-brand-soft text-brand-on-soft px-3 py-1 rounded-full text-xs font-bold">សរុប: {notifications.length}</span>
                             </div>
 
                             <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar bg-paper/30">
@@ -191,16 +194,16 @@ export default function NotificationsClient({ initialStudents}: { initialStudent
                                 ) : (
                                     notifications.map(n => {
                                         let icon = <Info className="w-6 h-6" />
-                                        let colorClass = 'text-brand bg-brand-100 border-divider'
+                                        let colorClass = 'text-brand-on-soft bg-brand-soft border-divider'
                                         if (n.type === 'alert') { icon = <AlertTriangle className="w-6 h-6" />; colorClass = 'text-danger bg-danger/10 border-danger/30' }
                                         if (n.type === 'success') { icon = <Award className="w-6 h-6" />; colorClass = 'text-success bg-success/10 border-success/30' }
 
                                         let targetLabel = 'សិស្សទាំងអស់'
-                                        let targetBadgeColor = 'bg-brand-100 text-brand'
+                                        let targetBadgeColor = 'bg-brand-soft text-brand-on-soft'
                                         if (n.target !== 'all') {
                                             const st = initialStudents.find(s => s.id === n.target)
                                             targetLabel = st ? `ផ្ញើទៅ៖ ${st.name_kh}` : `ផ្ញើទៅ៖ ID ${n.target.substring(0,8)}`
-                                            targetBadgeColor = 'bg-brand-100 text-brand'
+                                            targetBadgeColor = 'bg-brand-soft text-brand-on-soft'
                                         }
 
                                         const d = new Date(n.created_at)

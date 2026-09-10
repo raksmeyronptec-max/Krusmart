@@ -204,7 +204,7 @@ export default function LoginForm({ role = 'universal', hideRegister = false }: 
         <button 
             onClick={handleVerifyOtp}
             disabled={isLoading || otp.join('').length !== 8}
-            className="btn-pulse w-full bg-brand disabled:opacity-50 hover:bg-brand-800 text-white font-bold py-3 rounded-xl transition shadow-md flex justify-center items-center gap-2"
+            className="btn-pulse w-full bg-brand disabled:opacity-50 hover:bg-brand-800 text-brand-contrast font-bold py-3 rounded-xl transition shadow-md flex justify-center items-center gap-2"
         >
             {isLoading ? <Loader2 className="animate-spin w-5 h-5" /> : 'បញ្ជាក់លេខកូដ (Verify)'}
         </button>
@@ -223,17 +223,29 @@ export default function LoginForm({ role = 'universal', hideRegister = false }: 
 
   return (
     <>
+      {/*
+        This was a `role="tablist"` whose children were plain buttons: a screen
+        reader announced a tab list containing no tabs, and nothing exposed
+        which of the two was selected. Every other tab strip in the product
+        carries `role="tab"` + `aria-selected`; this was the one that did not.
+      */}
       {!hideRegister && (
-        <div className="flex border-b border-divider dark:border-divider mb-6" role="tablist">
-            <button 
+        <div className="flex border-b border-divider dark:border-divider mb-6" role="tablist" aria-label="ចូលគណនី ឬបង្កើតថ្មី">
+            <button
+                type="button"
+                role="tab"
+                aria-selected={mode === 'login'}
                 onClick={() => {setMode('login'); setError(null); setSuccessMsg(null);}}
-                className={`flex-1 py-3 text-sm font-medium transition ${mode === 'login' ? 'border-b-2 border-brand text-brand dark:border-brand-400 dark:text-brand-400' : 'text-text-muted hover:bg-brand-100 dark:hover:bg-paper'}`}
+                className={`flex-1 py-3 text-sm font-medium transition ${mode === 'login' ? 'border-b-2 border-brand text-brand dark:border-brand-400 dark:text-brand-400' : 'text-text-muted hover:bg-brand-soft dark:hover:bg-paper'}`}
             >
                 ចូលគណនី
             </button>
-            <button 
+            <button
+                type="button"
+                role="tab"
+                aria-selected={mode === 'register'}
                 onClick={() => {setMode('register'); setError(null); setSuccessMsg(null);}}
-                className={`flex-1 py-3 text-sm font-medium transition ${mode === 'register' ? 'border-b-2 border-brand text-brand dark:border-brand-400 dark:text-brand-400' : 'text-text-muted hover:bg-brand-100 dark:hover:bg-paper'}`}
+                className={`flex-1 py-3 text-sm font-medium transition ${mode === 'register' ? 'border-b-2 border-brand text-brand dark:border-brand-400 dark:text-brand-400' : 'text-text-muted hover:bg-brand-soft dark:hover:bg-paper'}`}
             >
                 បង្កើតថ្មី
             </button>
@@ -349,7 +361,7 @@ export default function LoginForm({ role = 'universal', hideRegister = false }: 
           <button 
               type="submit" 
               disabled={isLoading || !isValidEmail || password.length < 6}
-              className="btn-pulse w-full bg-brand hover:bg-brand-800 disabled:opacity-50 text-white font-bold py-3.5 rounded-lg transition shadow-md flex justify-center items-center mt-4"
+              className="btn-pulse w-full bg-brand hover:bg-brand-800 disabled:opacity-50 text-brand-contrast font-bold py-3.5 rounded-lg transition shadow-md flex justify-center items-center mt-4"
           >
               <span>{mode === 'login' ? 'ចូលប្រព័ន្ធ (Login)' : 'ចុះឈ្មោះថ្មី'}</span>
               {isLoading && <Loader2 className="animate-spin ml-2 w-5 h-5" />}

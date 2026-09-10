@@ -1,11 +1,13 @@
 'use client'
 
 import { useMemo } from 'react'
-import { Button } from '@/components/ui/actions/Button'
-import { ArrowLeft, Printer, Users, Ruler } from 'lucide-react'
 import Link from 'next/link'
+import { Button } from '@/components/ui/actions/Button'
+import { Printer, Ruler } from 'lucide-react'
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend, LineChart, Line, ScatterChart, Scatter } from 'recharts'
 import type { Settings, Student } from '@/lib/types'
+import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
+import { ClassContextBar } from '@/components/shell/ClassContextBar'
 import { calculateAge } from '@/lib/utils/date'
 
 /** Mean of a list, or null when there is nothing to average. */
@@ -108,7 +110,7 @@ export default function PrintStudentAgeClient({ initialStudents, settings, acade
     const khmerColors = ['#059669', '#2563eb', '#db2777', '#d97706', '#7c3aed', '#14b8a6', '#f43f5e', '#8b5cf6', '#ea580c', '#0ea5e9']
 
     return (
-        <div className="min-h-screen bg-paper text-text-heading font-battambang print:bg-bg-surface print:m-0 print:p-0">
+        <PageContainer className="text-text-heading font-battambang print:m-0 print:p-0">
             <style jsx global>{`
                 @media print {
                     @page { size: A4 landscape; margin: 10mm; }
@@ -127,35 +129,32 @@ export default function PrintStudentAgeClient({ initialStudents, settings, acade
                 .report-table th { background-color: #f1f5f9; font-family: 'Moul', cursive; font-weight: normal; font-size: 12px; }
             `}</style>
 
-            <div className="no-print max-w-7xl mx-auto px-4 mt-8 pb-10">
-                <div className="flex justify-between items-center mb-6">
-                    <Link href="/dashboard" className="inline-flex items-center gap-2 text-brand hover:text-brand-800 font-bold transition bg-bg-surface/50 px-4 py-2 rounded-xl backdrop-blur-sm shadow-sm w-fit">
-                        <ArrowLeft className="w-5 h-5" /> ត្រឡប់ទៅទំព័រដើម
-                    </Link>
-                    <Button printHidden={false} onClick={printPage}>
-                        <Printer className="w-4 h-4" /> បោះពុម្ពទិន្នន័យ
-                    </Button>
-                </div>
+            <div className="no-print">
+                {/* The back link is gone — `Breadcrumb` in the shell is the way
+                    back from every screen, and this one always pointed at the
+                    dashboard regardless of where the teacher came from. */}
+                <PageHeader
+                    title="បញ្ជីរាប់ និងវិភាគអាយុ-កម្ពស់សិស្ស"
+                    description="សម្រង់អាយុ និងកម្ពស់សិស្សក្នុងថ្នាក់ សម្រាប់បោះពុម្ព"
+                    actions={
+                        <Button printHidden={false} onClick={printPage}>
+                            <Printer className="w-4 h-4" /> បោះពុម្ពទិន្នន័យ
+                        </Button>
+                    }
+                />
+                <ClassContextBar />
 
-                <div className="bg-bg-surface/95 backdrop-blur border border-white/50 rounded-xl p-6 md:p-8 shadow-lg mb-8">
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="p-3 bg-brand-100 rounded-full text-brand">
-                            <Users className="w-6 h-6" />
-                        </div>
-                        <div>
-                            <h1 className="kh-moul text-xl md:text-2xl text-brand">បញ្ជីរាប់ និងវិភាគអាយុ-កម្ពស់សិស្ស</h1>
-                        </div>
-                    </div>
+                <div className="bg-bg-surface/95 backdrop-blur border border-divider rounded-xl p-6 md:p-8 shadow-lg mb-8">
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                        <div className="bg-brand-100 border border-divider p-4 rounded-xl flex items-center justify-between">
-                            <div><p className="text-sm text-text-muted font-bold mb-1">សិស្សសរុប</p><h3 className="text-2xl font-bold text-brand">{allTotal}</h3></div>
+                        <div className="bg-brand-soft border border-divider p-4 rounded-xl flex items-center justify-between">
+                            <div><p className="text-sm text-brand-on-soft/80 font-bold mb-1">សិស្សសរុប</p><h3 className="text-2xl font-bold text-brand-on-soft">{allTotal}</h3></div>
                         </div>
-                        <div className="bg-brand-100 border border-divider p-4 rounded-xl flex items-center justify-between">
-                            <div><p className="text-sm text-text-muted font-bold mb-1">សិស្សស្រី</p><h3 className="text-2xl font-bold text-brand">{totalF}</h3></div>
+                        <div className="bg-brand-soft border border-divider p-4 rounded-xl flex items-center justify-between">
+                            <div><p className="text-sm text-brand-on-soft/80 font-bold mb-1">សិស្សស្រី</p><h3 className="text-2xl font-bold text-brand-on-soft">{totalF}</h3></div>
                         </div>
-                        <div className="bg-brand-100 border border-divider p-4 rounded-xl flex items-center justify-between">
-                            <div><p className="text-sm text-text-muted font-bold mb-1">សិស្សប្រុស</p><h3 className="text-2xl font-bold text-brand-500">{totalM}</h3></div>
+                        <div className="bg-brand-soft border border-divider p-4 rounded-xl flex items-center justify-between">
+                            <div><p className="text-sm text-brand-on-soft/80 font-bold mb-1">សិស្សប្រុស</p><h3 className="text-2xl font-bold text-brand-on-soft">{totalM}</h3></div>
                         </div>
                     </div>
 
@@ -229,7 +228,7 @@ export default function PrintStudentAgeClient({ initialStudents, settings, acade
                                         <YAxis allowDecimals={false} />
                                         <RechartsTooltip />
                                         <Legend />
-                                        <Line type="monotone" dataKey="total" name="សរុប" stroke="#0054a6" strokeWidth={2} dot={{ r: 3 }} />
+                                        <Line type="monotone" dataKey="total" name="សរុប" stroke="var(--brand)" strokeWidth={2} dot={{ r: 3 }} />
                                     </LineChart>
                                 </ResponsiveContainer>
                             </div>
@@ -271,7 +270,8 @@ export default function PrintStudentAgeClient({ initialStudents, settings, acade
             </div>
 
             {/* Hidden Print Container */}
-            <div className="hidden print:block print-container bg-white w-[297mm] min-h-[210mm] mx-auto p-[10mm_15mm] relative">
+            <div className="preview-scroll">
+            <div className="hidden print:block print-container w-[297mm] min-h-[210mm] mx-auto p-[10mm_15mm] relative">
                 <div className="flex justify-between items-start mb-6">
                     <div className="text-[10pt] leading-relaxed kh-moul" style={{ marginTop: '40pt' }}>
                         <p>{settings?.management_unit_1 || "មន្ទីរអប់រំ យុវជន និងកីឡា..."}</p>
@@ -346,6 +346,7 @@ export default function PrintStudentAgeClient({ initialStudents, settings, acade
                 </div>
 
             </div>
-        </div>
+            </div>
+        </PageContainer>
     )
 }

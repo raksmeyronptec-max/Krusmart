@@ -15,7 +15,7 @@ export type StatTone = "brand" | "success" | "warning" | "danger" | "gold"
 const TONES: Record<StatTone, string> = {
   brand: "bg-brand-100 text-brand-800 dark:bg-brand-900/60 dark:text-brand-300",
   success: "bg-success/10 text-success",
-  warning: "bg-warning/10 text-warning",
+  warning: "bg-warning/10 text-warning-text",
   danger: "bg-danger/10 text-danger",
   gold: "bg-gold/10 text-gold",
 }

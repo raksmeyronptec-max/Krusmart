@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { BookOpen, CalendarDays, GraduationCap, SlidersHorizontal } from 'lucide-react'
 
 import { useActiveClass } from '@/lib/hooks/useActiveClass'
+import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import { useClassHref } from '@/lib/hooks/useClassHref'
 import {
   SCORE_WORKSPACE_TABS,
@@ -75,7 +76,7 @@ export function ScoreWorkspaceHeader({
   notes,
 }: ScoreWorkspaceHeaderProps) {
   const pathname = usePathname()
-  const { className, classId } = useActiveClass()
+  const { className, classId, gradeName, gradeNumber } = useActiveClass()
   const classHref = useClassHref()
 
   return (
@@ -98,6 +99,23 @@ export function ScoreWorkspaceHeader({
         <Fact icon={<GraduationCap className="h-4 w-4 text-brand" />} term="ថ្នាក់">
           {className || '—'}
         </Fact>
+        {/*
+          The grade the class sits in — ៥ក is a class, ថ្នាក់ទី៥ is the grade,
+          and the curriculum, the full marks and the grading scheme all follow
+          the second rather than the first.
+
+          Rendered only when it resolves. `grades_select_member` (00003) gates
+          the row on the caller's own schools, so a teacher whose profile school
+          hint is unset legitimately reads no grade; an empty fact is honest
+          where a number derived from `className` would be a guess. This is the
+          same rule `ClassContextBar` follows, which is why the two never
+          disagree.
+        */}
+        {(gradeName || gradeNumber !== null) && (
+          <Fact term="កម្រិតថ្នាក់">
+            {gradeName ?? `ថ្នាក់ទី${toKhmerNumber(gradeNumber as number)}`}
+          </Fact>
+        )}
         <Fact icon={<CalendarDays className="h-4 w-4 text-brand" />} term="ឆ្នាំសិក្សា">
           {academicYear}
         </Fact>

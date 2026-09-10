@@ -354,8 +354,31 @@ export default function ScoreTotalClient({
         context: templateContext,
         scheme,
         levelCurriculum,
+        role,
         loading: templateLoading,
     } = useScoreTemplate(currentMode === 'annual' ? 'semester' : currentMode)
+
+    /**
+     * Columns this teacher may WRITE, when that is narrower than what they read.
+     *
+     * The grid deliberately SHOWS the class's whole curriculum whoever opens it
+     * — a subject teacher checking where their pupils stand needs the other
+     * subjects on screen. What it must not do is offer them a cell `saveScores`
+     * will refuse: the server enforces "a subject teacher may only enter their
+     * own subjects" (see `score/enter/actions.ts`), and a grid that accepted the
+     * keystroke and failed on save would be the UI and the boundary disagreeing.
+     *
+     * `null` means no narrowing at all — a homeroom teacher, a primary teacher
+     * or any legacy account, which is `coversWholeClass` and every account that
+     * existed before subject assignments did.
+     */
+    const writableColumns = useMemo(() => {
+        if (role.coversWholeClass) return null
+        const mine = new Set(role.subjectKeys)
+        return new Set(
+            templateSubjects.filter(s => mine.has(s.subjectKey)).flatMap(s => s.columns.map(c => c.id)),
+        )
+    }, [role, templateSubjects])
     // The template screen is a server component, so the class it should open on
     // has to travel in the URL — client state cannot reach it.
     //
@@ -1516,7 +1539,12 @@ export default function ScoreTotalClient({
                                                     : col.isText ? String(raw)
                                                     : `${formatMark(numeric)}/${formatMark(colMax)} · និទ្ទេស ${letterFor(numeric, scheme, colMax)}${rank ? ` · ចំណាត់ថ្នាក់ទី ${rank}` : ''}`
 
-                                                if (isEditLocked || col.readOnly) {
+                                                // Read-only for a subject teacher looking at
+                                                // somebody else's column — the same rule the
+                                                // server applies, so the two cannot disagree.
+                                                const notMine = writableColumns !== null && !writableColumns.has(col.key)
+
+                                                if (isEditLocked || col.readOnly || notMine) {
                                                     return (
                                                         <td key={col.key} className="border border-divider p-1 text-center" title={tooltip}>
                                                             <span className={`inline-block rounded-lg px-2 py-0.5 text-xs font-bold tabular-nums ${cellStyle.pill}`}>

@@ -20,6 +20,7 @@ import { useUserRole } from '@/lib/rbac/useUserRole'
 import type { GradeOption } from '@/lib/classroom/grades'
 import { CreateClassDialog } from './CreateClassDialog'
 import { ManageClassDialog } from './ManageClassDialog'
+import { ClassContextBar } from '@/components/shell/ClassContextBar'
 
 /**
  * ថ្នាក់របស់ខ្ញុំ — one card per class the teacher holds, and the way into each.
@@ -100,6 +101,10 @@ function ClassroomClientInner({
           ) : null
         }
       />
+
+      {/* Which class every other screen is currently about. This page lists
+          them all; the bar says which one is selected. */}
+      <ClassContextBar />
 
       <p className="mb-4 text-sm font-bold text-text-body">
         ឆ្នាំសិក្សា {getCurrentAcademicYear()}

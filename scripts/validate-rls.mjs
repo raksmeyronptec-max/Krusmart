@@ -384,6 +384,178 @@ const main = async () => {
   check('...and CANNOT once a pupil is enrolled — from then on it is archived, never deleted',
     r.ok && r.value.length === 0, r.ok ? `${r.value.length} row(s) deleted` : r.error)
 
+  // --------------------------- teacher-side transfer (00003's own policy) ----
+  // `student_enrollments_write_assigned_or_admin` grants FOR ALL to the
+  // HOMEROOM teacher of the row's class. The teacher-facing transfer on
+  // /students/[id] adds no policy and no migration — it exercises this one.
+  //
+  // What must hold: a form master may close an enrolment in their class and
+  // open one in another class they are form master of, and may do NEITHER for
+  // a class they only teach a subject in, or do not teach at all.
+  log('\nteacher-side transfer (00003 homeroom branch)')
+
+  // A's own second class, and a class A only holds a SUBJECT row on.
+  const gradeAT = (await one(`SELECT g.id FROM public.grades g
+                                JOIN public.education_levels el ON el.id = g.education_level_id
+                               WHERE el.school_id = $1 LIMIT 1`, [A.sc])).id
+  const kA3 = (await one(`INSERT INTO public.classes (grade_id,academic_year_id,name)
+                          VALUES ($1,$2,'៥គ') RETURNING id`, [gradeAT, A.y])).id
+  await c.query(`INSERT INTO public.teacher_assignments (teacher_id,class_id,academic_year_id,is_homeroom,status)
+                 VALUES ($1,$2,$3,true,'active')`, [A.t, kA3, A.y])
+
+  const kSubjectOnly = (await one(`INSERT INTO public.classes (grade_id,academic_year_id,name)
+                                   VALUES ($1,$2,'៥ឃ') RETURNING id`, [gradeAT, A.y])).id
+  await c.query(`INSERT INTO public.teacher_assignments (teacher_id,class_id,academic_year_id,is_homeroom,status,subject_key)
+                 VALUES ($1,$2,$3,false,'active','math_general')`, [A.t, kSubjectOnly, A.y])
+
+  const enrolOf = async (student, cls) => (await one(
+    `SELECT id FROM public.student_enrollments WHERE student_id=$1 AND class_id=$2 AND status='active'`,
+    [student, cls])).id
+  const openRow = await enrolOf(A.st, A.k)
+
+  r = await as(c, A.t, () => rows(c, `UPDATE public.student_enrollments
+      SET status='transferred', left_at=now() WHERE id=$1 RETURNING id`, [openRow]))
+  check('a form master CAN close an enrolment in their own class',
+    r.ok && r.value.length === 1, r.ok ? `${r.value.length} row(s)` : `${r.code} ${r.error}`)
+
+  r = await as(c, A.t, () => rows(c, `INSERT INTO public.student_enrollments
+      (student_id,class_id,academic_year_id,status) VALUES ($1,$2,$3,'active') RETURNING id`,
+      [A.st, kA3, A.y]))
+  check('...and open one in another class they are form master of',
+    r.ok && r.value.length === 1, r.ok ? '' : `${r.code} ${r.error}`)
+
+  /*
+   * E, not A: by this point A holds the `owner` role in their own school (the
+   * join-request section grants it), so the admin branch of the policy would
+   * carry them and the homeroom requirement would never be exercised. E holds
+   * exactly `teacher`.
+   */
+  await c.query(`INSERT INTO public.teacher_assignments (teacher_id,class_id,academic_year_id,is_homeroom,status,subject_key)
+                 VALUES ($1,$2,$3,false,'active','math_general')
+                 ON CONFLICT DO NOTHING`, [E, kSubjectOnly, A.y])
+  r = await as(c, E, () => rows(c, `INSERT INTO public.student_enrollments
+      (student_id,class_id,academic_year_id,status) VALUES ($1,$2,$3,'active') RETURNING id`,
+      [A.st, kSubjectOnly, A.y]))
+  check('a SUBJECT teacher of a class CANNOT enrol into it  ← homeroom, not merely assigned',
+    !r.ok || r.value.length === 0, r.ok ? `${r.value.length} row(s) inserted` : r.code)
+
+  r = await as(c, B.t, () => rows(c, `UPDATE public.student_enrollments
+      SET status='transferred' WHERE id=$1 RETURNING id`, [openRow]))
+  check("a teacher in another school CANNOT close A's pupil's enrolment",
+    r.ok && r.value.length === 0, r.ok ? `${r.value.length} row(s) updated` : r.error)
+
+  /*
+   * ★ THE HOLE 00033 CLOSES.
+   *
+   * B is form master of B.k, which satisfied 00003's class-only predicate — and
+   * nothing in it mentioned `student_id`. So B could enrol ANY pupil whose id
+   * they could name into their own class, and 00006/00007 would then hand them
+   * that pupil's roster row, marks and attendance. The same shape 00011 closed
+   * for `scores`, one table further on.
+   */
+  r = await as(c, B.t, () => rows(c, `INSERT INTO public.student_enrollments
+      (student_id,class_id,academic_year_id,status) VALUES ($1,$2,$3,'active') RETURNING id`,
+      [A.st, B.k, B.y]))
+  check("...nor pull them into their own class  ← 00033", !r.ok || r.value.length === 0,
+    r.ok ? 'INSERT SUCCEEDED — a pupil could be taken across schools' : r.code)
+
+  // And the allowance 00033 must not have broken: enrolling a pupil you own.
+  const ownPupil = (await one(`INSERT INTO public.students (teacher_id,student_id,grade,name_kh,gender,dob)
+                           VALUES ($1,'S-NEW','ថ្នាក់ទី៥','សិស្សថ្មី','ស្រី','2015-02-02') RETURNING id`, [A.t])).id
+  r = await as(c, A.t, () => rows(c, `INSERT INTO public.student_enrollments
+      (student_id,class_id,academic_year_id,status) VALUES ($1,$2,$3,'active') RETURNING id`,
+      [ownPupil, A.k, A.y]))
+  check('a teacher CAN enrol a pupil they own (createStudent\'s own write)',
+    r.ok && r.value.length === 1, r.ok ? '' : `${r.code} ${r.error}`)
+
+  r = await as(c, D, () => rows(c, `INSERT INTO public.student_enrollments
+      (student_id,class_id,academic_year_id,status) VALUES ($1,$2,$3,'active') RETURNING id`,
+      [A.st, A.k, A.y]))
+  check('a colleague who is not form master CANNOT enrol into the shared class',
+    !r.ok || r.value.length === 0, r.ok ? `${r.value.length} row(s) inserted` : r.code)
+
+  // ------------------------------------- homework class scope (00032) -------
+  // Before 00032 `homework_assignments` had no class at all: the parent-side
+  // policy matched `is_teacher_of_my_child(teacher_id)`, so an assignment
+  // written for ៥ក was readable by the parents of EVERY class the teacher
+  // taught. The column made "this class" expressible; these checks prove the
+  // three things that claim rests on.
+  //
+  //   1. a NULL class still reaches the teacher's whole audience — nothing
+  //      written before the migration loses a reader;
+  //   2. a stamped class reaches that class's parents and no others;
+  //   3. the stamp cannot be forged, because it is an ADDRESS: a write that
+  //      widens a read is the shape 00031 was careful about, and this table
+  //      has the same hazard.
+  log('\nhomework class scope (00032)')
+
+  // A second class of A's, with its own pupil — the class the parent's child is
+  // NOT in. Without it "the parent sees their class's homework" is vacuous.
+  const gradeA2 = (await one(`SELECT g.id FROM public.grades g
+                                JOIN public.education_levels el ON el.id = g.education_level_id
+                               WHERE el.school_id = $1 LIMIT 1`, [A.sc])).id
+  const kA2 = (await one(`INSERT INTO public.classes (grade_id,academic_year_id,name)
+                          VALUES ($1,$2,'៦ក') RETURNING id`, [gradeA2, A.y])).id
+  await c.query(`INSERT INTO public.teacher_assignments (teacher_id,class_id,academic_year_id,is_homeroom,status)
+                 VALUES ($1,$2,$3,true,'active')`, [A.t, kA2, A.y])
+
+  // A parent of A's pupil, who sits in A.k and not in kA2.
+  const P = (await one(`INSERT INTO auth.users (email) VALUES ('parent@example.com') RETURNING id`)).id
+  await c.query(`INSERT INTO public.parent_students (parent_id, student_id, relationship, is_primary)
+                 VALUES ($1,$2,'mother',true)`, [P, A.st])
+
+  const hw = async (classId) => (await one(
+    `INSERT INTO public.homework_assignments (teacher_id,class_id,subject,title,due_date)
+     VALUES ($1,$2,'math_general',$3,'2026-01-15') RETURNING id`,
+    [A.t, classId, classId ? 'stamped' : 'legacy'])).id
+  const hwNull = await hw(null)
+  const hwOwn = await hw(A.k)
+  const hwOther = await hw(kA2)
+
+  // --- reading, as the parent ------------------------------------------------
+  r = await as(c, P, () => rows(c, `SELECT id FROM public.homework_assignments WHERE id=$1`, [hwNull]))
+  check('a parent still sees pre-00032 homework (NULL class keeps its reach)',
+    r.ok && r.value.length === 1, r.ok ? `${r.value.length} row(s)` : r.error)
+  r = await as(c, P, () => rows(c, `SELECT id FROM public.homework_assignments WHERE id=$1`, [hwOwn]))
+  check("...and homework stamped with their own child's class",
+    r.ok && r.value.length === 1, r.ok ? `${r.value.length} row(s)` : r.error)
+  r = await as(c, P, () => rows(c, `SELECT id FROM public.homework_assignments WHERE id=$1`, [hwOther]))
+  check("...but NOT the same teacher's homework for another class  ← the fix",
+    r.ok && r.value.length === 0, r.ok ? `${r.value.length} row(s)` : r.error)
+
+  // --- reading, across schools ----------------------------------------------
+  r = await as(c, A.t, () => rows(c, `SELECT id FROM public.homework_assignments WHERE teacher_id=$1`, [A.t]))
+  check('the author still sees all of their own, whatever the class',
+    r.ok && r.value.length === 3, `${r.value?.length} row(s)`)
+  r = await as(c, B.t, () => rows(c, `SELECT id FROM public.homework_assignments WHERE teacher_id=$1`, [A.t]))
+  check("a teacher in another school sees none of A's", r.ok && r.value.length === 0,
+    `${r.value?.length} row(s)`)
+  r = await as(c, null, () => rows(c, `SELECT id FROM public.homework_assignments`))
+  check('anon sees none', (r.ok && r.value.length === 0) || !r.ok,
+    r.ok ? `${r.value.length} row(s)` : r.error)
+
+  // --- writing: the class is an address, not a label -------------------------
+  r = await as(c, A.t, () => rows(c, `INSERT INTO public.homework_assignments (teacher_id,class_id,subject,title,due_date)
+      VALUES ($1,$2,'math_general','own class','2026-02-01') RETURNING id`, [A.t, A.k]))
+  check('A CAN publish into a class they actually teach',
+    r.ok && r.value.length === 1, r.ok ? '' : `${r.code} ${r.error}`)
+  r = await as(c, A.t, () => rows(c, `INSERT INTO public.homework_assignments (teacher_id,class_id,subject,title,due_date)
+      VALUES ($1,$2,'math_general','forged','2026-02-01') RETURNING id`, [A.t, B.k]))
+  check("A CANNOT stamp another school's class  ← a forged class_id would widen the audience",
+    !r.ok, r.ok ? 'INSERT SUCCEEDED — policy too wide' : r.code)
+  r = await as(c, A.t, () => rows(c, `INSERT INTO public.homework_assignments (teacher_id,class_id,subject,title,due_date)
+      VALUES ($1,NULL,'math_general','legacy','2026-02-01') RETURNING id`, [A.t]))
+  check('...and CAN still publish without a class (the pre-V2 path)',
+    r.ok && r.value.length === 1, r.ok ? '' : `${r.code} ${r.error}`)
+  r = await as(c, A.t, () => rows(c, `UPDATE public.homework_assignments SET class_id=$1 WHERE id=$2 RETURNING id`,
+      [B.k, hwOwn]))
+  check('...nor re-address an existing row to a class they do not teach',
+    !r.ok || r.value.length === 0, r.ok ? `${r.value.length} row(s) updated` : r.code)
+  r = await as(c, B.t, () => rows(c, `INSERT INTO public.homework_assignments (teacher_id,class_id,subject,title,due_date)
+      VALUES ($1,$2,'math_general','impersonation','2026-02-01') RETURNING id`, [A.t, A.k]))
+  check("a teacher CANNOT publish homework owned by somebody else", !r.ok,
+    r.ok ? 'INSERT SUCCEEDED — policy too wide' : r.code)
+
   await c.end()
   const a1 = await conn('postgres'); await a1.query(`DROP DATABASE IF EXISTS ${DB} WITH (FORCE)`); await a1.end()
 

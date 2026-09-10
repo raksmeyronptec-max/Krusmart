@@ -25,7 +25,8 @@ import { ScoreEntryList } from './ScoreEntryList'
 import { ScoreEntryGrid } from './ScoreEntryGrid'
 
 import { getScores, saveScores } from './actions'
-import { clampScoreCell, scoreCellValue } from '@/lib/utils/score-value'
+import { clampScoreCell, scoreCellValue, splitScoreCell } from '@/lib/utils/score-value'
+import { rosterProgress, type MarkRow } from '@/lib/scores/completion'
 import { formatMark, letterOrDash, numericCell, styleFor } from '@/lib/utils/score-band'
 import { levelByKey, trackLabel } from '@/lib/onboarding/curriculum'
 import { coefficientAverage, coefficientOf, simpleAverage, DEFAULT_SCHEME_CONFIG } from '@/lib/grading/scheme'
@@ -80,7 +81,7 @@ const QUICK_SUBJECTS = [
     { id: 'ex_oral', label: 'សំណួរផ្ទាល់មាត់', icon: Mic, tone: 'text-brand' },
     { id: 'ex_att', label: 'វត្តមាន', icon: UserCheck, tone: 'text-success' },
     { id: 'ex_book', label: 'សៀវភៅ', icon: Book, tone: 'text-brand-700' },
-    { id: 'ex_hw', label: 'កិច្ចការផ្ទះ', icon: Home, tone: 'text-warning' },
+    { id: 'ex_hw', label: 'កិច្ចការផ្ទះ', icon: Home, tone: 'text-warning-text' },
 ] as const
 
 const cellKey = (studentId: string, columnId: string) => `${studentId}:${columnId}`
@@ -497,9 +498,44 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
         [initialStudents],
     )
 
+    /**
+     * The grid's cells as `MarkRow`s, so the shared completion layer can read
+     * them.
+     *
+     * Built from `scoresData` rather than from a fetch: this screen holds the
+     * live grid including cells the teacher has typed but not yet saved, and a
+     * progress figure that ignored unsaved work would tick *backwards* as they
+     * typed. `splitScoreCell` is the same number-or-text rule `saveScores`
+     * applies, so a cell counts here exactly when it would count once written.
+     */
+    const markRows = useMemo(() => {
+        const rows: MarkRow[] = []
+        for (const stu of initialStudents) {
+            const byColumn = scoresData[stu.id]
+            if (!byColumn) continue
+            for (const col of cols) {
+                const raw = byColumn[col.id]
+                if (raw === null || raw === undefined || raw === '') continue
+                rows.push({ student_id: stu.id, subject: col.id, ...splitScoreCell(raw) })
+            }
+        }
+        return rows
+    }, [cols, initialStudents, scoresData])
+
+    /**
+     * The subjects the grid is currently showing — one when a subject is picked,
+     * all of the teacher's when the scope is `all`.
+     *
+     * `rosterProgress` unions across them; it never sums, because a pupil marked
+     * in two subjects is one pupil.
+     */
+    const displayedSubjects = useMemo(() => {
+        if (view === 'grid' && gridScope === 'all') return templateSubjects
+        return templateSubjects.filter(s => s.subjectKey === subject)
+    }, [view, gridScope, templateSubjects, subject])
+
     const stats = useMemo(() => {
         const numeric = cols.filter(c => c.type !== 'select')
-        let entered = 0
         const averages: number[] = []
 
         for (const stu of initialStudents) {
@@ -507,21 +543,30 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
                 score: numericCell(scoresData[stu.id]?.[c.id]),
                 maxScore: maxScoreFor(c.id),
             }))
-            if (entries.some(e => e.score !== null)) entered += 1
             // Coefficient-weighted under a secondary scheme, the plain mean
             // under the default — one call, both worlds.
             const avg = coefficientAverage(entries, scheme)
             if (avg !== null) averages.push(avg)
         }
 
+        /*
+         * HOW FAR THROUGH — from the shared layer, not from this loop.
+         *
+         * It used to be counted right here: a pupil was "entered" when a numeric
+         * cell in a non-`select` column had a value. `isMarked` counts
+         * `score_text` too, because the `sem_eval_*` columns are Khmer words
+         * (00012) — so a pupil carrying only a rating read as DONE on
+         * `/score/collect` and the dashboard and as NOT STARTED here, on the one
+         * screen the teacher is actually typing into.
+         */
+        const progress = rosterProgress(displayedSubjects, markRows, initialStudents.length)
+
         return {
-            total: initialStudents.length,
-            entered,
+            ...progress,
             // A mean of per-pupil averages that already sit on the scheme's scale.
             classAverage: simpleAverage(averages),
-            percent: initialStudents.length === 0 ? 0 : Math.round((entered / initialStudents.length) * 100),
         }
-    }, [cols, initialStudents, scoresData, maxScoreFor, scheme])
+    }, [cols, initialStudents, scoresData, maxScoreFor, scheme, displayedSubjects, markRows])
 
     // ----------------------------------------------------- copy last period
 
@@ -983,7 +1028,7 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
             {/* ---------------------------------------------------- locked note */}
             {periodLocked && (
                 <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-warning/40 bg-warning/10 p-3 text-sm text-text-body">
-                    <Lock className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
+                    <Lock className="mt-0.5 h-4 w-4 shrink-0 text-warning-text" aria-hidden="true" />
                     <span>
                         <span className="font-bold">វគ្គ{activePeriod?.labelKm ?? ''} បានចាក់សោ</span> — ពិន្ទុមើលបានតែប៉ុណ្ណោះ។
                         ការដោះសោធ្វើដោយអ្នកគ្រប់គ្រងសាលា នៅ មុខវិជ្ជាតាមថ្នាក់ → វគ្គពិន្ទុ។
@@ -1143,7 +1188,7 @@ export default function ScoreEnterClient({ initialStudents }: { initialStudents:
                         <span className="text-text-muted">
                             មធ្យមភាគថ្នាក់៖ <span className={styleFor(stats.classAverage, scheme).text}>{formatMark(stats.classAverage)}</span>
                         </span>
-                        <span className={`text-xs font-bold ${dirty ? 'text-warning' : 'text-success'}`}>
+                        <span className={`text-xs font-bold ${dirty ? 'text-warning-text' : 'text-success'}`}>
                             {saving ? 'កំពុងរក្សាទុក...'
                                 : dirty ? `មិនទាន់រក្សាទុក ${toKhmerNumber(pendingCells.size)} កោសិកា`
                                 : 'បានរក្សាទុករួចរាល់'}

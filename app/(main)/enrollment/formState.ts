@@ -263,6 +263,16 @@ export type EnrollmentAction =
   | { type: 'sameAsBirth'; value: boolean }
   | { type: 'setErrors'; errors: FieldErrors }
   | { type: 'restore'; draft: EnrollmentDraft }
+  /**
+   * Load an EXISTING pupil into the form, for `?student=<id>`.
+   *
+   * Deliberately not `restore`: a draft is a half-finished *new* pupil that the
+   * teacher is offered and may decline, and it carries `v`/`savedAt` because it
+   * came out of storage. A record loaded for editing is neither optional nor
+   * versioned, and conflating the two would mean an edit could be written to,
+   * or restored from, the new-pupil draft.
+   */
+  | { type: 'load'; values: Partial<EnrollmentValues> }
   | { type: 'reset' }
 
 function applyMirror(values: EnrollmentValues, sameAsBirth: boolean): EnrollmentValues {
@@ -326,6 +336,18 @@ export function enrollmentReducer(state: EnrollmentState, action: EnrollmentActi
         values: { ...INITIAL_VALUES, ...action.draft.values },
         errors: {},
         sameAsBirth: action.draft.sameAsBirth,
+      }
+
+    case 'load':
+      return {
+        // Merged over the defaults, so a field the record does not carry is
+        // empty rather than left over from whatever rendered before.
+        values: { ...INITIAL_VALUES, ...action.values },
+        errors: {},
+        // The mirror is a data-entry convenience for a NEW pupil. A stored
+        // record already holds both addresses, and switching it on would
+        // overwrite the current address with the birth one on first keystroke.
+        sameAsBirth: false,
       }
 
     case 'reset':

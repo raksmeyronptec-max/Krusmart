@@ -330,7 +330,7 @@ export function StatusGroup({
   const tones = {
     brand: "bg-brand/10 text-brand",
     success: "bg-success/10 text-success",
-    warning: "bg-warning/10 text-warning",
+    warning: "bg-warning/10 text-warning-text",
   } as const
 
   return (

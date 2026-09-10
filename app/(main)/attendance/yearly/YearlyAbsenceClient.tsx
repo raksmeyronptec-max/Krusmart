@@ -10,7 +10,10 @@ import { MONTHS_BY_ACADEMIC_YEAR } from '@/lib/constants/months'
 import { resolveCalendarYear } from '@/lib/constants/academic'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import type { AttendanceRecord, Settings, Student } from '@/lib/types'
+import { markFor } from '@/lib/attendance/status'
 import { useClassHref } from '@/lib/hooks/useClassHref'
+import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
+import { ClassContextBar } from '@/components/shell/ClassContextBar'
 
 /**
  * Yearly absence totals — `attendance/yearly-report.html` restored.
@@ -92,10 +95,15 @@ export function YearlyAbsenceClient({
       const monthId = monthByPrefix.get(String(rec.date).slice(0, 7))
       if (!monthId) continue
 
-      // Only absences are tallied; a present mark contributes nothing.
-      const kind: keyof Counts | null =
-        rec.status === 'L' ? 'L' : rec.status === 'A' || rec.status === 'AP' ? 'A' : null
-      if (!kind) continue
+      /*
+       * Only absences are tallied; a present mark contributes nothing. The
+       * ministry's two columns are exactly the shared vocabulary's two kinds of
+       * absence, so they are read from it rather than restated — this was one
+       * of the few surfaces that had `AP` right, and it still held its own copy.
+       */
+      const mark = markFor(rec.status)
+      if (!mark || mark.inClass) continue
+      const kind: keyof Counts = mark.excused ? 'L' : 'A'
 
       row.months[monthId][kind]++
     }
@@ -162,7 +170,7 @@ export function YearlyAbsenceClient({
   }
 
   return (
-    <div className="min-h-screen bg-paper text-text-heading pb-10 print:bg-white">
+    <PageContainer className="text-text-heading">
       <style jsx global>{`
         @media print {
           @page { size: A4 landscape; margin: 8mm; }
@@ -174,26 +182,31 @@ export function YearlyAbsenceClient({
         .abs-table td.name { text-align: left; white-space: nowrap; font-weight: 700; }
       `}</style>
 
-      <div className="no-print mx-auto mt-8 max-w-[1400px] px-4">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <Link
-            href={classHref("/attendance/monthly")}
-            className="inline-flex w-fit items-center gap-2 rounded-xl bg-bg-surface/50 px-4 py-2 font-bold text-brand shadow-sm backdrop-blur-sm transition hover:text-brand-800"
-          >
-            <ArrowLeft className="h-5 w-5" /> ត្រឡប់ទៅបញ្ជីវត្តមានប្រចាំខែ
-          </Link>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="secondary" printHidden={false} onClick={exportExcel} icon={<FileSpreadsheet className="h-4 w-4" />}>
-              នាំចេញ Excel
-            </Button>
-            <Button printHidden={false} onClick={() => window.print()} icon={<Printer className="h-4 w-4" />}>
-              បោះពុម្ព
-            </Button>
-          </div>
-        </div>
+      <div className="no-print">
+        <PageHeader
+          title="អវត្តមានប្រចាំឆ្នាំ"
+          description="សម្រង់អវត្តមានសិស្សពេញមួយឆ្នាំសិក្សា សម្រាប់បោះពុម្ព"
+          actions={
+            <>
+              <Link
+                href={classHref("/attendance/monthly")}
+                className="inline-flex min-h-11 w-fit items-center gap-2 rounded-lg border border-divider bg-bg-surface px-4 text-[13px] font-bold text-brand transition hover:border-brand-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+              >
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" /> វត្តមានប្រចាំខែ
+              </Link>
+              <Button variant="secondary" printHidden={false} onClick={exportExcel} icon={<FileSpreadsheet className="h-4 w-4" />}>
+                នាំចេញ Excel
+              </Button>
+              <Button printHidden={false} onClick={() => window.print()} icon={<Printer className="h-4 w-4" />}>
+                បោះពុម្ព
+              </Button>
+            </>
+          }
+        />
+        <ClassContextBar />
       </div>
 
-      <div className="print-sheet mx-auto max-w-[1400px] bg-bg-surface p-6 shadow-lg print:bg-white md:p-8">
+      <div className="print-sheet mx-auto max-w-[1400px] p-6 shadow-lg md:p-8">
         <div className="mb-5 flex items-start justify-between">
           <div className="kh-moul text-[10pt] leading-relaxed" style={{ marginTop: '24pt' }}>
             <p>{settings?.management_unit_1 || 'មន្ទីរអប់រំ យុវជន និងកីឡា...'}</p>
@@ -294,7 +307,7 @@ export function YearlyAbsenceClient({
           </div>
         </div>
       </div>
-    </div>
+    </PageContainer>
   )
 }
 

@@ -461,7 +461,7 @@ export function ScoreCalendarSection({ classId }: { classId: string | null }) {
 
       {!canEdit && (
         <div className="flex items-start gap-2.5 rounded-xl border border-warning/40 bg-warning/10 p-3 text-sm text-text-body">
-          <Info className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-warning-text" aria-hidden="true" />
           {access.reason ?? 'អ្នកអាចមើលវគ្គពិន្ទុបាន ប៉ុន្តែមិនអាចកែបានទេ។'}
         </div>
       )}

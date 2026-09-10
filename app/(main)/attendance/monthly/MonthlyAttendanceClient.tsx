@@ -6,6 +6,7 @@ import { getMonthlyAttendance, getTeacherSettings } from './actions'
 import { CalendarRange, FileDown, FileSpreadsheet, Printer } from 'lucide-react'
 import Link from 'next/link'
 import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
+import { ClassContextBar } from '@/components/shell/ClassContextBar'
 import { controlClass, fieldLabel } from '@/components/ui/forms/fieldStyles'
 import * as XLSX from 'xlsx-js-style'
 /*
@@ -22,6 +23,7 @@ import * as XLSX from 'xlsx-js-style'
 import { toKhmerLunarDate } from 'khmer-chhankitek-calendar'
 import Select from '@/components/ui/forms/Select'
 import type { AttendanceRecord, Settings, Student } from '@/lib/types'
+import { markFor } from '@/lib/attendance/status'
 import { logger } from '@/lib/utils/logger'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import { KHMER_MONTH_LABELS, KHMER_WEEKDAYS } from '@/lib/constants/months'
@@ -186,10 +188,14 @@ export default function MonthlyAttendanceClient({
                 
                 const stuId = student.id || student.uid || ''
                 if (student && attendance[dateStr] && attendance[dateStr][stuId]) {
-                    const status = attendance[dateStr][stuId].status
-                    if (status === 'P') statusChar = "✓" 
-                    else if (status === 'L') { statusChar = "ច"; lCount++ } 
-                    else if (status === 'A') { statusChar = "អ"; aCount++ }
+                    // The register character comes from the shared vocabulary, so
+                    // the exported sheet and the printed one cannot spell a mark
+                    // differently — and `AP` stops being an invisible day.
+                    const mark = markFor(attendance[dateStr][stuId].status)
+                    if (mark) {
+                        statusChar = mark.short
+                        if (!mark.inClass) { if (mark.excused) lCount++; else aCount++ }
+                    }
                 }
 
                 const dateObj = new Date(year, month, d)
@@ -416,8 +422,11 @@ export default function MonthlyAttendanceClient({
                                                 // pupil with perfect attendance printed ច្ប = ២០ for a
                                                 // 20-day month. The Excel export at `exportExcel` has
                                                 // always had this right; only the printed sheet diverged.
-                                                if (status === 'L') { lNum = 1; lCount++ }
-                                                else if (status === 'A') { aNum = 1; aCount++ }
+                                                const mark = markFor(status)
+                                                if (mark && !mark.inClass) {
+                                                    if (mark.excused) { lNum = 1; lCount++ }
+                                                    else { aNum = 1; aCount++ }
+                                                }
                                             }
                                             
                                             const isSun = new Date(year, month, d).getDay() === 0
@@ -499,6 +508,10 @@ export default function MonthlyAttendanceClient({
                 description="សម្រង់អវត្តមានប្រចាំខែ សម្រាប់បោះពុម្ព និងទាញយក"
                 className="print-hide"
             />
+
+            {/* Which class this sheet is a register for. Self-gating: renders only on class-scoped routes,
+                and nothing at all for a pre-V2 account. */}
+            <ClassContextBar />
 
             <div className="print-hide mb-5 flex flex-wrap items-end gap-3 rounded-xl border border-divider bg-bg-surface p-4 shadow-sm">
                 <Select

@@ -66,7 +66,7 @@ export default function LocationCascade({
           type="button"
           disabled={disabled || !copyFrom.value.province}
           onClick={() => onChange({ ...copyFrom.value })}
-          className="tap-target mb-3 inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-divider bg-paper px-3 py-2 text-[13px] font-bold text-brand transition hover:bg-brand-100 focus-visible:ring-2 focus-visible:ring-focus-ring disabled:cursor-not-allowed disabled:opacity-50"
+          className="tap-target mb-3 inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-divider bg-paper px-3 py-2 text-[13px] font-bold text-brand transition hover:bg-brand-soft focus-visible:ring-2 focus-visible:ring-focus-ring disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Copy aria-hidden className="h-3.5 w-3.5" />
           <span lang="km">{copyFrom.label}</span>

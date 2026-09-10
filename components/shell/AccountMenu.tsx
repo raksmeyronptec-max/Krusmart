@@ -105,7 +105,7 @@ export function AccountMenu({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="ម៉ឺនុយគណនី"
-        className="tap-target flex items-center gap-2 rounded-full border border-divider bg-paper px-2.5 py-1.5 text-text-body transition-colors hover:bg-brand-100 hover:text-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring dark:hover:bg-brand-900 dark:hover:text-brand-300"
+        className="tap-target flex items-center gap-2 rounded-full border border-divider bg-paper px-2.5 py-1.5 text-text-body transition-colors hover:bg-brand-soft hover:text-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring dark:hover:bg-brand-900 dark:hover:text-brand-300"
       >
         {photoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- user-uploaded avatar; next/image adds no value and breaks PDF capture

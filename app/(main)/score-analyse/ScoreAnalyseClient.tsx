@@ -5,13 +5,16 @@ import { Button } from '@/components/ui/actions/Button'
 import type { AttendanceRecord, Score, Settings, Student } from '@/lib/types'
 import { CognitivePanel, type StudentSummary } from './CognitivePanel'
 import { useActiveClass } from '@/lib/hooks/useActiveClass'
+import { tallyAttendance } from '@/lib/attendance/status'
 import { 
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     PieChart, Pie, Cell
 } from 'recharts'
-import { ArrowLeft, Users, Award, CheckSquare, AlertTriangle, TrendingUp, Filter, RefreshCw, HeartPulse, BookOpen, HelpingHand } from 'lucide-react'
-import Link from 'next/link'
+import { Users, Award, CheckSquare, AlertTriangle, TrendingUp, Filter, RefreshCw, HeartPulse, BookOpen, HelpingHand } from 'lucide-react'
 import Select from '@/components/ui/forms/Select'
+import { PageContainer } from '@/components/shell/PageContainer'
+import { ScoreWorkspaceHeader } from '@/components/score/ScoreWorkspaceHeader'
+import SubjectAnalysisView from './SubjectAnalysisView'
 import { MONTHS_BY_ACADEMIC_YEAR } from '@/lib/constants/months'
 import { letterFor } from '@/lib/grading/scheme'
 import { useScoreTemplate } from '@/lib/hooks/useScoreTemplate'
@@ -38,11 +41,26 @@ interface StudentAnalytics {
     }
 }
 
+/** The two readings of one question — across the pupil, and across the subject. */
+type AnalysisView = 'overview' | 'subject'
+
+const ANALYSIS_VIEWS: { id: AnalysisView; label: string }[] = [
+    { id: 'overview', label: 'ទិដ្ឋភាពរួម' },
+    { id: 'subject', label: 'តាមមុខវិជ្ជា' },
+]
+
 export default function ScoreAnalyseClient({ initialStudents, attendanceData, scoresData, academicYear, settings }: {
     initialStudents: Student[], attendanceData: AttendanceRecord[], scoresData: Score[], academicYear: string,
     settings: Settings | null
 }) {
     const [selectedYear, setSelectedYear] = useState(academicYear)
+    /*
+     * Which reading of the class is on screen. Local state, not `?view=`: the
+     * tab declares `carriesPeriod: false` and reads no search param, and adding
+     * one here would make the address bar claim something
+     * `verify-score-workspace.mts` §3 checks it does not.
+     */
+    const [view, setView] = useState<AnalysisView>('overview')
     const { classId } = useActiveClass()
 
     // One grading resolution for the whole analysis; the per-student loop is pure.
@@ -67,19 +85,14 @@ export default function ScoreAnalyseClient({ initialStudents, attendanceData, sc
 
         initialStudents.forEach(student => {
             const uid = student.id
-            let p = 0, l = 0, a = 0
-            
-            attendanceData.forEach(att => {
-                if (att.student_id === uid) {
-                    if (att.status === 'P') p++
-                    else if (att.status === 'L') l++
-                    else if (att.status === 'A' || att.status === 'AP') a++
-                }
-            })
-            
+            // One vocabulary — this screen was the only one that already read
+            // `AP` correctly, and it still had its own copy of the rule.
+            const t = tallyAttendance(attendanceData.filter(att => att.student_id === uid))
+            const p = t.present, l = t.excused, a = t.unexcused
+
             globalTotalP += p; globalTotalL += l; globalTotalA += a;
-            const totalDays = p + l + a
-            const attRate = totalDays > 0 ? (p / totalDays) * 100 : 0
+            const totalDays = t.marked
+            const attRate = t.rate ?? 0
 
             // Scores
             let monthAvgSum = 0, monthCount = 0
@@ -210,7 +223,7 @@ export default function ScoreAnalyseClient({ initialStudents, attendanceData, sc
     )
 
     return (
-        <div className="min-h-screen bg-paper text-text-heading pb-10">
+        <PageContainer className="text-text-heading">
             {/*
               Printing this page means printing one pupil's detail sheet, not the
               class dashboard behind it. Everything marked `data-analysis-chrome`
@@ -224,44 +237,84 @@ export default function ScoreAnalyseClient({ initialStudents, attendanceData, sc
                 }
             `}</style>
 
-            <nav data-analysis-chrome className="bg-brand text-white p-4 shadow-lg sticky top-0 z-50">
-                <div className="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-4">
-                    <div className="flex items-center gap-4">
-                        <Link href="/dashboard" className="flex items-center gap-2 hover:text-warning transition font-bold text-sm bg-bg-surface/10 px-3 py-1.5 rounded-lg border border-white/20">
-                            <ArrowLeft className="w-4 h-4" /> ទំព័រដើម
-                        </Link>
-                        <h1 className="kh-moul text-lg hidden sm:block">ប្រព័ន្ធវិភាគទិន្នន័យសិស្សកម្រិតខ្ពស់ (Holistic)</h1>
-                    </div>
-                    
-                    <div className="flex items-center gap-3">
-                        <div className="bg-bg-surface/10 rounded-lg px-3 py-1.5 border border-white/20 flex items-center gap-2">
-                            <Select
-                                variant="ghost"
-                                ariaLabel="ឆ្នាំសិក្សា"
-                                value={selectedYear}
-                                onChange={setSelectedYear}
-                                options={[
-                                    { value: '2023-2024', label: 'ឆ្នាំ ២០២៣-២០២៤' },
-                                    { value: '2024-2025', label: 'ឆ្នាំ ២០២៤-២០២៥' },
-                                    { value: '2025-2026', label: 'ឆ្នាំ ២០២៥-២០២៦' },
-                                ]}
-                                leadingIcon={<Filter />}
-                                className="text-sm text-white [&>option]:text-text-heading"
-                            />
-                        </div>
+            {/*
+              The brand-coloured sticky nav bar this screen opened with is gone.
+              It duplicated the shell — a back link the `Breadcrumb` already
+              provides, a title, and a second sticky band under `TopNav`'s — and
+              it was the only screen in the app wearing one. Its two real
+              controls, the year picker and the refresh, are the header's
+              actions now.
+            */}
+            {/*
+              The workspace header — this screen is the fifth rung of the score
+              workspace, and it wore a plain page header while its four siblings
+              wore the strip. It states class · grade · year, so no separate
+              `ClassContextBar` is needed.
+            */}
+            <ScoreWorkspaceHeader
+                title="វិភាគទិន្នន័យសិស្ស"
+                description="ទិដ្ឋភាពរួមនៃពិន្ទុ វត្តមាន និងការវាយតម្លៃការយល់ដឹង"
+                academicYear={selectedYear}
+                actions={
+                    <>
+                        <Select
+                            ariaLabel="ឆ្នាំសិក្សា"
+                            value={selectedYear}
+                            onChange={setSelectedYear}
+                            options={[
+                                { value: '2023-2024', label: 'ឆ្នាំ ២០២៣-២០២៤' },
+                                { value: '2024-2025', label: 'ឆ្នាំ ២០២៤-២០២៥' },
+                                { value: '2025-2026', label: 'ឆ្នាំ ២០២៥-២០២៦' },
+                            ]}
+                            leadingIcon={<Filter />}
+                            className="text-sm"
+                        />
                         <Button variant="warning" printHidden={false} title="Refresh Data">
                             <RefreshCw className="w-4 h-4" />
                         </Button>
-                    </div>
-                </div>
-            </nav>
+                    </>
+                }
+            />
 
-            <div className="max-w-7xl mx-auto px-4 mt-6 space-y-6">
+            {/*
+              ── Two readings of one question ──────────────────────────────
+              `/score-analysis/subject` used to be a route of its own, one
+              character away from this one (`analyse` / `analysis`) and a
+              sibling entry in the same menu. Two destinations that near each
+              other are not a choice, they are a trap — and both answer "how is
+              this class doing", one across the pupil and one across the
+              subject. They are two views now, and the old route redirects here.
+
+              Only the ACTIVE view is mounted: each fetches its own marks, and
+              rendering both would double every request to serve one of them.
+            */}
+            <div role="tablist" aria-label="ទិដ្ឋភាពវិភាគ" className="mb-4 inline-flex rounded-lg bg-paper p-1">
+                {ANALYSIS_VIEWS.map((v) => (
+                    <button
+                        key={v.id}
+                        role="tab"
+                        aria-selected={view === v.id}
+                        onClick={() => setView(v.id)}
+                        className={`min-h-11 rounded-md px-4 text-[13px] font-bold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${
+                            view === v.id
+                                ? 'bg-bg-surface text-brand shadow-sm'
+                                : 'text-text-muted hover:text-text-body'
+                        }`}
+                    >
+                        {v.label}
+                    </button>
+                ))}
+            </div>
+
+            {view === 'subject' ? (
+                <SubjectAnalysisView students={initialStudents} defaultAcademicYear={selectedYear} />
+            ) : (
+            <div className="space-y-6">
                 
                 {/* Summary Cards */}
                 <div data-analysis-chrome className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="bg-bg-surface p-4 rounded-xl shadow-sm border border-divider border-l-4 border-l-blue-500 flex items-center gap-4">
-                        <div className="p-3 bg-brand-100 text-brand rounded-full"><Users className="w-6 h-6" /></div>
+                        <div className="p-3 bg-brand-soft text-brand-on-soft rounded-full"><Users className="w-6 h-6" /></div>
                         <div>
                             <p className="text-xs text-text-muted font-bold uppercase">សិស្សសរុប</p>
                             <p className="text-2xl font-bold text-brand leading-tight">{initialStudents.length}</p>
@@ -269,7 +322,7 @@ export default function ScoreAnalyseClient({ initialStudents, attendanceData, sc
                         </div>
                     </div>
                     <div className="bg-bg-surface p-4 rounded-xl shadow-sm border border-divider border-l-4 border-l-indigo-500 flex items-center gap-4">
-                        <div className="p-3 bg-brand-100 text-brand rounded-full"><Award className="w-6 h-6" /></div>
+                        <div className="p-3 bg-brand-soft text-brand-on-soft rounded-full"><Award className="w-6 h-6" /></div>
                         <div>
                             <p className="text-xs text-text-muted font-bold uppercase">មធ្យមភាគថ្នាក់សរុប</p>
                             <p className="text-2xl font-bold text-brand leading-tight">{analytics.classOverallAvg}</p>
@@ -305,10 +358,10 @@ export default function ScoreAnalyseClient({ initialStudents, attendanceData, sc
                     </div>
                     <div className="bg-warning/10 p-4 rounded-xl border border-warning/30 flex items-center justify-between shadow-sm">
                         <div>
-                            <p className="text-xs text-warning font-bold uppercase mb-1">សិស្សរៀនយឺត (កំពុងជួយ)</p>
-                            <p className="text-2xl font-bold text-warning">{analytics.slowCount} នាក់</p>
+                            <p className="text-xs text-warning-text font-bold uppercase mb-1">សិស្សរៀនយឺត (កំពុងជួយ)</p>
+                            <p className="text-2xl font-bold text-warning-text">{analytics.slowCount} នាក់</p>
                         </div>
-                        <div className="p-3 bg-warning/10 text-warning rounded-full"><BookOpen className="w-6 h-6" /></div>
+                        <div className="p-3 bg-warning/10 text-warning-text rounded-full"><BookOpen className="w-6 h-6" /></div>
                     </div>
                     <div className="bg-danger/10 p-4 rounded-xl border border-danger/30 flex items-center justify-between shadow-sm">
                         <div>
@@ -407,7 +460,7 @@ export default function ScoreAnalyseClient({ initialStudents, attendanceData, sc
 
                     <div className="bg-bg-surface p-5 border-t-4 border-warning rounded-xl shadow-sm">
                         <div className="flex justify-between items-center mb-4 border-b pb-2">
-                            <h2 className="font-bold text-warning flex items-center gap-2">
+                            <h2 className="font-bold text-warning-text flex items-center gap-2">
                                 <CheckSquare className="w-5 h-5" />
                                 សូចនាករវត្តមានរួម
                             </h2>
@@ -438,6 +491,7 @@ export default function ScoreAnalyseClient({ initialStudents, attendanceData, sc
                 </div>
 
             </div>
-        </div>
+            )}
+        </PageContainer>
     )
 }

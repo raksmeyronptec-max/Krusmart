@@ -13,10 +13,9 @@ import { EmptyState } from '@/components/ui/feedback/EmptyState'
 import { Skeleton } from '@/components/ui/feedback/Skeleton'
 import { notify } from '@/components/ui/feedback/notify'
 import { Dialog } from '@/components/ui/overlay/Dialog'
-import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
+import { PageContainer } from '@/components/shell/PageContainer'
 import Select from '@/components/ui/forms/Select'
 
-import { useActiveClass } from '@/lib/hooks/useActiveClass'
 import { ACADEMIC_MONTH_OPTIONS_BY_ID, MONTH_LABEL_BY_ID } from '@/lib/constants/months'
 import { getCurrentAcademicYear } from '@/lib/constants/academic'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
@@ -25,6 +24,7 @@ import {
   type CollectionOverview, type SubjectCompletion,
 } from './actions'
 import { useClassHref } from '@/lib/hooks/useClassHref'
+import { ScoreWorkspaceHeader } from '@/components/score/ScoreWorkspaceHeader'
 
 /**
  * ការប្រមូលពិន្ទុ — which subjects are in, which are missing, and whose they are.
@@ -49,7 +49,6 @@ export default function ScoreCollectClient() {
   // Keeps the working class on the way out: a link from this screen to
   // another class-scoped screen must still be about the same class.
   const classHref = useClassHref()
-  const { className } = useActiveClass()
 
   const [scoreType, setScoreType] = useState<'monthly' | 'semester'>('monthly')
   const [month, setMonth] = useState('nov')
@@ -115,13 +114,20 @@ export default function ScoreCollectClient() {
 
   return (
     <PageContainer>
-      <PageHeader
+      {/*
+        The workspace header, not a page header — this screen is the fifth tab
+        of the score workspace, and a tab that lands somewhere with no strip is
+        a one-way door. It states class · grade · year the way its four
+        siblings do, so it names the class without a separate `ClassContextBar`.
+
+        No `selection`: the period lives in this screen's own state and it does
+        not read `?mode=`, which is exactly what its tab declares
+        (`carriesPeriod: false`).
+      */}
+      <ScoreWorkspaceHeader
         title="ការប្រមូលពិន្ទុ"
-        description={
-          className
-            ? `ស្ថានភាពបញ្ចូលពិន្ទុតាមមុខវិជ្ជា · ថ្នាក់ ${className}`
-            : 'ស្ថានភាពបញ្ចូលពិន្ទុតាមមុខវិជ្ជា'
-        }
+        description="ស្ថានភាពបញ្ចូលពិន្ទុតាមមុខវិជ្ជា"
+        academicYear={academicYear}
         actions={
           <Link
             href={classHref("/score/total")}
@@ -201,7 +207,7 @@ export default function ScoreCollectClient() {
           </div>
 
           {unassigned.length > 0 && (
-            <p className="mb-4 flex items-start gap-2 rounded-xl bg-warning/10 p-3 text-xs leading-relaxed text-warning">
+            <p className="mb-4 flex items-start gap-2 rounded-xl bg-warning/10 p-3 text-xs leading-relaxed text-warning-text">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
               មុខវិជ្ជា {toKhmerNumber(unassigned.length)} មិនទាន់មានគ្រូទទួលបន្ទុក — ពិន្ទុនឹងនៅទទេក្នុងរបាយការណ៍ រហូតដល់មានការចាត់តាំង។
             </p>
@@ -296,7 +302,7 @@ export default function ScoreCollectClient() {
             ការចាត់តាំងត្រូវបានកត់ត្រាទុក។
           </p>
           {teachers.length === 0 && (
-            <p className="flex items-start gap-2 text-xs text-warning">
+            <p className="flex items-start gap-2 text-xs text-warning-text">
               <Loader2 className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden="true" />
               កំពុងទាញបញ្ជីគ្រូ...
             </p>

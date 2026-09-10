@@ -53,6 +53,31 @@
   --color-success-solid: var(--success-solid);
   --color-success-on-solid: var(--success-on-solid);
   /*
+   * Brand tint, and the ink that goes on it.
+   *
+   * `bg-brand-100 text-brand` was the app's spelling of "a quiet brand-coloured
+   * chip" — an avatar bubble, a step number, a count badge, a highlighted row —
+   * and it appears on 43 elements across 21 files. It is correct on light
+   * (#245A9B on #EAF8FB, 6.42:1) and **broken on dark**, because the two halves
+   * do not move together: the ramp is fixed by design (see the note above it),
+   * so `brand-100` stays pale, while `--brand` flips to cyan for a dark ground.
+   * Cyan on near-white measures **1.96:1** — the pupil initials on
+   * `/student-tracking` and `/print-student-codes`, the certificate's step
+   * numbers and the notification counters were all effectively invisible at
+   * night.
+   *
+   * Ten call sites had already noticed and written `dark:bg-brand-900/30` by
+   * hand; the other 43 had not, which is drift rather than a decision. Moving
+   * the ramp itself is not the fix — `bg-brand-100 text-brand-800` is a second,
+   * *working* pairing that a darker `brand-100` would break in the opposite
+   * direction. So the tint gets a semantic pair of its own, exactly as the
+   * filled-success action did, and both halves move together per theme. Values
+   * are existing rungs, not new colours: brand-100/brand-700 on light,
+   * brand-900/brand-300 on dark (8.86:1).
+   */
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-on-soft: var(--brand-on-soft);
+  /*
    * Destructive *text*, as opposed to the destructive status colour.
    *
    * `--danger` is tuned to be legible as a filled chip and as a 10% tint. As a
@@ -63,6 +88,23 @@
    * `danger/5` hover.
    */
   --color-danger-text: var(--danger-text);
+  /*
+   * Warning as a LABEL, as opposed to warning as a fill or a 10% tint.
+   *
+   * `--warning` (#D99614) measures **2.39:1** on the app background and 2.32:1
+   * on its own 10% tint — under SC 1.4.3's 4.5:1 and under the 3:1 floor for a
+   * non-text indicator, so the amber icons fail too. It is used as a label on
+   * 68 elements: the dashboard's attention list, `/score/collect`'s "not yet
+   * marked" banner, `/score-analyse`'s struggling-pupils tile, the register's
+   * ច្បាប់ count.
+   *
+   * Same treatment as `--danger-text` above, and for the same reason: the fill
+   * and the tint are tuned and must not move, so the label colour gets its own
+   * token. #96620A is the same hue far enough along to clear 4.5:1 everywhere
+   * it lands (4.91 on the app ground, 5.19 on a card, 4.54 on the tint). Dark
+   * mode keeps #D99614, which already measures 6.66:1 there.
+   */
+  --color-warning-text: var(--warning-text);
 
   /* Elevation. Tinted with the darkest navy rather than pure black, so a
      shadow reads as part of the palette instead of a grey smudge. */
@@ -153,6 +195,11 @@
   --brand: #245A9B;
   --brand-hover: #172B57;
   --brand-contrast: #FFFFFF;
+  /* The light values are brand-100 and brand-700 — i.e. exactly what
+     `bg-brand-100 text-brand` already rendered, so nothing moves in light
+     mode. */
+  --brand-soft: #EAF8FB;
+  --brand-on-soft: #245A9B;
   /*
    * The brief specifies #43C1D8 for the focus ring. On these light surfaces it
    * measures 2.02:1 against the app background — WCAG 2.1 SC 1.4.11 requires
@@ -166,6 +213,7 @@
   --success-solid: #128054;
   --success-on-solid: #FFFFFF;
   --danger-text: #BE2B44;
+  --warning-text: #96620A;
 
   --elevation-sm: 0 1px 2px 0 rgba(15, 27, 61, 0.05);
   --elevation-md: 0 4px 6px -1px rgba(15, 27, 61, 0.07), 0 2px 4px -2px rgba(15, 27, 61, 0.05);
@@ -194,12 +242,19 @@
   --brand-hover: #8ADCE6;
   --brand-contrast: #081225;
   --focus-ring: #43C1D8;
+  /* The tint inverts with everything else — a deep navy chip carrying pale
+     cyan, which is the same *relationship* the light pair states and the
+     opposite absolute values. */
+  --brand-soft: #172B57;
+  --brand-on-soft: #8ADCE6;
 
   /* The light-mode green is nearly invisible on this ground (2.6:1), so the
      solid flips the same way the brand does: a bright fill with dark text. */
   --success-solid: #3DD68C;
   --success-on-solid: #081225;
   --danger-text: #F0808F;
+  /* Already 6.66:1 on the dark card — the light value is the one that failed. */
+  --warning-text: #D99614;
 
   --elevation-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
   --elevation-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
@@ -238,6 +293,57 @@ body {
   font-weight: 400;
   font-style: normal;
   font-synthesis: none;
+}
+
+/*
+ * ---------------------------------------------------------------------------
+ * What a sheet is
+ * ---------------------------------------------------------------------------
+ *
+ * Eleven screens render an A4 sheet, and until now they held two contradictory
+ * theories of what one is — neither of them written down anywhere.
+ *
+ *   A · a sheet is paper.   `bg-white text-black`, in both themes, on screen
+ *                           and on paper. Nine screens.
+ *   B · a sheet is a card   `bg-bg-surface print:bg-white` — themed on screen,
+ *       that becomes paper. paper only when printed. `/yearly-report`'s three
+ *                           sheets and `/attendance/yearly`.
+ *
+ * Every dark-mode defect on a document screen was a fragment of one theory
+ * sitting inside the other. `/print-list` declared the ground and not the ink,
+ * so its 202 names and numbers inherited `--foreground` — near-white text on
+ * white paper. `.report-table th` and `.abs-table th` hard-coded `#f1f5f9`
+ * inside a *themed* sheet, so 73 more header cells did the same. `/inventory`
+ * and `/cleaning-schedule` did the reverse — `bg-bg-surface text-black`, a
+ * navy sheet carrying black ink, which also **prints** as a navy block because
+ * the ground is an element background and `print-color-adjust: exact` is on.
+ *
+ * A wins, and the reason is not that it had more votes. A document screen is a
+ * preview of a printed thing: the same reason the shell disappears via
+ * `data-app-frame` rather than being restyled is the reason the sheet under it
+ * must look like the sheet that comes out of the printer. B makes the preview
+ * disagree with the print, and converting the other nine to B would mean
+ * theming every ink colour inside a ministry document.
+ *
+ * So the sheet declares ground **and** ink, once, here — the same consolidation
+ * `body`, `.no-print` and the two shell attributes got in the print block
+ * below. `@layer components` and not `@layer utilities` is load-bearing: a
+ * sheet that means something else by its ink (`/ranking` prints navy, the
+ * paper-always screens print pure black) says so with a utility class, and a
+ * utility must keep winning the cascade.
+ *
+ * Adding a new printable screen means adding one of these two class names to
+ * its sheet. `scripts/verify-documents.mts` fails if a sheet has neither.
+ */
+@layer components {
+  .print-container,
+  .print-sheet {
+    background: #FFFFFF;
+    /* Near-black rather than #000: it is what the sheets that *did* declare
+       their ink already use through `text-gray-900`, and on paper the two are
+       indistinguishable. */
+    color: #111827;
+  }
 }
 
 /* Custom Utilities from Legacy App */

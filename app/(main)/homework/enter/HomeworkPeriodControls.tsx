@@ -135,7 +135,7 @@ export function HomeworkPeriodControls({
               <button
                 type="button"
                 onClick={() => onDayChange(todayInCycle.dayNum)}
-                className="rounded-full border border-brand-400 px-2 py-0.5 font-bold text-brand transition hover:bg-brand-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring dark:hover:bg-brand-900/40"
+                className="rounded-full border border-brand-400 px-2 py-0.5 font-bold text-brand transition hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring dark:hover:bg-brand-900/40"
               >
                 ទៅថ្ងៃនេះ
               </button>

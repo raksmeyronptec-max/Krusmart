@@ -19,6 +19,7 @@ import { completionSummary, subjectProgress, type CompletionSummary } from '@/li
 import { periodForDate } from '@/lib/scores/calendar'
 import { scoreNumericValue } from '@/lib/utils/score-value'
 import { logger } from '@/lib/utils/logger'
+import { tallyAttendance } from '@/lib/attendance/status'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import { levelByKey } from '@/lib/onboarding/curriculum'
 import type { AttendanceRecord, HomeworkAssignment, Score } from '@/lib/types'
@@ -42,7 +43,8 @@ export interface DashboardStats {
   /** Null when nobody has been marked today — "not taken" is not "zero present". */
   todayPresent: number | null
   todayAbsent: number
-  todayLate: number
+  /** Absent WITH permission — ច្បាប់. Was `todayLate`, which this app never records. */
+  todayExcused: number
   attendanceRate: number | null
   monthAverage: number | null
   /**
@@ -106,7 +108,7 @@ export async function getDashboardData(
 
   const academicYear = getCurrentAcademicYear()
   const empty: DashboardStats = {
-    totalStudents: 0, female: 0, todayPresent: null, todayAbsent: 0, todayLate: 0,
+    totalStudents: 0, female: 0, todayPresent: null, todayAbsent: 0, todayExcused: 0,
     attendanceRate: null, monthAverage: null, periodLabel: null,
     completion: { subjects: 0, complete: 0, partial: 0, empty: 0, percent: 0 },
     strugglingCount: 0, openHomework: 0, academicYear,
@@ -154,15 +156,21 @@ export async function getDashboardData(
   const scores = (scoresRes.data ?? []) as Score[]
   const homework = (homeworkRes.data ?? []) as HomeworkAssignment[]
 
-  const marked = attendance.length
-  const todayPresent = marked ? attendance.filter((a) => a.status === 'P').length : null
-  const todayLate = attendance.filter((a) => a.status === 'L').length
-  const todayAbsent = attendance.filter((a) => a.status === 'A').length
-
-  // Late still counts as attending — the same rule the parent portal applies.
-  const attendanceRate = marked
-    ? Math.round((((todayPresent ?? 0) + todayLate) / marked) * 1000) / 10
-    : null
+  /*
+   * Today's register, counted by the shared vocabulary.
+   *
+   * This used to filter for `'P'`, `'L'` and `'A'` by hand — dropping `AP`
+   * entirely, calling `L` "late", and then adding it to the numerator under a
+   * comment saying the parent portal did the same. It did, and both were wrong:
+   * `L` is ច្បាប់, an absence the school permitted. See
+   * `lib/attendance/status.ts`.
+   */
+  const tally = tallyAttendance(attendance)
+  const marked = tally.marked
+  const todayPresent = marked ? tally.present : null
+  const todayExcused = tally.excused
+  const todayAbsent = tally.unexcused
+  const attendanceRate = tally.rate
 
   // Per student first, then across students: averaging every raw mark would let
   // a pupil with more subjects recorded weigh more than one with fewer.
@@ -234,7 +242,15 @@ export async function getDashboardData(
     return monthId !== null && periodMonths.includes(monthId as typeof periodMonths[number])
   })
   const completion = completionSummary(
-    subjectProgress(grading.subjects, periodRows, ids.length),
+    /*
+     * `taughtSubjects`, not `subjects`: this is the progress bar, and progress
+     * is measured against the work a teacher can actually do. Counted over the
+     * whole template it told a class teaching three subjects that thirty-two
+     * more were outstanding and pinned the bar at ៩% for ever, while the
+     * attention list said "៣៥ មុខវិជ្ជា មិនទាន់បញ្ចូលពិន្ទុគ្រប់".
+     * The averages above still read the unnarrowed `subjects`.
+     */
+    subjectProgress(grading.taughtSubjects, periodRows, ids.length),
   )
 
   /*
@@ -336,7 +352,7 @@ export async function getDashboardData(
       female,
       todayPresent,
       todayAbsent,
-      todayLate,
+      todayExcused,
       attendanceRate,
       monthAverage,
       periodLabel: currentPeriod?.labelKm ?? null,

@@ -101,7 +101,7 @@ export default async function ClassAdminPage({
               className="group flex flex-col rounded-xl border border-divider bg-bg-surface p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-divider hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
             >
               <div className="mb-3 flex items-start justify-between gap-3">
-                <div className="rounded-xl bg-brand-100 p-2.5 text-brand transition group-hover:bg-brand-100 dark:bg-brand-900/60 dark:text-brand-300">
+                <div className="rounded-xl bg-brand-100 p-2.5 text-brand transition group-hover:bg-brand-soft dark:bg-brand-900/60 dark:text-brand-300">
                   <BookIcon name={book.icon} />
                 </div>
                 {count > 0 && (

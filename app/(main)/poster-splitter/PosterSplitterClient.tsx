@@ -3,10 +3,11 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/actions/Button'
 import { notify } from '@/components/ui/feedback/notify'
-import { Download, Grid3x3, ImageUp, Loader2, Scissors } from 'lucide-react'
+import { Download, Grid3x3, ImageUp, Loader2 } from 'lucide-react'
 import Select from '@/components/ui/forms/Select'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import { logger } from '@/lib/utils/logger'
+import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
 import {
   PAPER_SIZES,
   planTiles,
@@ -209,19 +210,12 @@ export default function PosterSplitterClient() {
   )
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 md:py-8">
+    <PageContainer>
+      <PageHeader
+        title="បំបែកសន្លឹក Poster"
+        description="បំបែករូបភាពធំមួយ ទៅជាសន្លឹកតូចៗ ដើម្បីបោះពុម្ពដោយម៉ាស៊ីនធម្មតា"
+      />
 <div className="rounded-xl border border-divider bg-bg-surface p-6 shadow-lg md:p-8">
-        <div className="mb-6 flex items-center gap-3 border-b border-divider pb-4">
-          <div className="rounded-full bg-brand-100 p-3 text-brand dark:bg-brand-900 dark:text-brand-300">
-            <Scissors className="h-6 w-6" aria-hidden="true" />
-          </div>
-          <div>
-            <h1 className="kh-moul text-xl text-brand md:text-2xl dark:text-brand-300">បំបែកសន្លឹក Poster</h1>
-            <p className="mt-1 text-sm text-text-muted">
-              បំបែករូបភាពធំមួយ ទៅជាសន្លឹកតូចៗ ដើម្បីបោះពុម្ពដោយម៉ាស៊ីនធម្មតា
-            </p>
-          </div>
-        </div>
 
         {/* Upload */}
         <div className="mb-6">
@@ -327,6 +321,6 @@ export default function PosterSplitterClient() {
           </div>
         )}
       </div>
-    </div>
+    </PageContainer>
   )
 }

@@ -7,6 +7,7 @@ import { Dialog } from '@/components/ui/overlay/Dialog'
 import { useConfirm } from '@/components/ui/overlay/ConfirmDialog'
 import { notify } from '@/components/ui/feedback/notify'
 import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
+import { ClassContextBar } from '@/components/shell/ClassContextBar'
 import { getErrorMessageOr } from '@/lib/utils/errors'
 import { logger } from '@/lib/utils/logger'
 
@@ -43,11 +44,22 @@ export interface HomeworkSendClientProps {
   userId: string
   /** Fetched on the server, so the list is never blank on first paint. */
   initialAssignments: HomeworkAssignment[]
+  /**
+   * The class this screen publishes to, already validated against the caller's
+   * own assignments by `resolveServerScope` on the page.
+   *
+   * `null` is the legacy path — a pre-V2 account with no assignments — and
+   * publishes without a class, exactly as before 00032. It is handed straight
+   * back to the actions, which validate it again; the round trip is the same
+   * one every other class-scoped screen makes.
+   */
+  scopeClassId: string | null
 }
 
 export default function HomeworkSendClient({
   userId,
   initialAssignments,
+  scopeClassId,
 }: HomeworkSendClientProps) {
   // Keeps the working class on the way out: a link from this screen to
   // another class-scoped screen must still be about the same class.
@@ -67,11 +79,14 @@ export default function HomeworkSendClient({
   const refresh = useCallback(async () => {
     setRefreshing(true)
     try {
-      setAssignments(await getAssignments())
+      // Same class the page resolved. Omitting it would re-resolve the caller's
+      // *default* class on the server and quietly swap the list out from under
+      // a teacher who had switched — the failure `withClassParam` exists for.
+      setAssignments(await getAssignments(scopeClassId ?? undefined))
     } finally {
       setRefreshing(false)
     }
-  }, [])
+  }, [scopeClassId])
 
   // ------------------------------------------------------------- publishing
 
@@ -91,14 +106,20 @@ export default function HomeworkSendClient({
           imageUrl = upload.url
         }
 
-        const res = await addAssignment({
-          subject: draft.subject,
-          title: draft.title,
-          description: draft.description,
-          due_date: draft.dueDate,
-          image_url: imageUrl,
-          status: 'active',
-        })
+        const res = await addAssignment(
+          {
+            subject: draft.subject,
+            title: draft.title,
+            description: draft.description,
+            due_date: draft.dueDate,
+            image_url: imageUrl,
+            status: 'active',
+          },
+          // The class is a request, never an authority: the action re-resolves
+          // it through `resolveServerScope` and the database refuses a class
+          // this teacher does not actively hold (00032).
+          scopeClassId ?? undefined,
+        )
         if (res.error) throw new Error(res.error)
 
         notify.success(`បានផ្សាយ «${draft.title}» — អាណាព្យាបាលដែលបានភ្ជាប់អាចមើលឃើញហើយ`)
@@ -112,7 +133,7 @@ export default function HomeworkSendClient({
         setSubmitting(false)
       }
     },
-    [refresh, userId],
+    [refresh, userId, scopeClassId],
   )
 
   // --------------------------------------------------------------- deleting
@@ -197,6 +218,14 @@ export default function HomeworkSendClient({
           </Link>
         }
       />
+
+      {/*
+        Which class this publishes to. Load-bearing here rather than decorative:
+        the assignment reaches this class's parents and no others (00032), so a
+        teacher holding two classes has to be able to see which one they are
+        about to publish into before they press the button.
+      */}
+      <ClassContextBar />
 
       <div className="grid w-full grid-cols-1 gap-6 lg:grid-cols-12">
         {/* ------------------------------------------------------- composer */}

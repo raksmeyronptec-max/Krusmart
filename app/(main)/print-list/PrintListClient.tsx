@@ -1,12 +1,13 @@
 'use client'
 
-import { ArrowLeft, FileSpreadsheet, Printer } from 'lucide-react'
+import { FileSpreadsheet, Printer } from 'lucide-react'
 import { Button } from '@/components/ui/actions/Button'
-import Link from 'next/link'
 import * as XLSX from 'xlsx-js-style'
 import type { Settings, Student } from '@/lib/types'
 import { ALIGN_CENTER, ALIGN_LEFT, emptyCell, khmerFont, moulFont, THIN_BORDER, type SheetMerge, type SheetRow } from '@/lib/utils/xlsx'
 import { notify } from '@/components/ui/feedback/notify'
+import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
+import { ClassContextBar } from '@/components/shell/ClassContextBar'
 
 export default function PrintListClient({ initialStudents, settings }: { initialStudents: Student[], settings: Settings | null }) {
 
@@ -183,7 +184,7 @@ export default function PrintListClient({ initialStudents, settings }: { initial
     }
 
     return (
-        <div className="bg-[#f1f5f9] min-h-screen text-[#0f172a] font-battambang pb-10 print:bg-bg-surface print:m-0 print:p-0">
+        <PageContainer className="font-battambang print:m-0 print:p-0">
             <style jsx global>{`
                 .font-battambang { font-family: 'Battambang', cursive; }
 
@@ -241,28 +242,26 @@ export default function PrintListClient({ initialStudents, settings }: { initial
                 .w-other { width: 50px; font-size: 8px; }
             `}</style>
 
-            <div className="no-print bg-bg-surface shadow-md border-b border-divider sticky top-0 z-40">
-                <div className="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                        <Link href="/dashboard" className="p-2 bg-paper hover:bg-divider rounded-lg text-text-body transition">
-                            <ArrowLeft className="w-5 h-5" />
-                        </Link>
-                        <h1 className="text-lg font-bold text-brand-800 kh-moul mt-1">បោះពុម្ពបញ្ជីជីវប្រវត្តិសិស្ស</h1>
-                    </div>
-
-                    <div className="flex gap-2 ml-auto">
-                        <Button variant="success" printHidden={false} onClick={exportExcel}>
-                            <FileSpreadsheet className="w-4 h-4" /> ទាញយក Excel
-                        </Button>
-                        <Button printHidden={false} onClick={printList}>
-                            <Printer className="w-4 h-4" /> បោះពុម្ព
-                        </Button>
-                    </div>
-                </div>
+            <div className="no-print">
+                <PageHeader
+                    title="បោះពុម្ពបញ្ជីជីវប្រវត្តិសិស្ស"
+                    description="បញ្ជីឈ្មោះ និងជីវប្រវត្តិសិស្សក្នុងថ្នាក់ ទំហំ A4 ផ្តេក"
+                    actions={
+                        <>
+                            <Button variant="success" printHidden={false} onClick={exportExcel}>
+                                <FileSpreadsheet className="w-4 h-4" /> ទាញយក Excel
+                            </Button>
+                            <Button printHidden={false} onClick={printList}>
+                                <Printer className="w-4 h-4" /> បោះពុម្ព
+                            </Button>
+                        </>
+                    }
+                />
+                <ClassContextBar />
             </div>
 
             <div className="preview-scroll">
-            <div className="w-[297mm] max-w-none mx-auto bg-white min-h-[210mm] mt-6 shrink-0 shadow-xl border border-slate-200 p-[8mm] print-container mb-10">
+            <div className="w-[297mm] max-w-none mx-auto min-h-[210mm] mt-6 shrink-0 shadow-xl border border-slate-200 p-[8mm] print-container mb-10">
                 
                 <div className="relative mb-[15px]">
                     <div className="text-[11px] kh-moul text-black leading-relaxed max-w-[50%]">
@@ -281,7 +280,7 @@ export default function PrintListClient({ initialStudents, settings }: { initial
                     </div>
 
                     <div className="text-center mt-4">
-                        <h1 className="kh-moul text-lg text-black">បញ្ជីហៅឈ្មោះសិស្ស</h1>
+                        <h2 className="kh-moul text-lg text-black">បញ្ជីហៅឈ្មោះសិស្ស</h2>
                         <h2 className="kh-moul text-base text-black mt-1">ផ្នែកជីវប្រវត្តិសង្ខេបរបស់សិស្ស</h2>
                     </div>
 
@@ -399,6 +398,6 @@ export default function PrintListClient({ initialStudents, settings }: { initial
                 </div>
             </div>
             </div>
-        </div>
+        </PageContainer>
     )
 }

@@ -39,7 +39,7 @@ export const metadata = { title: 'ទំព័រដើម' }
 
 const SEVERITY = {
   danger: { icon: CircleAlert, cls: 'border-danger/30 bg-danger/10 text-danger' },
-  warning: { icon: AlertTriangle, cls: 'border-warning/30 bg-warning/10 text-warning' },
+  warning: { icon: AlertTriangle, cls: 'border-warning/30 bg-warning/10 text-warning-text' },
   info: { icon: Info, cls: 'border-divider bg-paper text-text-body' },
 } as const
 
@@ -174,7 +174,7 @@ export default async function DashboardPage({
         >
           <span
             aria-hidden="true"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-warning/10 text-warning"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-warning/10 text-warning-text"
           >
             <Info className="h-5 w-5" />
           </span>
@@ -204,7 +204,7 @@ export default async function DashboardPage({
           hint={
             stats.attendanceRate === null
               ? 'មិនទាន់បានចុះវត្តមាន'
-              : `អវត្តមាន ${toKhmerNumber(stats.todayAbsent)} · យឺត ${toKhmerNumber(stats.todayLate)}`
+              : `អវត្តមាន ${toKhmerNumber(stats.todayAbsent)} · ច្បាប់ ${toKhmerNumber(stats.todayExcused)}`
           }
           icon={UserCheck}
           tone={stats.attendanceRate === null ? 'warning' : 'success'}

@@ -63,7 +63,7 @@ export default function AdminShell({
         ${isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
       `}>
         <div className="p-6 flex items-center gap-3 border-b border-divider">
-          <div className="bg-brand p-2 rounded-lg text-white">
+          <div className="bg-brand p-2 rounded-lg text-brand-contrast">
             <GraduationCap className="w-6 h-6" />
           </div>
           <div>
@@ -116,7 +116,7 @@ export default function AdminShell({
       <main className="flex-1 flex flex-col h-screen overflow-hidden z-10 p-4 md:pl-0">
         <div className="md:hidden flex items-center justify-between mb-4 bg-white p-4 rounded-xl shadow-sm border border-divider">
           <div className="flex items-center gap-2">
-            <div className="bg-brand p-1.5 rounded-md text-white">
+            <div className="bg-brand p-1.5 rounded-md text-brand-contrast">
               <GraduationCap className="w-5 h-5" />
             </div>
             <span className="kh-moul text-brand">PTEC Admin</span>

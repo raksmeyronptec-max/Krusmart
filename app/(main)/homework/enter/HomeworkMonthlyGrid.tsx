@@ -39,7 +39,7 @@ export interface HomeworkMonthlyGridProps {
 function cellTone(raw: string | undefined, maxScore: number) {
   const issue = markIssue(raw, maxScore)
   if (issue?.level === 'error') return 'border-danger bg-danger/10 text-danger'
-  if (issue?.level === 'warning') return 'border-warning bg-warning/10 text-warning'
+  if (issue?.level === 'warning') return 'border-warning bg-warning/10 text-warning-text'
   if (markValue(raw) !== null) return 'border-success bg-success/10 text-success'
   return 'border-divider bg-bg-surface text-text-heading'
 }
@@ -263,7 +263,7 @@ export function HomeworkMonthlyGrid({
                           type="button"
                           onClick={() => onPickDay(d.dayNum)}
                           aria-label={`បញ្ចូលពិន្ទុថ្ងៃទី ${d.dayNum} សម្រាប់ ${stu.name_kh || stu.name_en}`}
-                          className="rounded-md border border-warning/40 bg-warning/10 px-2 py-1 text-[11px] font-bold text-warning transition hover:bg-warning/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                          className="rounded-md border border-warning/40 bg-warning/10 px-2 py-1 text-[11px] font-bold text-warning-text transition hover:bg-warning/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
                         >
                           {toKhmerNumber(d.dayNum)}
                         </button>

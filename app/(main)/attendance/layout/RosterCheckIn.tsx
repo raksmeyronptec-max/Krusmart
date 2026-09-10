@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/ui/feedback/EmptyState'
 import { controlClass } from '@/components/ui/forms/fieldStyles'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import type { Student } from '@/lib/types'
+import { ENTRY_MARKS } from '@/lib/attendance/status'
 
 /**
  * Taking the register on a phone.
@@ -34,26 +35,35 @@ export type MarkStatus = 'P' | 'L' | 'A'
 /**
  * The three marks, in the order a teacher thinks about them.
  *
- * `L` is ច្បាប់ — an authorised absence — matching the vocabulary used
- * everywhere else in the teacher app, including `ATTENDANCE_BADGE`.
+ * The codes and their labels come from `ENTRY_MARKS` — this screen is the only
+ * thing in the product that WRITES a status, so what it calls each one is what
+ * every reader has to mean by it. It used to name them here, which is how the
+ * parent portal came to show ច្បាប់ as មកយឺត. Only the colours are local,
+ * because a colour is a property of this control and not of the mark.
  */
-const MARKS: { code: MarkStatus; label: string; icon: typeof Check; on: string; off: string }[] = [
-  {
-    code: 'P', label: 'វត្តមាន', icon: Check,
+const TONE: Record<MarkStatus, { icon: typeof Check; on: string; off: string }> = {
+  P: {
+    icon: Check,
     on: 'bg-success text-white border-success',
     off: 'border-divider text-text-muted hover:border-success hover:text-success',
   },
-  {
-    code: 'L', label: 'ច្បាប់', icon: Clock,
+  L: {
+    icon: Clock,
     on: 'bg-warning text-white border-warning',
-    off: 'border-divider text-text-muted hover:border-warning hover:text-warning',
+    off: 'border-divider text-text-muted hover:border-warning hover:text-warning-text',
   },
-  {
-    code: 'A', label: 'អវត្តមាន', icon: UserRoundX,
+  A: {
+    icon: UserRoundX,
     on: 'bg-danger text-white border-danger',
     off: 'border-divider text-text-muted hover:border-danger hover:text-danger',
   },
-]
+}
+
+const MARKS = ENTRY_MARKS.map((m) => ({
+  code: m.code as MarkStatus,
+  label: m.label,
+  ...TONE[m.code as MarkStatus],
+}))
 
 export interface RosterCheckInProps {
   students: Student[]
@@ -85,18 +95,6 @@ export function RosterCheckIn({ students, marks, onMark, onMarkAll }: RosterChec
       [s.name_kh, s.name_en, s.student_id].some((f) => String(f ?? '').toLowerCase().includes(q)),
     )
   }, [students, query])
-
-  const counts = useMemo(() => {
-    let present = 0, excused = 0, absent = 0, unmarked = 0
-    for (const s of students) {
-      const st = marks[s.id]?.status
-      if (st === 'P') present++
-      else if (st === 'L') excused++
-      else if (st === 'A') absent++
-      else unmarked++
-    }
-    return { present, excused, absent, unmarked }
-  }, [students, marks])
 
   const mark = async (student: Student, status: MarkStatus) => {
     // Re-tapping the mark a pupil already has is a no-op, not a toggle back to
@@ -134,21 +132,9 @@ export function RosterCheckIn({ students, marks, onMark, onMarkAll }: RosterChec
 
   return (
     <div className="flex flex-col gap-3">
-      {/* summary — the answer to "have I finished?" without counting rows */}
-      <div className="grid grid-cols-4 gap-2">
-        {[
-          { label: 'វត្តមាន', value: counts.present, cls: 'text-success' },
-          { label: 'ច្បាប់', value: counts.excused, cls: 'text-warning' },
-          { label: 'អវត្តមាន', value: counts.absent, cls: 'text-danger' },
-          { label: 'មិនទាន់', value: counts.unmarked, cls: 'text-text-muted' },
-        ].map((c) => (
-          <div key={c.label} className="rounded-xl border border-divider bg-bg-surface px-2 py-2.5 text-center">
-            <p className={`text-xl font-bold tabular-nums ${c.cls}`}>{toKhmerNumber(c.value)}</p>
-            <p className="text-[11px] text-text-muted">{c.label}</p>
-          </div>
-        ))}
-      </div>
-
+      {/* The completion strip used to be here, and therefore only here. It is
+          `RegisterTally`, above the view switcher, so the seating plan and the
+          3D room answer "have I finished?" too. */}
       <div className="flex flex-col gap-2 sm:flex-row">
         <div className="relative min-w-0 flex-1">
           <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-text-muted" aria-hidden="true" />

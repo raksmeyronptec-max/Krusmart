@@ -15,6 +15,8 @@ import { studentAverage } from '@/lib/scores/aggregate'
 import { scoreCellValue, scoreNumericValue } from '@/lib/utils/score-value'
 import type { Score, Settings, Student } from '@/lib/types'
 import { useClassHref } from '@/lib/hooks/useClassHref'
+import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
+import { ClassContextBar } from '@/components/shell/ClassContextBar'
 import { useActiveClass } from '@/lib/hooks/useActiveClass'
 
 /**
@@ -201,7 +203,7 @@ export default function ScorePrintClient({
   }
 
   return (
-    <div className="min-h-screen font-battambang print:bg-bg-surface">
+    <PageContainer className="font-battambang">
       <style jsx global>{`
         .print-container { display: none; }
         @media print {
@@ -217,18 +219,22 @@ export default function ScorePrintClient({
       `}</style>
 
       {/* ---------------------------------------------------------------- UI */}
-      <div className="no-print mx-auto max-w-5xl px-4 py-6 md:py-8">
-        <Link
-          href={classHref("/score/total")}
-          className="mb-6 inline-flex min-h-11 items-center gap-2 rounded-xl bg-bg-surface/60 px-4 py-2 font-bold text-brand shadow-sm backdrop-blur-sm transition hover:text-brand-800"
-        >
-          <ArrowLeft className="h-5 w-5" aria-hidden="true" /> ត្រឡប់ទៅតារាងពិន្ទុ
-        </Link>
+      <div className="no-print">
+        <PageHeader
+          title="តារាងពិន្ទុតាមទម្រង់ក្រសួង"
+          description="សម្រង់ពិន្ទុតាមទម្រង់ផ្លូវការ សម្រាប់បោះពុម្ព"
+          actions={
+            <Link
+              href={classHref("/score/total")}
+              className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-divider bg-bg-surface px-4 text-[13px] font-bold text-brand transition hover:border-brand-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" /> តារាងពិន្ទុ
+            </Link>
+          }
+        />
+        <ClassContextBar />
 
         <div className="rounded-xl border border-divider bg-bg-surface p-6 shadow-lg md:p-8">
-          <h1 className="kh-moul mb-6 border-b border-divider pb-4 text-xl text-brand md:text-2xl dark:text-brand-300">
-            តារាងពិន្ទុតាមទម្រង់ក្រសួង
-          </h1>
 
           <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
@@ -298,7 +304,7 @@ export default function ScorePrintClient({
       </div>
 
       {/* ------------------------------------------------------------- Print */}
-      <div className="print-container bg-white text-black">
+      <div className="print-container text-black">
         <div className="mb-3 text-center">
           <p className="kh-moul text-[12pt]">ព្រះរាជាណាចក្រកម្ពុជា</p>
           <p className="kh-moul text-[12pt]">ជាតិ សាសនា ព្រះមហាក្សត្រ</p>
@@ -371,6 +377,6 @@ export default function ScorePrintClient({
           </div>
         </div>
       </div>
-    </div>
+    </PageContainer>
   )
 }

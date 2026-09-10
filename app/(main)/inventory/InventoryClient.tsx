@@ -6,7 +6,7 @@ import { EmptyState } from '@/components/ui/feedback/EmptyState'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import { useConfirm } from '@/components/ui/overlay/ConfirmDialog'
 import { Button } from '@/components/ui/actions/Button'
-import { Package, PlusCircle, Save, X, List, Printer, Edit, Trash2 } from 'lucide-react'
+import { PlusCircle, Save, X, List, Printer, Edit, Trash2 } from 'lucide-react'
 import { notify } from '@/components/ui/feedback/notify'
 import type { InventoryItemRow, Settings } from '@/lib/types'
 import { STORAGE_KEYS } from '@/lib/constants/storage'
@@ -18,6 +18,7 @@ import {
     updateInventoryItem,
 } from './actions'
 import { logger } from '@/lib/utils/logger'
+import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
 
 /** The shape older builds wrote to `localStorage`, kept for the one-time import. */
 interface LegacyInventoryItem {
@@ -150,7 +151,7 @@ export default function InventoryClient({
     }
 
     return (
-        <div className="text-text-heading font-battambang print:bg-bg-surface print:m-0 print:p-0">
+        <PageContainer className="text-text-heading font-battambang print:m-0 print:p-0">
             <style jsx global>{`
                 .print-container { display: none; }
                 @media print {
@@ -170,19 +171,17 @@ export default function InventoryClient({
                 .report-table th { font-family: 'Moul', cursive; font-weight: normal; font-size: 11pt; }
             `}</style>
 
-            <div className="no-print max-w-5xl mx-auto px-4 mt-8 pb-10">
+            <div className="no-print">
+                <PageHeader
+                    title="បញ្ជីសារពើភ័ណ្ឌថ្នាក់រៀន"
+                    description="កត់ត្រាសម្ភារៈ និងឧបករណ៍ក្នុងថ្នាក់រៀន"
+                />
 
                 <div className="bg-bg-surface/95 backdrop-blur border border-divider rounded-xl p-6 md:p-8 shadow-lg mb-8">
-                    <div className="flex items-center gap-3 mb-6 border-b pb-4">
-                        <div className="p-3 bg-brand-100 rounded-full text-brand">
-                            <Package className="w-6 h-6" />
-                        </div>
-                        <h1 className="kh-moul text-xl md:text-2xl text-brand">បញ្ជីសារពើភ័ណ្ឌថ្នាក់រៀន</h1>
-                    </div>
 
                     <div className="bg-brand-100/50 border border-divider p-5 rounded-xl mb-8">
                         <h3 className="font-bold text-text-body mb-4 flex items-center gap-2">
-                            {editId ? <Edit className="w-5 h-5 text-warning" /> : <PlusCircle className="w-5 h-5 text-success" />}
+                            {editId ? <Edit className="w-5 h-5 text-warning-text" /> : <PlusCircle className="w-5 h-5 text-success" />}
                             {editId ? 'កែប្រែព័ត៌មានសម្ភារៈ' : 'បញ្ចូលសម្ភារៈថ្មី'}
                         </h3>
                         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
@@ -199,7 +198,7 @@ export default function InventoryClient({
                                 <input type="text" value={note} onChange={e => setNote(e.target.value)} placeholder="ស្ថានភាព (ល្អ, ខូច...)" className="w-full padding-3 rounded-xl border border-divider outline-none bg-bg-surface p-2 focus:border-brand" />
                             </div>
                             <div className="md:col-span-2 flex gap-2">
-                                <button type="submit" disabled={pending} className={`w-full text-white font-bold py-2.5 rounded-xl transition shadow flex justify-center items-center gap-2 disabled:opacity-60 ${editId ? 'bg-warning hover:bg-warning' : 'bg-brand hover:bg-brand-hover'}`}>
+                                <button type="submit" disabled={pending} className={`w-full text-brand-contrast font-bold py-2.5 rounded-xl transition shadow flex justify-center items-center gap-2 disabled:opacity-60 ${editId ? 'bg-warning hover:bg-warning' : 'bg-brand hover:bg-brand-hover'}`}>
                                     <Save className="w-4 h-4" /> យល់ព្រម
                                 </button>
                                 {editId && (
@@ -271,8 +270,11 @@ export default function InventoryClient({
                 </div>
             </div>
 
-            {/* Print Area */}
-            <div className="print-container bg-bg-surface w-[210mm] min-h-[297mm] mx-auto relative p-[15mm] text-black">
+            {/* Print Area. `preview-scroll` confines the sheet's 210mm
+                (~794px) to itself so a phone does not scroll the whole page
+                sideways; `globals.css` neutralises it under `@media print`. */}
+            <div className="preview-scroll">
+            <div className="print-container w-[210mm] min-h-[297mm] mx-auto relative p-[15mm]">
                 <div className="text-center w-full mb-6">
                     <h3 className="kh-moul text-[13pt] mb-1">ព្រះរាជាណាចក្រកម្ពុជា</h3>
                     <h3 className="kh-moul text-[13pt] mb-1">ជាតិ សាសនា ព្រះមហាក្សត្រ</h3>
@@ -324,8 +326,9 @@ export default function InventoryClient({
                     </div>
                 </div>
             </div>
+            </div>
 
             {dialog}
-        </div>
+        </PageContainer>
     )
 }

@@ -72,7 +72,7 @@ export function HomeworkSaveBar({
     if (dirty) {
       return {
         icon: Pencil,
-        tone: 'text-warning',
+        tone: 'text-warning-text',
         spin: false,
         text: `មិនទាន់រក្សាទុក ${toKhmerNumber(dirtyCount)} ប្រអប់`,
       }
@@ -122,7 +122,7 @@ export function HomeworkSaveBar({
               </span>
             )}
             {warningCount > 0 && (
-              <span className="flex items-center gap-1 text-warning">
+              <span className="flex items-center gap-1 text-warning-text">
                 <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
                 ពិន្ទុលើសកម្រិតធម្មតា {toKhmerNumber(warningCount)} ប្រអប់ (នៅតែរក្សាទុកបាន)
               </span>

@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useMemo, useState } from 'react'
+import { Suspense, useCallback, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { ArrowLeft, Printer, FileSpreadsheet, CalendarDays, CalendarRange, Layers, Award } from 'lucide-react'
 import * as XLSX from 'xlsx-js-style'
@@ -13,13 +13,15 @@ import type { SheetRow } from '@/lib/utils/xlsx'
 import { gradeFor } from '@/lib/grading/scheme'
 import { useScoreTemplate } from '@/lib/hooks/useScoreTemplate'
 import { maxScoreByColumn, resolveTemplate, SYSTEM_PRIMARY_TEMPLATE } from '@/lib/scores/template'
+import { applySelection } from '@/lib/scores/selection'
 import { useActiveClass } from '@/lib/hooks/useActiveClass'
-import { FALLBACK_NUMERIC_KEYS, numericColumnKeys } from '@/lib/scores/aggregate'
-import { buildPeriodResults } from '@/lib/scores/periodResults'
+import { periodDenominator } from '@/lib/scores/aggregate'
+import { buildPeriodResults, placing } from '@/lib/scores/periodResults'
 import { periodKeysForSemester } from '@/lib/scores/calendar'
 import { useScoreCalendar } from '@/lib/hooks/useScoreCalendar'
 import { getCurrentAcademicYear } from '@/lib/constants/academic'
 import { ScoreWorkspaceHeader } from '@/components/score/ScoreWorkspaceHeader'
+import { PageContainer } from '@/components/shell/PageContainer'
 
 /** A student decorated with the per-period scores and the derived ranking fields. */
 type RankedStudent = Student & {
@@ -30,6 +32,15 @@ type RankedStudent = Student & {
     desc: string
     rank: number
 }
+
+/**
+ * The two score types a pupil is actually *marked* on.
+ *
+ * `TemplateScoreType` is wider (it also carries `annual` and `homework`), and
+ * `FALLBACK_NUMERIC_KEYS` is keyed on exactly these two — the year is derived
+ * from the semesters, never entered, so it has no denominator of its own.
+ */
+type MarkedScoreType = 'monthly' | 'semester'
 
 interface RankingClientProps { initialStudents: Student[]; settings: Settings | null }
 
@@ -77,7 +88,60 @@ function RankingClientInner({ initialStudents, settings }: RankingClientProps) {
      * average over its own curriculum. The private column list this component
      * carried is gone — lib/scores/aggregate.ts owns the denominator now.
      */
-    const { rows: templateRows, context: templateContext, scheme, levelCurriculum } = useScoreTemplate('monthly')
+    const {
+        rows: templateRows,
+        context: templateContext,
+        scheme,
+        levelCurriculum,
+        /*
+         * `class_template_subjects` (00028) — which of the resolved curriculum
+         * this class actually teaches. See `narrowedTemplateFor` below for why
+         * the raw rows are never used on their own.
+         */
+        selection,
+    } = useScoreTemplate('monthly')
+
+    /**
+     * The class's subjects for one score type: its curriculum, narrowed to what
+     * it teaches.
+     *
+     * ── The divergence this closes ────────────────────────────────────────
+     *
+     * This screen resolved `templateRows` and stopped there, while
+     * `/score/total` reads the hook's `classSubjects` and the engine's
+     * `resolveMonthlyClass` — which backs `ranking_monthly`, `ranking_semester`
+     * and `ranking_annual` — composes `applySelection(resolveTemplate(…))`.
+     * Same class, same period, same arithmetic, **different subject set**: a
+     * class holding a mark under a subject it has since de-selected ranked on
+     * that mark here and not on the sheet printed from the same data, so the
+     * screen and its own report could disagree about both the average and the
+     * order. One question, two answers.
+     *
+     * `applySelection` returns the full list untouched when the class has
+     * configured nothing *for this score type*, so an account that never opens
+     * the configuration screen is unaffected — and a monthly-only selection
+     * still resolves the whole semester template, which is the module's own
+     * per-score-type rule rather than a special case invented here.
+     *
+     * The `levelCurriculum` gate below is deliberately NOT removed. The
+     * compiled-in `SYSTEM_PRIMARY_TEMPLATE` resolves 16 monthly and 2 semester
+     * numeric columns against `FALLBACK_NUMERIC_KEYS`' 29 and 13, so keying the
+     * denominator off the template on the fallback path would silently stop
+     * counting `sci_*`, `soc_*`, `pe_sport`, `health_hygiene`, `life_skill` and
+     * `foreign` for exactly the pre-V2 accounts the fallback exists to protect.
+     */
+    const narrowedTemplateFor = useCallback(
+        (m: MarkedScoreType) =>
+            applySelection(
+                resolveTemplate(
+                    templateRows.length > 0 ? templateRows : SYSTEM_PRIMARY_TEMPLATE,
+                    m,
+                    templateContext,
+                ),
+                selection,
+            ),
+        [templateRows, templateContext, selection],
+    )
 
     /** The class's own period calendar (00029) — never a compiled-in split. */
     const { calendar } = useScoreCalendar()
@@ -91,13 +155,16 @@ function RankingClientInner({ initialStudents, settings }: RankingClientProps) {
         }))
     }, [])
 
-    /** Numeric denominator for one mode, resolved fresh at load time. */
-    const keysForMode = (mode: 'monthly' | 'semester') => {
-        if (!levelCurriculum) return FALLBACK_NUMERIC_KEYS[mode]
-        return numericColumnKeys(resolveTemplate(
-            templateRows.length > 0 ? templateRows : SYSTEM_PRIMARY_TEMPLATE, mode, templateContext,
-        ))
-    }
+    /**
+     * Numeric denominator for one mode, resolved fresh at load time.
+     *
+     * `periodDenominator` is the shared rule — the same one `resolveMonthlyClass`
+     * applies, so this screen and the sheet printed from it count the same
+     * columns in BOTH curriculum worlds. The gate it carries is load-bearing;
+     * see the note on that function.
+     */
+    const keysForMode = (mode: MarkedScoreType) =>
+        periodDenominator(mode, narrowedTemplateFor(mode), levelCurriculum)
 
     /**
      * Load one period and rank it.
@@ -144,11 +211,8 @@ function RankingClientInner({ initialStudents, settings }: RankingClientProps) {
                 : Promise.resolve([]),
         ])
 
-        const templateFor = (m: 'monthly' | 'semester') => resolveTemplate(
-            templateRows.length > 0 ? templateRows : SYSTEM_PRIMARY_TEMPLATE, m, templateContext,
-        )
         const effectiveMode = mode === 'annual' ? 'semester' : mode
-        const maxByColumn = maxScoreByColumn(templateFor(effectiveMode))
+        const maxByColumn = maxScoreByColumn(narrowedTemplateFor(effectiveMode))
 
         /*
          * Every figure and every rank comes from `buildPeriodResults` — the same
@@ -167,7 +231,7 @@ function RankingClientInner({ initialStudents, settings }: RankingClientProps) {
             sem1Exams: sem1Rows,
             sem2Exams: sem2Rows,
             monthlyRecords: monthlyRows,
-            monthlyMaxByColumn: maxScoreByColumn(templateFor('monthly')),
+            monthlyMaxByColumn: maxScoreByColumn(narrowedTemplateFor('monthly')),
             sem1Months: periodKeysForSemester(calendar, 'sem1'),
             sem2Months: periodKeysForSemester(calendar, 'sem2'),
         })
@@ -185,7 +249,16 @@ function RankingClientInner({ initialStudents, settings }: RankingClientProps) {
                 average: r?.average === null || r?.average === undefined ? '0.00' : r.average.toFixed(2),
                 finalAverageForRank: r?.average ?? 0,
                 desc: '',
-                rank: r?.rank ?? 0,
+                /*
+                 * The PLACING, not the ordering position — `placing()` returns
+                 * null for a pupil with no result, and `0` is this screen's
+                 * spelling of that (rendered `-`). Without it this table said
+                 * "ចំណាត់ថ្នាក់ ៤" beside every unmarked pupil while the ranking
+                 * sheet built from the same figures left the cell blank: two
+                 * surfaces, one question, two answers — the defect
+                 * `buildPeriodResults` was extracted to prevent.
+                 */
+                rank: r ? (placing(r) ?? 0) : 0,
             }
             // Shared grading engine, on the class's scheme.
             const graded = gradeFor(result.finalAverageForRank, scheme)
@@ -218,7 +291,9 @@ function RankingClientInner({ initialStudents, settings }: RankingClientProps) {
                 stu.gender === 'ស្រី' || stu.gender === 'F' ? 'ស' : 'ប',
                 stu.total,
                 stu.average,
-                stu.rank,
+                // Blank, not `0`, for a pupil with no result — the same claim
+                // the sheet on screen and the generated report both make.
+                stu.rank || '',
                 stu.grade,
                 stu.desc
             ])
@@ -239,7 +314,7 @@ function RankingClientInner({ initialStudents, settings }: RankingClientProps) {
     const failF = failSt.filter(s => s.gender === 'ស្រី' || s.gender === 'F').length
     
     return (
-        <div className="min-h-screen bg-paper font-battambang print:bg-white pb-10">
+        <PageContainer className="font-battambang">
             <style jsx global>{`
                 .font-battambang { font-family: 'Battambang', cursive; }
                 @media print {
@@ -263,7 +338,7 @@ function RankingClientInner({ initialStudents, settings }: RankingClientProps) {
             `}</style>
 
             {!showPreview ? (
-                <div className="max-w-6xl mx-auto py-8 px-4 no-print">
+                <div className="no-print">
                     {loading && (
                         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-bg-surface/80 backdrop-blur-sm">
                             <div className="h-16 w-16 animate-spin rounded-full border-4 border-divider border-t-brand"></div>
@@ -295,7 +370,7 @@ function RankingClientInner({ initialStudents, settings }: RankingClientProps) {
                         }
                     />
 
-                    <div className="bg-white rounded-xl shadow-sm border border-divider overflow-hidden grid grid-cols-1 lg:grid-cols-12">
+                    <div className="bg-bg-surface rounded-xl shadow-sm border border-divider overflow-hidden grid grid-cols-1 lg:grid-cols-12">
                         <div className="lg:col-span-8 p-6 sm:p-8 border-b lg:border-b-0 lg:border-r border-divider bg-paper/30">
                             <div className="flex items-center gap-2 mb-6">
                                 <CalendarRange className="w-5 h-5 text-text-muted" />
@@ -347,7 +422,7 @@ function RankingClientInner({ initialStudents, settings }: RankingClientProps) {
                 // preview-scroll: the sheet is a fixed 21cm (~794px); without a
                 // scroll container the whole page drags sideways on a phone.
                 <div className="preview-scroll">
-                <div className="print-container bg-white w-[21cm] shrink-0 min-h-[29.7cm] mx-auto my-8 p-[0.8cm] shadow-xl border border-slate-200 relative text-blue-900">
+                <div className="print-container w-[21cm] shrink-0 min-h-[29.7cm] mx-auto my-8 p-[0.8cm] shadow-xl border border-slate-200 relative text-blue-900">
                     <div className="no-print fixed top-6 right-6 flex flex-col gap-3 z-50">
                         <button onClick={exportExcel} className="bg-emerald-600 text-white p-3.5 rounded-full shadow-lg shadow-emerald-200 hover:bg-emerald-700 hover:scale-110 transition-all flex items-center justify-center group" title="ទាញយក Excel">
                             <FileSpreadsheet className="w-6 h-6" />
@@ -374,7 +449,10 @@ function RankingClientInner({ initialStudents, settings }: RankingClientProps) {
                         </div>
                         
                         <div className="mt-2 pb-2 w-full text-center">
-                            <h1 className="text-[18px] kh-moul mb-1.5 text-blue-900">តារាងចំណាត់ថ្នាក់សិស្ស</h1>
+                            {/* `h2`: the page already has an `h1` in `ScoreWorkspaceHeader`, and this
+                               is the DOCUMENT's title rather than the screen's. Two `h1`s on
+                               one page leaves a screen reader with no single page title. */}
+                            <h2 className="text-[18px] kh-moul mb-1.5 text-blue-900">តារាងចំណាត់ថ្នាក់សិស្ស</h2>
                             <p className="kh-moul text-[15px] text-blue-800">
                                 {currentMode === 'monthly' ? `ប្រចាំខែ ${MONTHS_BY_CALENDAR.find(m => m.id === currentPeriod)?.label}` : currentMode === 'semester' ? `ប្រចាំឆមាសទី${currentPeriod === 'sem1' ? '១' : '២'}` : 'ប្រចាំឆ្នាំ'}
                             </p>
@@ -455,7 +533,7 @@ function RankingClientInner({ initialStudents, settings }: RankingClientProps) {
                 </div>
                 </div>
             )}
-        </div>
+        </PageContainer>
     )
 }
 

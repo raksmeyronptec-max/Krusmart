@@ -26,7 +26,7 @@ export function BulkActionBar({
       <div className="flex items-center justify-between rounded-xl border border-divider bg-gray-900 px-4 py-3 text-white shadow-2xl backdrop-blur-md dark:bg-white dark:text-gray-900 flex-wrap gap-4">
         
         <div className="flex items-center gap-4 font-kh-moul text-sm font-bold">
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand text-white">
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand text-brand-contrast">
             {toKhmerNumber(selectedCount)}
           </span>
           <span>បានជ្រើសរើស</span>

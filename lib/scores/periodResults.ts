@@ -92,6 +92,30 @@ export interface PeriodResult {
   annual: AnnualResult | null
 }
 
+/**
+ * The placing to print — or `null` when the pupil has no result to place.
+ *
+ * `rank` is an ORDERING POSITION and every pupil has one: `assignRanks` weighs a
+ * null average as 0, which is what puts unmarked pupils last and lets a screen
+ * sort a whole roster in one pass. A *placing* is a claim about performance, and
+ * a pupil who was never marked has not placed anywhere — printing "៤" beside
+ * them states a result they were not assessed for.
+ *
+ * The rule was written five times inside `report-data.ts`
+ * (`average === null ? '' : toKhmerNumber(c.rank)`) and **nowhere on the
+ * screens**, so `/ranking` printed a rank for every unmarked pupil while the
+ * ranking sheet built from the same figures printed a blank — the two
+ * disagreeing about who placed where, which is the defect
+ * `buildPeriodResults` exists to prevent. It is a property of the result, so
+ * it lives beside the result and every presentation reads the one copy.
+ *
+ * Structural parameter rather than `PeriodResult`: the resolvers rank their own
+ * row shape, and this rule is about two fields, not about a type.
+ */
+export function placing(r: { average: number | null; rank: number }): number | null {
+  return r.average === null ? null : r.rank
+}
+
 /** `score_value` first, falling back to the Khmer-word column. */
 function cellValue(row: ScoreRowLike): number | string | null {
   if (row.score_value !== null && row.score_value !== undefined) return row.score_value

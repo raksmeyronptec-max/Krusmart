@@ -111,7 +111,7 @@ Classification: **A** core workflow · **B** supporting workflow · **C** docume
 | `/classroom` | ✅ | ✅ | 6 | pick/create class → per-class tools | Absorbed `/classroom/classes`; grade offer from `buildGradeOffer` |
 | `/student-list` | ✅ | ✅ | 10 | review roster → pupil / enrolment | Legacy-recovery banner for stranded rosters |
 | `/students/[id]` | ✅ | ✅ | — | read pupil whole → owning screen | Links carry the **pupil's** class, not the ambient one |
-| `/enrollment` | ✅ | ⚠️ partial | 9 | add pupil → `/student-list` | Redirects to roster on save, carries `?class=` |
+| `/enrollment` | ✅ | ✅ | 9 | add pupil → `/student-list` | Names the receiving class in its header; redirects to roster on save carrying `?class=` |
 | `/attendance/layout` | ✅ | ✅ | 4 | mark register → sheet | Defaults to `list`; 2D/3D are `hidden lg:flex` |
 | `/score/enter` | ✅ | ✅ | 17 | type marks → total | Best screen in the app (§1.1) |
 | `/score/total` | ✅ | ✅ | 12 | read results → ranking/print | Canonical annual, source provenance shown |
@@ -464,7 +464,7 @@ evidence in §1.1 and §3 contradicts the assumed priorities. Each phase ends wi
 | **2** | **Page-frame + `ClassContextBar`** (brief Phase 1 + 20) | Unblocks every later phase; converts the 29 hold-outs; answers "which class?" everywhere | new `verify-page-frame.mts` |
 | **3** | **Results consolidation** (brief Phases 6–8, 14) | `/ranking`, `/score/collect`, `/score-analyse`, `/honor-roll` into one module and one tab strip; fold `/score-analysis/subject` in | `verify-score-workspace` |
 | **4** | **Score workspace finish** (brief Phase 5) | The fifth tab, the subject-picker link, entry as module front door | `verify-score-workspace` |
-| **5** | **Students + enrolment** (brief Phase 3) | Already close; needs an add-student affordance on the roster and class naming in `/enrollment` | `verify-students` |
+| **5** | **Students + enrolment** (brief Phase 3) | Already close; needs a first-class add-student affordance on the roster and the import path surfaced | `verify-students` |
 | **6** | **Classroom + curriculum** (brief Phases 2, 4) | Both are recent and healthy; polish only | `verify-classroom`, `verify-class-template` |
 | **7** | **Documents Tier B** (brief Phases 13–17) | The eleven un-framed print screens; token drift; A4-in-flow | `verify-reporting`, `verify-record-book`, `verify-certificate` |
 | **8** | **Attendance + homework** (brief Phases 10–11) | Attendance is healthy; homework needs the class dimension from Phase 1 | `verify-scope` |

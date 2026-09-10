@@ -54,3 +54,4 @@ lib/reporting/templates/**/*.docx
 lib/reporting/templates/*.xlsx
 lib/reporting/templates/*.docx
 
+.playwright-mcp/

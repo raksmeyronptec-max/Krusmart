@@ -90,7 +90,7 @@ export function HomeworkDueDateField({
         <p
           id={`${id}-warning`}
           role="alert"
-          className="mt-1.5 flex items-start gap-1.5 text-xs font-bold text-warning"
+          className="mt-1.5 flex items-start gap-1.5 text-xs font-bold text-warning-text"
         >
           <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           ថ្ងៃនេះកន្លងផុតទៅហើយ។ កិច្ចការនឹងបង្ហាញជា «ហួសកំណត់» ភ្លាមៗ។

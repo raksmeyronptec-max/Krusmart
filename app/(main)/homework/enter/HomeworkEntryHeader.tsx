@@ -1,6 +1,6 @@
 'use client'
 
-import { CalendarRange, LayoutGrid, ListChecks, Users } from 'lucide-react'
+import { CalendarRange, GraduationCap, LayoutGrid, ListChecks, Users } from 'lucide-react'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import { formatKhmerDate, toISODate } from '@/lib/utils/date'
 import type { HomeworkDay } from './period'
@@ -27,6 +27,12 @@ export interface HomeworkEntryHeaderProps {
   academicYear: string
   monthLabel: string
   days: HomeworkDay[]
+  /**
+   * `ថ្នាក់ទី៥` — the grade the class sits in, or `null` when it cannot be
+   * resolved. Passed in rather than read from the hook here so this component
+   * stays presentational and testable, like every other prop on it.
+   */
+  gradeLabel: string | null
   /** Roster completion for the selected day. */
   dayProgress: HomeworkProgress
   /** Roster completion across the whole cycle. */
@@ -37,6 +43,7 @@ export interface HomeworkEntryHeaderProps {
 
 export function HomeworkEntryHeader({
   className,
+  gradeLabel,
   academicYearName,
   academicYear,
   monthLabel,
@@ -66,6 +73,19 @@ export function HomeworkEntryHeader({
               <LayoutGrid className="h-3.5 w-3.5" aria-hidden="true" />
               ថ្នាក់ {className}
             </span>
+            {/*
+              The grade the class sits in. Shown only when it resolves —
+              `grades_select_member` (00003) gates the row on the caller's own
+              schools, and a derived number would be a guess. Same rule as
+              `ClassContextBar` and `ScoreWorkspaceHeader`, so the three never
+              disagree.
+            */}
+            {gradeLabel && (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-divider bg-paper px-3 py-1.5 text-xs font-bold text-text-body">
+                <GraduationCap className="h-3.5 w-3.5" aria-hidden="true" />
+                {gradeLabel}
+              </span>
+            )}
             {academicYearName && (
               <span className="inline-flex items-center gap-1.5 rounded-full border border-divider bg-paper px-3 py-1.5 text-xs font-bold text-text-body">
                 <CalendarRange className="h-3.5 w-3.5" aria-hidden="true" />

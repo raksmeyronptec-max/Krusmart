@@ -191,7 +191,7 @@ export function OrganisationClient({
         <div className="flex items-start gap-3 rounded-xl border border-warning/40 bg-warning/10 p-4">
           <span
             aria-hidden="true"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-warning/15 text-warning"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-warning/15 text-warning-text"
           >
             <Clock className="h-5 w-5" />
           </span>

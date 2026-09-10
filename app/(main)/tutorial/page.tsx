@@ -2,16 +2,15 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/actions/Button'
-import Link from 'next/link'
 import { 
-    ArrowLeft, Menu, X, Search, 
+    Menu, X, Search,
     UserPlus, Users, LayoutGrid, CalendarCheck, BookMarked, Send, 
     Edit3, Table2, BarChart3, LineChart, Target, CalendarDays, 
     FolderOpen, Award, PieChart, BookOpen, BookUser, FileBadge, 
     Sparkles, Package, Contact2, Bell, UserCog, Key, BookOpenCheck
 } from 'lucide-react'
-import { ThemeToggle } from '@/components/ThemeToggle'
 import { STORAGE_KEYS } from '@/lib/constants/storage'
+import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
 
 const menuItems = [
     { id: 'enrollment', name: 'បញ្ចូលព័ត៌មានសិស្ស', icon: UserPlus, url: 'enrollment/Intro_enrollment.html', color: 'from-brand-500 to-brand' },
@@ -79,21 +78,20 @@ export default function TutorialPage() {
     }
 
     return (
-        <div className="min-h-screen flex flex-col bg-paper dark:bg-bg-app transition-colors duration-300 relative">
-            <header className="flex-none bg-bg-surface border-b border-divider shadow-sm relative z-50 w-full transition-colors duration-300">
-                <div className="max-w-7xl mx-auto px-3 md:px-6 lg:px-8 py-2 md:py-3 flex justify-between items-center relative">
-                    
-                    <div className="flex items-center gap-2 md:gap-3">
-                        <Link href="/dashboard" className="flex items-center justify-center w-9 h-9 md:w-11 md:h-11 bg-brand-100 dark:bg-bg-surface text-brand dark:text-brand-400 hover:bg-brand-100 dark:hover:bg-paper rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-focus-ring">
-                            <ArrowLeft className="w-5 h-5 md:w-6 md:h-6" />
-                        </Link>
-                        <h1 className="kh-moul text-brand dark:text-brand-400 text-base md:text-xl lg:text-2xl flex items-center gap-2 truncate max-w-[180px] sm:max-w-xs md:max-w-full transition-colors">
-                            សៀវភៅណែនាំ
-                        </h1>
-                    </div>
-                    
+        <PageContainer className="flex flex-col">
+            {/*
+              The page used to open its own bar — a back link, a title, a theme
+              toggle and a menu — above its own `<main>`. All four already exist
+              in the shell: `Breadcrumb` is the way back, `AccountMenu` holds the
+              theme toggle, and `AppShell` owns the single `<main>` landmark. The
+              only control that is genuinely this page's is the chapter menu, so
+              that is what stays, in the header's actions slot.
+            */}
+            <PageHeader
+                title="សៀវភៅណែនាំ"
+                description="មគ្គុទ្ទេសក៍ប្រើប្រាស់ KruSmart តាមមុខងារនីមួយៗ"
+                actions={
                     <div className="flex items-center gap-2 md:gap-4" ref={menuRef}>
-                        <ThemeToggle />
 
                         <Button printHidden={false} onClick={() => setIsMenuOpen(!isMenuOpen)}>
                             <Menu className="w-5 h-5 md:w-6 md:h-6" />
@@ -151,10 +149,13 @@ export default function TutorialPage() {
                             </nav>
                         </div>
                     </div>
-                </div>
-            </header>
+                }
+            />
 
-            <main className="flex-1 w-full max-w-7xl mx-auto p-3 md:p-4 lg:p-6 flex flex-col relative z-0">
+            {/* `min-h-[70vh]`, not `flex-1`: the container is no longer a
+                full-height flex column, so the reader needs an explicit height
+                to fill rather than one inherited from the page. */}
+            <div className="relative z-0 flex min-h-[70vh] flex-1 flex-col">
                 <div className="bg-bg-surface border border-divider shadow-sm w-full flex-1 rounded-xl overflow-hidden relative flex flex-col">
                     {/* We removed the full-screen loading spinner to make the page feel instantly responsive */}
                     {isLoading && (
@@ -169,7 +170,7 @@ export default function TutorialPage() {
                         onLoad={() => setIsLoading(false)}
                     />
                 </div>
-            </main>
-        </div>
+            </div>
+        </PageContainer>
     )
 }

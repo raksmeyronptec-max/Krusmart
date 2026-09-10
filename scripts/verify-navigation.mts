@@ -19,7 +19,8 @@
  */
 
 import * as nodeModule from 'node:module'
-import { existsSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 
 const root = new URL('../', import.meta.url)
 
@@ -58,8 +59,13 @@ registerHooks({
   },
 })
 
-const { NAV_MODULES, NAV_SECTIONS, MOBILE_PRIMARY_IDS, moduleForPath, primaryModules } =
-  await import('../lib/navigation.ts')
+const {
+  NAV_MODULES, NAV_SECTIONS, MOBILE_PRIMARY_IDS, moduleForPath, primaryModules,
+  searchEntries, sectionsForRoles,
+} = await import('../lib/navigation.ts')
+
+/** What the command palette AND the dashboard's feature grid would offer these roles. */
+const searchEntriesFor = (roles: string[]) => searchEntries(sectionsForRoles(roles as never))
 
 let failures = 0
 function check(name: string, ok: boolean, detail = '') {
@@ -195,6 +201,139 @@ check(
   'every child href resolves to its own module',
   NAV_MODULES.every((m) => (m.children ?? []).every((c) => moduleForPath(c.href)?.id === m.id)),
 )
+
+// --- 3b. results is a step of the journey, and now a module ------------------
+console.log('\nលទ្ធផល is its own module, and the score routes split cleanly:')
+
+const results = byId('results')
+check('a module with id `results` exists', Boolean(results))
+check('labelled លទ្ធផល', results?.label === 'លទ្ធផល', `got ${results?.label}`)
+check('it opens on the ranking table', results?.href === '/ranking', `got ${results?.href}`)
+
+/**
+ * Ranking, completion, analysis and the honour roll were `hidden: true`
+ * children of ពិន្ទុ or របាយការណ៍ — reachable from a card or another screen,
+ * from no menu at all. The whole RESULTS step of the teacher's journey was
+ * unrepresented in navigation.
+ */
+for (const href of ['/ranking', '/score/collect', '/score-analyse', '/honor-roll']) {
+  check(`${href} is offered by លទ្ធផល, not hidden in another module`,
+    moduleForPath(href)?.id === 'results' &&
+    Boolean(results?.children?.some((c) => c.href === href && !c.hidden)),
+    `resolves to ${moduleForPath(href)?.id}`)
+}
+
+/**
+ * ពិន្ទុ opens where the WORK is, the same correction វត្តមាន already had: its
+ * front door was moved off the read-only monthly sheet onto the register.
+ */
+const scores = byId('scores')
+check('ពិន្ទុ opens on the entry grid, not the totals table',
+  scores?.href === '/score/enter', `got ${scores?.href}`)
+check('and its primary child agrees',
+  scores?.children?.find((c) => c.primary)?.href === '/score/enter')
+check('/score/total stays in ពិន្ទុ — its matrix is editable, so it is still marking',
+  moduleForPath('/score/total')?.id === 'scores', `got ${moduleForPath('/score/total')?.id}`)
+
+/**
+ * One href, one module. Two entries in `PATH_INDEX` for one path would make the
+ * sidebar highlight whichever the longest-match sort happened to reach first.
+ */
+const allHrefs = NAV_MODULES.flatMap((m) => [m.href, ...(m.children ?? []).map((c) => c.href)])
+const dupes = allHrefs.filter((h, i) => allHrefs.indexOf(h) !== i && !h.includes('?'))
+const crossModule = [...new Set(dupes)].filter((h) => {
+  const owners = new Set(
+    NAV_MODULES.filter((m) => m.href === h || (m.children ?? []).some((c) => c.href === h)).map((m) => m.id),
+  )
+  return owners.size > 1
+})
+check('no href is claimed by two modules', crossModule.length === 0, crossModule.join(', '))
+
+/**
+ * `/score-analysis/subject` redirects to `/score-analyse` since the two
+ * analyses became two views of one screen. Declared but not offered, so the
+ * breadcrumb resolves mid-redirect and the menu shows one analysis, not two
+ * whose names differ by a letter.
+ */
+const subjectAnalysis = (results?.children ?? []).find((c) => c.href === '/score-analysis/subject')
+check('the old subject-analysis route is declared but hidden',
+  subjectAnalysis?.hidden === true)
+check('and the palette offers exactly one analysis destination',
+  searchEntriesFor(['teacher']).filter((e) => e.href.startsWith('/score-analy')).length === 1,
+  searchEntriesFor(['teacher']).filter((e) => e.href.startsWith('/score-analy')).map((e) => e.href).join(', '))
+
+// --- 4. nothing in the rail may show invented numbers ------------------------
+console.log('\nthe mock analytics screen is declared but never offered:')
+
+/**
+ * `/administration` renders `MOCK_SCHOOL_STATS`, `MOCK_TEACHERS` and
+ * `MOCK_TEACHER_DETAIL`. Its role gate is correct, but a gate decides *who* may
+ * see a screen and never whether its figures are real — so a principal was
+ * being handed a school-analytics dashboard that invents everything on it.
+ *
+ * `hidden`, not deleted: the route keeps working and `moduleForPath` keeps
+ * resolving it, so an administrator who arrives by URL still gets a breadcrumb.
+ * The same pattern `/score/template` and `/classroom/classes` use.
+ */
+const adminLink = NAV_MODULES.flatMap((m) => m.children ?? []).find(
+  (c) => c.href === '/administration',
+)
+check('it is still declared, so the breadcrumb resolves', Boolean(adminLink))
+check('but hidden from every rendered navigation surface',
+  adminLink?.hidden === true,
+  'the sidebar, the rail flyout, the command palette and the dashboard grid all filter `hidden`')
+check('and keeps its permission gate as well',
+  adminLink?.permission === 'school_settings:view',
+  'hidden decides what is offered; the gate is what survives if it is offered again')
+check('moduleForPath still resolves it', moduleForPath('/administration')?.id === 'reports',
+  `got ${moduleForPath('/administration')?.id}`)
+
+/**
+ * The searchable set is what the command palette AND the dashboard's
+ * "មុខងារទាំងអស់" grid both render, since both call `searchEntries`. Checked for
+ * an administrator specifically: a teacher never had the permission, so testing
+ * only their view would pass vacuously.
+ */
+for (const roles of [['teacher'], ['owner'], ['principal'], ['school_admin']] as const) {
+  check(`not offered to ${roles[0]}`,
+    !searchEntriesFor([...roles]).some((e) => e.href === '/administration'))
+}
+
+/*
+ * ── Phase 11: hidden is not a gate ────────────────────────────────────────
+ *
+ * `hidden: true` stopped `/administration` being OFFERED. It never stopped it
+ * being REACHED, and the brief is explicit that navigation visibility is never
+ * security. The screen behind it invented a school of 1,250 pupils, so the
+ * remaining exposure was a principal typing the URL and reading fiction.
+ *
+ * It is a redirect to `/admin/dashboard` now — the same six counters computed
+ * from the administrator's own school. These checks pin both halves: no mock
+ * survives, and the actor check still runs before the redirect so a parent is
+ * not bounced through the admin tree to be told no.
+ */
+const administrationDir = fileURLToPath(new URL('app/(main)/administration/', root))
+const administrationFiles = readdirSync(administrationDir)
+check('the mock school-analytics screen is gone',
+  !administrationFiles.includes('AdministrationClient.tsx'),
+  administrationFiles.join(', '))
+/** Comments stripped: the replacement page NAMES the constants it replaced. */
+const stripComments = (src: string) =>
+  src
+    .replace(/(^|[\s{;,()=>])\/\*[\s\S]*?\*\//g, '$1')
+    .replace(/(^|[^:"'`\\])\/\/[^\n]*/g, '$1')
+check('...and nothing under (main) still declares MOCK_ constants',
+  !readdirSync(administrationDir)
+    .some((f) => /MOCK_/.test(stripComments(readFileSync(administrationDir + f, 'utf8')))),
+  'a screen a principal can reach must not invent its figures')
+
+const administrationPage = readFileSync(administrationDir + 'page.tsx', 'utf8')
+check('/administration redirects to the real overview',
+  /redirect\('\/admin\/dashboard'\)/.test(administrationPage))
+check('...and still refuses a non-administrator first',
+  administrationPage.indexOf("actor.kind !== 'admin'") <
+    administrationPage.indexOf("redirect('/admin/dashboard')"),
+  'the gate must run before the hand-off, not after it')
 
 if (failures > 0) {
   console.error(`\n${failures} failure(s).`)

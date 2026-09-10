@@ -151,7 +151,7 @@ export function HomeworkComposer({ onPublish, submitting, onError }: HomeworkCom
         />
         <p id="hw-title-hint" className="mt-1.5 text-[11px] text-text-muted">
           {title.length > TITLE_SOFT_LIMIT ? (
-            <span className="font-bold text-warning">
+            <span className="font-bold text-warning-text">
               ចំណងជើងវែង ({toKhmerNumber(title.length)} តួ) — អាចត្រូវកាត់ខ្លីក្នុងបញ្ជីរបស់អាណាព្យាបាល
             </span>
           ) : (

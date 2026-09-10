@@ -484,6 +484,26 @@ export default function HomeworkEnterClient({
   const activeAssignment =
     assignments.find((a) => a.class_id === scopeClassId) ?? (scopeClassId ? null : assignment)
 
+  /*
+   * `ថ្នាក់ទី៥`, or null.
+   *
+   * Read off the assignment this screen actually resolved rather than off the
+   * ambient `useActiveClass()` grade, for the same reason `activeAssignment`
+   * above is: `scopeClassId` came from the server and may name a class other
+   * than the one the top bar has selected. The grade must describe the class
+   * whose marks are on screen.
+   *
+   * The grade row's own name wins; the number is the fallback; absent is
+   * absent. `grades_select_member` (00003) legitimately returns nothing for a
+   * teacher whose school hint is unset, and `class_name` is free text, so
+   * deriving a grade out of it would be a guess.
+   */
+  const gradeLabel =
+    activeAssignment?.grade_name ??
+    (typeof activeAssignment?.grade_number === 'number'
+      ? `ថ្នាក់ទី${toKhmerNumber(activeAssignment.grade_number)}`
+      : null)
+
   // ---------------------------------------------------------------- render
 
   const hasStudents = initialStudents.length > 0
@@ -538,6 +558,7 @@ export default function HomeworkEnterClient({
       <div data-app-chrome>
         <HomeworkEntryHeader
           className={activeAssignment?.class_name ?? ''}
+          gradeLabel={gradeLabel}
           academicYearName={activeAssignment?.academic_year_name ?? ''}
           academicYear={academicYear}
           monthLabel={monthLabel}

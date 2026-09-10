@@ -9,6 +9,7 @@ import type {
   Settings,
   Student,
 } from '@/lib/types'
+import { tallyAttendance, type AttendanceTally } from '@/lib/attendance/status'
 
 /**
  * Reads for the parent portal.
@@ -134,31 +135,33 @@ export async function getChildNotifications(): Promise<Notification[]> {
   return (data ?? []) as Notification[]
 }
 
-/** Attendance tallies for the summary cards. */
-export interface AttendanceSummary {
-  present: number
-  absent: number
-  late: number
-  permission: number
+/**
+ * Attendance tallies for the summary cards.
+ *
+ * ── What this used to say, and why it was wrong ───────────────────────────
+ *
+ * It counted `L` as **មកយឺត** — arrived late — and added it to the numerator:
+ * `(present + late) / total`, under a comment explaining that the legacy portal
+ * treated lateness as attending.
+ *
+ * `L` is not lateness. The only screen that writes it labels its own button
+ * ច្បាប់ — absent WITH the school's permission — and the monthly register
+ * prints it as "ច", the yearly sheet gives it a ច្ប column of its own, and the
+ * printed parent report counts it under អវត្តមាន. So a pupil their teacher
+ * recorded as away with permission was shown to their own parent as present and
+ * on time, and lifted that child's attendance rate while doing it: the sheet
+ * the teacher hands over and the portal the parent signs into stated different
+ * numbers for the same days.
+ *
+ * The rule now comes from `lib/attendance/status.ts`, which the register, the
+ * reports and this portal all read. The rate reads LOWER than it did for any
+ * child with a ច្បាប់ day — that is the correction, not a regression.
+ */
+export interface AttendanceSummary extends AttendanceTally {
+  /** Every row fetched, including any this application does not recognise. */
   total: number
-  /** Percentage present, or null when nothing has been recorded. */
-  rate: number | null
 }
 
 export function summariseAttendance(records: AttendanceRecord[]): AttendanceSummary {
-  const count = (s: string) => records.filter((r) => r.status === s).length
-  const present = count('P')
-  const late = count('L')
-  const absent = count('A')
-  const permission = count('AP')
-  const total = records.length
-  return {
-    present,
-    absent,
-    late,
-    permission,
-    total,
-    // Late still counts as attending — the legacy portal treated it that way.
-    rate: total ? Math.round(((present + late) / total) * 1000) / 10 : null,
-  }
+  return { ...tallyAttendance(records), total: records.length }
 }

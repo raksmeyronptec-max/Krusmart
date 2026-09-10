@@ -129,6 +129,32 @@ check('/score/collect no longer indexes marks itself',
   !/const byColumn = new Map/.test(code('app/(main)/score/collect/actions.ts')),
   'the counting rules moved to lib/scores/completion.ts')
 
+/*
+ * ...and both count the subjects the class TEACHES.
+ *
+ * Both surfaces fed `subjectProgress` the unnarrowed template. For a class
+ * teaching three subjects out of a thirty-five-subject curriculum, the
+ * attention list read "៣៥ មុខវិជ្ជា មិនទាន់បញ្ចូលពិន្ទុគ្រប់" and the bar was
+ * pinned at ៩% — it could not reach 100% because `/score/enter`'s grid narrows
+ * by `class_template_subjects` and the other thirty-two cannot be marked at
+ * all. The same shape as the `/ranking` divergence Phase 1 closed.
+ *
+ * Progress and averages are two questions: `taughtSubjects` answers the first,
+ * `subjects` still answers the second, and the split lives in
+ * `ServerGradingContext` so neither screen decides it alone.
+ */
+check('the dashboard counts progress over taughtSubjects',
+  read(queries).includes('subjectProgress(grading.taughtSubjects'),
+  'grading.subjects is the whole curriculum — the bar would never reach 100%')
+check('...and still averages over the whole curriculum',
+  !/monthlyAveragesByStudent\([^)]*taughtSubjects/.test(code(queries)),
+  'narrowing a template must never narrow an average')
+check('/score/collect narrows by the class selection too',
+  code('app/(main)/score/collect/actions.ts').includes('applySelection(resolveTemplate('),
+  'the two completion surfaces must count the same subjects')
+check('ServerGradingContext carries both lists, so neither screen decides alone',
+  read('lib/utils/serverScope.ts').includes('taughtSubjects: applySelection(subjects, selection)'))
+
 const subjects = [
   { subjectKey: 'khmer_all', labelKm: 'ភាសាខ្មែរ', columns: [{ id: 'kh_read' }, { id: 'kh_write' }] },
   { subjectKey: 'math_general', labelKm: 'គណិត', columns: [{ id: 'math_num' }] },

@@ -44,7 +44,7 @@ export default function YearlyReportClient() {
   }, []);
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8">
+    <div className="space-y-8">
       
       {/* Welcome Hero Section */}
       <div className="bg-gradient-to-r from-brand-700 to-brand-800 rounded-xl shadow-lg p-6 sm:p-10 text-white relative overflow-hidden">
@@ -70,7 +70,7 @@ export default function YearlyReportClient() {
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-bg-surface border border-divider p-5 rounded-xl flex items-center gap-4 shadow-sm">
-          <div className="w-12 h-12 rounded-lg bg-brand-100 text-brand flex items-center justify-center">
+          <div className="w-12 h-12 rounded-lg bg-brand-soft text-brand-on-soft flex items-center justify-center">
             <Users className="w-6 h-6" />
           </div>
           <div>
@@ -81,7 +81,7 @@ export default function YearlyReportClient() {
           </div>
         </div>
         <div className="bg-bg-surface border border-divider p-5 rounded-xl flex items-center gap-4 shadow-sm">
-          <div className="w-12 h-12 rounded-lg bg-brand-100 text-brand flex items-center justify-center">
+          <div className="w-12 h-12 rounded-lg bg-brand-soft text-brand-on-soft flex items-center justify-center">
             <UserRoundCheck className="w-6 h-6" />
           </div>
           <div>
@@ -101,7 +101,7 @@ export default function YearlyReportClient() {
           </div>
         </div>
         <div className="bg-bg-surface border border-divider p-5 rounded-xl flex items-center gap-4 shadow-sm">
-          <div className="w-12 h-12 rounded-lg bg-warning/10 text-warning flex items-center justify-center">
+          <div className="w-12 h-12 rounded-lg bg-warning/10 text-warning-text flex items-center justify-center">
             <Award className="w-6 h-6" />
           </div>
           <div>
@@ -120,7 +120,7 @@ export default function YearlyReportClient() {
         
         <Link href={classHref("/score/total")} className="bg-bg-surface rounded-xl p-6 border border-divider group block relative overflow-hidden transition-all hover:-translate-y-1 hover:shadow-lg hover:border-divider">
           <div className="absolute top-0 right-0 w-2 h-full bg-brand"></div>
-          <div className="w-12 h-12 rounded-full bg-brand-100 text-brand flex items-center justify-center mb-4 group-hover:bg-brand-hover group-hover:text-white transition-colors">
+          <div className="w-12 h-12 rounded-full bg-brand-soft text-brand-on-soft flex items-center justify-center mb-4 group-hover:bg-brand-hover group-hover:text-white transition-colors">
             <CalendarDays className="w-6 h-6" />
           </div>
           <h4 className="text-lg kh-moul text-text-heading mb-2 group-hover:text-brand">បញ្ជីបូកលទ្ធផលសរុប</h4>
@@ -156,7 +156,7 @@ export default function YearlyReportClient() {
 
         <Link href={classHref("/score-analysis/subject")} className="bg-bg-surface rounded-xl p-6 border border-divider group block relative overflow-hidden transition-all hover:-translate-y-1 hover:shadow-lg hover:border-divider">
           <div className="absolute top-0 right-0 w-2 h-full bg-brand-600"></div>
-          <div className="w-12 h-12 rounded-full bg-brand-100 text-brand flex items-center justify-center mb-4 group-hover:bg-brand group-hover:text-white transition-colors">
+          <div className="w-12 h-12 rounded-full bg-brand-soft text-brand-on-soft flex items-center justify-center mb-4 group-hover:bg-brand group-hover:text-brand-contrast transition-colors">
             <Files className="w-6 h-6" />
           </div>
           <h4 className="text-lg kh-moul text-text-heading mb-2 group-hover:text-brand">មុខវិជ្ជាប្រចាំឆ្នាំ</h4>
@@ -192,12 +192,12 @@ export default function YearlyReportClient() {
 
         <Link href={classHref("/yearly-report/repeated")} className="bg-bg-surface rounded-xl p-6 border border-divider group block relative overflow-hidden transition-all hover:-translate-y-1 hover:shadow-lg hover:border-warning/40">
           <div className="absolute top-0 right-0 w-2 h-full bg-warning"></div>
-          <div className="w-12 h-12 rounded-full bg-warning/10 text-warning flex items-center justify-center mb-4 group-hover:opacity-90 group-hover:text-white transition-colors">
+          <div className="w-12 h-12 rounded-full bg-warning/10 text-warning-text flex items-center justify-center mb-4 group-hover:opacity-90 group-hover:text-white transition-colors">
             <AlertCircle className="w-6 h-6" />
           </div>
-          <h4 className="text-lg kh-moul text-text-heading mb-2 group-hover:text-warning">សិស្សត្រួតថ្នាក់</h4>
+          <h4 className="text-lg kh-moul text-text-heading mb-2 group-hover:text-warning-text">សិស្សត្រួតថ្នាក់</h4>
           <p className="text-sm text-text-muted leading-relaxed">បញ្ជីរាយនាមសិស្សដែលទទួលបានមធ្យមភាគប្រចាំឆ្នាំក្រោម ៥.០ ដែលត្រូវត្រួតថ្នាក់។</p>
-          <div className="mt-4 flex items-center text-sm font-bold text-warning">
+          <div className="mt-4 flex items-center text-sm font-bold text-warning-text">
             ចូលទៅកាន់ <ArrowRight className="w-4 h-4 ml-1" />
           </div>
         </Link>

@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { logger } from '@/lib/utils/logger'
 import { resolveServerScope } from '@/lib/utils/serverScope'
 import type { QueryScope } from '@/lib/utils/queryFilter'
-import type { StudentImportRow } from '@/lib/types'
+import type { ActionResult, StudentImportRow } from '@/lib/types'
 import { auditLog, auditLogBatch } from '@/lib/audit/log'
 
 /**
@@ -90,6 +90,72 @@ async function enrolOrCompensate(
   }
 }
 
+const YES = 'បាទ/ចាស'
+const NO = 'ទេ'
+
+/**
+ * The pupil's demographic record, read out of the enrolment form.
+ *
+ * Shared by `createStudent` and `updateStudent` so the two cannot drift about
+ * which fields exist — thirty-odd columns extracted twice by hand is how one
+ * path quietly stops saving a field the other still writes.
+ *
+ * `teacher_id` is deliberately NOT here. It is the ownership guard every write
+ * in this file filters on, and an update that could set it would be a transfer
+ * of the pupil to another account dressed as an edit.
+ *
+ * Returns `null` when a required field is missing, so both callers refuse the
+ * same payload with the same message.
+ */
+function studentFieldsFromForm(formData: FormData) {
+  const text = (k: string) => (formData.get(k) as string | null) ?? ''
+  const bool = (k: string) => formData.get(k) === YES
+
+  const fields = {
+    student_id: text('studentId'),
+    grade: text('grade'),
+    name_kh: text('studentName'),
+    name_en: text('latinName'),
+    gender: text('gender'),
+    dob: text('dob'),
+    phone: text('phone'),
+
+    birth_province: text('birthProvince'),
+    birth_district: text('birthDistrict'),
+    birth_commune: text('birthCommune'),
+    birth_village: text('birthVillage'),
+
+    curr_province: text('currProvince'),
+    curr_district: text('currDistrict'),
+    curr_commune: text('currCommune'),
+    curr_village: text('currVillage'),
+
+    is_new_student: bool('isNewStudent'),
+    is_repeater: bool('isRepeater'),
+    orphan_status: text('orphanStatus'),
+    is_disabled: bool('isDisabled'),
+    poor_status: text('poorStatus'),
+    is_equity: bool('isEquity'),
+    is_scholarship: bool('isScholarship'),
+
+    father_name: text('fatherName'),
+    father_job: text('fatherJob'),
+    mother_name: text('motherName'),
+    mother_job: text('motherJob'),
+    guardian_name: text('guardianName'),
+    guardian_job: text('guardianJob'),
+
+    ethnicity: text('ethnicity'),
+    special_features: text('specialFeatures'),
+    other_remarks: text('otherRemarks'),
+    photo_url: text('photoUrl'),
+  }
+
+  const { student_id, grade, name_kh, gender, dob } = fields
+  if (!student_id || !grade || !name_kh || !gender || !dob) return null
+  return fields
+}
+
 export async function createStudent(formData: FormData, classId?: string) {
   const supabase = await createClient()
 
@@ -109,84 +175,13 @@ export async function createStudent(formData: FormData, classId?: string) {
     return { error: 'មិនអាចកំណត់ឆ្នាំសិក្សាបានទេ។ សូមព្យាយាមម្តងទៀត។' }
   }
 
-  // extract data
-  const student_id = formData.get('studentId') as string
-  const grade = formData.get('grade') as string
-  const name_kh = formData.get('studentName') as string
-  const name_en = formData.get('latinName') as string
-  const gender = formData.get('gender') as string
-  const dob = formData.get('dob') as string
-  const phone = formData.get('phone') as string
-
-  const birth_province = formData.get('birthProvince') as string
-  const birth_district = formData.get('birthDistrict') as string
-  const birth_commune = formData.get('birthCommune') as string
-  const birth_village = formData.get('birthVillage') as string
-
-  const curr_province = formData.get('currProvince') as string
-  const curr_district = formData.get('currDistrict') as string
-  const curr_commune = formData.get('currCommune') as string
-  const curr_village = formData.get('currVillage') as string
-
-  const is_new_student = formData.get('isNewStudent') === 'បាទ/ចាស'
-  const is_repeater = formData.get('isRepeater') === 'បាទ/ចាស'
-  const orphan_status = formData.get('orphanStatus') as string
-  const is_disabled = formData.get('isDisabled') === 'បាទ/ចាស'
-  const poor_status = formData.get('poorStatus') as string
-  const is_equity = formData.get('isEquity') === 'បាទ/ចាស'
-  const is_scholarship = formData.get('isScholarship') === 'បាទ/ចាស'
-
-  const father_name = formData.get('fatherName') as string
-  const father_job = formData.get('fatherJob') as string
-  const mother_name = formData.get('motherName') as string
-  const mother_job = formData.get('motherJob') as string
-  const guardian_name = formData.get('guardianName') as string
-  const guardian_job = formData.get('guardianJob') as string
-
-  const ethnicity = formData.get('ethnicity') as string
-  const special_features = formData.get('specialFeatures') as string
-  const other_remarks = formData.get('otherRemarks') as string
-  const photo_url = formData.get('photoUrl') as string
-
-  if (!student_id || !grade || !name_kh || !gender || !dob) {
+  const fields = studentFieldsFromForm(formData)
+  if (!fields) {
     return { error: 'សូមបំពេញព័ត៌មានដែលមានសញ្ញា * ឱ្យបានគ្រប់គ្រាន់!' }
   }
+  const { student_id, grade, name_kh } = fields
 
-  const row = {
-    teacher_id: user.id,
-    student_id,
-    grade,
-    name_kh,
-    name_en,
-    gender,
-    dob,
-    phone,
-    birth_province,
-    birth_district,
-    birth_commune,
-    birth_village,
-    curr_province,
-    curr_district,
-    curr_commune,
-    curr_village,
-    is_new_student,
-    is_repeater,
-    orphan_status,
-    is_disabled,
-    poor_status,
-    is_equity,
-    is_scholarship,
-    father_name,
-    father_job,
-    mother_name,
-    mother_job,
-    guardian_name,
-    guardian_job,
-    ethnicity,
-    special_features,
-    other_remarks,
-    photo_url
-  }
+  const row = { teacher_id: user.id, ...fields }
 
   if (scope.mode === 'legacy') {
     // Pre-V2 account: exactly the write this action always made. teacher_id
@@ -323,5 +318,166 @@ export async function importStudents(students: StudentImportRow[], classId?: str
   }, user.id)
 
   revalidatePath('/student-list')
+  return { success: true }
+}
+
+/* ===========================================================================
+ * EDITING A PUPIL
+ *
+ * Until this existed, no surface in the product could change a pupil's record —
+ * not the teacher app, not the admin console, not the parent portal. The only
+ * `students` update anywhere was `order_index`, for dragging the roster into
+ * order. A typo in a name could be fixed one way: delete the pupil and enter
+ * them again, which mints a NEW `students.id` and orphans every score,
+ * attendance row and enrolment attached to the old one.
+ *
+ * Meanwhile `/student-list` had shown a pencil on every row since it was built,
+ * pushing `/students/<id>?edit=true` — a parameter that page has never read.
+ *
+ * ── What an edit is NOT ────────────────────────────────────────────────────
+ *
+ * It does not move the pupil. `class_id` and `student_enrollments` are
+ * untouched here, because "a misplaced pupil is corrected by a transfer, not by
+ * an edit" is this product's rule and a transfer is a different operation with
+ * a different history. Nor does it change `teacher_id`: that is the ownership
+ * guard, and an update that could set it would be a hand-over dressed as an
+ * edit.
+ * ========================================================================= */
+
+/** The pupil's record as the enrolment form's own field names. */
+export interface StudentEditValues {
+  id: string
+  values: Record<string, string>
+}
+
+/**
+ * Load one pupil for editing.
+ *
+ * Owner-guarded with `teacher_id`, matching the RLS policy (`auth.uid() =
+ * teacher_id`) and the second-guard convention every write in this file
+ * follows. A subject teacher may READ a colleague's pupils — 00006 widens that
+ * deliberately — but editing one is not reading it, so this is narrower than
+ * the roster on purpose.
+ */
+export async function getStudentForEdit(
+  studentId: string,
+): Promise<{ student?: StudentEditValues; error?: string }> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'មិនមានសិទ្ធិ (Unauthorized)' }
+
+  const { data, error } = await supabase
+    .from('students')
+    .select('*')
+    .eq('id', studentId)
+    .eq('teacher_id', user.id)
+    .maybeSingle()
+
+  if (error) {
+    logger.error(error)
+    return { error: 'ទាញយកព័ត៌មានសិស្សមិនបានសម្រេច' }
+  }
+  if (!data) return { error: 'រកមិនឃើញសិស្សនេះ ឬអ្នកមិនមានសិទ្ធិកែព័ត៌មានទេ' }
+
+  const t = (v: unknown) => (typeof v === 'string' ? v : v === null || v === undefined ? '' : String(v))
+  const yn = (v: unknown) => (v === true ? YES : NO)
+
+  return {
+    student: {
+      id: data.id,
+      // Keyed by the FORM's names, not the column names — `formState.ts` owns
+      // that vocabulary and the reducer restores straight from it.
+      values: {
+        studentId: t(data.student_id),
+        grade: t(data.grade),
+        studentName: t(data.name_kh),
+        latinName: t(data.name_en),
+        gender: t(data.gender),
+        dob: t(data.dob),
+        phone: t(data.phone),
+        birthProvince: t(data.birth_province),
+        birthDistrict: t(data.birth_district),
+        birthCommune: t(data.birth_commune),
+        birthVillage: t(data.birth_village),
+        currProvince: t(data.curr_province),
+        currDistrict: t(data.curr_district),
+        currCommune: t(data.curr_commune),
+        currVillage: t(data.curr_village),
+        isNewStudent: yn(data.is_new_student),
+        isRepeater: yn(data.is_repeater),
+        orphanStatus: t(data.orphan_status),
+        isDisabled: yn(data.is_disabled),
+        poorStatus: t(data.poor_status),
+        isEquity: yn(data.is_equity),
+        isScholarship: yn(data.is_scholarship),
+        fatherName: t(data.father_name),
+        fatherJob: t(data.father_job),
+        motherName: t(data.mother_name),
+        motherJob: t(data.mother_job),
+        guardianName: t(data.guardian_name),
+        guardianJob: t(data.guardian_job),
+        ethnicity: t(data.ethnicity),
+        specialFeatures: t(data.special_features),
+        otherRemarks: t(data.other_remarks),
+        photoUrl: t(data.photo_url),
+      },
+    },
+  }
+}
+
+/**
+ * Save an edited pupil.
+ *
+ * The same field mapper `createStudent` uses, so the two paths write the same
+ * columns. No class, no enrolment, no `teacher_id` — see the block comment
+ * above for why each of those is excluded rather than merely unused.
+ */
+export async function updateStudent(
+  studentId: string,
+  formData: FormData,
+): Promise<ActionResult> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'មិនមានសិទ្ធិ (Unauthorized)' }
+
+  const fields = studentFieldsFromForm(formData)
+  if (!fields) {
+    return { error: 'សូមបំពេញព័ត៌មានដែលមានសញ្ញា * ឱ្យបានគ្រប់គ្រាន់!' }
+  }
+
+  /*
+   * `.select('id')` on the update, and a zero-row result treated as a refusal.
+   *
+   * The owner filter is applied by this query AND by RLS. Postgres reports a
+   * policy-blocked UPDATE as zero rows affected, not as an error — so without
+   * reading the result back, editing somebody else's pupil would return a
+   * success toast and change nothing.
+   */
+  const { data: updated, error } = await supabase
+    .from('students')
+    .update(fields)
+    .eq('id', studentId)
+    .eq('teacher_id', user.id)
+    .select('id')
+
+  if (error) {
+    logger.error(error)
+    return { error: friendlyDbError(error, 'single') }
+  }
+  if (!updated || updated.length === 0) {
+    return { error: 'រកមិនឃើញសិស្សនេះ ឬអ្នកមិនមានសិទ្ធិកែព័ត៌មានទេ' }
+  }
+
+  // Identity fields only, for the reason `student.created` gives: the trail
+  // says who changed which pupil, not a second copy of their family's details.
+  await auditLog({
+    action: 'student.updated', entityType: 'student', entityId: studentId, actorId: user.id,
+    newValue: { student_id: fields.student_id, name_kh: fields.name_kh, grade: fields.grade },
+  })
+
+  revalidatePath('/student-list')
+  revalidatePath(`/students/${studentId}`)
   return { success: true }
 }

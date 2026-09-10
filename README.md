@@ -1,10 +1,15 @@
 # KruSmart — ជំនួយការគ្រូបង្រៀនឌីជីថល
 
-A Khmer-language classroom management app for Cambodian primary and secondary school teachers. One teacher account = one class: student roster, attendance, scores, homework, and a large set of printable reports, certificates and ID cards.
+A Khmer-language classroom management app for Cambodian primary and secondary school teachers:
+student roster, attendance, scores, homework, and a large set of printable reports, certificates
+and ID cards.
 
 Built with Next.js 16 (App Router) + React 19, Tailwind v4, and Supabase for auth and Postgres.
 
 > All user-facing text is Khmer. Keep new strings in Khmer.
+
+**Working on this codebase?** [CLAUDE.md](CLAUDE.md) is the architecture reference and is far more
+detailed than this file — it explains *why* each rule exists. This README is the orientation.
 
 ---
 
@@ -16,199 +21,238 @@ cp .env.example .env.local   # then fill in your Supabase project values
 npm run dev                  # http://localhost:3000
 ```
 
-`/` redirects to `/dashboard`, which requires a session — you'll land on `/login`. Sign up there with email + password, then verify via the emailed OTP.
+`/` redirects to `/dashboard`, which requires a session — you'll land on `/login`. Sign up there
+with email + password, then verify via the emailed OTP. A brand-new teacher is routed into
+`/onboarding` to create their organisation, level, grade, class and first pupils.
 
 ### Scripts
 
 | Command | What it does |
 | --- | --- |
 | `npm run dev` | Next dev server |
-| `npm run build` | Production build (also where TypeScript errors surface — `tsc` is `noEmit`) |
+| `npm run build` | Production build (`prebuild` regenerates the report templates first) |
 | `npm start` | Serve the production build |
 | `npm run lint` | ESLint (flat config: `eslint-config-next` core-web-vitals + typescript) |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run verify` | The 31 offline verification harnesses |
+| `npm run verify:live` | ...plus the 3 that need a running local Supabase stack |
+| `npm run check` | lint + typecheck + verify, in that order |
+| `npm run build:templates` | Rebuild the .xlsx/.docx report templates from their source script |
 
-There is **no test framework configured**. Type checking happens through `npm run build`.
+### The harnesses are the test suite
+
+There is no Jest or Vitest. Instead `scripts/verify-*.mts` holds **34 harnesses** — 31 offline,
+3 opt-in — and they are the closest thing this repository has to tests. Each one pins a specific
+invariant that has been broken at least once: that marking progress is counted by one function
+for three screens, that a ranking sheet cannot disagree with the score sheet it derives from,
+that every A4 sheet declares its own ink, that no screen re-derives what an attendance mark
+means. `npm run verify` runs them concurrently and prints nothing on success.
+
+**A change that touches a shared rule should extend a harness, not just pass the existing ones.**
+
+`scripts/validate-rls.mjs` is separate again: it opens a real Postgres connection to a local
+Supabase stack and proves the row-level-security policies behaviourally — currently **64 checks**,
+including that a teacher of one school cannot reach another school's pupils. Run it with
+`supabase start && node scripts/validate-rls.mjs`.
 
 ### Environment
-
-`.env.local` needs exactly two variables:
 
 ```
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
+
+R2_ACCOUNT_ID=            # Cloudflare R2 — every uploaded image
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+R2_BUCKET_NAME=
+NEXT_PUBLIC_R2_PUBLIC_URL=
 ```
 
-There is no service-role key anywhere in the project. **Every** data path runs through RLS as the logged-in user, from both server and browser.
+The five R2 variables back every image upload; with them unset, uploads report a failure and
+everything else works. Four of them are server-only — an R2 access key in the browser bundle is
+an open write handle on the bucket.
+
+**There is no service-role key anywhere in the project.** Every data path runs through RLS as the
+logged-in user, from both server and browser. The only exceptions are a handful of
+`SECURITY DEFINER` functions, each keyed entirely on `auth.uid()`.
 
 ---
 
-## Features
+## Route trees
 
-The dashboard at `/dashboard` is a searchable grid of 26 tools:
-
-| Area | Routes |
-| --- | --- |
-| **Students** | `/enrollment` (បញ្ចូលព័ត៌មានសិស្ស), `/student-list` (បញ្ជីឈ្មោះសិស្ស), `/id-student` (បោះពុម្ពកាតសិស្ស), `/print-student-codes` (លេខកូដសិស្ស) |
-| **Attendance** | `/attendance/layout` (ចុះវត្តមានតាមប្លង់តុ — 3D seating view), `/attendance/monthly` (បញ្ជីវត្តមានប្រចាំខែ, with Khmer lunar dates) |
-| **Scores** | `/score/enter`, `/score/total`, `/ranking`, `/score-analyse`, `/score-analysis/subject`, `/honor-roll`, `/yearly-report` |
-| **Homework** | `/homework/enter`, `/homework/send` |
-| **Reports & printing** | `/parent-report`, `/certificate`, `/record-book`, `/student-tracking`, `/print-list`, `/print-student-age`, `/administration` |
-| **Classroom** | `/cleaning-schedule`, `/inventory`, `/decorations`, `/notifications` |
-| **Account** | `/profile`, `/tutorial`, `/team` |
-
----
-
-## Architecture
-
-### Three route trees
-
-| Tree | Purpose | Auth |
+| Tree | Purpose | Gate |
 | --- | --- | --- |
-| `app/(main)/` | The teacher app — the bulk of the code | Supabase email/password |
-| `app/admin/` | School-principal console with its own sidebar ([app/admin/layout.tsx](app/admin/layout.tsx)) | Same Supabase session |
-| `app/parent/` | Parent portal | **Stubbed** — `parent-login` fakes a 1s delay and routes to a hardcoded dashboard |
+| `app/(main)/` | The teacher app — 45 routes, the bulk of the code | Session via `proxy.ts`; the layout redirects parents away and sends never-set-up teachers to `/onboarding` |
+| `app/admin/` | School console — 11 routes (teachers, classes, enrolments, grading, audit logs, join requests) | `app/admin/layout.tsx` checks `getUserRoles()` + `isSchoolAdmin()` server-side before any child renders |
+| `app/parent/(portal)/` | Parent portal — 11 routes | **Real** Supabase auth plus a `parent_students` link (migration 00010) |
+| `app/login/` | Multi-role sign-in — universal plus per-role screens, workspace chooser, password reset | Public |
+| `app/onboarding/` | First-run wizard for a brand-new teacher | Own layout, deliberately outside `(main)` |
 
-`app/(main)/layout.tsx` is a bare wrapper. `<TopNav />` is imported by **individual pages**, not by the layout, so a new `(main)` page has to render it itself.
+`app/(main)/layout.tsx` is **not** a bare wrapper: it resolves the actor, redirects, and wraps
+everything in `SchoolContextProvider` → `TeacherContextProvider` → `AppShell`. A new `(main)` page
+must **not** render its own `<TopNav />`; the layout owns the chrome.
 
-In the admin sidebar, `/admin/users`, plus three `#` placeholders (គ្រប់គ្រងថ្នាក់រៀន, របាយការណ៍សាលា, សេចក្តីជូនដំណឹង), are not implemented yet.
+---
 
-### Auth and session
+## The three things to understand first
 
-- [proxy.ts](proxy.ts) is the Next.js 16 proxy (the file formerly known as `middleware.ts`). It delegates to `updateSession` in [lib/supabase/middleware.ts](lib/supabase/middleware.ts).
-- That helper deliberately calls **`getSession()` rather than `getUser()`** — the inline comment explains it avoids hitting the Supabase API on every route change, which caused free-tier rate limiting and random logouts. Don't "fix" this without understanding the tradeoff.
-- Public routes are exactly `/` and `/login`. Everything else redirects to `/login`.
-- Three Supabase client factories, all exported as `createClient` — pick by context:
-  - [lib/supabase/client.ts](lib/supabase/client.ts) — browser
-  - [lib/supabase/server.ts](lib/supabase/server.ts) — server components and actions (`await cookies()`)
-  - [lib/supabase/middleware.ts](lib/supabase/middleware.ts) — proxy only
-- [app/login/actions.ts](app/login/actions.ts) handles password login, signup and email-OTP verification; [app/auth/callback/route.ts](app/auth/callback/route.ts) handles the PKCE code exchange.
+### 1. Two scoping paths run at once
 
-### Page pattern
+The app began as one-teacher-per-class, with every table keyed on `teacher_id` and no classes
+table at all. Migrations 00003–00012 added the real structure — schools, academic years, grades,
+classes, subjects, assignments, enrolments, roles — **without removing the old path**. Accounts
+that predate it must keep working exactly as they did.
 
-Most `(main)` features are a trio of colocated files:
+So every scoped read picks its mode *from data, never from a flag*: **legacy** (`teacher_id`) when
+the user has no active assignments, **v2** (`class_id` + `academic_year_id`) when they do. Use
+`lib/utils/queryFilter.ts` on the client and `lib/utils/serverScope.ts` on the server; never
+hand-roll the choice.
 
-```
-app/(main)/<feature>/page.tsx             server component: createClient() → getUser() → redirect('/login') → fetch → pass initialX
-app/(main)/<feature>/<Feature>Client.tsx  "use client": all UI, editing, printing, export
-app/(main)/<feature>/actions.ts           'use server': mutations, re-check getUser(), then revalidatePath()
-```
+### 2. The active class travels in the URL
 
-[student-list/page.tsx](app/(main)/student-list/page.tsx) + [student-list/actions.ts](app/(main)/student-list/actions.ts) is the reference implementation. A handful of pages (`dashboard`, `enrollment`, `cleaning-schedule`, `team`, `tutorial`) are client-only and query Supabase straight from the browser.
+The selection lives in React state (`TeacherContext`) — **not** localStorage, because two tabs must
+not disagree about which class is being edited. A server component cannot read client state, so
+the class travels as `?class=<id>`, carried onto every link by `withClassParam` /
+`useClassHref` and read back by `ClassParamSync`.
 
-**Every query must be scoped by `.eq('teacher_id', user.id)`** even though RLS already enforces it. That's the convention here, and delete/update actions rely on it as a second guard.
+Each half of that chain fails **silently** if removed: the page renders, the numbers are real,
+they are simply another class's. `scripts/verify-class-context.mts` is what catches it.
 
-### Multi-tenancy
+None of this is authorization — `resolveServerScope` re-validates the id against the caller's own
+assignments on every request.
 
-Every table is keyed on `teacher_id → auth.users(id)` with four RLS policies of the form `auth.uid() = teacher_id`. **A "class" is a teacher account** — there is no classes table. The teacher's `user.id` doubles as the class code that `TopNav` copies to the clipboard for parents.
+### 3. One calculation, one source of truth
+
+The recurring defect in this codebase is one question answered two ways: a screen and the report
+it derives from disagreeing about an average, a rank, a placing, an attendance rate. The canonical
+layers live in `lib/scores/*`, `lib/grading/*`, `lib/attendance/status.ts` and
+`lib/reporting/report-data.ts`, and a harness pins each one.
+
+**A `parseFloat` in a `.tsx` that computes a result is the shape of that bug.**
 
 ---
 
 ## Data model
 
-Tables: `students`, `attendance`, `scores`, `settings`, `notifications`, `cleaning_schedules`, `seating_layout`, `homework_assignments`, `homework_scores`.
+`supabase/migrations/` is a real, ordered history — **33 migrations**, each with a header comment
+explaining its reasoning. Read the header before changing anything it touches.
+[lib/types.ts](lib/types.ts) carries a row type per table and follows the **live** schema.
 
-[lib/types.ts](lib/types.ts) carries a row type for each one, and follows the **live** schema rather than the SQL.
-
-### ⚠️ The SQL in `supabase/` is a stale snapshot, not the source of truth
-
-[supabase/migrations/00001_init.sql](supabase/migrations/00001_init.sql) is the canonical baseline; earlier partial snapshots sit in `supabase/legacy/` for reference and must not be applied. The live database has drifted from both — see [supabase/README.md](supabase/README.md) for the full list, including:
-
-- **`scores`** — code writes `score_period` and `score_value`; the SQL declares `month` and `score`. Upserts use `onConflict: 'student_id, subject, score_type, score_period'`.
-- **`attendance`** — live table has a `reason` column the SQL omits.
-- **`settings`** — code reads `photo_url`, `school_logo`, `director_name` and more, none of them in the SQL.
-- **`profiles`, `schools`, `teacher_attendance`** — used by [TopNav](components/TopNav.tsx) GPS check-in and `app/admin/teacher-attendance`, but have **no SQL file at all**.
-- **`homework_scores`** is defined in SQL but unused by the app.
-
-Verify columns against the live Supabase project before relying on these files, and expect to write the migration yourself when adding one.
+`supabase/legacy/` holds superseded partial snapshots — **do not apply them**, and treat
+`supabase/README.md` as describing the pre-V2 world.
 
 ### `scores` carries four different things
 
-Discriminated by `score_type` + `score_period`, all through the shared actions in [score/enter/actions.ts](app/(main)/score/enter/actions.ts):
+Discriminated by `score_type` + `score_period`, all through the shared actions in
+[score/enter/actions.ts](app/(main)/score/enter/actions.ts):
 
 | `score_type` | `score_period` format | Notes |
 | --- | --- | --- |
 | `monthly` | `` `${month}-${academicYear}` `` | |
-| `semester` | `` `${semester}-${academicYear}` `` | subject names prefixed `sem_` |
-| `annual` | `` `annual-${academicYear}` `` | |
-| `homework` | `` `${year}_${month}` `` | underscore, unlike the others; `homework/enter` imports `getScores`/`saveScores` from the score feature |
+| `semester` | `` `${semester}-${academicYear}` `` | column ids prefixed `sem_` |
+| `annual` | `` `annual-${academicYear}` `` | nothing in this app writes one — the annual result is derived |
+| `homework` | `` `${academicYear}_${monthId}` `` | underscore, unlike the other three |
 
-### State that never reaches Supabase
+Upserts use `onConflict: 'teacher_id, student_id, subject, score_type, score_period'`.
+`teacher_id` is part of the key on purpose: without it, two teachers on one class and subject
+would silently overwrite each other's marks.
 
-`localStorage` is the real store for several features:
+A cell may hold a number *or* a Khmer word, so route every read and write through
+[lib/utils/score-value.ts](lib/utils/score-value.ts).
 
-`inventoryItems` · `custom_subjects` (user-defined subjects shared by score entry and totals) · `seatingConfig` / `seatingLayout` · `ptec_last_tutorial_page` · `krusmart_students_cache`
+### "Subject" means three different things
 
-Changing a subject list or seating layout means touching localStorage keys, not the database.
+| Identifier | Names | Example | Lives in |
+| --- | --- | --- | --- |
+| `subject_key` | a **subject** in a template | `khmer_all` | `score_template_subjects.subject_key` |
+| `SubjectColumn.id` | a **column** within a subject | `kh_read` | **this, not `subject_key`, is what `scores.subject` stores** |
+| `subject_id` | a `public.subjects` row | UUID | legacy; read, never written |
 
----
+Confusing any two silently detaches marks. A mark written under `math_general` instead of
+`math_num` resolves in **no** grid.
 
-## Shared constants and utilities
+### Images live in Cloudflare R2
 
-`lib/` holds everything that more than one feature needs. These modules exist because the same code used to be copy-pasted across a dozen clients — **import them, don't redeclare them.**
+`students.photo_url`, `settings.photo_url` / `school_logo` / `director_seal` /
+`teacher_signature` and `homework_assignments.image_url` hold a **public CDN URL**, not the
+picture. Uploading is a server action ([lib/storage/actions.ts](lib/storage/actions.ts)) — never a
+browser-side S3 call. Reads must tolerate both shapes: rows written before this migration still
+hold `data:image/...;base64` payloads, and there is no backfill.
 
-```
-lib/
-├── constants/
-│   ├── months.ts      Khmer month names, calendar + academic-year orderings, Select options
-│   ├── academic.ts    getCurrentAcademicYear(), resolveCalendarYear(), FALLBACK_ACADEMIC_YEAR
-│   └── storage.ts     STORAGE_KEYS — every localStorage key the app uses
-├── storage/
-│   └── custom-subjects.ts   typed reader/writer for the `custom_subjects` store
-├── utils/
-│   ├── khmer-num.ts   toKhmerNumber() / fromKhmerNumber()
-│   ├── date.ts        calculateAge(), formatKhmerDate()
-│   ├── distance.ts    haversine distance for GPS check-in
-│   ├── logger.ts      dev-only console wrapper
-│   └── errors.ts      getErrorMessage() for `unknown` catch bindings
-├── supabase/          the three client factories
-├── data/              decoration catalog
-└── types.ts           row types for every table
-```
+### localStorage
 
-The Cambodian school year runs **November → October**, so month pickers use `MONTHS_BY_ACADEMIC_YEAR` while anything keyed on a real date uses `MONTHS_BY_CALENDAR`. Each `KhmerMonth` carries `id`, `label`, `num`, `index` and `isNextYear`.
+`localStorage` is a support mechanism, not a store for anything that matters. Never type a key as
+a literal — they are all in [lib/constants/storage.ts](lib/constants/storage.ts).
 
-## Shared UI components
-
-Dropdowns and pagination are centralized — **do not add a new native `<select>`, `<datalist>`, or hand-rolled pager.**
-
-| Component | Use for |
+| Key | Status |
 | --- | --- |
-| [components/ui/forms/Select.tsx](components/ui/forms/Select.tsx) | Short static option sets (month, semester, year, yes/no). Wraps a native `<select>` on purpose: correct keyboard/AT semantics and the OS picker on mobile. |
-| [components/ui/forms/SearchableSelect.tsx](components/ui/forms/SearchableSelect.tsx) | Long, async or searchable sets (locations, students, teachers, subjects). Custom listbox, portal-rendered. |
-| [components/ui/navigation/Pagination.tsx](components/ui/navigation/Pagination.tsx) | Any paged list. |
-| [components/ui/navigation/RowsPerPageSelect.tsx](components/ui/navigation/RowsPerPageSelect.tsx) | Page-size control (presentational; `Pagination` owns the wiring). |
-
-Both selects share [fieldStyles.ts](components/ui/forms/fieldStyles.ts) and take `options` as `string[]` or `{ value, label, disabled?, group? }[]`, `onChange(value: string)`, and `name` for native form submission. `variant="ghost"` drops the box for controls inside an already-framed header.
-
-`Pagination` has two modes: **URL** (`searchParams` + `basePath`, renders `<Link>`s, preserves every other query param) and **controlled** (`onPageChange`, for tables already holding rows in client state — what `student-list` does). Changing page size always returns to page 1.
-
-The only surviving native `<select>`s are the score-grid cells in `score/enter` and `score/total`, where hundreds render at once inside one table and a 44px control plus a portal per cell would be wrong on both layout and performance.
+| `seatingConfig` / `seatingLayout` | Live store for `/attendance/layout` |
+| `lastTutorialPage`, `studentsCache`, `enrollmentDraft`, `pendingLevel` | Live |
+| `inventoryItems` | Migrated to Postgres (00012); the reader survives only for a one-time import |
+| `customSubjects` | **Gone** — 00012 then 00027 moved it into `score_template_subjects` |
 
 ---
 
 ## Conventions
 
-- **Tailwind v4, CSS-first.** No `tailwind.config.*`. Theme tokens, brand colors (`#0054a6` / `#4facfe`), fonts, keyframes and the `.kh-moul` / `.animate-gradient-text` utilities all live in [app/globals.css](app/globals.css) under `@theme inline` / `@layer utilities`. Dark mode is class-based via `@custom-variant dark` + `next-themes`.
-- **Semantic tokens.** `globals.css` defines a light/dark-aware ramp — `bg-bg-surface`, `bg-paper`, `border-divider`, `text-text-heading` / `-body` / `-muted`, `bg-brand`, `text-brand-contrast`, `ring-focus-ring` — driven by CSS vars on `:root` / `.dark`. Use these in shared components instead of hard-coded hex or raw `gray-*` pairs.
-- **Khmer typography.** `Hanuman` for body text, `Moul` for display headings — apply display styling with the `kh-moul` class, not a font utility. `<html lang="km">`. Both are self-hosted through `next/font/google` in [app/layout.tsx](app/layout.tsx), which redeclares `--font-hanuman` / `--font-moul` on `<body>` with hashed family names; the literals in `globals.css` are only the fallback. The Tailwind utility is `font-hanuman` — there is no `font-kantumruy` any more, and a component must not re-declare `font-family: 'Hanuman'` locally, because that literal names a font nothing loads.
-- **Printing is a first-class feature.** ~12 clients call `window.print()` with an inline `@media print` block (`@page { size: A4 ... }`, `.no-print`, `.print-container`). Follow the existing block when adding a printable view. Excel export uses `xlsx-js-style`; PDF uses `html2pdf.js`.
-- **Read the docs before writing code.** Next.js 16 has breaking changes from earlier versions — consult `node_modules/next/dist/docs/` rather than relying on older App Router habits. See [AGENTS.md](AGENTS.md).
+- **Tailwind v4, CSS-first.** No `tailwind.config.*`. The brand ramp, semantic tokens, fonts and
+  keyframes all live in [app/globals.css](app/globals.css). Dark mode is class-based.
+- **Semantic tokens, not raw colours.** `bg-bg-surface`, `bg-paper`, `border-divider`,
+  `text-text-heading`/`-body`/`-muted`, `bg-brand`, `text-brand-contrast`, `bg-brand-soft` /
+  `text-brand-on-soft`, `text-danger-text`, `text-warning-text`, `ring-focus-ring`. The paired
+  tokens exist because the fill and the ink have to flip together for dark mode.
+- **Khmer typography.** `Hanuman` for body, `Moul` for display headings via the `kh-moul` class.
+  Never re-declare `font-family: 'Hanuman'` locally — that literal names a font nothing loads.
+- **Printing is a first-class feature.** ~21 screens print A4 sheets. The shell disappears via two
+  attributes (`data-app-chrome` → `display:none`, `data-app-frame` → `display:contents`), and a
+  sheet declares its own ground *and* ink through `.print-container` / `.print-sheet`. Keep both
+  contracts intact; `verify-documents.mts` fails if a sheet declares neither.
+- **Shared UI is shared.** Don't add a native `<select>`, a `<datalist>`, or a hand-rolled pager —
+  see `components/ui/`. The only surviving native selects are the score-grid cells, where hundreds
+  render at once inside one table.
+- **Read the docs before writing code.** Next.js 16 has breaking changes from earlier versions —
+  consult `node_modules/next/dist/docs/`. See [AGENTS.md](AGENTS.md).
 
 ### Notable dependencies
 
-`khmer-chhankitek-calendar` (Khmer lunar dates on the monthly attendance sheet) · `three` (3D classroom seating in `attendance/layout/ThreeClassroom.tsx`) · `recharts` (score analysis) · `react-hot-toast` (all user feedback; `Toaster` mounted in the root layout) · `lucide-react` (icons) · `next-themes`.
+`exceljs` + `easy-template-x` (filling .xlsx/.docx report templates) · `xlsx-js-style`
+(constructing sheets from nothing) · `khmer-chhankitek-calendar` (lunar dates on the monthly
+attendance sheet) · `three` (3D classroom seating) · `recharts` · `react-hot-toast` ·
+`lucide-react` · `next-themes` · `@aws-sdk/client-s3` (R2).
 
-### Static assets
+---
 
-- `public/introduction/` — standalone HTML tutorial pages loaded into `/tutorial`
-- `public/previews/` + [lib/data/decorations.ts](lib/data/decorations.ts) — classroom-decoration catalog (Google Drive links, no DB)
-- `public/id-templates/`, `public/models/`, `public/team/`, `public/locations.json`, `public/sample_data.xlsx`
+## Documentation
+
+| File | What it is |
+| --- | --- |
+| [CLAUDE.md](CLAUDE.md) | The architecture reference. Read this before changing anything shared. |
+| [AGENTS.md](AGENTS.md) | Next.js 16 caveats; re-written by `next dev`. |
+| [AUDIT.md](AUDIT.md) | The read-only audit the V2 migration was planned from. Historical — several findings are closed. |
+| `docs/phase0-ux-audit.md` … `docs/phase11-implementation.md` | The UX redesign programme: one audit plus eleven implementation records, each stating what was found, what was changed and what was deliberately left. |
+| `docs/score-system-design.md` | The grading model — levels, coefficients, schemes. |
+| `supabase/README.md` | Pre-V2. Verify against the migrations before relying on it. |
 
 ---
 
 ## Known gaps
 
-- The parent portal is a stub with a hardcoded dashboard — no real parent auth.
-- Several admin nav targets are unimplemented (`/admin/users` and three `#` links).
-- `app/(main)/attendance/layout/actions.ts` queries and upserts `attendance` **without** a `teacher_id` filter, on the basis of a code comment claiming the live table lacks that column. That contradicts the RLS policy and the convention everywhere else — worth verifying against the live database.
-- `npm run lint` and `tsc --noEmit` are both clean, and there is no `any` left in the codebase. Roughly 50 lines carry a targeted `eslint-disable-next-line` with a written reason — almost all of them `@next/next/no-img-element` (remote/user-uploaded images on print and PDF surfaces, where `next/image` breaks capture) and `react-hooks/set-state-in-effect` (async fetch-on-change, and reads of `localStorage` / the clock that cannot run during SSR). Moving those to server-side data loading is the real fix and is still open.
+- **Migration 00033 is not applied to every environment.** It closes a cross-tenant enrolment hole
+  and is proven behaviourally in a throwaway database; applying it is a `supabase db push`.
+- **Four status colours are still used as labels below 4.5:1 contrast** in light mode
+  (`text-success`, `text-danger`, `text-brand-500`, `text-gold`). Values and call-site counts are
+  in `docs/phase10-implementation.md` §4.
+- **The admin console has no dark-mode pass** — its cards are literal `bg-white`.
+- **Teacher profile and permissions** are missing from the admin console. A role editor grants and
+  revokes access and should be specified before it is built.
+- **`verify-ranking-live.mts`'s semester section** reuses the monthly subject keys, so it would
+  pass while the semester screen showed blanks. The fixture behind it writes semester marks under
+  monthly column ids.
+- **Accessibility is excellent where screens were rebuilt and thin where they were not.**
+  `/score/enter` is the model — live region, labelled grid, keyboard-first, 44px targets; the
+  older print screens have none of that.
+- `npm run lint` and `npm run typecheck` are clean and there is no `any` left. Roughly 73 lines
+  carry a targeted `eslint-disable-next-line` with a written reason — mostly
+  `@next/next/no-img-element` (remote images on print and PDF surfaces, where `next/image` breaks
+  capture) and `react-hooks/set-state-in-effect` (async fetch-on-change, and reads of the clock or
+  `localStorage` that cannot run during SSR).

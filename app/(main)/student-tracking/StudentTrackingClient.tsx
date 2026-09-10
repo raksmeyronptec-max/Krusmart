@@ -2,9 +2,10 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/actions/Button'
-import { ArrowLeft, Printer, Search, Users } from 'lucide-react'
-import Link from 'next/link'
+import { Printer, Search, Users } from 'lucide-react'
 import Select from '@/components/ui/forms/Select'
+import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
+import { ClassContextBar } from '@/components/shell/ClassContextBar'
 import type { Score, Settings, Student } from '@/lib/types'
 import { MONTH_OPTIONS_BY_NUM } from '@/lib/constants/months'
 import { letterFor } from '@/lib/grading/scheme'
@@ -92,7 +93,7 @@ export default function StudentTrackingClient({ initialStudents, scoresData, set
     }
 
     return (
-        <div className="min-h-screen bg-paper text-text-heading font-battambang pb-10 print:bg-white print:m-0 print:p-0">
+        <PageContainer className="text-text-heading font-battambang print:m-0 print:p-0">
             <style jsx global>{`
                 .font-battambang { font-family: 'Battambang', cursive; }
 
@@ -124,28 +125,30 @@ export default function StudentTrackingClient({ initialStudents, scoresData, set
                 
             `}</style>
 
-            <div className="no-print max-w-5xl mx-auto px-4 mt-8">
-                <div className="flex justify-between items-center mb-6">
-                    <Link href="/dashboard" className="inline-flex items-center gap-2 text-brand hover:text-brand-800 font-bold transition">
-                        <ArrowLeft className="w-5 h-5" /> ត្រឡប់ទៅទំព័រដើម
-                    </Link>
-                    
-                    <div className="flex gap-2 flex-wrap justify-end">
+            <div className="no-print">
+                {/* The back link is gone: `Breadcrumb` is the way back from
+                    every screen, and this one always pointed at the dashboard
+                    however the teacher arrived. */}
+                <PageHeader
+                    title="សៀវភៅតាមដានលទ្ធផលសិក្សា"
+                    description="មួយសន្លឹក A4 ក្នុងមួយសិស្ស — សម្រង់ពិន្ទុ និងវត្តមាន"
+                    actions={
                         <Button variant="success" printHidden={false} onClick={printAll}>
                             <Printer className="w-4 h-4" /> បោះពុម្ពសិស្សទាំងអស់
                         </Button>
-                    </div>
-                </div>
+                    }
+                />
+                <ClassContextBar />
 
-                <div className="bg-white/95 backdrop-blur border border-white/50 rounded-xl p-6 md:p-8 text-center shadow-lg">
-                    <h1 className="kh-moul text-xl md:text-2xl text-brand mb-8">បង្ហាញលទ្ធផលសិក្សាតាមសិស្ស (A4)</h1>
+                <div className="bg-bg-surface/95 backdrop-blur border border-divider rounded-xl p-6 md:p-8 text-center shadow-lg">
+                    <p className="kh-moul text-xl md:text-2xl text-brand mb-8">បង្ហាញលទ្ធផលសិក្សាតាមសិស្ស (A4)</p>
 
                     <div className="mb-8 flex justify-center">
                         <div className="inline-flex bg-paper border border-divider p-1.5 rounded-xl flex-wrap justify-center gap-1 shadow-sm">
-                            <button onClick={() => setReportType('monthly')} className={`px-6 py-2 rounded-xl font-bold transition flex items-center gap-2 ${reportType === 'monthly' ? 'bg-white shadow-sm text-brand' : 'text-text-muted hover:bg-paper'}`}>
+                            <button onClick={() => setReportType('monthly')} className={`px-6 py-2 rounded-xl font-bold transition flex items-center gap-2 ${reportType === 'monthly' ? 'bg-bg-surface shadow-sm text-brand' : 'text-text-muted hover:bg-paper'}`}>
                                 ប្រចាំខែ
                             </button>
-                            <button onClick={() => setReportType('semester')} className={`px-6 py-2 rounded-xl font-bold transition flex items-center gap-2 ${reportType === 'semester' ? 'bg-white shadow-sm text-brand' : 'text-text-muted hover:bg-paper'}`}>
+                            <button onClick={() => setReportType('semester')} className={`px-6 py-2 rounded-xl font-bold transition flex items-center gap-2 ${reportType === 'semester' ? 'bg-bg-surface shadow-sm text-brand' : 'text-text-muted hover:bg-paper'}`}>
                                 ប្រចាំឆមាស
                             </button>
                         </div>
@@ -187,9 +190,9 @@ export default function StudentTrackingClient({ initialStudents, scoresData, set
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-h-[450px] overflow-y-auto pr-2 pb-4">
                             {filteredStudents.map(student => (
-                                <div key={student.id} className="bg-white border border-divider rounded-xl p-4 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col justify-between" onClick={() => printStudent(student.id)}>
+                                <div key={student.id} className="bg-bg-surface border border-divider rounded-xl p-4 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col justify-between" onClick={() => printStudent(student.id)}>
                                     <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-brand-100 text-brand flex justify-center items-center font-bold text-lg shrink-0">
+                                        <div className="w-10 h-10 rounded-full bg-brand-soft text-brand-on-soft flex justify-center items-center font-bold text-lg shrink-0">
                                             {student.gender === 'ស្រី' || student.gender === 'F' ? 'ស' : 'ប'}
                                         </div>
                                         <div className="overflow-hidden">
@@ -222,7 +225,12 @@ export default function StudentTrackingClient({ initialStudents, scoresData, set
                     const studentScore = getStudentScoreData(student.id)
 
                     return (
-                    <div key={student.id} id={`print-content-${student.id}`} className="print-container bg-white w-[21cm] min-h-[29.7cm] mx-auto p-[1cm_1.2cm] relative page-break-after-always">
+                    <div key={student.id} className="preview-scroll">
+                    {/* One sheet per pupil, each a fixed 21cm. `preview-scroll`
+                        confines the overflow to the sheet so a phone does not
+                        scroll the whole page sideways; `globals.css` neutralises
+                        it under `@media print`, so pagination is unaffected. */}
+                    <div id={`print-content-${student.id}`} className="print-container w-[21cm] min-h-[29.7cm] mx-auto p-[1cm_1.2cm] relative page-break-after-always">
                         {/* Header Section */}
                         <div className="flex justify-between items-start mb-4">
                             <div className="text-center text-[13px] kh-moul leading-relaxed w-1/3 text-blue-900">
@@ -248,7 +256,10 @@ export default function StudentTrackingClient({ initialStudents, scoresData, set
 
                         {/* Title */}
                         <div className="text-center mb-4 text-[#1e40af]">
-                            <h1 className="kh-moul text-lg mb-1 tracking-wider">សៀវភៅតាមដានលទ្ធផលសិក្សារបស់សិស្ស</h1>
+                            {/* `h2`: the DOCUMENT's title. The page's own `h1`
+                                is in `PageHeader`, and two on one page leaves a
+                                screen reader with no single page title. */}
+                            <h2 className="kh-moul text-lg mb-1 tracking-wider">សៀវភៅតាមដានលទ្ធផលសិក្សារបស់សិស្ស</h2>
                             <div className="inline-block border-2 border-[#1e40af] px-4 py-1.5 rounded-lg font-bold text-sm bg-blue-50/50 shadow-sm">
                                 ថ្នាក់ទី {settings?.class_name || "១២ ក"} | ឆ្នាំសិក្សា {selectedYear}
                             </div>
@@ -322,9 +333,10 @@ export default function StudentTrackingClient({ initialStudents, scoresData, set
                         </div>
 
                     </div>
+                    </div>
                 )})}
             </div>
 
-        </div>
+        </PageContainer>
     )
 }

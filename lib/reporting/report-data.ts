@@ -11,9 +11,11 @@ import {
 } from '@/lib/utils/serverScope'
 import type { QueryScope } from '@/lib/utils/queryFilter'
 import { periodKeysForSemester } from '@/lib/scores/calendar'
-import { resolveTemplate } from '@/lib/scores/template'
+import { resolveTemplate, SYSTEM_PRIMARY_TEMPLATE, usesLevelCurriculum } from '@/lib/scores/template'
 import { applySelection } from '@/lib/scores/selection'
-import { assignRanks, numericColumnKeys, studentAverage } from '@/lib/scores/aggregate'
+import { assignRanks, periodDenominator, studentAverage } from '@/lib/scores/aggregate'
+import { placing } from '@/lib/scores/periodResults'
+import { markFor } from '@/lib/attendance/status'
 import { schemeForLevel } from '@/lib/grading/levelSchemes'
 import { gradeFor, type GradingSchemeConfig } from '@/lib/grading/scheme'
 import { scoreCellValue } from '@/lib/utils/score-value'
@@ -156,8 +158,14 @@ export interface MonthlyClassData {
   rosterIds: string[] | null
   teacherId: string
   scope: QueryScope
-  /** The numeric denominator this class's curriculum resolves to. */
-  numericKeys: string[]
+  /**
+   * The numeric denominator this class's curriculum resolves to.
+   *
+   * `readonly` because `periodDenominator` may hand back the shared
+   * `FALLBACK_NUMERIC_KEYS` constant itself — a caller that sorted or spliced it
+   * would corrupt the denominator for every other surface in the process.
+   */
+  numericKeys: readonly string[]
 }
 
 /**
@@ -190,15 +198,34 @@ async function resolveMonthlyClass(
       rosterIdsForScope(scope),
     ])
 
-  // The class's subjects — its template narrowed by what it teaches (00028),
-  // never a static list (§5). Not narrowed by role: a printed class document
-  // carries the class's whole curriculum whoever generates it, matching
-  // `/score/total`'s `classSubjects`.
+  /*
+   * The class's subjects — its template narrowed by what it teaches (00028),
+   * never a static list (§5). Not narrowed by role: a printed class document
+   * carries the class's whole curriculum whoever generates it, matching
+   * `/score/total`'s `classSubjects`.
+   *
+   * `SYSTEM_PRIMARY_TEMPLATE` when the query returns nothing, exactly as
+   * `useScoreTemplate` and `resolveServerTemplate` do. Without it a database
+   * where the curriculum seeds have not run resolved ZERO subjects here, and
+   * every report printed a blank sheet while the screens rendered normally.
+   */
+  const source = templateRows.length > 0 ? templateRows : SYSTEM_PRIMARY_TEMPLATE
   const effective = applySelection(
-    resolveTemplate(templateRows, options.scoreType ?? 'monthly', context),
+    resolveTemplate(source, options.scoreType ?? 'monthly', context),
     selection,
   )
-  const scheme = schemeForLevel(context?.levelKey ?? null)
+
+  /*
+   * WHICH CURRICULUM WORLD — and therefore which denominator and which scheme.
+   *
+   * This engine used to key both off `context.levelKey` alone, while every
+   * screen keys them off whether tagged rows actually RESOLVED. The two differ
+   * for a class whose level is set but whose curriculum has no seeded rows: the
+   * screens grade it /10 on the primary fallback, the reports graded it /50 on
+   * its level's scheme. A whole different scale, for the same pupils.
+   */
+  const levelCurriculum = usesLevelCurriculum(source, context)
+  const scheme = levelCurriculum ? schemeForLevel(context?.levelKey) : schemeForLevel(null)
 
   const subjects: ReportSubjectColumn[] = effective.flatMap((subject) =>
     subject.valueKind === 'text'
@@ -238,7 +265,9 @@ async function resolveMonthlyClass(
 
   // --------------------------------------------------------- the arithmetic
   const maxByColumn = Object.fromEntries(subjects.map((s) => [s.key, s.maxScore]))
-  const keys = numericColumnKeys(effective)
+  // The shared rule, the same call `/ranking` makes — so a ranking sheet and the
+  // screen it was generated beside count the same columns in both worlds.
+  const keys = periodDenominator(options.scoreType ?? 'monthly', effective, levelCurriculum)
 
   const computed = students.map((student) => {
     const scores = byStudent.get(student.id) ?? {}
@@ -339,7 +368,7 @@ export async function resolveScoreMonthly(
         'row.average': average === null ? null : Number(average.toFixed(2)),
         'row.grade': grade?.label ?? '',
         'row.letter': grade?.letter ?? '',
-        'row.rank': average === null ? '' : toKhmerNumber(c.rank),
+        'row.rank': (() => { const p = placing(c); return p === null ? '' : toKhmerNumber(p) })(),
       },
       subjectValues: data.subjects.map((subject) => {
         const raw = c.scores[subject.key]
@@ -419,7 +448,7 @@ export async function resolveRankingMonthly(
     return {
       values: {
         'row.no': toKhmerNumber(i + 1),
-        'row.rank': average === null ? '' : toKhmerNumber(c.rank),
+        'row.rank': (() => { const p = placing(c); return p === null ? '' : toKhmerNumber(p) })(),
         'row.name': c.student.name_kh || c.student.name_en || '',
         'row.gender': c.student.gender ?? '',
         'row.student_id': c.student.student_id ?? '',
@@ -487,7 +516,8 @@ async function fetchMonthlyAverages(
   academicYear: string,
   rosterIds: string[] | null,
   teacherId: string,
-  keys: string[],
+  // `readonly`: this may be the shared `FALLBACK_NUMERIC_KEYS` constant itself.
+  keys: readonly string[],
   maxByColumn: Record<string, number>,
   scheme: ReturnType<typeof schemeForLevel>,
 ): Promise<Record<string, Record<string, number>>> {
@@ -678,7 +708,7 @@ function semesterRowValues(
 
   return {
     'row.no': toKhmerNumber(index + 1),
-    'row.rank': average === null ? '' : toKhmerNumber(c.rank),
+    'row.rank': (() => { const p = placing(c); return p === null ? '' : toKhmerNumber(p) })(),
     'row.name': c.student.name_kh || c.student.name_en || '',
     'row.gender': c.student.gender ?? '',
     'row.student_id': c.student.student_id ?? '',
@@ -850,7 +880,7 @@ export async function resolveHonor(
         'row.letter': grade?.letter ?? '',
         // Supporting only — the honour list is not ordered by it and does not
         // depend on it.
-        'row.rank': average === null ? '' : toKhmerNumber(c.rank),
+        'row.rank': (() => { const p = placing(c); return p === null ? '' : toKhmerNumber(p) })(),
         'row.subjects': toKhmerNumber(c.verdict.markedSubjects),
       },
       subjectValues: base.subjects.map((subject) => {
@@ -1253,7 +1283,8 @@ function annualRowValues(
     'row.average': average === null ? null : Number(average.toFixed(2)),
     'row.grade': grade?.label ?? '',
     'row.letter': grade?.letter ?? '',
-    'row.rank': average === null ? '' : toKhmerNumber(c.rank),
+    // The annual result carries its average one level down.
+    'row.rank': (() => { const p = placing({ average, rank: c.rank }); return p === null ? '' : toKhmerNumber(p) })(),
     'row.status': annualStatusLabel(c.annual.status),
   }
 }
@@ -1271,13 +1302,25 @@ function annualRowValues(
  * nothing on the sheet. Folding it is the behaviour the other two already
  * agree on, so this makes two of three, not a fourth opinion.
  */
-const ATTENDANCE_MARK: Record<string, string> = { P: '✓', L: 'ច', A: 'អ', AP: 'អ' }
+/**
+ * The register character, and the kind of absence — both from the one
+ * vocabulary now, rather than from a local map and a local function.
+ *
+ * They used to disagree with each other **inside this file**: `absenceKind`
+ * folded `AP` into unexcused, while `resolveRecordBook` below counted `AP` as
+ * the excused half. `lib/attendance/status.ts` settles it — `AP` is a legacy
+ * spelling of `L`, so it is excused, and prints ច rather than អ. No stored row
+ * moves: nothing in this application has ever written `AP`.
+ */
+function attendanceMark(status: string): string {
+  return markFor(status)?.short ?? ''
+}
 
 /** Excused, unexcused, or neither. The only distinction the sheets tally. */
 function absenceKind(status: string): 'L' | 'A' | null {
-  if (status === 'L') return 'L'
-  if (status === 'A' || status === 'AP') return 'A'
-  return null
+  const mark = markFor(status)
+  if (!mark || mark.inClass) return null
+  return mark.excused ? 'L' : 'A'
 }
 
 /**
@@ -1382,7 +1425,7 @@ export async function resolveAttendanceMonthly(
         'row.unexcused': unexcused || null,
         'row.absent_total': excused + unexcused || null,
       },
-      subjectValues: columns.map((column) => ATTENDANCE_MARK[marks[column.key] ?? ''] ?? null),
+      subjectValues: columns.map((column) => attendanceMark(marks[column.key] ?? '') || null),
     }
   })
 
@@ -2122,15 +2165,22 @@ export async function resolveRecordBook(
   }
 
   for (const row of (attendanceRows ?? []) as { student_id: string; date: string; status: string }[]) {
-    // `AP` is an excused absence, `A` an unexcused one — the two statuses the
-    // attendance feature writes. Anything else is a presence and is not tallied.
-    if (row.status !== 'A' && row.status !== 'AP') continue
+    /*
+     * This used to read `A` and `AP` and describe them as "the two statuses the
+     * attendance feature writes". It writes neither of those as its excused
+     * mark: the register's ច្បាប់ button writes `L`, and nothing has ever
+     * written `AP`. So the excused column of every printed record book was
+     * structurally zero, and every permitted absence a teacher had recorded was
+     * skipped by the `continue` above — counted in neither column.
+     */
+    const mark = markFor(row.status)
+    if (!mark || mark.inClass) continue
     const semester = semesterByMonthNum.get(row.date.slice(5, 7))
     // A date outside every configured period is counted in neither half rather
     // than being forced into one — an invented tally is worse than a gap.
     if (!semester) continue
     const bucket = half(row.student_id, semester)
-    if (row.status === 'AP') bucket.excused += 1
+    if (mark.excused) bucket.excused += 1
     else bucket.unexcused += 1
   }
 

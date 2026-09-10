@@ -401,7 +401,7 @@ export function GenerateReportDialog({
                       <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${
                         c.eligible
                           ? 'bg-success/15 text-success'
-                          : 'bg-warning/15 text-warning'
+                          : 'bg-warning/15 text-warning-text'
                       }`}>
                         {c.statusLabel}
                       </span>
@@ -498,7 +498,7 @@ export function GenerateReportDialog({
                 លក្ខណៈវិនិច្ឆ័យ៖ {summary.criteriaLabel}
               </p>
               {summary.criteriaProvisional && (
-                <p className="mt-0.5 text-[11px] font-bold text-warning">
+                <p className="mt-0.5 text-[11px] font-bold text-warning-text">
                   លក្ខណៈវិនិច្ឆ័យនេះជាបណ្ដោះអាសន្ន — មិនមែនច្បាប់ផ្លូវការពីក្រសួងទេ។
                 </p>
               )}
@@ -506,7 +506,7 @@ export function GenerateReportDialog({
           )}
 
           {!loading && summary && !hasData && (
-            <p className="mt-2 flex items-center gap-1.5 text-[11px] text-warning">
+            <p className="mt-2 flex items-center gap-1.5 text-[11px] text-warning-text">
               <Users className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
               ថ្នាក់នេះមិនទាន់មានសិស្សទេ — ឯកសារនឹងចេញជាទម្រង់ទទេសម្រាប់បំពេញដោយដៃ។
             </p>
@@ -516,7 +516,7 @@ export function GenerateReportDialog({
               fixes it is one link away, and it is the score template that needs
               configuring, never the document template. */}
           {!loading && summary && hasData && summary.subjectCount === 0 && (
-            <p className="mt-2 text-[11px] text-warning">
+            <p className="mt-2 text-[11px] text-warning-text">
               មិនទាន់មានមុខវិជ្ជាក្នុងទម្រង់ពិន្ទុទេ — ជួរឈរមុខវិជ្ជានឹងទទេ។{' '}
               <Link
                 href={classId ? `/score/subjects?class=${encodeURIComponent(classId)}` : '/score/subjects'}

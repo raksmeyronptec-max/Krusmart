@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
-import { UserPlus, Printer, Trash2, Save, Search, LayoutGrid, List, Filter, Download } from 'lucide-react'
+import { UserPlus, Upload, Printer, Trash2, Save, Search, LayoutGrid, List, Filter, Download } from 'lucide-react'
 
 import { useConfirm } from '@/components/ui/overlay/ConfirmDialog'
 import { useIsClient } from '@/components/ui/overlay/useIsClient'
@@ -13,6 +13,7 @@ import { notify } from '@/components/ui/feedback/notify'
 import { EmptyState } from '@/components/ui/feedback/EmptyState'
 import Select from '@/components/ui/forms/Select'
 import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
+import { ClassContextBar } from '@/components/shell/ClassContextBar'
 import Pagination from '@/components/ui/navigation/Pagination'
 import { controlClass } from '@/components/ui/forms/fieldStyles'
 
@@ -309,9 +310,25 @@ export default function StudentTableClient({
                     <>
                         <Link
                             href={classHref("/enrollment")}
-                            className="flex min-h-11 items-center gap-2 rounded-lg bg-success px-4 text-[13px] font-bold text-white shadow-sm transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                            className="flex min-h-11 items-center gap-2 rounded-lg bg-success px-4 text-[13px] font-bold text-brand-contrast shadow-sm transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
                         >
                             <UserPlus className="h-4 w-4" aria-hidden="true" /> បញ្ចូលសិស្សថ្មី
+                        </Link>
+                        {/*
+                          Bulk import, from the roster.
+
+                          It has always existed, and only inside `/enrollment` —
+                          so a teacher looking at an empty class had to open the
+                          form for adding ONE pupil to discover the way to add
+                          forty. `?import=1` is the entry point that screen
+                          already reads on mount; this is a door to it, not a
+                          second importer.
+                        */}
+                        <Link
+                            href={classHref("/enrollment?import=1")}
+                            className="flex min-h-11 items-center gap-2 rounded-lg border border-divider bg-bg-surface px-4 text-[13px] font-bold text-text-body transition hover:border-brand-400 hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                        >
+                            <Upload className="h-4 w-4" aria-hidden="true" /> នាំចូលពី Excel
                         </Link>
                         <Link
                             href={classHref("/print-list")}
@@ -333,6 +350,10 @@ export default function StudentTableClient({
                     </>
                 }
             />
+
+            {/* Which roster this is. The header counts the pupils; this says whose. Self-gating: renders only on class-scoped routes,
+                and nothing at all for a pre-V2 account. */}
+            <ClassContextBar />
 
             {legacyRecoverableCount > 0 && recoverClassId && (
                 <RecoverRosterBanner count={legacyRecoverableCount} classId={recoverClassId} />
@@ -364,7 +385,7 @@ export default function StudentTableClient({
                         <Filter className="h-4 w-4" />
                         តម្រង
                         {activeFilterCount > 0 && (
-                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand text-[11px] text-white">
+                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand text-[11px] text-brand-contrast">
                                 {activeFilterCount}
                             </span>
                         )}
@@ -435,7 +456,7 @@ export default function StudentTableClient({
                                             maxAge: 25
                                         }); 
                                     }}
-                                    className="mt-4 rounded-lg bg-brand px-4 py-2 text-sm font-bold text-white transition hover:bg-brand-hover"
+                                    className="mt-4 rounded-lg bg-brand px-4 py-2 text-sm font-bold text-brand-contrast transition hover:bg-brand-hover"
                                 >
                                     លុបការស្វែងរក
                                 </button>
@@ -448,7 +469,7 @@ export default function StudentTableClient({
                             action={
                                 <Link
                                     href={classHref("/enrollment")}
-                                    className="flex min-h-11 items-center gap-2 rounded-lg bg-success px-6 text-sm font-bold text-white shadow-sm transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                                    className="flex min-h-11 items-center gap-2 rounded-lg bg-success px-6 text-sm font-bold text-brand-contrast shadow-sm transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
                                 >
                                     <UserPlus className="h-4 w-4" aria-hidden="true" /> ទៅកាន់ទំព័របញ្ចូលសិស្ស
                                 </Link>
@@ -484,7 +505,11 @@ export default function StudentTableClient({
                                         // pupil's own enrolment, so the class does
                                         // not travel here — the pupil is the scope.
                                         if (action === 'view') router.push(`/students/${s.id}`)
-                                        else if (action === 'edit') router.push(`/students/${s.id}?edit=true`)
+                                        // This used to push `?edit=true`, a parameter
+                                        // `/students/[id]` has never read: the pencil
+                                        // opened a read-only page and nothing else. It
+                                        // opens the enrolment form on this pupil now.
+                                        else if (action === 'edit') router.push(`/enrollment?student=${s.id}`)
                                         else if (action === 'delete') handleDelete(s)
                                     }}
                                 />

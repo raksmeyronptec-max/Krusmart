@@ -8,8 +8,9 @@ import { logger } from '@/lib/utils/logger'
 import { subjectProgress } from '@/lib/scores/completion'
 import { getErrorMessageOr } from '@/lib/utils/errors'
 import {
-  fetchScoreTemplate, resolveServerScope, rosterIdsForScope,
+  fetchClassSelection, fetchScoreTemplate, resolveServerScope, rosterIdsForScope,
 } from '@/lib/utils/serverScope'
+import { applySelection } from '@/lib/scores/selection'
 import {
   filterRowsForContext, resolveTemplate, SYSTEM_PRIMARY_TEMPLATE,
   type TemplateScoreType,
@@ -75,8 +76,9 @@ export async function getCollectionOverview(
   // Collection is a class-level view; a legacy account has no class to collect.
   if (scope.mode !== 'v2') return EMPTY
 
-  const [{ rows, context }, rosterIds, assignmentsRes, ctx] = await Promise.all([
+  const [{ rows, context }, selection, rosterIds, assignmentsRes, ctx] = await Promise.all([
     fetchScoreTemplate(scope),
+    fetchClassSelection(scope),
     rosterIdsForScope(scope),
     supabase
       .from('teacher_assignments')
@@ -88,7 +90,18 @@ export async function getCollectionOverview(
 
   const ids = rosterIds ?? []
   const source = rows.length > 0 ? filterRowsForContext(rows, context) : SYSTEM_PRIMARY_TEMPLATE
-  const subjects = resolveTemplate(source, scoreType, context)
+  /*
+   * Narrowed to what the class teaches, because this screen answers "which
+   * subjects still need marks" — a question about the entry grid, and the grid
+   * narrows. Unnarrowed it listed thirty-five subjects as outstanding for a
+   * class that teaches three, and the dashboard's bar, counted from the same
+   * function, could never pass 9%. Averages are the other question and still
+   * read the whole template; see `ServerGradingContext`.
+   *
+   * `applySelection` returns the full list for a class that has configured
+   * nothing, so an account that never opened `/score/subjects` is unchanged.
+   */
+  const subjects = applySelection(resolveTemplate(source, scoreType, context), selection)
 
   // One scores read for the whole class and period.
   //

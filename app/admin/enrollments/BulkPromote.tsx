@@ -93,7 +93,7 @@ export default function BulkPromote({ classes }: { classes: ClassOption[] }) {
         </Button>
       ) : (
         <div className="space-y-3 rounded-xl border border-warning/30 bg-warning/10 p-4">
-          <p className="text-sm font-bold text-warning">
+          <p className="text-sm font-bold text-warning-text">
             តើអ្នកពិតជាចង់ផ្លាស់ប្តូរសិស្សទាំងអស់ពី {from && label(from)} ទៅ {to && label(to)} មែនទេ?
           </p>
           <div className="flex gap-3">

@@ -2,13 +2,14 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/actions/Button'
-import { ArrowLeft, Image as ImageIcon, PenTool, ZoomIn, ZoomOut, Printer, Inbox } from 'lucide-react'
-import Link from 'next/link'
+import { Image as ImageIcon, PenTool, ZoomIn, ZoomOut, Printer, Inbox } from 'lucide-react'
 import Select from '@/components/ui/forms/Select'
 import type { Settings, Student } from '@/lib/types'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import { formatKhmerDate } from '@/lib/utils/date'
 import { notify } from '@/components/ui/feedback/notify'
+import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
+import { ClassContextBar } from '@/components/shell/ClassContextBar'
 
 /**
  * The student's place of birth, with the administrative-unit prefix stripped
@@ -91,7 +92,7 @@ export default function IdStudentClient({ initialStudents, settings }: { initial
     const schoolLogoUrl = settings?.school_logo || ''
 
     return (
-        <div className="bg-[var(--surface-muted)] min-h-screen text-[var(--text-heading)] font-battambang print:bg-bg-surface print:m-0 print:p-0">
+        <PageContainer className="font-battambang print:m-0 print:p-0">
             <style jsx global>{`
                 .font-battambang { font-family: 'Battambang', cursive; }
                 
@@ -144,19 +145,18 @@ export default function IdStudentClient({ initialStudents, settings }: { initial
                 }
             `}</style>
 
-            <nav className="bg-brand-900 text-white p-4 shadow-lg sticky top-0 z-50 no-print">
-                <div className="container mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <div className="flex items-center gap-3 w-full sm:w-auto">
-                        <Link href="/dashboard" className="hover:text-brand-300 transition-colors p-2 -ml-2 rounded-full hover:bg-bg-surface/10">
-                            <ArrowLeft className="w-6 h-6" />
-                        </Link>
-                        <h1 className="kh-moul text-lg">បោះពុម្ពកាតសិស្ស</h1>
-                    </div>
-                    
-                    <div className="flex flex-wrap items-center gap-2 sm:gap-4 w-full sm:w-auto text-sm">
-                        <div className="bg-bg-surface/10 flex items-center rounded overflow-hidden shadow-inner px-3 py-2 gap-2">
-                            <ImageIcon className="w-4 h-4" />
-                            <span className="hidden sm:inline">ផ្ទៃខាងក្រោយ:</span>
+            {/* The navy sticky bar this screen opened with sat under `TopNav`'s
+                own — two bands of chrome, and a back link the `Breadcrumb`
+                already provides. Its real controls are the header's actions. */}
+            <div className="no-print">
+                <PageHeader
+                    title="បោះពុម្ពកាតសិស្ស"
+                    description="កាតសម្គាល់សិស្ស សម្រាប់បោះពុម្ព និងកាត់ចែក"
+                    actions={
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm">
+                        <div className="flex items-center gap-2 rounded-lg border border-divider bg-bg-surface px-3 py-2">
+                            <ImageIcon className="w-4 h-4 text-brand" aria-hidden="true" />
+                            <span className="hidden sm:inline text-text-muted">ផ្ទៃខាងក្រោយ:</span>
                             <Select
                                 variant="ghost"
                                 ariaLabel="ផ្ទៃខាងក្រោយ"
@@ -167,19 +167,18 @@ export default function IdStudentClient({ initialStudents, settings }: { initial
                                     { value: '2_id-student.jpg', label: 'ទម្រង់ទី ២' },
                                     { value: '3_id_student.png', label: 'ទម្រង់ទី ៣ (Logo)' },
                                 ]}
-                                className="text-white [&>option]:text-text-heading"
                             />
                         </div>
 
-                        <div className="bg-bg-surface/10 flex items-center rounded overflow-hidden shadow-inner">
-                            <label className="cursor-pointer hover:bg-bg-surface/20 px-3 py-2 flex items-center gap-2 transition-colors border-r border-white/20">
-                                <PenTool className="w-4 h-4" /> <span className="hidden sm:inline">ហត្ថលេខា</span>
+                        <div className="flex items-center overflow-hidden rounded-lg border border-divider bg-bg-surface">
+                            <label className="cursor-pointer hover:bg-paper px-3 py-2 flex items-center gap-2 transition-colors border-r border-divider">
+                                <PenTool className="w-4 h-4 text-brand" aria-hidden="true" /> <span className="hidden sm:inline">ហត្ថលេខា</span>
                                 <input type="file" accept="image/*" className="hidden" onChange={uploadSignature} />
                             </label>
-                            <button onClick={() => zoomSignature(0.1)} className="hover:bg-bg-surface/20 px-3 py-2 transition-colors flex items-center" title="ពង្រីក (Zoom In)">
+                            <button onClick={() => zoomSignature(0.1)} className="hover:bg-paper px-3 py-2 transition-colors flex items-center" title="ពង្រីក (Zoom In)">
                                 <ZoomIn className="w-4 h-4" />
                             </button>
-                            <button onClick={() => zoomSignature(-0.1)} className="hover:bg-bg-surface/20 px-3 py-2 transition-colors flex items-center" title="បង្រួម (Zoom Out)">
+                            <button onClick={() => zoomSignature(-0.1)} className="hover:bg-paper px-3 py-2 transition-colors flex items-center" title="បង្រួម (Zoom Out)">
                                 <ZoomOut className="w-4 h-4" />
                             </button>
                         </div>
@@ -188,10 +187,12 @@ export default function IdStudentClient({ initialStudents, settings }: { initial
                             <Printer className="w-4 h-4" /> បោះពុម្ព
                         </Button>
                     </div>
-                </div>
-            </nav>
+                    }
+                />
+                <ClassContextBar />
+            </div>
 
-            <div className="container mx-auto max-w-5xl my-8 print:my-0 print:max-w-none">
+            <div className="print:my-0 print:max-w-none">
                 {initialStudents.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-16 text-text-muted bg-bg-surface rounded-xl shadow-sm no-print">
                         <Inbox className="w-16 h-16 mb-4 opacity-50" />
@@ -300,6 +301,6 @@ export default function IdStudentClient({ initialStudents, settings }: { initial
                     </div>
                 )}
             </div>
-        </div>
+        </PageContainer>
     )
 }

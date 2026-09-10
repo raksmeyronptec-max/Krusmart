@@ -73,7 +73,7 @@ export default function TeacherAttendancePage() {
               className="border border-divider rounded-lg px-3 py-2 text-sm font-bold text-text-body focus:outline-none focus:ring-2 focus:ring-focus-ring"
             />
 
-            <button className="bg-brand-100 hover:bg-brand-100 text-brand px-4 py-2 rounded-lg flex items-center gap-2 transition font-bold text-sm">
+            <button className="bg-brand-soft hover:bg-brand-soft/70 text-brand-on-soft px-4 py-2 rounded-lg flex items-center gap-2 transition font-bold text-sm">
               <Search className="w-4 h-4" /> ស្វែងរក
             </button>
           </div>
@@ -111,7 +111,7 @@ export default function TeacherAttendancePage() {
                         <XCircle className="w-3 h-3" /> {record.status}
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 bg-warning/10 text-warning px-2 py-1 rounded-full text-xs font-bold">
+                      <span className="inline-flex items-center gap-1 bg-warning/10 text-warning-text px-2 py-1 rounded-full text-xs font-bold">
                         {record.status}
                       </span>
                     )}
@@ -148,7 +148,7 @@ export default function TeacherAttendancePage() {
               <label className="block text-sm font-bold text-text-body mb-1">កាំអនុញ្ញាត (ម៉ែត្រ)</label>
               <input type="number" className="w-full border border-divider rounded-lg px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-focus-ring focus:outline-none" placeholder="ឧ. 100" defaultValue="100" />
             </div>
-            <button className="bg-brand hover:bg-brand-hover text-white w-full py-2.5 rounded-lg flex items-center justify-center gap-2 font-bold transition shadow-md mt-2">
+            <button className="bg-brand hover:bg-brand-hover text-brand-contrast w-full py-2.5 rounded-lg flex items-center justify-center gap-2 font-bold transition shadow-md mt-2">
               <Save className="w-5 h-5" /> រក្សាទុកទីតាំង
             </button>
           </div>

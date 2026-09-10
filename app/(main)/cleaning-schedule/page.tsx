@@ -9,16 +9,17 @@ import { notify } from '@/components/ui/feedback/notify'
 import { logger } from '@/lib/utils/logger'
 import type { CleaningGroups, CleaningLeaders, Student } from '@/lib/types'
 import { randomiseCleaningGroups } from '@/lib/utils/cleaning-random'
+import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
 
 /** The three class-committee slots. */
 type LeaderRole = keyof CleaningLeaders
 
 const days = [
-  { id: 'monday', name: 'ថ្ងៃច័ន្ទ', color: 'bg-warning/10', text: 'text-warning', border: 'border-warning/30' },
-  { id: 'tuesday', name: 'ថ្ងៃអង្គារ', color: 'bg-brand-100', text: 'text-brand', border: 'border-divider' },
+  { id: 'monday', name: 'ថ្ងៃច័ន្ទ', color: 'bg-warning/10', text: 'text-warning-text', border: 'border-warning/30' },
+  { id: 'tuesday', name: 'ថ្ងៃអង្គារ', color: 'bg-brand-soft', text: 'text-brand-on-soft', border: 'border-divider' },
   { id: 'wednesday', name: 'ថ្ងៃពុធ', color: 'bg-success/10', text: 'text-success', border: 'border-success/30' },
   { id: 'thursday', name: 'ថ្ងៃព្រហស្បតិ៍', color: 'bg-success/10', text: 'text-success', border: 'border-success/30' },
-  { id: 'friday', name: 'ថ្ងៃសុក្រ', color: 'bg-brand-100', text: 'text-brand', border: 'border-divider' },
+  { id: 'friday', name: 'ថ្ងៃសុក្រ', color: 'bg-brand-soft', text: 'text-brand-on-soft', border: 'border-divider' },
   { id: 'saturday', name: 'ថ្ងៃសៅរ៍', color: 'bg-danger/10', text: 'text-danger', border: 'border-danger/30' }
 ];
 
@@ -138,7 +139,7 @@ export default function CleaningSchedulePage() {
   };
 
   return (
-    <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6 relative pb-20">
+    <PageContainer className="relative space-y-6">
       {/* The toolbar's print button had no print stylesheet, so it printed the
           whole app chrome. A4 portrait, one table of the week's rota. */}
       <style jsx global>{`
@@ -155,18 +156,11 @@ export default function CleaningSchedulePage() {
       `}</style>
       
       {/* Top Header Section */}
-      <div className="no-print bg-bg-surface/60 backdrop-blur-md p-6 md:p-8 rounded-xl shadow-sm border border-divider mb-8">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between pb-6 border-b border-divider gap-4">
-              <div className="flex items-center gap-4">
-                  <div className="p-3.5 bg-gradient-to-br from-brand-100 to-brand-100 rounded-xl shadow-sm border border-white">
-                      <CalendarDays className="w-7 h-7 text-brand" />
-                  </div>
-                  <div>
-                      <p className="text-sm font-bold text-brand-500 mb-1">PTEC កម្មវិធីកត់ត្រា</p>
-                      <h1 className="kh-moul text-xl md:text-2xl bg-clip-text text-transparent bg-gradient-to-r from-brand-700 to-brand-500">រៀបចំវេនសម្អាតប្រចាំសប្ដាហ៍</h1>
-                  </div>
-              </div>
-              
+      <div className="no-print">
+          <PageHeader
+              title="រៀបចំវេនសម្អាតប្រចាំសប្ដាហ៍"
+              description="ចាត់វេនសម្អាតថ្នាក់រៀន និងបោះពុម្ពតារាងសម្រាប់បិទក្នុងថ្នាក់"
+              actions={
               <div className="flex flex-wrap gap-3">
                   <Button variant="success" printHidden={false} onClick={handleSave} disabled={saving}>
                       {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} រក្សាទុក
@@ -178,17 +172,18 @@ export default function CleaningSchedulePage() {
                       <Printer className="w-4 h-4" /> មើលតារាងបោះពុម្ព
                   </Button>
               </div>
-          </div>
+              }
+          />
 
           {/* Leaders Section */}
           <div className="mt-8">
               <h3 className="font-bold text-text-heading mb-4 flex items-center gap-2">
-                 <Crown className="w-5 h-5 text-warning" /> គណៈកម្មការថ្នាក់
+                 <Crown className="w-5 h-5 text-warning-text" /> គណៈកម្មការថ្នាក់
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5 bg-brand-100/50 p-5 rounded-xl border border-divider">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5 bg-brand-soft/50 p-5 rounded-xl border border-divider">
                   {(['pres', 'vp1', 'vp2'] as const).map((role) => (
                       <div key={role} className="relative group">
-                          <label className="block text-sm font-bold text-brand-800 mb-1.5 ml-1">
+                          <label className="block text-sm font-bold text-brand-on-soft mb-1.5 ml-1">
                              {role === 'pres' ? 'ប្រធានថ្នាក់' : role === 'vp1' ? 'អនុប្រធានទី១' : 'អនុប្រធានទី២'}
                           </label>
                           
@@ -199,7 +194,7 @@ export default function CleaningSchedulePage() {
                                         // eslint-disable-next-line @next/next/no-img-element -- user-uploaded/remote image on a print or avatar surface; next/image adds no value here and breaks print + PDF capture
                                         <img src={leaders[role].image} className="w-8 h-8 rounded-full object-cover border border-divider" alt="img" />
                                       ) : (
-                                        <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-brand font-bold">{leaders[role].name.charAt(0)}</div>
+                                        <div className="w-8 h-8 rounded-full bg-brand-soft flex items-center justify-center text-brand-on-soft font-bold">{leaders[role].name.charAt(0)}</div>
                                       )}
                                       <span className="text-sm font-bold text-text-body">{leaders[role].name}</span>
                                   </div>
@@ -220,7 +215,7 @@ export default function CleaningSchedulePage() {
                                   {searchKeys[role] && (
                                      <div className="absolute top-full left-0 z-50 w-full mt-1 bg-bg-surface border border-divider rounded-xl shadow-lg max-h-48 overflow-y-auto">
                                         {students.filter(s => s.name_kh.includes(searchKeys[role])).map(s => (
-                                          <div key={s.id} onClick={() => handleSelect(role, s)} className="p-2 hover:bg-brand-100 cursor-pointer flex items-center gap-2 border-b border-divider last:border-0 text-sm">
+                                          <div key={s.id} onClick={() => handleSelect(role, s)} className="p-2 hover:bg-brand-soft cursor-pointer flex items-center gap-2 border-b border-divider last:border-0 text-sm">
                                             {s.name_kh}
                                           </div>
                                         ))}
@@ -263,7 +258,7 @@ export default function CleaningSchedulePage() {
                                         )}
                                         <span className="text-sm font-bold text-text-body">{member.name}</span>
                                         {member.role && member.role !== 'សមាជិក' && (
-                                          <span className="rounded-full bg-brand-100 px-2 py-0.5 text-[10px] font-bold text-brand">{member.role}</span>
+                                          <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-bold text-brand-on-soft">{member.role}</span>
                                         )}
                                     </div>
                                     <button aria-label={`ដកចេញ ${member.name}`} onClick={() => handleRemove('group', day.id, member.id)} className="text-danger hover:text-danger">
@@ -285,7 +280,7 @@ export default function CleaningSchedulePage() {
                               {searchKeys[day.id] && (
                                  <div className="absolute bottom-full left-0 z-50 w-full mb-1 bg-bg-surface border border-divider rounded-xl shadow-lg max-h-48 overflow-y-auto">
                                     {students.filter(s => s.name_kh.includes(searchKeys[day.id])).map(s => (
-                                      <div key={s.id} onClick={() => handleSelect('group', s, day.id)} className="p-2 hover:bg-brand-100 cursor-pointer flex items-center gap-2 border-b border-divider last:border-0 text-sm">
+                                      <div key={s.id} onClick={() => handleSelect('group', s, day.id)} className="p-2 hover:bg-brand-soft cursor-pointer flex items-center gap-2 border-b border-divider last:border-0 text-sm">
                                         {s.name_kh}
                                       </div>
                                     ))}
@@ -299,7 +294,7 @@ export default function CleaningSchedulePage() {
       </div>
 
       {/* Printable roster */}
-      <div className="cleaning-print bg-bg-surface text-black">
+      <div className="cleaning-print print-sheet">
         <div className="mb-5 text-center">
           <h3 className="kh-moul text-[13pt]">ព្រះរាជាណាចក្រកម្ពុជា</h3>
           <h3 className="kh-moul text-[13pt]">ជាតិ សាសនា ព្រះមហាក្សត្រ</h3>
@@ -384,7 +379,7 @@ export default function CleaningSchedulePage() {
                     type="button"
                     onClick={() => toggleRandomDay(day.id)}
                     aria-pressed={on}
-                    className={`flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-sm font-bold transition ${on ? 'border-divider bg-brand-100 text-brand' : 'border-divider bg-bg-surface text-text-muted hover:border-divider'}`}
+                    className={`flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-sm font-bold transition ${on ? 'border-divider bg-brand-soft text-brand-on-soft' : 'border-divider bg-bg-surface text-text-muted hover:border-divider'}`}
                   >
                     {on && <Check className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
                     {day.name}
@@ -393,7 +388,7 @@ export default function CleaningSchedulePage() {
               })}
             </div>
 
-            <div className="rounded-xl bg-warning/10 px-4 py-3 text-xs text-warning">
+            <div className="rounded-xl bg-warning/10 px-4 py-3 text-xs text-warning-text">
               សិស្សដែលអាចចាត់តាំងបាន៖ <b>{students.length - [leaders.pres, leaders.vp1, leaders.vp2].filter(Boolean).length}</b> នាក់
               {randomDays.length > 0 && <> · ប្រហែល <b>{Math.ceil((students.length - [leaders.pres, leaders.vp1, leaders.vp2].filter(Boolean).length) / randomDays.length)}</b> នាក់ក្នុងមួយថ្ងៃ</>}
               <br />
@@ -416,6 +411,6 @@ export default function CleaningSchedulePage() {
         </div>
       )}
 
-    </div>
+    </PageContainer>
   );
 }

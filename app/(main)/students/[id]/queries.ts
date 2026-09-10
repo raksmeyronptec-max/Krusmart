@@ -9,6 +9,7 @@ import { enrolmentHistory, resolveStudentGradingContext, type EnrolmentRecord } 
 import { scoreNumericValue } from '@/lib/utils/score-value'
 import { subjectLabel } from '@/lib/constants/subjects'
 import { logger } from '@/lib/utils/logger'
+import { tallyAttendance } from '@/lib/attendance/status'
 import type { AttendanceRecord, Score, Student } from '@/lib/types'
 
 /**
@@ -53,9 +54,10 @@ export interface MonthAverage {
 export interface AttendanceSummary {
   present: number
   excused: number
+  /** Both kinds together — `excused` is the permitted share of it. */
   absent: number
   total: number
-  /** Present + excused over total, or null when nothing has been recorded. */
+  /** Days in class over days recorded, or null when nothing has been recorded. */
   rate: number | null
   /** Most recent marks first, capped — a log, not the full year. */
   recent: AttendanceRecord[]
@@ -192,19 +194,21 @@ export async function getStudentDetail(id: string): Promise<StudentDetail | null
     s.score_period.startsWith(`${academicYear}_`),
   )
 
-  const present = records.filter((r) => r.status === 'P').length
-  const excused = records.filter((r) => r.status === 'L').length
-  const absent = records.filter((r) => r.status === 'A').length
-  const total = records.length
+  /*
+   * Counted by the shared vocabulary rather than by three hand-written filters
+   * — those dropped `AP` on the floor, and folded ច្បាប់ into the numerator of
+   * the rate on the grounds that the child is not truant. Truancy and
+   * attendance are two different questions: `unexcused` answers the first,
+   * `rate` answers the second, and both are on the page.
+   */
+  const counted = tallyAttendance(records)
 
   const attendance: AttendanceSummary = {
-    present,
-    excused,
-    absent,
-    total,
-    // `L` is ច្បាប់ — an authorised absence. It counts as attending here for the
-    // same reason the dashboard counts it: the child is not truant.
-    rate: total ? Math.round(((present + excused) / total) * 1000) / 10 : null,
+    present: counted.present,
+    excused: counted.excused,
+    absent: counted.absent,
+    total: records.length,
+    rate: counted.rate,
     recent: records.slice(0, RECENT_LIMIT),
   }
 

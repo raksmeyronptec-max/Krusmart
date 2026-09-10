@@ -17,7 +17,7 @@ import {
 import { schemeForLevel } from '@/lib/grading/levelSchemes'
 import type { GradingSchemeConfig } from '@/lib/grading/scheme'
 import { EDUCATION_LEVELS } from '@/lib/onboarding/curriculum'
-import type { ClassSubjectSelection } from '@/lib/scores/selection'
+import { applySelection, type ClassSubjectSelection } from '@/lib/scores/selection'
 import { DEFAULT_CALENDAR, resolveCalendar, type ScorePeriod } from '@/lib/scores/calendar'
 import { getCurrentAcademicYear } from '@/lib/constants/academic'
 import type { ScoreCalendarPeriodRow, ScoreTemplateSubjectRow, Student, TeacherAssignment } from '@/lib/types'
@@ -510,7 +510,25 @@ export async function resolveServerTemplate(
 export interface ServerGradingContext {
   context: TemplateContext | null
   scheme: GradingSchemeConfig
+  /**
+   * The class's whole curriculum, NOT narrowed by its selection.
+   *
+   * Every average, rank, certificate and report reads this: narrowing a
+   * template must never narrow an average, or a class that stops teaching a
+   * subject would retroactively change last term's marks.
+   */
   subjects: EffectiveSubject[]
+  /**
+   * The subjects the class actually teaches — `subjects` narrowed by
+   * `class_template_subjects`, i.e. exactly what `/score/enter`'s grid offers.
+   *
+   * This is the denominator for "how far through marking am I", and it is a
+   * different question from the one `subjects` answers. Counting progress over
+   * the whole template tells a teacher of three subjects that thirty-two more
+   * are outstanding, and caps their bar at 9% for ever — the same shape as the
+   * `/ranking` divergence Phase 1 closed, one surface further on.
+   */
+  taughtSubjects: EffectiveSubject[]
   maxByColumn: Record<string, number>
   /** True when a level curriculum is in effect rather than the primary fallback. */
   levelCurriculum: boolean
@@ -520,6 +538,7 @@ function buildGradingContext(
   rows: ScoreTemplateSubjectRow[],
   context: TemplateContext | null,
   scoreType: TemplateScoreType,
+  selection: ClassSubjectSelection[] = [],
 ): ServerGradingContext {
   const source = rows.length > 0 ? rows : SYSTEM_PRIMARY_TEMPLATE
   const levelCurriculum = usesLevelCurriculum(source, context)
@@ -532,6 +551,9 @@ function buildGradingContext(
     // worse than either world.
     scheme: levelCurriculum ? schemeForLevel(context?.levelKey) : schemeForLevel(null),
     subjects,
+    // `applySelection` returns the full list when the class has configured
+    // nothing, so a legacy account's progress counts what it always did.
+    taughtSubjects: applySelection(subjects, selection),
     maxByColumn: maxScoreByColumn(subjects),
     levelCurriculum,
   }
@@ -544,8 +566,11 @@ export async function resolveServerGradingContext(
   scoreType: TemplateScoreType = 'monthly',
 ): Promise<ServerGradingContext> {
   const scope = await resolveServerScope(userId, requestedClassId)
-  const { rows, context } = await fetchScoreTemplate(scope)
-  return buildGradingContext(rows, context, scoreType)
+  const [{ rows, context }, selection] = await Promise.all([
+    fetchScoreTemplate(scope),
+    fetchClassSelection(scope),
+  ])
+  return buildGradingContext(rows, context, scoreType, selection)
 }
 
 /**

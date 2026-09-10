@@ -4,6 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { Search, Filter, Download, FileText, Monitor, Layout, File, X, Image as ImageIcon } from 'lucide-react';
 import { materialsData, DecorationMaterial } from '@/lib/data/decorations';
 import SearchableSelect from '@/components/ui/forms/SearchableSelect'
+import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
 
 const CATEGORIES = [
   "all",
@@ -39,15 +40,17 @@ export default function DecorationsClient() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-6">
-      {/* Header Section */}
-      <div className="text-center mb-10">
-        <h1 className="text-2xl md:text-4xl py-4 mb-3 kh-moul bg-gradient-to-r from-brand-700 via-blue-500 to-brand-700 bg-clip-text text-transparent">
-          សម្ភារៈតុបតែងថ្នាក់រៀន (PDF)
-        </h1>
-        <p className="text-text-muted mb-6">ទាញយកឯកសារសម្រាប់បោះពុម្ព និងតុបតែងថ្នាក់រៀនរបស់អ្នក</p>
-        
-        <div className="max-w-3xl mx-auto flex flex-col md:flex-row gap-4 relative">
+    <PageContainer className="space-y-6">
+      <PageHeader
+        title="សម្ភារៈតុបតែងថ្នាក់រៀន (PDF)"
+        description="ទាញយកឯកសារសម្រាប់បោះពុម្ព និងតុបតែងថ្នាក់រៀនរបស់អ្នក"
+      />
+
+      {/* The search sits under the title now rather than inside a centred
+          hero: the page is a catalogue, and a catalogue's control belongs
+          where every other list in the app keeps it. */}
+      <div className="mb-6">
+        <div className="flex flex-col gap-4 md:flex-row relative">
           <div className="relative flex-grow">
             <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-text-muted w-5 h-5" />
             <input
@@ -111,7 +114,7 @@ export default function DecorationsClient() {
                   <FileText className="w-4 h-4" /> 
                   {material.sizes.length} ជម្រើស
                 </span>
-                <span className="w-8 h-8 rounded-full bg-brand-100 text-brand flex items-center justify-center group-hover:bg-brand-hover group-hover:text-white transition-colors">
+                <span className="w-8 h-8 rounded-full bg-brand-soft text-brand-on-soft flex items-center justify-center group-hover:bg-brand-hover group-hover:text-white transition-colors">
                   <Download className="w-4 h-4" />
                 </span>
               </div>
@@ -175,7 +178,7 @@ export default function DecorationsClient() {
                       className="group relative overflow-hidden bg-bg-surface hover:bg-brand-hover border border-divider hover:border-brand p-4 rounded-xl flex items-center justify-between transition-all duration-300 shadow-sm hover:shadow-md"
                     >
                       <div className="flex items-center gap-4 relative z-10 group-hover:text-white transition-colors">
-                        <div className="p-2 bg-brand-100 group-hover:bg-brand/30 rounded-lg text-brand group-hover:text-white transition-colors">
+                        <div className="p-2 bg-brand-soft group-hover:bg-brand/30 rounded-lg text-brand-on-soft group-hover:text-brand-contrast transition-colors">
                           {getIconForSize(size.icon)}
                         </div>
                         <div>
@@ -198,6 +201,6 @@ export default function DecorationsClient() {
           </div>
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }

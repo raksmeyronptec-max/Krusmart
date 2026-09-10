@@ -20,10 +20,10 @@ export default async function AdminDashboardPage() {
   ])
 
   const cards = [
-    { label: 'សិស្សសរុប', value: toKhmerNumber(stats.students), icon: GraduationCap, tone: 'bg-brand-100 text-brand' },
+    { label: 'សិស្សសរុប', value: toKhmerNumber(stats.students), icon: GraduationCap, tone: 'bg-brand-soft text-brand-on-soft' },
     { label: 'គ្រូបង្រៀន', value: toKhmerNumber(stats.teachers), icon: Users, tone: 'bg-success/10 text-success' },
-    { label: 'ថ្នាក់រៀន', value: toKhmerNumber(stats.classes), icon: LayoutDashboard, tone: 'bg-brand-100 text-brand' },
-    { label: 'មុខវិជ្ជា', value: toKhmerNumber(stats.subjects), icon: BookOpenCheck, tone: 'bg-warning/10 text-warning' },
+    { label: 'ថ្នាក់រៀន', value: toKhmerNumber(stats.classes), icon: LayoutDashboard, tone: 'bg-brand-soft text-brand-on-soft' },
+    { label: 'មុខវិជ្ជា', value: toKhmerNumber(stats.subjects), icon: BookOpenCheck, tone: 'bg-warning/10 text-warning-text' },
     {
       label: 'អត្រាវត្តមាន',
       value: stats.attendanceRate === null ? '—' : `${toKhmerNumber(stats.attendanceRate)}%`,

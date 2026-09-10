@@ -287,9 +287,95 @@ check(
 )
 check('nested routes inherit their prefix', isClassScopedPath('/attendance/monthly'))
 
+// --------------------------------------------------------- 5. the context bar
+console.log('\n5. the class is NAMED on the pages that are about a class:')
+
+/**
+ * Resolving the class correctly and telling the teacher which one it is are two
+ * different properties, and Phase 0 found eleven screens with the first and not
+ * the second. `ClassContextBar` is the one presentation of it.
+ *
+ * The property worth pinning is not that the component exists — it is that it
+ * decides where to render from the SAME list `withClassParam` uses. A page that
+ * carries `?class=` in its URL and a page that names the class on screen must
+ * be the same set, or one of the two is lying about what it reads.
+ */
+const contextBar = read(join(root, 'components/shell/ClassContextBar.tsx'))
+/** Comments explain the rules; only executable code can break them. */
+// The `/*` must follow a delimiter or start a line — see the note in
+// scripts/verify-page-frame.mts about `accept="image/*"`.
+const contextBarCode = contextBar
+  .replace(/(^|[\s{;,()=>])\/\*[\s\S]*?\*\//g, '$1')
+  .replace(/^[ \t]*\/\/.*$/gm, '')
+
+check('the context bar gates on isClassScopedPath',
+  contextBarCode.includes('isClassScopedPath('),
+  'the route list is declared once, in lib/utils/classHref.ts')
+check('and declares no route list of its own',
+  !/\[\s*['"`]\//.test(contextBarCode) && !contextBarCode.includes('CLASS_SCOPED_ROUTES'),
+  'a second array of route prefixes is the drift this whole module exists to prevent')
+
+check('it is presentation only — it never writes the active class',
+  !contextBarCode.includes('setAssignmentId') &&
+  !contextBarCode.includes('useSelectActiveClass') &&
+  !contextBarCode.includes('syncFromClassId'),
+  'ClassContextSwitcher in TopNav is the one authoritative selector')
+check('and stores nothing of its own',
+  !contextBarCode.includes('useState') && !contextBarCode.includes('localStorage'),
+  'one active class, one source of truth')
+
+check('a legacy account gets no strip rather than an invented one',
+  contextBarCode.includes('isLegacy'),
+  'a pre-V2 account has no class entity; a label over an absence is worse than nothing')
+check('an unresolved grade prints an honest dash, never a derived number',
+  contextBarCode.includes('ថ្នាក់ទី —') && !contextBarCode.includes('className.match'),
+  'classes.name is free text by the time it reaches the client — deriving the grade back out is a guess')
+
+/**
+ * Grade reaches the client through the assignment read that was already
+ * happening, not through a second query or a new column.
+ */
+check('grade rides along on the existing assignment select',
+  teacherContext.includes('classes(name, grades(name, sort_order))'),
+  'a per-assignment grade lookup would be an N+1 in the provider that wraps every page')
+check('and is carried by the canonical grade column, sort_order',
+  teacherContext.includes('grade.sort_order'),
+  'the same invariant resolveClassTemplateContext relies on server-side')
+
+// ------------------------------------------------------- 6. homework/send
+console.log('\n6. publishing homework is about one class:')
+
+/**
+ * `/homework/send` was the last class-scoped workflow with no class at all: it
+ * read `.eq('teacher_id', …)` and nothing else, so a teacher holding two
+ * classes saw one merged list, and — because the parent-side policy matched on
+ * the teacher — an assignment written for ៥ក was readable by ៦ក's parents too.
+ */
+const hwActions = read(join(root, 'app/(main)/homework/send/actions.ts'))
+const hwPage = read(join(root, 'app/(main)/homework/send/page.tsx'))
+
+check('/homework/send is declared class-scoped', isClassScopedPath('/homework/send'))
+check('the page resolves the class server-side',
+  hwPage.includes('classIdFromSearchParams(') && hwPage.includes('resolveServerScope('))
+check('the actions re-validate it rather than trusting the caller',
+  (hwActions.match(/resolveServerScope\(/g) ?? []).length >= 2,
+  'a forged ?class= must resolve to the caller\'s own default, in the read AND the write')
+check('the class is stamped from the resolved scope, never from the payload',
+  hwActions.includes('class_id: scope.mode === \'v2\' ? scope.classId : null'),
+  'class_id is an address — it decides which parents may read the row (00032)')
+check('a legacy account still publishes without a class',
+  /scope\.mode === 'v2' \? scope\.classId : null/.test(hwActions),
+  'pre-V2 accounts keep exactly the reach they had')
+check('and its list is not filtered by a class it does not have',
+  /if \(scope\.mode === 'v2'\)/.test(hwActions),
+  'the legacy branch must fall through to the unscoped query it always ran')
+check('rows written before 00032 stay visible in every class',
+  hwActions.includes('class_id.is.null'),
+  'filtering them out would read as data loss')
+
 console.log(
   failures === 0
-    ? '\n✓ the active class travels: declared, defaulted and carried consistently.'
+    ? '\n✓ the active class travels: declared, defaulted, carried and named.'
     : `\n✗ ${failures} check(s) failed`,
 )
 process.exit(failures === 0 ? 0 : 1)

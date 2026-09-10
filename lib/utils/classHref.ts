@@ -62,6 +62,11 @@ export const CLASS_SCOPED_ROUTES: readonly string[] = [
   '/dashboard',
   '/enrollment',
   '/homework/enter',
+  // Spelled out beside `/homework/enter` rather than collapsing the two into a
+  // `/homework` prefix, for the reason `/score` is spelled out below: a future
+  // `/homework/something` that is not class-scoped must not inherit the
+  // parameter by accident.
+  '/homework/send',
   '/honor-roll',
   '/id-student',
   '/notifications',

@@ -4,6 +4,7 @@ import {
   CalendarCheck,
   BarChart3,
   BookMarked,
+  Trophy,
   FileBarChart,
   FolderOpen,
   School,
@@ -206,7 +207,18 @@ export const NAV_SECTIONS: NavSection[] = [
         alias: "attendance",
         permission: "attendance:view",
         children: [
-          { label: "ចុះវត្តមានតាមប្លង់តុ", href: "/attendance/layout", primary: true, alias: "seating layout attendance" },
+          /*
+           * Named for the JOB, not for one of the three ways of doing it.
+           *
+           * It read ចុះវត្តមានតាមប្លង់តុ — "check in by desk layout" — and it is
+           * the module's only visible entry, so the navigation advertised the
+           * seating plan as the mental model for taking a register. The screen
+           * itself has not worked that way since it grew a list view, which is
+           * its default and the only one that works on a phone; the brief is
+           * explicit that the seating interaction must stay a specialised mode.
+           * The URL is unchanged — the plan is still one tap inside.
+           */
+          { label: "ចុះវត្តមានប្រចាំថ្ងៃ", href: "/attendance/layout", primary: true, alias: "daily attendance register seating layout" },
           /*
            * The two attendance SHEETS now live in /print-center, where the rest
            * of the printable paperwork is. They keep their URLs and their pages
@@ -229,21 +241,71 @@ export const NAV_SECTIONS: NavSection[] = [
         id: "scores",
         label: "ពិន្ទុ",
         icon: BarChart3,
-        href: "/score/total",
-        alias: "score grade mark",
+        /*
+         * The module lands where the WORK is done, not where it is read.
+         *
+         * It used to open on `/score/total`. That is the same correction
+         * វត្តមាន already had — its front door was moved from the read-only
+         * monthly sheet to `/attendance/layout`, where the register is actually
+         * marked. A teacher who clicks ពិន្ទុ means to enter marks.
+         */
+        href: "/score/enter",
+        alias: "score grade mark enter",
         permission: "scores:view",
         children: [
-          { label: "តារាងពិន្ទុសរុប", href: "/score/total", primary: true, alias: "total score table" },
-          { label: "បញ្ចូលពិន្ទុ", href: "/score/enter", alias: "enter score" },
+          { label: "បញ្ចូលពិន្ទុ", href: "/score/enter", primary: true, alias: "enter score" },
+          { label: "តារាងពិន្ទុសរុប", href: "/score/total", alias: "total score table" },
           { label: "មុខវិជ្ជាតាមថ្នាក់", href: "/score/subjects", alias: "subjects template class" },
           // Redirects to /score/subjects — declared so the breadcrumb and the
           // sidebar highlight resolve during the redirect rather than blanking.
           { label: "មុខវិជ្ជាតាមថ្នាក់", href: "/score/template", hidden: true, alias: "score template" },
-          { label: "ការប្រមូលពិន្ទុ", href: "/score/collect", hidden: true, alias: "collect completion subject teacher" },
+          // A document, indexed in the Print Center. Declared so the breadcrumb
+          // names a module when a teacher arrives there from a card.
           { label: "តារាងពិន្ទុ (ទម្រង់ក្រសួង)", href: "/score/print", hidden: true, alias: "score print moeys" },
-          { label: "តារាងចំណាត់ថ្នាក់", href: "/ranking", hidden: true, alias: "ranking" },
-          { label: "វិភាគទិន្នន័យសរុប", href: "/score-analyse", alias: "score analyse" },
-          { label: "វិភាគតាមមុខវិជ្ជា", href: "/score-analysis/subject", alias: "subject analysis" },
+        ],
+      },
+      /*
+       * លទ្ធផល — the step of the teacher's journey that had no module.
+       *
+       * Ranking, completion, analysis and the honour roll are what a teacher
+       * reaches for once the marks are in, and until now three of the four were
+       * `hidden: true` children of ពិន្ទុ or របាយការណ៍ — reachable from a card
+       * or another screen, from no menu. Phase 0 found the whole RESULTS step of
+       * the journey (§6 of the brief) unrepresented in navigation while ពិន្ទុ
+       * carried nine children, four of them invisible.
+       *
+       * ── This is a grouping, not a second workspace ────────────────────────
+       *
+       * `SCORE_WORKSPACE_TABS` still spans both modules: entry and totals sit in
+       * ពិន្ទុ, ranking, completion and analysis here. That is deliberate and it
+       * is not a contradiction — the tab strip is the *within-task* navigation
+       * of one job spread over five screens, and the rail is the information
+       * architecture. A teacher moving between the five never leaves the strip;
+       * a teacher looking for "how did they do" now has somewhere to click.
+       *
+       * `/score/total` stays in ពិន្ទុ rather than moving here, even though it
+       * reads as a result: its twenty-nine-column matrix is EDITABLE, one
+       * toggle from the results table, so it is still a marking surface.
+       */
+      {
+        id: "results",
+        label: "លទ្ធផល",
+        icon: Trophy,
+        href: "/ranking",
+        alias: "results ranking honor analysis completion",
+        permission: "scores:view",
+        children: [
+          { label: "តារាងចំណាត់ថ្នាក់", href: "/ranking", primary: true, alias: "ranking" },
+          { label: "ការប្រមូលពិន្ទុ", href: "/score/collect", alias: "collect completion subject teacher" },
+          { label: "វិភាគទិន្នន័យ", href: "/score-analyse", alias: "score analyse analysis subject" },
+          { label: "តារាងកិត្តិយស", href: "/honor-roll", alias: "honor roll" },
+          /*
+           * `/score-analysis/subject` is a redirect to `/score-analyse` since
+           * the two analyses became two views of one screen. Declared `hidden`
+           * for the reason `/score/template` is: so `moduleForPath` resolves it
+           * and the breadcrumb names a module mid-redirect rather than blanking.
+           */
+          { label: "វិភាគតាមមុខវិជ្ជា", href: "/score-analysis/subject", hidden: true, alias: "subject analysis" },
         ],
       },
       {
@@ -272,19 +334,45 @@ export const NAV_SECTIONS: NavSection[] = [
           { label: "មជ្ឈមណ្ឌលរបាយការណ៍", href: "/print-center", primary: true, alias: "print center report document ergaya" },
           { label: "របាយការណ៍មាតាបិតា", href: "/parent-report", hidden: true, alias: "parent report" },
           { label: "លទ្ធផលប្រចាំឆ្នាំ", href: "/yearly-report", hidden: true, alias: "yearly report result" },
-          { label: "តារាងកិត្តិយស", href: "/honor-roll", hidden: true, alias: "honor roll" },
           { label: "សៀវភៅសិក្ខាគារិក", href: "/record-book", hidden: true, alias: "record book" },
           /*
-           * The principal's school-wide analytics view. Declared here rather
-           * than nowhere: it used to be reachable only from a tile in the
-           * dashboard's parallel feature list, so `moduleForPath` matched
-           * nothing and the breadcrumb rendered blank on the one screen in the
-           * app that had no other way back. Gated to a real administrator; the
-           * page redirects everyone else regardless.
+           * The principal's school-wide analytics view — DECLARED BUT NOT
+           * OFFERED.
+           *
+           * `AdministrationClient` renders `MOCK_SCHOOL_STATS`,
+           * `MOCK_TEACHERS` and `MOCK_TEACHER_DETAIL`. Its role gate is
+           * correct — the page resolves the actor and redirects a parent to
+           * their portal and a teacher to `/dashboard` — but a gate decides
+           * *who* may see the screen, never whether the numbers on it are
+           * real. Offering it in the rail meant a principal was handed a
+           * school-analytics dashboard that invents every figure it shows, and
+           * a plausible invented figure is worse than a missing screen: it is
+           * indistinguishable from a true one (Phase 0, P0-3).
+           *
+           * `hidden` rather than deleted, for two separate reasons:
+           *
+           *   - the route keeps working, so nothing that links to it breaks and
+           *     no bookmark 404s (the audit's rule 1 — routes do not move);
+           *   - `moduleForPath` still resolves it, so an administrator who
+           *     arrives by URL gets a breadcrumb instead of the blank one this
+           *     declaration was originally added to fix.
+           *
+           * The `permission` stays as well. `hidden` already keeps it out of
+           * every rendered surface, but the two say different things and the
+           * gate is the one that survives if the row is ever offered again.
+           *
+           * Phase 11 closed it by REDIRECTING rather than wiring. Of the six
+           * headline figures only two are computable, and `dropoutRisk` and the
+           * teacher-effectiveness radar are metrics this product has never
+           * defined; `/admin/dashboard` already renders the real school-wide
+           * counters behind the console's own gate. The row stays `hidden` and
+           * declared for the reason `/score/template`'s does — so the
+           * breadcrumb resolves while the redirect runs.
            */
           {
             label: "ផ្ទាំងវិភាគសាលា (នាយក)",
             href: "/administration",
+            hidden: true,
             alias: "administration school analytics principal",
             permission: "school_settings:view",
           },

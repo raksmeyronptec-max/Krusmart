@@ -60,7 +60,7 @@ export default function ResetPasswordPage() {
             </div>
             <Link 
                 href="/login"
-                className="btn-pulse w-full bg-brand hover:bg-brand-800 text-white font-bold py-3.5 rounded-lg transition shadow-md flex justify-center items-center"
+                className="btn-pulse w-full bg-brand hover:bg-brand-800 text-brand-contrast font-bold py-3.5 rounded-lg transition shadow-md flex justify-center items-center"
             >
                 ត្រឡប់ទៅទំព័រចូលគណនី
             </Link>
@@ -93,7 +93,7 @@ export default function ResetPasswordPage() {
             <button 
                 type="submit" 
                 disabled={isLoading || !isValidEmail}
-                className="btn-pulse w-full bg-brand hover:bg-brand-800 disabled:opacity-50 text-white font-bold py-3.5 rounded-lg transition shadow-md flex justify-center items-center mt-6"
+                className="btn-pulse w-full bg-brand hover:bg-brand-800 disabled:opacity-50 text-brand-contrast font-bold py-3.5 rounded-lg transition shadow-md flex justify-center items-center mt-6"
             >
                 {isLoading ? <Loader2 className="animate-spin w-5 h-5" /> : 'ផ្ញើតំណភ្ជាប់ (Send Link)'}
             </button>

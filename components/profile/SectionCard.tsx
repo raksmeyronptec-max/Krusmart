@@ -50,7 +50,7 @@ export default function SectionCard({
 
   const header = (
     <>
-      {icon && <span className="rounded-lg bg-brand-100 p-2 text-brand">{icon}</span>}
+      {icon && <span className="rounded-lg bg-brand-soft p-2 text-brand-on-soft">{icon}</span>}
       <h3 lang="km" className="kh-moul text-base leading-[1.9] text-text-heading sm:text-lg">
         {title}
       </h3>

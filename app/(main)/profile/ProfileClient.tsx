@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/client'
 import Select from '@/components/ui/forms/Select'
 import ConfirmDialog from '@/components/ui/overlay/ConfirmDialog'
 import { notify } from '@/components/ui/feedback/notify'
+import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
 import SectionCard from '@/components/profile/SectionCard'
 import StickySaveBar from '@/components/profile/StickySaveBar'
 import LocationCascade, { type LocationTree, type LocationValue } from '@/components/profile/LocationCascade'
@@ -694,7 +695,7 @@ export default function ProfileClient({
           {(form.specialized_subjects as string[]).length > 0 && (
             <ul className="mb-2 flex flex-wrap gap-1.5">
               {(form.specialized_subjects as string[]).map((subject) => (
-                <li key={subject} className="inline-flex items-center gap-1 rounded-full border border-brand/30 bg-brand-100 px-3 py-1.5 text-[13px] font-semibold leading-[1.7] text-brand">
+                <li key={subject} className="inline-flex items-center gap-1 rounded-full border border-brand/30 bg-brand-soft px-3 py-1.5 text-[13px] font-semibold leading-[1.7] text-brand-on-soft">
                   <span lang="km">{subject}</span>
                   <button
                     type="button"
@@ -728,7 +729,7 @@ export default function ProfileClient({
             <button
               type="button"
               onClick={() => addSubject(subjectInput)}
-              className="tap-target inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-lg border border-divider bg-bg-surface px-4 text-sm font-bold text-brand transition hover:bg-brand-100 focus-visible:ring-2 focus-visible:ring-focus-ring"
+              className="tap-target inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-lg border border-divider bg-bg-surface px-4 text-sm font-bold text-brand transition hover:bg-brand-soft focus-visible:ring-2 focus-visible:ring-focus-ring"
             >
               <Plus aria-hidden className="h-4 w-4" /> បន្ថែម
             </button>
@@ -849,7 +850,7 @@ export default function ProfileClient({
       {missingReportFields.length > 0 ? (
         <div className="rounded-lg border border-warning/40 bg-warning/10 p-4" role="region" aria-label="ព័ត៌មានខ្វះខាតសម្រាប់របាយការណ៍">
           <p lang="km" className="flex items-start gap-2 text-sm font-bold leading-[1.7] text-text-heading">
-            <TriangleAlert aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+            <TriangleAlert aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-warning-text" />
             របាយការណ៍នឹងបោះពុម្ពជាចំណុចៗ ដោយសារខ្វះ៖
           </p>
           <ul className="mt-2 flex flex-wrap gap-1.5">
@@ -971,7 +972,7 @@ export default function ProfileClient({
           <div className="rounded-lg border border-divider bg-paper p-4">
             <dt lang="km" className="text-[13px] font-bold leading-[1.7] text-text-body">អ៊ីមែល</dt>
             <dd className="mt-1 break-words text-sm text-text-heading">{email}</dd>
-            <dd lang="km" className={`mt-1 text-[12px] font-semibold leading-[1.7] ${emailVerified ? 'text-success' : 'text-warning'}`}>
+            <dd lang="km" className={`mt-1 text-[12px] font-semibold leading-[1.7] ${emailVerified ? 'text-success' : 'text-warning-text'}`}>
               {emailVerified ? '✓ បានផ្ទៀងផ្ទាត់' : 'មិនទាន់ផ្ទៀងផ្ទាត់'}
             </dd>
           </div>
@@ -1101,11 +1102,12 @@ export default function ProfileClient({
     const steps = ['អត្តសញ្ញាណ', 'សាលា និងរបាយការណ៍', 'រួចរាល់']
     return (
       <FormCtx.Provider value={formCtxValue}>
-      <div lang="km" className="mx-auto max-w-2xl px-4 py-10 text-text-heading">
-        <h1 className="kh-moul text-xl leading-[1.9]">សូមស្វាគមន៍! រៀបចំគណនីរបស់អ្នក</h1>
-        <p className="mt-1 text-sm leading-[1.7] text-text-muted">
-          បំពេញត្រឹម ២ ជំហានខ្លី — ព័ត៌មានផ្សេងទៀតអាចបំពេញពេលក្រោយបាន។
-        </p>
+      <PageContainer>
+      <div lang="km" className="mx-auto max-w-2xl text-text-heading">
+        <PageHeader
+          title="សូមស្វាគមន៍! រៀបចំគណនីរបស់អ្នក"
+          description="បំពេញត្រឹម ២ ជំហានខ្លី — ព័ត៌មានផ្សេងទៀតអាចបំពេញពេលក្រោយបាន។"
+        />
 
         <ol className="mt-6 flex items-center gap-2" aria-label="ជំហាន">
           {steps.map((label, i) => (
@@ -1207,6 +1209,7 @@ export default function ProfileClient({
 
         <div role="status" aria-live="polite" className="sr-only">{liveMessage}</div>
       </div>
+      </PageContainer>
       </FormCtx.Provider>
     )
   }
@@ -1215,16 +1218,19 @@ export default function ProfileClient({
 
   return (
     <FormCtx.Provider value={formCtxValue}>
+    {/*
+      The gradient band this page used to paint behind a white title is gone.
+      It was the only page in the app with its own hero, which is precisely the
+      seam Phase 2 closes: the title now reads the same as every other screen's,
+      in the same place, at the same size. Nothing but the decoration was lost —
+      the copy below it is unchanged and is now the header's description.
+    */}
+    <PageContainer className={anyDirty ? 'pb-32' : ''}>
     <div lang="km" className="relative text-text-heading">
-      <div aria-hidden className="absolute inset-x-0 top-0 z-0 h-[160px] bg-gradient-to-br from-[var(--brand)] to-[var(--brand-500)]" />
-
-      <div className={`relative z-10 mx-auto max-w-6xl px-4 py-8 ${anyDirty ? 'pb-32' : ''}`}>
-        <div className="mb-6 text-white">
-          <h1 className="kh-moul text-xl leading-[1.9] text-white/95">ព័ត៌មានគណនី</h1>
-          <p className="mt-0.5 text-sm leading-[1.7] text-white/80">
-            ព័ត៌មាននៅទំព័រនេះ បោះពុម្ពលើរបាយការណ៍ វិញ្ញាបនបត្រ និងឯកសារផ្លូវការទាំងអស់។
-          </p>
-        </div>
+      <PageHeader
+        title="ព័ត៌មានគណនី"
+        description="ព័ត៌មាននៅទំព័រនេះ បោះពុម្ពលើរបាយការណ៍ វិញ្ញាបនបត្រ និងឯកសារផ្លូវការទាំងអស់។"
+      />
 
         {/* Desktop tabs */}
         <div
@@ -1328,7 +1334,6 @@ export default function ProfileClient({
             </div>
           ))}
         </div>
-      </div>
 
       <StickySaveBar
         dirtyLabels={dirtySections.map((s) => SECTION_LABELS[s])}
@@ -1354,6 +1359,7 @@ export default function ProfileClient({
 
       <div role="status" aria-live="polite" className="sr-only">{liveMessage}</div>
     </div>
+    </PageContainer>
     </FormCtx.Provider>
   )
 }

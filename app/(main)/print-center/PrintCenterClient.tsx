@@ -692,7 +692,7 @@ function MetaLine({
         <span className="min-w-0">
           ទម្រង់ {availability.template.label}
           {availability.template.provenance === 'derived' && (
-            <span className="ml-1 text-warning">· ដកស្រង់</span>
+            <span className="ml-1 text-warning-text">· ដកស្រង់</span>
           )}
         </span>
       )}

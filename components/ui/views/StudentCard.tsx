@@ -42,7 +42,7 @@ export function StudentCard({ student, isSelected, onToggleSelect, onDelete, cla
   const badges = []
   if (student.is_new_student) badges.push({ label: 'សិស្សថ្មី', color: 'bg-brand/10 text-brand' })
   if (student.poor_status && student.poor_status !== 'គ្មាន') badges.push({ label: student.poor_status, color: 'bg-danger/10 text-danger' })
-  if (student.orphan_status && student.orphan_status !== 'ទេ') badges.push({ label: student.orphan_status, color: 'bg-warning/10 text-warning' })
+  if (student.orphan_status && student.orphan_status !== 'ទេ') badges.push({ label: student.orphan_status, color: 'bg-warning/10 text-warning-text' })
   if (student.is_disabled) badges.push({ label: 'ពិការ', color: 'bg-paper text-text-body' })
   if (student.is_equity) badges.push({ label: 'សមធម៌', color: 'bg-success/10 text-success' })
   if (student.is_scholarship) badges.push({ label: 'អាហារូបករណ៍', color: 'bg-brand-100 text-brand-800 dark:bg-brand-900/60 dark:text-brand-300' })
@@ -161,7 +161,7 @@ export function StudentCard({ student, isSelected, onToggleSelect, onDelete, cla
             <span className="text-[10px] font-medium">វត្តមាន</span>
           </Link>
           <Link href={`/score?student=${student.id}`} className="flex flex-col items-center gap-1 text-text-muted transition-colors hover:text-brand" aria-label="មើលពិន្ទុ">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-bg-surface group-hover:bg-brand-100 dark:group-hover:bg-brand-900/60">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-bg-surface group-hover:bg-brand-soft dark:group-hover:bg-brand-900/60">
               <TrendingUp className="h-4 w-4" />
             </div>
             <span className="text-[10px] font-medium">ពិន្ទុ</span>

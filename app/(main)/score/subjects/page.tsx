@@ -39,15 +39,9 @@ export default async function ScoreSubjectsPage({
     fetchClassSelection(scope),
   ])
 
-  let className = ''
-  if (scope.mode === 'v2') {
-    const { data } = await supabase
-      .from('classes')
-      .select('name')
-      .eq('id', scope.classId)
-      .maybeSingle()
-    className = data?.name ?? ''
-  }
+  // The class used to be fetched here so the header could spell it into its
+  // description. `ClassContextBar` states it from `TeacherContext` now, the way
+  // every other class-scoped screen does — so this page makes one query fewer.
 
   return (
     <ScoreSubjectsClient
@@ -55,7 +49,6 @@ export default async function ScoreSubjectsPage({
       initialSelection={selection}
       templateContext={context}
       classId={scope.mode === 'v2' ? scope.classId : null}
-      className={className}
     />
   )
 }

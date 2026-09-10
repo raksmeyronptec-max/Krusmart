@@ -296,7 +296,7 @@ export function ImportDialog({
 
           {(parsed.skipped.length > 0 || parsed.warnings.length > 0) && (
             <div className="rounded-lg border border-warning/30 bg-warning/5 p-3">
-              <p className="flex items-center gap-1.5 text-xs font-extrabold text-warning">
+              <p className="flex items-center gap-1.5 text-xs font-extrabold text-warning-text">
                 <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
                 ជួរដែលត្រូវកត់សម្គាល់
               </p>
@@ -330,7 +330,7 @@ function SummaryTile({ label, value, tone }: { label: string; value: number; ton
   const tones = {
     success: "border-success/30 bg-success/5 text-success",
     danger: "border-danger/30 bg-danger/5 text-danger",
-    warning: "border-warning/30 bg-warning/5 text-warning",
+    warning: "border-warning/30 bg-warning/5 text-warning-text",
   } as const
   return (
     <div className={`rounded-lg border p-3 text-center ${value === 0 ? "border-divider bg-paper text-text-muted" : tones[tone]}`}>

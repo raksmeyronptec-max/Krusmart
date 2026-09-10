@@ -71,6 +71,51 @@ export function numericColumnKeys(subjects: EffectiveSubject[]): string[] {
   return keys
 }
 
+/**
+ * WHICH COLUMNS COUNT — the one rule, for every surface that averages a period.
+ *
+ * ── Why this is a function and not an expression ──────────────────────────
+ *
+ * There are two curriculum worlds in this product and the denominator differs
+ * between them:
+ *
+ *   level curriculum   the class resolves rows tagged with its level (00021,
+ *                      00026, 00028 — every real primary or secondary class on
+ *                      a migrated database). The denominator IS the resolved,
+ *                      selection-narrowed curriculum.
+ *
+ *   untagged fallback  a pre-V2 account with no class, or a database where the
+ *                      curriculum seeds have not run. `resolveTemplate` then
+ *                      yields only 00016's fourteen untagged rows — SIXTEEN
+ *                      numeric monthly columns, against the TWENTY-NINE this
+ *                      application has always counted. Keying the denominator
+ *                      off the template there silently stops counting `sci_*`,
+ *                      `soc_*`, `pe_sport`, `health_hygiene`, `life_skill` and
+ *                      `foreign` — subjects a legacy teacher has real marks
+ *                      under. So the legacy list stays authoritative for the
+ *                      legacy world.
+ *
+ * ── What it closes ────────────────────────────────────────────────────────
+ *
+ * `/ranking` and `/score/total` applied this gate; `resolveMonthlyClass` — which
+ * backs `ranking_monthly`, `ranking_semester`, `ranking_annual` and every report
+ * composed from them — did not, and averaged a legacy class over sixteen columns
+ * while the screen beside it averaged over twenty-nine. Same class, same period,
+ * two answers, which is the defect the shared layer exists to prevent. Phase 1
+ * closed the *subject-set* half of that divergence and recorded this half as
+ * deliberately deferred; this is it.
+ *
+ * `subjects` must already be narrowed by `applySelection` — this decides which
+ * WORLD's denominator applies, never which subjects the class teaches.
+ */
+export function periodDenominator(
+  mode: 'monthly' | 'semester',
+  subjects: EffectiveSubject[],
+  levelCurriculum: boolean,
+): readonly string[] {
+  return levelCurriculum ? numericColumnKeys(subjects) : FALLBACK_NUMERIC_KEYS[mode]
+}
+
 export interface StudentPeriodResult {
   /** On the scheme's scale (/10 or /50), or null when nothing counted is marked. */
   average: number | null

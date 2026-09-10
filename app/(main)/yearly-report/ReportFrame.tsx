@@ -3,6 +3,8 @@
 import Link from 'next/link'
 import { ArrowLeft, Printer, FileSpreadsheet } from 'lucide-react'
 import { Button } from '@/components/ui/actions/Button'
+import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
+import { ClassContextBar } from '@/components/shell/ClassContextBar'
 import { useClassHref } from '@/lib/hooks/useClassHref'
 import type { Settings } from '@/lib/types'
 
@@ -43,7 +45,7 @@ export function ReportFrame({
   // The back link keeps the class this sheet was generated for.
   const classHref = useClassHref()
   return (
-    <div className="min-h-screen bg-paper text-text-heading pb-10 print:bg-white">
+    <PageContainer>
       <style jsx global>{`
         @media print {
           @page { size: A4 ${orientation}; margin: 10mm; }
@@ -54,15 +56,27 @@ export function ReportFrame({
         .report-table th { background-color: #f1f5f9; font-weight: 700; text-align: center; }
       `}</style>
 
-      <div className="no-print mx-auto mt-8 max-w-7xl px-4">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <Link
-            href={classHref('/yearly-report')}
-            className="inline-flex w-fit items-center gap-2 rounded-xl bg-bg-surface/50 px-4 py-2 font-bold text-brand shadow-sm backdrop-blur-sm transition hover:text-brand-800"
-          >
-            <ArrowLeft className="h-5 w-5" /> ត្រឡប់ទៅរបាយការណ៍ប្រចាំឆ្នាំ
-          </Link>
-          <div className="flex flex-wrap items-center gap-2">
+      {/*
+        The screen title and its controls, in the shared header.
+        `title` doubles as the document's own heading further down — the screen
+        says which page you are on, the sheet says which document it is, and the
+        two agreeing is the point rather than a duplication.
+
+        The back link stays: `Breadcrumb` resolves `/yearly-report/promoted` to
+        the របាយការណ៍ module, not to the hub page these three are reached from,
+        so it is the only way back to the cards that opened them.
+      */}
+      <PageHeader
+        title={title}
+        description={subtitle}
+        actions={
+          <>
+            <Link
+              href={classHref('/yearly-report')}
+              className="inline-flex min-h-11 w-fit items-center gap-2 rounded-lg border border-divider bg-bg-surface px-4 text-[13px] font-bold text-brand transition hover:border-brand-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" /> លទ្ធផលប្រចាំឆ្នាំ
+            </Link>
             {controls}
             {onExport && (
               <Button variant="secondary" printHidden={false} onClick={onExport} icon={<FileSpreadsheet className="h-4 w-4" />}>
@@ -72,11 +86,13 @@ export function ReportFrame({
             <Button printHidden={false} onClick={() => window.print()} icon={<Printer className="h-4 w-4" />}>
               បោះពុម្ព
             </Button>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
-      <div className="print-sheet mx-auto max-w-7xl bg-bg-surface p-6 shadow-lg print:bg-white md:p-10">
+      <ClassContextBar />
+
+      <div className="print-sheet mx-auto max-w-7xl p-6 shadow-lg md:p-10">
         <div className="mb-6 flex items-start justify-between">
           <div className="kh-moul text-[10pt] leading-relaxed" style={{ marginTop: '30pt' }}>
             <p>{settings?.management_unit_1 || 'មន្ទីរអប់រំ យុវជន និងកីឡា...'}</p>
@@ -116,7 +132,7 @@ export function ReportFrame({
           </div>
         </div>
       </div>
-    </div>
+    </PageContainer>
   )
 }
 

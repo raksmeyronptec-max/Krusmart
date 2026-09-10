@@ -25,7 +25,7 @@ import { toKhmerNumber } from "@/lib/utils/khmer-num"
 import { logger } from "@/lib/utils/logger"
 import type { StudentImportRow } from "@/lib/types"
 
-import { createStudent, importStudents } from "./actions"
+import { createStudent, getStudentForEdit, importStudents, updateStudent } from "./actions"
 import { ImportDialog } from "./ImportDialog"
 import {
   LocationField, PhotoPanel, ProgressRail, SectionCard, SectionChips, StatusGroup, TextField,
@@ -34,8 +34,12 @@ import {
   INITIAL_STATE, ORPHAN_OPTIONS, POOR_OPTIONS, SECTIONS, YES_NO,
   clearDraft, enrollmentReducer, getDraftSnapshot, getServerDraftSnapshot, isDirty,
   requiredProgress, sectionProgress, subscribeToDraft, toFormData, validateAll, writeDraft,
-  type FieldName, type SectionId,
+  type EnrollmentValues, type FieldName, type SectionId,
 } from "./formState"
+import { ClassContextBar } from '@/components/shell/ClassContextBar'
+import Link from 'next/link'
+import { EmptyState } from '@/components/ui/feedback/EmptyState'
+import { Skeleton } from '@/components/ui/feedback/Skeleton'
 
 type LocationTree = Record<string, Record<string, Record<string, string[]>>>
 
@@ -63,6 +67,22 @@ export default function EnrollmentPage() {
   // TeacherContext is still hydrating. The server re-validates whichever id is
   // sent against the caller's own assignments, so neither source is trusted.
   const activeClassId = urlSearchParams.get(CLASS_PARAM) ?? contextClassId
+  /*
+   * ── EDIT MODE ────────────────────────────────────────────────────────────
+   *
+   * `?student=<id>` turns this form into an editor for an existing pupil. It is
+   * the same form deliberately: thirty-odd fields across six sections, and a
+   * second copy of it on the profile page would be the drift `formState.ts`
+   * exists to prevent.
+   *
+   * Editing does NOT move the pupil — `updateStudent` touches no class and no
+   * enrolment row, because a misplaced pupil is corrected by a transfer.
+   */
+  const editingId = urlSearchParams.get('student')
+  const isEditing = Boolean(editingId)
+  const [loadingStudent, setLoadingStudent] = useState(isEditing)
+  const [loadError, setLoadError] = useState<string | null>(null)
+
   const [state, dispatch] = useReducer(enrollmentReducer, INITIAL_STATE)
   const { values, errors, sameAsBirth } = state
 
@@ -123,18 +143,44 @@ export default function EnrollmentPage() {
     return () => controller.abort()
   }, [])
 
+  useEffect(() => {
+    if (!editingId) return
+    let cancelled = false
+    getStudentForEdit(editingId).then((res) => {
+      if (cancelled) return
+      if (res.error || !res.student) {
+        setLoadError(res.error ?? 'រកមិនឃើញសិស្សនេះ')
+      } else {
+        // `restore` merges over INITIAL_VALUES, so a column the form does not
+        // carry cannot leave a stale value behind from a previous render.
+        dispatch({ type: 'load', values: res.student.values as Partial<EnrollmentValues> })
+      }
+      setLoadingStudent(false)
+    })
+    return () => { cancelled = true }
+  }, [editingId])
+
   /* ─── Draft: offered, never applied behind the teacher's back ─── */
 
   const storedDraft = useSyncExternalStore(subscribeToDraft, getDraftSnapshot, getServerDraftSnapshot)
-  // Hidden the moment the form has content of its own: restoring over typing
-  // would destroy it, and the autosave that follows is the teacher's own work.
-  const pendingDraft = dirty ? null : storedDraft
+  /*
+   * Hidden the moment the form has content of its own: restoring over typing
+   * would destroy it, and the autosave that follows is the teacher's own work.
+   *
+   * And never offered while EDITING. The draft is a half-finished *new* pupil;
+   * restoring it over somebody's real record would overwrite thirty fields with
+   * another child's details, and the teacher would be one Save from persisting
+   * it.
+   */
+  const pendingDraft = dirty || isEditing ? null : storedDraft
 
   useEffect(() => {
-    if (!dirty) return
+    // Nor is an edit written INTO the draft: the next teacher to open the form
+    // for a new pupil would be offered this one's record back.
+    if (!dirty || isEditing) return
     const timer = setTimeout(() => setSavedAt(writeDraft(values, sameAsBirth)), AUTOSAVE_DELAY_MS)
     return () => clearTimeout(timer)
-  }, [values, sameAsBirth, dirty])
+  }, [values, sameAsBirth, dirty, isEditing])
 
   useEffect(() => {
     if (!dirty) return
@@ -222,10 +268,12 @@ export default function EnrollmentPage() {
   }
 
   const confirmSave = async () => {
-    // No URL param and the context has not resolved yet: sending no class
-    // would let the server fall back to the homeroom assignment, silently
-    // filing the student into a class other than the one on screen.
-    if (!activeClassId && classLoading) {
+    /*
+     * The class check applies to CREATING only. An edit files nobody: it
+     * touches no class and no enrolment row, so waiting on `TeacherContext`
+     * here would block a correction for a reason that does not apply to it.
+     */
+    if (!isEditing && !activeClassId && classLoading) {
       setSubmitError("កំពុងផ្ទុកទិន្នន័យថ្នាក់ សូមរង់ចាំបន្តិច រួចព្យាយាមម្តងទៀត។")
       setShowConfirm(false)
       return
@@ -235,16 +283,24 @@ export default function EnrollmentPage() {
     try {
       // The active class travels as a parameter, same as deleteAllStudents:
       // the server validates it against the caller's own assignments.
-      const result = await createStudent(toFormData(values), activeClassId ?? undefined)
+      const result = editingId
+        ? await updateStudent(editingId, toFormData(values))
+        : await createStudent(toFormData(values), activeClassId ?? undefined)
       if (result?.error) {
         setSubmitError(result.error)
         setShowConfirm(false)
         return
       }
       leavingRef.current = true
-      clearDraft()
-      notify.success(`បានរក្សាទុក ${values.studentName} ដោយជោគជ័យ។`)
-      router.push(classHref("/student-list"))
+      if (!isEditing) clearDraft()
+      notify.success(
+        isEditing
+          ? `បានកែព័ត៌មាន ${values.studentName} ដោយជោគជ័យ។`
+          : `បានរក្សាទុក ${values.studentName} ដោយជោគជ័យ។`,
+      )
+      // Back to the pupil after an edit — the record you just changed — and to
+      // the roster after an enrolment, where the new pupil now appears.
+      router.push(editingId ? `/students/${editingId}` : classHref("/student-list"))
     } catch (error: unknown) {
       setSubmitError(`មានបញ្ហាក្នុងការរក្សាទុកទិន្នន័យ៖ ${getErrorMessage(error)}`)
       setShowConfirm(false)
@@ -299,10 +355,44 @@ export default function EnrollmentPage() {
 
   /* ─── Render ─── */
 
+  /*
+   * Editing needs the record before it can show a form. Rendering the empty one
+   * meanwhile would look exactly like a new-pupil form — and a teacher who
+   * started typing into it would be editing a real pupil while believing they
+   * were adding one.
+   */
+  if (isEditing && (loadingStudent || loadError)) {
+    return (
+      <PageContainer>
+        <PageHeader title="កែព័ត៌មានសិស្ស" />
+        {loadError ? (
+          <EmptyState
+            icon={<AlertCircle className="h-8 w-8" aria-hidden="true" />}
+            title="មិនអាចបើកព័ត៌មានសិស្សបានទេ"
+            description={loadError}
+            action={
+              <Link
+                href={classHref('/student-list')}
+                className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-divider bg-bg-surface px-4 text-[13px] font-bold text-brand transition hover:border-brand-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+              >
+                ត្រឡប់ទៅបញ្ជីឈ្មោះសិស្ស
+              </Link>
+            }
+          />
+        ) : (
+          <div className="space-y-3" role="status" aria-busy="true">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-64 w-full" />
+          </div>
+        )}
+      </PageContainer>
+    )
+  }
+
   return (
     <PageContainer>
       <PageHeader
-        title="ចុះឈ្មោះសិស្សថ្មី"
+        title={isEditing ? 'កែព័ត៌មានសិស្ស' : 'ចុះឈ្មោះសិស្សថ្មី'}
         /*
          * WHICH CLASS RECEIVES THIS PUPIL — said before the first field.
          *
@@ -311,10 +401,16 @@ export default function EnrollmentPage() {
          * tell which roster the pupil would land in, and a misplaced pupil is
          * corrected by a transfer, not by an edit. The class name is the
          * context's, so it is the same class `?class=` sends to the server.
+         *
+         * None of that applies to an EDIT, which files nobody — so it says what
+         * an edit actually does instead, rather than naming a class it will not
+         * write to.
          */
         description={
-          className
-            ? `សិស្សនឹងចូលក្នុងថ្នាក់ ${className} — បំពេញព័ត៌មានចាំបាច់ជាមុនសិន ហើយបន្ថែមព័ត៌មានលម្អិតតាមតម្រូវការ។`
+          isEditing
+            ? 'កែព័ត៌មានសិស្សដែលមានស្រាប់។ ការកែនេះមិនប្តូរថ្នាក់របស់សិស្សទេ — ការប្តូរថ្នាក់ធ្វើឡើងដោយការផ្ទេរ។'
+            : className
+            ? `សិស្សនឹងចូលក្នុងថ្នាក់ខាងក្រោម — បំពេញព័ត៌មានចាំបាច់ជាមុនសិន ហើយបន្ថែមព័ត៌មានលម្អិតតាមតម្រូវការ។`
             : 'បំពេញព័ត៌មានចាំបាច់ជាមុនសិន ហើយបន្ថែមព័ត៌មានលម្អិតតាមតម្រូវការ។'
         }
         actions={
@@ -338,6 +434,11 @@ export default function EnrollmentPage() {
           </>
         }
       />
+
+      {/* Which class receives the pupil. Load-bearing: a misplaced pupil is
+          corrected by a transfer, not by an edit — which is also why it is
+          absent while editing, where no class is written at all. */}
+      {!isEditing && <ClassContextBar />}
 
       {/* An offer, not a surprise: the old page restored silently and told the
           teacher it had loaded a draft that in fact held almost nothing. */}
@@ -438,7 +539,7 @@ export default function EnrollmentPage() {
               errorCount={sectionProgress(SECTIONS[1], values, errors).errorCount}
             >
               {locationsFailed && (
-                <p role="alert" className="mb-4 flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 p-3 text-sm text-warning">
+                <p role="alert" className="mb-4 flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 p-3 text-sm text-warning-text">
                   <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
                   មិនអាចផ្ទុកបញ្ជីទីតាំងបានទេ។ សូមពិនិត្យអ៊ីនធឺណិត ហើយផ្ទុកទំព័រឡើងវិញ។
                 </p>
@@ -581,7 +682,7 @@ export default function EnrollmentPage() {
                 {([
                   { key: "father", title: "ឪពុក", nameField: "fatherName", jobField: "fatherJob", tone: "bg-brand/10 text-brand" },
                   { key: "mother", title: "ម្តាយ", nameField: "motherName", jobField: "motherJob", tone: "bg-success/10 text-success" },
-                  { key: "guardian", title: "អាណាព្យាបាល", nameField: "guardianName", jobField: "guardianJob", tone: "bg-warning/10 text-warning" },
+                  { key: "guardian", title: "អាណាព្យាបាល", nameField: "guardianName", jobField: "guardianJob", tone: "bg-warning/10 text-warning-text" },
                 ] as const).map((group) => (
                   <div key={group.key} className="rounded-lg border border-divider bg-paper p-4">
                     <div className="mb-3 flex items-center gap-2">
@@ -675,15 +776,17 @@ export default function EnrollmentPage() {
       <ConfirmDialog
         open={showConfirm}
         tone="warning"
-        title="បញ្ជាក់ការរក្សាទុក"
-        confirmLabel="បញ្ជាក់រក្សាទុក"
+        title={isEditing ? "បញ្ជាក់ការកែព័ត៌មាន" : "បញ្ជាក់ការរក្សាទុក"}
+        confirmLabel={isEditing ? "បញ្ជាក់ការកែ" : "បញ្ជាក់រក្សាទុក"}
         cancelLabel="ពិនិត្យម្តងទៀត"
         loading={isSaving}
         onConfirm={confirmSave}
         onCancel={() => setShowConfirm(false)}
         message={
           <>
-            បង្កើតកំណត់ត្រាសិស្សសម្រាប់{" "}
+            {/* The dialog used to say "បង្កើត" (create) in both modes — the last
+                place on this screen that described an edit as an enrolment. */}
+            {isEditing ? "កែកំណត់ត្រាសិស្សសម្រាប់" : "បង្កើតកំណត់ត្រាសិស្សសម្រាប់"}{" "}
             <span className="font-extrabold text-text-heading">{values.studentName}</span>{" "}
             (អត្តលេខ {values.studentId}, ថ្នាក់ទី {values.grade})
             {age !== null && age >= 0 ? ` អាយុ ${toKhmerNumber(age)} ឆ្នាំ` : ""}?
