@@ -208,7 +208,14 @@ export default async function DashboardPage({
           }
           icon={UserCheck}
           tone={stats.attendanceRate === null ? 'warning' : 'success'}
-          href={href('/attendance/monthly')}
+          /*
+           * The tile says ថ្ងៃនេះ and មិនទាន់បានចុះវត្តមាន, so following it has to
+           * land where today can be recorded. It pointed at the monthly sheet,
+           * which is read-only — and the quick action directly beneath it
+           * already went to the register, so one screen offered both and the
+           * one attached to the number was the wrong one (Phase 12 F11/F9).
+           */
+          href={href('/attendance/layout')}
         />
         <StatCard
           label={stats.periodLabel ? `មធ្យមភាគ ${stats.periodLabel}` : 'មធ្យមភាគប្រចាំខែ'}

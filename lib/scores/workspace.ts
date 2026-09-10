@@ -147,6 +147,20 @@ export const SCORE_WORKSPACE_TABS: readonly ScoreWorkspaceTab[] = [
   { id: 'total', label: 'តារាងសរុប', href: '/score/total', carriesPeriod: true },
   { id: 'collect', label: 'ការប្រមូលពិន្ទុ', href: '/score/collect', carriesPeriod: false },
   { id: 'ranking', label: 'ចំណាត់ថ្នាក់', href: '/ranking', carriesPeriod: false },
+  /*
+   * The honour roll is a door, not a leaf.
+   *
+   * It was the only member of the លទ្ធផល module without this strip — no header,
+   * no `useClassHref`, no `href` of any kind — so a teacher who arrived could
+   * leave only through the sidebar or the browser's back button (Phase 12 F7).
+   * Its three siblings were all already here; it is the same question they
+   * answer, asked of a subset of the class.
+   *
+   * `carriesPeriod: false` for the reason `/ranking` and `/score-analyse` have
+   * it: the screen opens on a picker and holds its period in local state, so a
+   * `?mode=` would be a claim the address bar makes and the page ignores.
+   */
+  { id: 'honor', label: 'កិត្តិយស', href: '/honor-roll', carriesPeriod: false },
   { id: 'analysis', label: 'វិភាគ', href: '/score-analyse', carriesPeriod: false },
 ] as const
 

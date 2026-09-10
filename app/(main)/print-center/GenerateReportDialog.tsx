@@ -54,6 +54,8 @@ export function GenerateReportDialog({
   classId,
   className,
   academicYear,
+  initialPeriod = null,
+  initialSemester = null,
 }: {
   /** `null` closes the dialog. */
   report: ReportDefinition | null
@@ -61,9 +63,20 @@ export function GenerateReportDialog({
   classId: string | null
   className: string
   academicYear: string
+  /**
+   * The period a results screen handed over (Phase 13), when one did.
+   *
+   * `null` — every path except that hand-off — keeps the flow's own defaults,
+   * so nothing about opening a report from the index changed. The pair is
+   * applied only on the re-seed below, never as a controlled value: once the
+   * dialog is open the selector belongs to the teacher, and a prop that kept
+   * snapping the month back would make it look broken.
+   */
+  initialPeriod?: string | null
+  initialSemester?: 'sem1' | 'sem2' | null
 }) {
-  const [period, setPeriod] = useState('nov')
-  const [semester, setSemester] = useState('sem1')
+  const [period, setPeriod] = useState(initialPeriod ?? 'nov')
+  const [semester, setSemester] = useState<string>(initialSemester ?? 'sem1')
   const [templateId, setTemplateId] = useState('')
   const [summary, setSummary] = useState<{
     studentCount: number; subjectCount: number; average: number | null
@@ -115,6 +128,12 @@ export function GenerateReportDialog({
   const [seeded, setSeeded] = useState<string | null>(null)
   if (key !== seeded) {
     setSeeded(key)
+    // The hand-off period applies on open; after that the selectors are the
+    // teacher's. `?? 'nov'` rather than leaving the previous report's month in
+    // place — re-seeding is what stops one report's choice leaking into the
+    // next one's flow.
+    setPeriod(initialPeriod ?? 'nov')
+    setSemester(initialSemester ?? 'sem1')
     setSummary(null)
     setSheet(null)
     setSheetMissing(null)

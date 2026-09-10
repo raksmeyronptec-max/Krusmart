@@ -21,6 +21,7 @@ import { periodKeysForSemester } from '@/lib/scores/calendar'
 import { useScoreCalendar } from '@/lib/hooks/useScoreCalendar'
 import { getCurrentAcademicYear } from '@/lib/constants/academic'
 import { ScoreWorkspaceHeader } from '@/components/score/ScoreWorkspaceHeader'
+import { ResultDocumentLink } from '@/components/reporting/ResultDocumentLink'
 import { PageContainer } from '@/components/shell/PageContainer'
 
 /** A student decorated with the per-period scores and the derived ranking fields. */
@@ -358,13 +359,39 @@ function RankingClientInner({ initialStudents, settings }: RankingClientProps) {
                         description="ជ្រើសរើសវគ្គដើម្បីរៀបចំតារាងចំណាត់ថ្នាក់សិស្ស"
                         academicYear={academicYear}
                         actions={
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                                 <CalendarDays className="h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
                                 <Select
                                     ariaLabel="ឆ្នាំសិក្សា"
                                     value={academicYear}
                                     onChange={setAcademicYear}
                                     options={academicYearOptions}
+                                />
+                                {/*
+                                  ── The canonical ranking document ─────────
+                                  This screen renders a ranking sheet of its own
+                                  and can print it, and the engine holds
+                                  `ranking_monthly` / `_semester` / `_annual`
+                                  with real templates. Two productions of one
+                                  document, from two places that referenced each
+                                  other nowhere (Phase 12 F6): a teacher could
+                                  not tell which they were meant to use, or that
+                                  the other existed.
+
+                                  They are no longer equals. The Print Center is
+                                  the production path — versioned ministry
+                                  template, preview before paper, one .xlsx —
+                                  and this screen's own controls are named for
+                                  what they are, a quick print of what is on the
+                                  screen. Neither implementation was deleted and
+                                  no arithmetic is duplicated: both narrow their
+                                  subjects through the same
+                                  `applySelection(resolveTemplate(...))`.
+                                */}
+                                <ResultDocumentLink
+                                    surface="ranking"
+                                    period={{ scope: currentMode, monthId: currentPeriod, semester: currentPeriod === 'sem2' ? 'sem2' : 'sem1' }}
+                                    academicYear={academicYear}
                                 />
                             </div>
                         }
@@ -424,10 +451,23 @@ function RankingClientInner({ initialStudents, settings }: RankingClientProps) {
                 <div className="preview-scroll">
                 <div className="print-container w-[21cm] shrink-0 min-h-[29.7cm] mx-auto my-8 p-[0.8cm] shadow-xl border border-slate-200 relative text-blue-900">
                     <div className="no-print fixed top-6 right-6 flex flex-col gap-3 z-50">
-                        <button onClick={exportExcel} className="bg-emerald-600 text-white p-3.5 rounded-full shadow-lg shadow-emerald-200 hover:bg-emerald-700 hover:scale-110 transition-all flex items-center justify-center group" title="ទាញយក Excel">
+                        {/*
+                          First in the column, and the only gold control: the
+                          ministry ranking sheet, produced by the engine. The two
+                          below it act on THIS preview — named for that, so the
+                          three are no longer three equal claims to "the ranking
+                          document".
+                        */}
+                        <ResultDocumentLink
+                            shape="icon"
+                            surface="ranking"
+                            period={{ scope: currentMode, monthId: currentPeriod, semester: currentPeriod === 'sem2' ? 'sem2' : 'sem1' }}
+                            academicYear={academicYear}
+                        />
+                        <button onClick={exportExcel} className="bg-emerald-600 text-white p-3.5 rounded-full shadow-lg shadow-emerald-200 hover:bg-emerald-700 hover:scale-110 transition-all flex items-center justify-center group" title="ទាញយកអេក្រង់នេះជា Excel" aria-label="ទាញយកអេក្រង់នេះជា Excel">
                             <FileSpreadsheet className="w-6 h-6" />
                         </button>
-                        <button onClick={() => window.print()} className="group flex min-h-11 min-w-11 items-center justify-center rounded-full bg-brand p-3.5 text-brand-contrast shadow-lg transition-all hover:scale-110 hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring" title="បោះពុម្ភ" aria-label="បោះពុម្ភតារាងចំណាត់ថ្នាក់">
+                        <button onClick={() => window.print()} className="group flex min-h-11 min-w-11 items-center justify-center rounded-full bg-brand p-3.5 text-brand-contrast shadow-lg transition-all hover:scale-110 hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring" title="បោះពុម្ពអេក្រង់នេះ" aria-label="បោះពុម្ពអេក្រង់នេះ">
                             <Printer className="w-6 h-6" />
                         </button>
                         <button onClick={() => setShowPreview(false)} className="bg-slate-700 text-white p-3.5 rounded-full shadow-lg hover:bg-slate-800 hover:scale-110 transition-all flex items-center justify-center group" title="បិទ">

@@ -26,8 +26,8 @@ import { controlClass } from '@/components/ui/forms/fieldStyles'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 
 import {
-  REPORT_CATEGORIES, REPORT_DEFINITIONS,
-  type ReportCategory, type ReportDefinition, type ReportFormat,
+  REPORT_CATEGORIES, REPORT_DEFINITIONS, reportDefinition,
+  type ReportCategory, type ReportDefinition, type ReportFormat, type ReportType,
 } from '@/lib/reporting/report-types'
 import { withClassParam } from '@/lib/utils/classHref'
 import { reportAvailability, type ReportAvailability } from '@/lib/reporting/report-template'
@@ -129,6 +129,9 @@ export default function PrintCenterClient({
   gradeNumber,
   academicYear,
   initialCategory = null,
+  initialReport = null,
+  initialPeriod = null,
+  initialSemester = null,
 }: {
   classId: string | null
   className: string
@@ -142,10 +145,42 @@ export default function PrintCenterClient({
    * back would make those buttons look broken.
    */
   initialCategory?: ReportCategory | null
+  /**
+   * The report to open the generation flow on, from `?report=` (Phase 13).
+   *
+   * This is how a results screen hands over: a teacher who read ខែធ្នូ's ranking
+   * arrives with the ranking sheet's dialog already open on ខែធ្នូ, instead of
+   * re-choosing in the centre what they were just looking at.
+   *
+   * Still the *initial* value only, and still subject to `reportAvailability` —
+   * a report that cannot produce a file opens its family rather than a dialog
+   * over a row saying មិនទាន់មាន. Closing the dialog leaves the teacher on that
+   * family, which is a place to be rather than a dead end.
+   */
+  initialReport?: ReportType | null
+  /** The month id the flow should open on, when the report takes a month. */
+  initialPeriod?: string | null
+  /** The semester the flow should open on, when the report takes one. */
+  initialSemester?: 'sem1' | 'sem2' | null
 }) {
   const [category, setCategory] = useState<ReportCategory | null>(initialCategory)
   const [query, setQuery] = useState('')
-  const [generating, setGenerating] = useState<ReportDefinition | null>(null)
+  const [generating, setGenerating] = useState<ReportDefinition | null>(() => {
+    // Resolved once, during the first render, rather than in an effect: an
+    // effect would paint the index first and then drop a dialog over it, which
+    // reads as the page having changed its mind.
+    if (!initialReport) return null
+    const definition = reportDefinition(initialReport)
+    if (!definition) return null
+    return reportAvailability(definition).action === 'generate' ? definition : null
+  })
+  /*
+   * The handed-over period applies to the report that was handed over, and to
+   * nothing after it. Once the teacher opens a second report from the index
+   * they are choosing again, and re-seeding that dialog from a stale URL would
+   * silently print a month they did not pick.
+   */
+  const [handoff, setHandoff] = useState<ReportType | null>(initialReport)
   const searchId = useId()
 
   const searching = query.trim().length > 0
@@ -182,7 +217,10 @@ export default function PrintCenterClient({
     ? REPORT_CATEGORIES.filter((c) => c.id === category)
     : REPORT_CATEGORIES
 
-  const openGenerate = (report: ReportDefinition) => setGenerating(report)
+  const openGenerate = (report: ReportDefinition) => {
+    setHandoff(null)
+    setGenerating(report)
+  }
 
   return (
     <PageContainer>
@@ -336,6 +374,10 @@ export default function PrintCenterClient({
         classId={classId}
         className={className}
         academicYear={academicYear}
+        // Only for the report that was handed over from a results screen. Every
+        // other report opens on the flow's own defaults, as it always has.
+        initialPeriod={handoff && generating?.type === handoff ? initialPeriod : null}
+        initialSemester={handoff && generating?.type === handoff ? initialSemester : null}
       />
     </PageContainer>
   )

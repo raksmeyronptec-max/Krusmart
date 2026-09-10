@@ -22,6 +22,7 @@ import { Dialog } from '@/components/ui/overlay/Dialog'
 import { useConfirm } from '@/components/ui/overlay/ConfirmDialog'
 import { PageContainer } from '@/components/shell/PageContainer'
 import { ScoreWorkspaceHeader } from '@/components/score/ScoreWorkspaceHeader'
+import { ResultDocumentLink } from '@/components/reporting/ResultDocumentLink'
 import {
     SCORE_WORKSPACE_TABS, periodLabel as periodLabelFor, scopeLabel, workspaceTabHref,
     type ScorePeriodSelection,
@@ -989,6 +990,25 @@ export default function ScoreTotalClient({
                     ) : null
                 }
                 actions={<>
+                    {/*
+                      The arrow the results half of this product did not have
+                      (Phase 12 F5). A teacher who has read the totals wants the
+                      ministry sheet of them, and until now the only route was
+                      the sidebar plus knowing that score sheets live under
+                      មជ្ឈមណ្ឌលរបាយការណ៍.
+
+                      Which sheet is the RUNG's answer, not this screen's:
+                      ប្រចាំខែ produces `score_monthly`, ឆមាស `score_semester`,
+                      and ឆ្នាំ resolves to `annual_summary` because
+                      `score_annual` has no resolver and no template — see
+                      `lib/reporting/result-documents.ts`.
+                    */}
+                    <ResultDocumentLink
+                        surface="score_total"
+                        period={{ scope: currentMode, monthId: month, semester: semester === 'sem2' ? 'sem2' : 'sem1' }}
+                        academicYear={academicYear}
+                    />
+
                     <Button
                         variant={isEditLocked ? 'secondary' : 'warning'}
                         printHidden={false}

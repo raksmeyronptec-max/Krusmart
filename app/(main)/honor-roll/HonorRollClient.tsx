@@ -20,8 +20,9 @@ import { periodKeysForSemester } from '@/lib/scores/calendar'
 import { useScoreCalendar } from '@/lib/hooks/useScoreCalendar'
 import { getCurrentAcademicYear } from '@/lib/constants/academic'
 import type { ScoreScope } from '@/lib/scores/workspace'
-import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
-import { ClassContextBar } from '@/components/shell/ClassContextBar'
+import { PageContainer } from '@/components/shell/PageContainer'
+import { ScoreWorkspaceHeader } from '@/components/score/ScoreWorkspaceHeader'
+import { ResultDocumentLink } from '@/components/reporting/ResultDocumentLink'
 
 /** A student decorated with the per-period scores and the derived ranking fields. */
 type RankedStudent = Student & {
@@ -69,6 +70,27 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
 
     /** The class's own period calendar (00029) — never a compiled-in split. */
     const { calendar } = useScoreCalendar()
+
+    /**
+     * The period this screen is showing, in the two shapes it is asked for.
+     *
+     * `honorPeriod` goes to `resultDocument`, which decides WHICH report the
+     * link produces; `headerSelection` goes to the shared header, which says
+     * which rung the teacher is on. Both read the same two pieces of state, so
+     * the sentence in the header and the document behind the button describe
+     * one period.
+     */
+    const honorPeriod = useMemo(() => ({
+        scope: currentMode,
+        monthId: currentMode === 'monthly' ? currentPeriod : null,
+        semester: currentPeriod === 'sem2' ? ('sem2' as const) : ('sem1' as const),
+    }), [currentMode, currentPeriod])
+
+    const headerSelection = useMemo(() => ({
+        scope: currentMode,
+        monthLabel: MONTHS_BY_CALENDAR.find(m => m.id === currentPeriod)?.label ?? null,
+        semester: currentPeriod === 'sem2' ? ('sem2' as const) : ('sem1' as const),
+    }), [currentMode, currentPeriod])
 
     /** The current year plus one either side, so the list follows the calendar. */
     const academicYearOptions = useMemo(() => {
@@ -327,17 +349,36 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
                     <div className="bg-animate"></div>
                     <div className="no-print relative z-10">
                         {/*
-                          The page title, in the shared header. The card below
-                          keeps its gold rule and its award mark — those are the
-                          screen's character — but the heading that introduced
-                          the page now reads the same as every other screen's,
-                          in the same place.
+                          ── The way out ────────────────────────────────────
+                          This screen carried a `PageHeader` and a
+                          `ClassContextBar` and no link of any kind: it was the
+                          only member of the លទ្ធផល module without the workspace
+                          strip, so a teacher who arrived could leave only
+                          through the sidebar or the browser's back button
+                          (Phase 12 F7). It wears the same header its three
+                          siblings wear now, which is both the way out and — via
+                          `ResultDocumentLink` — the way on to the sheet.
+
+                          The `ClassContextBar` went with it, not in spite of
+                          R4 but because of it: `ScoreWorkspaceHeader` states
+                          class · grade · year itself, so a second strip beneath
+                          it would say the same three facts twice. Same reason
+                          `/score-analyse` carries none.
                         */}
-                        <PageHeader
+                        <ScoreWorkspaceHeader
                             title="តារាងកិត្តិយស"
                             description="សិស្សដែលបំពេញលក្ខខណ្ឌកិត្តិយសសម្រាប់វគ្គដែលបានជ្រើស"
+                            academicYear={academicYear}
+                            selection={headerSelection}
+                            monthId={currentMode === 'monthly' ? currentPeriod : undefined}
+                            actions={
+                                <ResultDocumentLink
+                                    surface="honor"
+                                    period={honorPeriod}
+                                    academicYear={academicYear}
+                                />
+                            }
                         />
-                        <ClassContextBar />
 
                         {loading && (
                             <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-bg-surface/80 backdrop-blur-sm">
@@ -399,7 +440,7 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
 
                             <div className="flex justify-center">
                                 <Button size="lg" printHidden={false} onClick={() => loadData(currentMode, currentPeriod)}>
-                                    <Printer className="w-5 h-5" /> មើលគំរូ និង បោះពុម្ភ
+                                    <Printer className="w-5 h-5" /> មើលគំរូ និង បោះពុម្ព
                                 </Button>
                             </div>
                         </div>
@@ -411,7 +452,19 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
                         sits inside the shell's content region, which already
                         fills the page. */}
                     <div className="fixed top-4 right-4 flex flex-col gap-3 z-50 no-print">
-                        <Button printHidden={false} onClick={() => window.print()} title="បោះពុម្ភ">
+                        {/*
+                          The honour SHEET, produced by the engine from the same
+                          `evaluateHonor` rule this screen applied — so the names
+                          on the paper and the names on the podium cannot differ.
+                          The button below prints this preview.
+                        */}
+                        <ResultDocumentLink
+                            shape="icon"
+                            surface="honor"
+                            period={honorPeriod}
+                            academicYear={academicYear}
+                        />
+                        <Button printHidden={false} onClick={() => window.print()} title="បោះពុម្ពអេក្រង់នេះ" aria-label="បោះពុម្ពអេក្រង់នេះ">
                             <Printer className="w-6 h-6" />
                         </Button>
                         <button onClick={() => setShowPreview(false)} className="bg-text-muted text-white p-3 rounded-full shadow-lg hover:opacity-90 hover:scale-105 transition" title="បិទ">

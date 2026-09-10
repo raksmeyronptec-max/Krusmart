@@ -12,6 +12,7 @@ import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import { STORAGE_KEYS } from '@/lib/constants/storage'
 import type { Student } from '@/lib/types'
 import { useClassHref } from '@/lib/hooks/useClassHref'
+import { ResultDocumentLink } from '@/components/reporting/ResultDocumentLink'
 
 export default function YearlyReportClient() {
   // Keeps the working class on the way out: a link from this screen to
@@ -112,9 +113,24 @@ export default function YearlyReportClient() {
       </div>
 
       {/* Main Menus */}
-      <h3 className="text-lg font-bold text-text-heading mb-4 flex items-center gap-2 mt-8">
-        <Folders className="w-5 h-5 text-brand" /> ប្រភេទរបាយការណ៍
-      </h3>
+      {/*
+        ── The year's result, and the year's paperwork ────────────────────
+        The seven cards below are all RESULTS — they open the screens where a
+        teacher reads how the year went. This link is the other half of the
+        sentence: the documents of it, in the centre that indexes every one.
+        Without it this hub answered "how did the year go" and had no answer to
+        "and how do I print it", which is Phase 12 F5 in the annual family.
+
+        It opens the yearly family's summary sheet, not a second generator:
+        `annual_summary` is the engine equivalent of the legacy `score_annual`
+        and prints the same figures, and its six siblings are rows beside it.
+      */}
+      <div className="mt-8 mb-4 flex flex-wrap items-center justify-between gap-3">
+        <h3 className="text-lg font-bold text-text-heading flex items-center gap-2">
+          <Folders className="w-5 h-5 text-brand" /> ប្រភេទរបាយការណ៍
+        </h3>
+        <ResultDocumentLink surface="annual" period={{ scope: 'annual' }} />
+      </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         

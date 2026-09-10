@@ -300,6 +300,33 @@ export const NAV_SECTIONS: NavSection[] = [
           { label: "វិភាគទិន្នន័យ", href: "/score-analyse", alias: "score analyse analysis subject" },
           { label: "តារាងកិត្តិយស", href: "/honor-roll", alias: "honor roll" },
           /*
+           * លទ្ធផលប្រចាំឆ្នាំ — a RESULT, filed under reports until now.
+           *
+           * `/yearly-report` is a hub over the year's outcome: its seven cards
+           * open `/score/total`, `/ranking`, `/score-analyse` and its own three
+           * decision sheets. Every one of those is a screen a teacher READS,
+           * which is what this module is for — and yet the module literally
+           * named "results" held only monthly and semester surfaces, so a
+           * teacher looking for the year's outcome looked here and did not find
+           * it (Phase 12 F14).
+           *
+           * NO ROUTE MOVED. This is a regrouping: the four hrefs are unchanged,
+           * and the year's *documents* are still produced in the Print Center,
+           * which `/yearly-report` now links to directly. The distinction the
+           * move makes visible is the one the product is built on — an annual
+           * RESULT is what the teacher learns, an annual REPORT is what they
+           * print, and the two live in the two modules named for them.
+           *
+           * The three sub-sheets travel with their parent rather than staying
+           * behind: `moduleForPath` takes the longest match, so leaving them in
+           * របាយការណ៍ would breadcrumb a page reached from លទ្ធផលប្រចាំឆ្នាំ under
+           * a module its own parent no longer belongs to.
+           */
+          { label: "លទ្ធផលប្រចាំឆ្នាំ", href: "/yearly-report", alias: "yearly annual report result" },
+          { label: "សិស្សឡើងថ្នាក់", href: "/yearly-report/promoted", hidden: true, alias: "promoted students" },
+          { label: "សិស្សរៀនត្រួត", href: "/yearly-report/repeated", hidden: true, alias: "repeated students" },
+          { label: "លទ្ធផលតាមមុខវិជ្ជា", href: "/yearly-report/subject-results", hidden: true, alias: "subject results" },
+          /*
            * `/score-analysis/subject` is a redirect to `/score-analyse` since
            * the two analyses became two views of one screen. Declared `hidden`
            * for the reason `/score/template` is: so `moduleForPath` resolves it
@@ -333,7 +360,9 @@ export const NAV_SECTIONS: NavSection[] = [
           // nothing that works today depends on this page (§27).
           { label: "មជ្ឈមណ្ឌលរបាយការណ៍", href: "/print-center", primary: true, alias: "print center report document ergaya" },
           { label: "របាយការណ៍មាតាបិតា", href: "/parent-report", hidden: true, alias: "parent report" },
-          { label: "លទ្ធផលប្រចាំឆ្នាំ", href: "/yearly-report", hidden: true, alias: "yearly report result" },
+          // លទ្ធផលប្រចាំឆ្នាំ and its three sheets moved to លទ្ធផល — they are
+          // screens a teacher READS. The year's documents are rows in this
+          // module's own Print Center, under the yearly family.
           { label: "សៀវភៅសិក្ខាគារិក", href: "/record-book", hidden: true, alias: "record book" },
           /*
            * The principal's school-wide analytics view — DECLARED BUT NOT
@@ -376,16 +405,6 @@ export const NAV_SECTIONS: NavSection[] = [
             alias: "administration school analytics principal",
             permission: "school_settings:view",
           },
-          /*
-           * `/yearly-report`'s three detail sheets. Reached from that page's
-           * cards rather than from a menu, so `hidden` — but declared, because
-           * `linkForPath` otherwise falls back to the parent and the breadcrumb
-           * names all three "លទ្ធផលប្រចាំឆ្នាំ". Same reason `/students/[id]`
-           * is declared.
-           */
-          { label: "សិស្សឡើងថ្នាក់", href: "/yearly-report/promoted", hidden: true, alias: "promoted students" },
-          { label: "សិស្សរៀនត្រួត", href: "/yearly-report/repeated", hidden: true, alias: "repeated students" },
-          { label: "លទ្ធផលតាមមុខវិជ្ជា", href: "/yearly-report/subject-results", hidden: true, alias: "subject results" },
         ],
       },
     ],
@@ -402,8 +421,24 @@ export const NAV_SECTIONS: NavSection[] = [
         alias: "documents",
         children: [
           { label: "រដ្ឋបាលថ្នាក់រៀន (១៣ សៀវភៅ)", href: "/class-admin", primary: true, alias: "class admin books" },
-          { label: "ទាញយកវិញ្ញាបនបត្រ", href: "/certificate", alias: "certificate" },
+          /*
+           * ONE front door for the certificate (Phase 12 F13).
+           *
+           * វិញ្ញាបនបត្រ was reachable two ways with different affordances: this
+           * menu entry, which opened `/certificate`'s browser-print screen, and
+           * a Print Center row, which generates a Word file from a versioned
+           * template. Two correct answers to "where are my documents?" is one
+           * too many, and the two did not produce the same artefact.
+           *
+           * Resolved the way `ឯកសារសិស្ស` already resolves it in the សិស្ស
+           * module: the menu entry defers to the family in the centre, and the
+           * screen keeps its route, declared `hidden` so `moduleForPath` still
+           * resolves it and every existing link keeps working. Nothing was
+           * rebuilt and nothing was deleted — the *discovery* is single now.
+           */
+          { label: "វិញ្ញាបនបត្រ", href: "/print-center?category=certificate", alias: "certificate award praise" },
           { label: "បំបែកសន្លឹក Poster", href: "/poster-splitter", alias: "poster splitter" },
+          { label: "ទាញយកវិញ្ញាបនបត្រ", href: "/certificate", hidden: true, alias: "certificate screen" },
         ],
       },
       /*

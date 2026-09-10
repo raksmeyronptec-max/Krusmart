@@ -109,6 +109,7 @@ const code = (p: string) =>
 const enter = read('app/(main)/score/enter/ScoreEnterClient.tsx')
 const total = read('app/(main)/score/total/ScoreTotalClient.tsx')
 const ranking = read('app/(main)/ranking/RankingClient.tsx')
+const honour = read('app/(main)/honor-roll/HonorRollClient.tsx')
 const totalActions = read('app/(main)/score/total/actions.ts')
 
 // ------------------------------------------------------------- 1. the words
@@ -207,8 +208,12 @@ const PAGE_FOR: Record<string, string> = {
   '/score/total': 'app/(main)/score/total/ScoreTotalClient.tsx',
   '/score/collect': 'app/(main)/score/collect/ScoreCollectClient.tsx',
   '/ranking': 'app/(main)/ranking/RankingClient.tsx',
+  '/honor-roll': 'app/(main)/honor-roll/HonorRollClient.tsx',
   '/score-analyse': 'app/(main)/score-analyse/ScoreAnalyseClient.tsx',
 }
+check('every tab names a page this harness can check',
+  SCORE_WORKSPACE_TABS.every((t: { href: string }) => Boolean(PAGE_FOR[t.href])),
+  'a new door must be added to PAGE_FOR, or `carriesPeriod` is asserted against nothing')
 for (const tab of SCORE_WORKSPACE_TABS) {
   const src = read(PAGE_FOR[tab.href])
   const readsMode = src.includes("searchParams.get('mode')")
@@ -218,6 +223,19 @@ for (const tab of SCORE_WORKSPACE_TABS) {
 
 check('the workspace header is worn by entry, totals and ranking',
   [enter, total, ranking].every((s) => s.includes('<ScoreWorkspaceHeader')))
+
+/**
+ * ...and by the honour roll, which was the one member of the លទ្ធផល module
+ * without it (Phase 12 F7): no header, no `useClassHref`, no `href` of any
+ * kind, so the only way out was the sidebar or the browser's back button.
+ */
+check('the honour roll is a door in the strip, not a leaf outside it',
+  SCORE_WORKSPACE_TABS.some((t: { href: string }) => t.href === '/honor-roll'))
+check('and wears the header that renders it',
+  honour.includes('<ScoreWorkspaceHeader'))
+check('...without a second class strip beneath it',
+  !code('app/(main)/honor-roll/HonorRollClient.tsx').includes('<ClassContextBar'),
+  'ScoreWorkspaceHeader already states class · grade · year — see /score-analyse')
 
 // ----------------------------------------------------- 4. one configuration
 console.log('\n4. subjects are configured in exactly one place:')

@@ -6,7 +6,14 @@ import {
   resolveServerScope,
 } from '@/lib/utils/serverScope'
 import { getCurrentAcademicYear } from '@/lib/constants/academic'
-import { REPORT_CATEGORIES, type ReportCategory } from '@/lib/reporting/report-types'
+import {
+  isReportType,
+  REPORT_CATEGORIES,
+  reportDefinition,
+  type ReportCategory,
+  type ReportType,
+} from '@/lib/reporting/report-types'
+import { isMonthId } from '@/lib/constants/months'
 import PrintCenterClient from './PrintCenterClient'
 
 export const metadata = { title: 'មជ្ឈមណ្ឌលរបាយការណ៍ និងបោះពុម្ព' }
@@ -38,6 +45,30 @@ export default async function PrintCenterPage({
   const requestedClassId = await classIdFromSearchParams(searchParams)
   const scope = await resolveServerScope(user.id, requestedClassId)
 
+  const params = (await searchParams) ?? {}
+  const one = (key: string): string | undefined => {
+    const raw = params[key]
+    return Array.isArray(raw) ? raw[0] : raw
+  }
+
+  /*
+   * `?report=` opens the centre ON that report's generation flow (Phase 13).
+   *
+   * The results screens are the reason it exists. A teacher who has just read
+   * ខែធ្នូ's ranking wants ខែធ្នូ's ranking sheet, and making them arrive at the
+   * index, pick the family, find the row and re-choose the month they were
+   * already looking at is the "reconstruct what you were viewing" tax the
+   * results→documents join exists to remove.
+   *
+   * A request, never an instruction: an unknown type, or one whose report
+   * cannot currently produce a file, degrades to the family view rather than
+   * opening a dialog over a row that would only say មិនទាន់មាន. The centre
+   * decides what may be offered through `reportAvailability`, here as
+   * everywhere — this parameter only says which row to start on.
+   */
+  const requestedReport = one('report')
+  const initialReport: ReportType | null = isReportType(requestedReport) ? requestedReport : null
+
   /*
    * `?category=` opens the centre on one family.
    *
@@ -48,14 +79,41 @@ export default async function PrintCenterPage({
    *
    * Validated against the catalogue — an unknown category opens the full list
    * rather than an empty screen, because a bad link should degrade to the index
-   * and not to a dead end.
+   * and not to a dead end. A `?report=` with no category falls back to that
+   * report's own family, so one parameter is enough to arrive focused.
    */
-  const params = (await searchParams) ?? {}
-  const rawCategory = params.category
-  const requested = Array.isArray(rawCategory) ? rawCategory[0] : rawCategory
-  const initialCategory = REPORT_CATEGORIES.some((c) => c.id === requested)
-    ? (requested as ReportCategory)
-    : null
+  const requested = one('category')
+  const initialCategory: ReportCategory | null =
+    REPORT_CATEGORIES.some((c) => c.id === requested)
+      ? (requested as ReportCategory)
+      : initialReport
+        ? (reportDefinition(initialReport)?.category ?? null)
+        : null
+
+  /*
+   * The year the LINKING SCREEN was showing, not necessarily the current one.
+   *
+   * Without this the centre resolved `getCurrentAcademicYear()` unconditionally,
+   * so a teacher reading last year's ranking and clicking through to print it
+   * would have been handed this year's sheet — the same class of silent
+   * mismatch `?class=` was introduced to close for the class.
+   *
+   * Shape-checked rather than looked up: academic years are not a table, and an
+   * unparseable value falls back to the current year rather than to an error.
+   */
+  const requestedYear = one('year')
+  const academicYear = /^\d{4}-\d{4}$/.test(requestedYear ?? '')
+    ? (requestedYear as string)
+    : getCurrentAcademicYear()
+
+  // The period, in the two shapes the generation flow actually holds. Guarded
+  // by the shared month guard rather than a local list, so the centre and the
+  // score screens cannot disagree about what a month id is.
+  const requestedMonth = one('month')
+  const initialPeriod = requestedMonth && isMonthId(requestedMonth) ? requestedMonth : null
+  const requestedSemester = one('semester')
+  const initialSemester =
+    requestedSemester === 'sem1' || requestedSemester === 'sem2' ? requestedSemester : null
 
   // Class name and grade for the header (§6). Both are context, not report
   // data: the centre must not fetch a single mark to render itself (§33) — two
@@ -87,8 +145,11 @@ export default async function PrintCenterPage({
       classId={scope.mode === 'v2' ? scope.classId : null}
       className={className}
       gradeNumber={gradeNumber}
-      academicYear={getCurrentAcademicYear()}
+      academicYear={academicYear}
       initialCategory={initialCategory}
+      initialReport={initialReport}
+      initialPeriod={initialPeriod}
+      initialSemester={initialSemester}
     />
   )
 }

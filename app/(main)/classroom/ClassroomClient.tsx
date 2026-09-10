@@ -205,7 +205,18 @@ const CLASS_TOOLS = [
   { label: 'បញ្ជីសិស្ស', href: '/student-list', icon: Users },
   { label: 'បញ្ចូលសិស្ស', href: '/enrollment', icon: UserPlus },
   { label: 'មុខវិជ្ជា', href: '/score/subjects', icon: BookOpen },
-  { label: 'វត្តមាន', href: '/attendance/monthly', icon: CalendarCheck },
+  /*
+   * The REGISTER, not the monthly sheet.
+   *
+   * `/attendance/monthly` reads a month and prints it — `actions.ts` there
+   * exports `getMonthlyAttendance` and `getTeacherSettings` and no write of any
+   * kind — so a teacher who tapped វត្តមាន on their own class card landed on a
+   * printable document and could not mark anybody (Phase 12 F9). This is the
+   * same correction Phase 8 made to the វត្តមាន module's front door and to its
+   * label; the per-class card was missed. The sheet is still reachable, in the
+   * Print Center where the rest of the paperwork is.
+   */
+  { label: 'វត្តមាន', href: '/attendance/layout', icon: CalendarCheck },
   { label: 'បញ្ចូលពិន្ទុ', href: '/score/enter', icon: Edit3 },
   { label: 'បោះពុម្ព', href: '/print-center', icon: Printer },
 ] as const
