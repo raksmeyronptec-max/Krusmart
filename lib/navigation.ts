@@ -239,9 +239,9 @@ export const NAV_SECTIONS: NavSection[] = [
           // Redirects to /score/subjects — declared so the breadcrumb and the
           // sidebar highlight resolve during the redirect rather than blanking.
           { label: "មុខវិជ្ជាតាមថ្នាក់", href: "/score/template", hidden: true, alias: "score template" },
-          { label: "ការប្រមូលពិន្ទុ", href: "/score/collect", alias: "collect completion subject teacher" },
-          { label: "តារាងពិន្ទុ (ទម្រង់ក្រសួង)", href: "/score/print", alias: "score print moeys" },
-          { label: "តារាងចំណាត់ថ្នាក់", href: "/ranking", alias: "ranking" },
+          { label: "ការប្រមូលពិន្ទុ", href: "/score/collect", hidden: true, alias: "collect completion subject teacher" },
+          { label: "តារាងពិន្ទុ (ទម្រង់ក្រសួង)", href: "/score/print", hidden: true, alias: "score print moeys" },
+          { label: "តារាងចំណាត់ថ្នាក់", href: "/ranking", hidden: true, alias: "ranking" },
           { label: "វិភាគទិន្នន័យសរុប", href: "/score-analyse", alias: "score analyse" },
           { label: "វិភាគតាមមុខវិជ្ជា", href: "/score-analysis/subject", alias: "subject analysis" },
         ],
@@ -262,7 +262,7 @@ export const NAV_SECTIONS: NavSection[] = [
         id: "reports",
         label: "របាយការណ៍",
         icon: FileBarChart,
-        href: "/parent-report",
+        href: "/print-center",
         alias: "report",
         permission: "report_cards:view",
         children: [
@@ -270,10 +270,10 @@ export const NAV_SECTIONS: NavSection[] = [
           // the way in to the other sixteen; those keep their own routes so
           // nothing that works today depends on this page (§27).
           { label: "មជ្ឈមណ្ឌលរបាយការណ៍", href: "/print-center", primary: true, alias: "print center report document ergaya" },
-          { label: "របាយការណ៍មាតាបិតា", href: "/parent-report", alias: "parent report" },
-          { label: "លទ្ធផលប្រចាំឆ្នាំ", href: "/yearly-report", alias: "yearly report result" },
-          { label: "តារាងកិត្តិយស", href: "/honor-roll", alias: "honor roll" },
-          { label: "សៀវភៅសិក្ខាគារិក", href: "/record-book", alias: "record book" },
+          { label: "របាយការណ៍មាតាបិតា", href: "/parent-report", hidden: true, alias: "parent report" },
+          { label: "លទ្ធផលប្រចាំឆ្នាំ", href: "/yearly-report", hidden: true, alias: "yearly report result" },
+          { label: "តារាងកិត្តិយស", href: "/honor-roll", hidden: true, alias: "honor roll" },
+          { label: "សៀវភៅសិក្ខាគារិក", href: "/record-book", hidden: true, alias: "record book" },
           /*
            * The principal's school-wide analytics view. Declared here rather
            * than nowhere: it used to be reachable only from a tile in the

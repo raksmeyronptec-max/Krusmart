@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { requirePermission } from '@/lib/rbac/server'
 import { auditLog } from '@/lib/audit/log'
 import { logger } from '@/lib/utils/logger'
+import { NOT_A_SCHOOL_TEACHER, RLS_REFUSED } from '@/lib/utils/rpc-errors'
 import { CLASS_SECTIONS, generatedClassName, gradeName } from '@/lib/onboarding/curriculum'
 import type { ActionResult } from '@/lib/types'
 
@@ -248,16 +249,24 @@ export async function archiveClass(input: { classId: string }): Promise<ActionRe
  *
  * It was also the wrong line to draw. This action is one step of the
  * create-class flow, and that flow's gate is `createClassAndAssign`'s:
- * authenticate, then let `grades_admin_write` / `classes_admin_write` (00003)
- * decide. Gating this more strictly than the class insert it precedes would
- * refuse teachers who can demonstrably create classes — the two must agree, and
- * the database is the one that gets to be right.
+ * authenticate, then let the policies decide. Gating this more strictly than
+ * the class insert it precedes would refuse teachers who can demonstrably
+ * create classes — the two must agree, and the database is the one that gets to
+ * be right.
  *
- * So a caller who may not write grades is told so in Khmer, by the zero-row
- * check below, exactly as `renameClass` and `archiveClass` explain their own
- * refusals. Those two keep `requirePermission` because the UI only offers them
- * when `can('classes:update')` already passed; this one is reached from the
- * create dialog, which is not gated on that.
+ * Which policy decides changed in 00031 and this action did not have to: it was
+ * `grades_admin_write` alone, so every teacher who was not also an
+ * administrator got the zero-row refusal below — including the ones the join
+ * flow creates, for whom /classroom offered a dialog that could not succeed.
+ * `grades_teacher_insert` now also admits a teacher of the level's own school,
+ * INSERT only. Renaming and deleting a grade stay administrator-only, which is
+ * the half that matters: `classes.name` is generated from the grade.
+ *
+ * So a caller who may not write grades is still told so in Khmer, by the
+ * zero-row check below, exactly as `renameClass` and `archiveClass` explain
+ * their own refusals. Those two keep `requirePermission` because the UI only
+ * offers them when `can('classes:update')` already passed; this one is reached
+ * from the create dialog, which is not gated on that.
  *
  * `UNIQUE (education_level_id, name)` makes the upsert safe against a race with
  * a colleague creating the same class. The level is re-read against the
@@ -311,13 +320,33 @@ export async function ensureGrade(input: {
     .maybeSingle()
 
   if (error) {
+    /*
+     * Re-read before reporting, because the likeliest failure here is a race
+     * that has already produced what the caller wants. 00031 gives a teacher
+     * INSERT on `grades` and deliberately not UPDATE, so when a colleague
+     * created the same grade a moment ago the upsert's conflict branch is
+     * refused (42501) rather than resolving — and 23505 says the same thing
+     * where the conflict target is not taken. Either way the row now exists,
+     * and this action's contract is an id, not a write.
+     */
+    const { data: raced } = await supabase
+      .from('grades')
+      .select('id')
+      .eq('education_level_id', level.id)
+      .eq('name', name)
+      .maybeSingle()
+    if (raced?.id) return { success: true, gradeId: raced.id as string }
+
     logger.error(error)
+    // A genuine policy refusal: the caller does not teach at the school that
+    // owns this level, so no re-read will ever find the row either.
+    if (error.code === RLS_REFUSED) return { error: NOT_A_SCHOOL_TEACHER }
     return { error: 'មិនអាចបង្កើតកម្រិតថ្នាក់នេះបានទេ' }
   }
 
   // Zero rows with no error is the RLS refusal described in the module note.
   if (!created?.id) {
-    return { error: 'មានតែនាយកសាលាប៉ុណ្ណោះដែលអាចបន្ថែមកម្រិតថ្នាក់បាន' }
+    return { error: NOT_A_SCHOOL_TEACHER }
   }
 
   await auditLog({

@@ -23,3 +23,25 @@ export function khmerRpcError(
   logger.error('rpc:', error)
   return fallback
 }
+
+/** SQLSTATE for "new row violates row-level security policy". */
+export const RLS_REFUSED = '42501'
+
+/**
+ * What a policy refusal on the create-class path means, in Khmer.
+ *
+ * Since migration 00031 a refusal no longer means "you are not a principal" —
+ * `grades_teacher_insert`, `classes_teacher_insert` and
+ * `teacher_assignments_creator_self_insert` admit any teacher of the school.
+ * It means the caller is not a teacher of *this* school at all: no role grant,
+ * no profile naming it, no assignment in it. Naming the principal is the only
+ * useful next step, because membership is granted by an administrator — or by
+ * creating your own organisation.
+ *
+ * One definition, imported by both writers on that path (`ensureGrade` in
+ * app/(main)/classroom/actions.ts and `createClassAndAssign` in
+ * app/onboarding/actions.ts), because two screens explaining the same refusal
+ * differently is how a teacher concludes the two are different problems.
+ */
+export const NOT_A_SCHOOL_TEACHER =
+  'អ្នកមិនមានសិទ្ធិបង្កើតថ្នាក់ក្នុងស្ថាប័ននេះទេ។ សូមទាក់ទងនាយកសាលា ដើម្បីភ្ជាប់គណនីរបស់អ្នកជាមួយសាលា។'

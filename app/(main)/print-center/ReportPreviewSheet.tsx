@@ -128,7 +128,7 @@ export function ReportPreviewSheet({ sheet, templateLabel }: ReportPreviewSheetP
               tableLayout: 'fixed',
               transform: `scale(${zoom})`,
               transformOrigin: 'top left',
-              fontFamily: '"Khmer OS Battambang", "Kantumruy Pro", sans-serif',
+              fontFamily: '"Khmer OS Battambang", "Hanuman", serif',
             }}
           >
             <colgroup>

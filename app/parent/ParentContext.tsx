@@ -51,7 +51,7 @@ export function ParentProvider({ children }: { children: React.ReactNode }) {
   )
 
   return (
-    <div className={`parent-portal ${dark ? '' : 'pp-light'} min-h-screen font-kantumruy`}>
+    <div className={`parent-portal ${dark ? '' : 'pp-light'} min-h-screen font-hanuman`}>
       <Ctx.Provider value={value}>{children}</Ctx.Provider>
     </div>
   )

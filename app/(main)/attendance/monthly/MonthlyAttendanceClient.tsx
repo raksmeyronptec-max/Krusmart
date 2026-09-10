@@ -477,8 +477,18 @@ export default function MonthlyAttendanceClient({
               the sheet's millimetre geometry below depends on all three. The
               screen restyling around it deliberately stops at this boundary.
             */}
+            {/*
+              `.font-hanuman` used to be declared right here, as a literal
+              `'Hanuman', serif` — this sheet wanted the traditional face while
+              the app body was Kantumruy Pro, so it asked for a font nothing
+              loaded and got it only on a machine that happened to have it
+              installed. Hanuman is now the app's own body face, self-hosted by
+              next/font, and `font-hanuman` is the theme utility for it; a local
+              redeclaration would shadow the loaded file with a name that
+              resolves to nothing. The className on PageContainer stays: it is
+              now the same face, actually delivered.
+            */}
             <style jsx global>{`
-                .font-hanuman { font-family: 'Hanuman', serif; }
                 @media print {
                     @page { size: A4 landscape; margin: 0; }
                 }

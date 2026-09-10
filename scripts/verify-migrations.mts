@@ -15,7 +15,11 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
 const DIR = 'supabase/migrations'
-const PENDING = /^000(1[89]|2[0-8])_/
+// Every migration written since the tracked history became real. 00029
+// (score calendar) and 00030 (own audit rows) had fallen out of the window;
+// 00031 (teacher class creation) adds three policies and a column, which is
+// exactly the shape this file exists to keep idempotent.
+const PENDING = /^000(1[89]|2[0-9]|3[01])_/
 
 let failures = 0
 let checks = 0
@@ -35,8 +39,8 @@ function executable(sql: string): string {
 }
 
 const files = readdirSync(DIR).filter(f => PENDING.test(f)).sort()
-if (files.length !== 11) {
-  console.log(`FAIL: expected 11 pending migrations, found ${files.length}`)
+if (files.length !== 14) {
+  console.log(`FAIL: expected 14 pending migrations, found ${files.length}`)
   process.exit(1)
 }
 

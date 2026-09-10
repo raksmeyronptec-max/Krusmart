@@ -78,11 +78,16 @@
   --radius-xl: 16px;
 
   /* Fonts */
-  --font-kantumruy: 'Kantumruy Pro', sans-serif;
+  /* The body face. These literals are the fallback: `next/font` redeclares both
+     variables on <body> with its own hashed family names, so what actually
+     renders is the self-hosted file, and this line only matters if that class
+     is missing. `serif`, not `sans-serif` — Hanuman is a traditional Khmer text
+     face, and a sans generic would swap its character on the way down. */
+  --font-hanuman: 'Hanuman', serif;
   /* NOT `cursive`: that generic family resolves to Apple Chancery on macOS and
      Comic Sans on Windows — both slanted, neither Khmer-capable. If Moul fails
      to load, a heading must fall back to the body face, not to a script one. */
-  --font-moul: 'Moul', 'Kantumruy Pro', sans-serif;
+  --font-moul: 'Moul', 'Hanuman', serif;
 
   /* Animations */
   --animate-gradient-text: gradientText 6s ease infinite;
@@ -204,7 +209,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-kantumruy), Arial, Helvetica, sans-serif;
+  font-family: var(--font-hanuman), 'Hanuman', serif;
   transition: background-color 0.3s ease, color 0.3s ease;
   line-height: 1.6;
 }
@@ -215,7 +220,7 @@ body {
  *
  * Ten clients used to redeclare `.font-moul` inside their own styled-jsx, and
  * nine more used the class without declaring it anywhere, so those nine were
- * silently rendering in Kantumruy. Standardising on one global utility fixes
+ * silently rendering in the body face. Standardising on one utility fixes
  * those nine and removes the duplication.
  */
 .kh-moul {

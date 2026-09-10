@@ -46,7 +46,7 @@ export default function AdminShell({
   }
 
   return (
-    <div className="flex h-screen overflow-hidden w-full bg-bg-app text-[var(--text-heading)] font-kantumruy">
+    <div className="flex h-screen overflow-hidden w-full bg-bg-app text-[var(--text-heading)] font-hanuman">
       
       {/* Mobile Sidebar Overlay */}
       {isMobileSidebarOpen && (

@@ -269,6 +269,121 @@ const main = async () => {
   // pre-convergence row loses nothing. That mapping lives in serverScope and
   // is asserted here at the data level: the row is visible and unkeyed.
 
+  // ------------------------------------------- teacher-created classes (00031)
+  // The account the feature exists for: a plain `teacher` in a school somebody
+  // else owns — exactly what approve_join_request(00022) creates, and exactly
+  // what is_school_admin() refuses. Before 00031 all three inserts below
+  // returned "new row violates row-level security policy".
+  //
+  // The denials matter more than the allowance. An assignment row is what
+  // 00003/00006/00007 pivot every class-scoped read on, so a self-assignment
+  // policy that is one clause too wide reads a colleague's gradebook.
+  log('\nteacher-created classes (00031)')
+  const teacherRole = (await one(`SELECT id FROM public.roles WHERE name = 'teacher'`)).id
+  const E = (await one(`INSERT INTO auth.users (email) VALUES ('joined@example.com') RETURNING id`)).id
+  await c.query(`INSERT INTO public.user_roles (user_id, role_id, school_id) VALUES ($1,$2,$3)`, [E, teacherRole, A.sc])
+  await c.query(`INSERT INTO public.profiles (id, school_id) VALUES ($1,$2)
+                 ON CONFLICT (id) DO UPDATE SET school_id=EXCLUDED.school_id`, [E, A.sc])
+  const lvlA = (await one(`SELECT id FROM public.education_levels WHERE school_id=$1`, [A.sc])).id
+  const lvlB = (await one(`SELECT id FROM public.education_levels WHERE school_id=$1`, [B.sc])).id
+  const gradeA = (await one(`SELECT id FROM public.grades WHERE education_level_id=$1`, [lvlA])).id
+  const gradeB = (await one(`SELECT id FROM public.grades WHERE education_level_id=$1`, [lvlB])).id
+
+  r = await as(c, E, () => rows(c, `INSERT INTO public.grades (education_level_id,name,sort_order)
+                                    VALUES ($1,'ថ្នាក់ទី៣',3) RETURNING id`, [lvlA]))
+  check('a plain teacher CAN add a missing grade to their own school (ensureGrade)',
+    r.ok && r.value.length === 1, r.ok ? '' : `${r.code} ${r.error}`)
+  r = await as(c, E, () => rows(c, `INSERT INTO public.grades (education_level_id,name,sort_order)
+                                    VALUES ($1,'ថ្នាក់ទី៣',3) RETURNING id`, [lvlB]))
+  check("...and CANNOT add one to another school's level", !r.ok, r.ok ? 'INSERT SUCCEEDED — policy too wide' : r.code)
+  r = await as(c, E, () => rows(c, `UPDATE public.grades SET name='ថ្នាក់ទីX' WHERE id=$1 RETURNING id`, [gradeA]))
+  check('...and still CANNOT rename one (INSERT only; classes.name derives from it)',
+    r.ok && r.value.length === 0, r.ok ? `${r.value.length} row(s) updated` : r.error)
+
+  // The whole create flow in one transaction, as createClassAndAssign runs it:
+  // class first, then the caller's own homeroom row. `as()` rolls it back.
+  r = await as(c, E, async () => {
+    const k = (await rows(c, `INSERT INTO public.classes (grade_id,academic_year_id,name)
+                              VALUES ($1,$2,'៥អ') RETURNING id, created_by`, [gradeA, A.y]))[0]
+    const a = await rows(c, `INSERT INTO public.teacher_assignments
+                             (teacher_id,class_id,academic_year_id,is_homeroom,status)
+                             VALUES ($1,$2,$3,true,'active') RETURNING id`, [E, k.id, A.y])
+    return { k, a }
+  })
+  check('a plain teacher CAN create a class in their own school', r.ok && !!r.value?.k?.id,
+    r.ok ? '' : `${r.code} ${r.error}`)
+  check('...RETURNING sees it, via classes_select_creator', r.ok && r.value?.k?.created_by === E,
+    r.ok ? `created_by=${r.value?.k?.created_by}` : r.error)
+  check('...and CAN make themselves its form master in the same transaction',
+    r.ok && r.value?.a?.length === 1, r.ok ? '' : `${r.code} ${r.error}`)
+
+  r = await as(c, E, () => rows(c, `INSERT INTO public.classes (grade_id,academic_year_id,name)
+                                    VALUES ($1,$2,'៥អ') RETURNING id`, [gradeB, B.y]))
+  check("a teacher CANNOT create a class in a school they do not teach at", !r.ok,
+    r.ok ? 'INSERT SUCCEEDED — policy too wide' : r.code)
+  r = await as(c, E, () => rows(c, `INSERT INTO public.classes (grade_id,academic_year_id,name)
+                                    VALUES ($1,$2,'៥អ') RETURNING id`, [gradeB, A.y]))
+  check("...nor stitch another school's grade onto their own year", !r.ok,
+    r.ok ? 'INSERT SUCCEEDED — cross-school hierarchy' : r.code)
+
+  // ★ The escalation test. A.k is a real class with a real roster and real
+  // marks, created by an administrator (created_by NULL). Self-assignment must
+  // not reach it — 00006/00007 would hand over A's pupils and marks.
+  r = await as(c, E, () => rows(c, `INSERT INTO public.teacher_assignments
+      (teacher_id,class_id,academic_year_id,is_homeroom,status)
+      VALUES ($1,$2,$3,true,'active') RETURNING id`, [E, A.k, A.y]))
+  check("a teacher CANNOT self-assign onto a class they did not create", !r.ok,
+    r.ok ? 'INSERT SUCCEEDED — reads a colleague gradebook' : r.code)
+
+  // A committed class of E's, for the tests that need one to already exist.
+  const kE = (await one(`INSERT INTO public.classes (grade_id,academic_year_id,name,created_by)
+                         VALUES ($1,$2,'៥ឯ',$3) RETURNING id`, [gradeA, A.y, E])).id
+  r = await as(c, E, () => rows(c, `INSERT INTO public.teacher_assignments
+      (teacher_id,class_id,academic_year_id,is_homeroom,status)
+      VALUES ($1,$2,$3,true,'active') RETURNING id`, [D, kE, A.y]))
+  check('...nor staff anybody but themselves onto their own class', !r.ok,
+    r.ok ? 'INSERT SUCCEEDED — policy too wide' : r.code)
+  r = await as(c, B.t, () => rows(c, `INSERT INTO public.teacher_assignments
+      (teacher_id,class_id,academic_year_id,is_homeroom,status)
+      VALUES ($1,$2,$3,true,'active') RETURNING id`, [B.t, kE, A.y]))
+  check("...and an outsider CANNOT claim the class E created", !r.ok,
+    r.ok ? 'INSERT SUCCEEDED — policy too wide' : r.code)
+  r = await as(c, E, () => rows(c, `INSERT INTO public.teacher_assignments
+      (teacher_id,class_id,academic_year_id,is_homeroom,status)
+      VALUES ($1,$2,$3,true,'active') RETURNING id`, [E, kE, B.y]))
+  check("...and the assignment cannot name a year the class is not in", !r.ok,
+    r.ok ? 'INSERT SUCCEEDED — cross-school year' : r.code)
+
+  // ★ The self-declaration test. `profiles_insert_own` / `profiles_update_own`
+  // (00002) let ANY signed-in user set their own profiles.school_id to any
+  // school id they can name, so is_school_teacher() must not read that column:
+  // an outsider who stamps their profile with school A must still be refused.
+  const F = (await one(`INSERT INTO auth.users (email) VALUES ('stranger@example.com') RETURNING id`)).id
+  await c.query(`INSERT INTO public.profiles (id, school_id) VALUES ($1,$2)
+                 ON CONFLICT (id) DO UPDATE SET school_id=EXCLUDED.school_id`, [F, A.sc])
+  r = await as(c, F, () => rows(c, `INSERT INTO public.classes (grade_id,academic_year_id,name)
+                                    VALUES ($1,$2,'៥ស') RETURNING id`, [gradeA, A.y]))
+  check('a stranger who self-stamps profiles.school_id STILL cannot create a class', !r.ok,
+    r.ok ? 'INSERT SUCCEEDED — membership was taken from a self-writable column' : r.code)
+  r = await as(c, F, () => rows(c, `INSERT INTO public.grades (education_level_id,name,sort_order)
+                                    VALUES ($1,'ថ្នាក់ទី៤',4) RETURNING id`, [lvlA]))
+  check('...nor a grade', !r.ok, r.ok ? 'INSERT SUCCEEDED — policy too wide' : r.code)
+
+  // Creating a class does not become administering one.
+  r = await as(c, E, () => rows(c, `UPDATE public.classes SET name='hacked' WHERE id=$1 RETURNING id`, [kE]))
+  check('the creator still CANNOT rename their class — that stays administrator-only',
+    r.ok && r.value.length === 0, r.ok ? `${r.value.length} row(s) updated` : r.error)
+
+  // The undo rollbackClass depends on, and the line it stops at.
+  r = await as(c, E, () => rows(c, `DELETE FROM public.classes WHERE id=$1 RETURNING id`, [kE]))
+  check('the creator CAN delete it while it is still empty (rollbackClass)',
+    r.ok && r.value.length === 1, r.ok ? `${r.value?.length} row(s) deleted` : `${r.code} ${r.error}`)
+  await c.query(`INSERT INTO public.student_enrollments (student_id,class_id,academic_year_id,status)
+                 VALUES ($1,$2,$3,'active')`, [A.st, kE, A.y])
+  r = await as(c, E, () => rows(c, `DELETE FROM public.classes WHERE id=$1 RETURNING id`, [kE]))
+  check('...and CANNOT once a pupil is enrolled — from then on it is archived, never deleted',
+    r.ok && r.value.length === 0, r.ok ? `${r.value.length} row(s) deleted` : r.error)
+
   await c.end()
   const a1 = await conn('postgres'); await a1.query(`DROP DATABASE IF EXISTS ${DB} WITH (FORCE)`); await a1.end()
 

@@ -467,6 +467,16 @@ export interface Class {
    * per stream, so template resolution reads this off the class.
    */
   track?: 'science' | 'social_science' | null
+  /**
+   * Who created the class (00031), defaulted to `auth.uid()` by the database —
+   * never sent by a client. NULL for classes made before that migration.
+   *
+   * Provenance, and the key the teacher self-assignment policy is written on: a
+   * teacher may attach themselves to a class only while this names them. It
+   * grants no read of pupils, marks or enrolments — an assignment does that —
+   * and no application code reads it.
+   */
+  created_by?: string | null
   created_at?: string
 }
 

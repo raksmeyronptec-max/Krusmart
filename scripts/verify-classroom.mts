@@ -585,6 +585,115 @@ check('the card hides what the server would refuse',
   client.includes("can('classes:update')"),
   'convenience only — requirePermission is the enforcement')
 
+// --- 7. who the database lets create a class (00031) --------------------------
+// ★ THE POLICY IS THE FEATURE HERE, so it is read as source rather than
+// inferred from the screen. `/classroom` offered "បង្កើតថ្នាក់ថ្មី" to every
+// teacher while `grades_admin_write` / `classes_admin_write` /
+// `teacher_assignments_admin_write` (00003) admitted only administrators — so a
+// teacher who *joined* a school (00022 grants exactly `teacher`) got
+// "មិនអាចបង្កើតកម្រិតថ្នាក់នេះបានទេ" and had no way forward at all.
+//
+// scripts/validate-rls.mjs proves the behaviour against a real Postgres. This
+// pins the shape, because the dangerous edit is a one-line widening that still
+// passes every runtime test the happy path exercises.
+console.log('\ncreating a class is permitted by policy, not by being an administrator:')
+
+const MIG31 = 'supabase/migrations/00031_teacher_class_creation.sql'
+const mig31 = read(MIG31)
+check('00031 exists', mig31.length > 0)
+
+// The provenance column the self-assignment policy is written on. Without it
+// the only expressible predicate is "any class in my school", which reads a
+// colleague's gradebook through 00006/00007.
+check('classes carries created_by, defaulted server-side to auth.uid()',
+  /ADD COLUMN IF NOT EXISTS created_by/.test(mig31) &&
+    /ALTER COLUMN created_by SET DEFAULT auth\.uid\(\)/.test(mig31),
+  'the browser must never be able to name the creator')
+
+/** The body of one policy in 00031, from CREATE POLICY to its terminating `);`. */
+const policy31 = (name: string) => {
+  const at = mig31.indexOf(`CREATE POLICY "${name}"`)
+  if (at === -1) return ''
+  const end = mig31.indexOf(');', at)
+  return end === -1 ? '' : mig31.slice(at, end)
+}
+
+const taInsert = policy31('teacher_assignments_creator_self_insert')
+check('a teacher may staff only themselves…', /teacher_id = auth\.uid\(\)/.test(taInsert))
+check('…onto only a class they created themselves',
+  /is_own_created_class\(\s*teacher_assignments\.class_id/.test(taInsert),
+  'without the created_by key this policy grants read of every class in the school')
+check('…and the assignment cannot name a year the class is not in',
+  /teacher_assignments\.academic_year_id/.test(taInsert))
+
+const clsInsert = policy31('classes_teacher_insert')
+check('a class may be created only by a teacher of its own school',
+  /created_by = auth\.uid\(\)/.test(clsInsert) && /is_school_teacher\(ay\.school_id\)/.test(clsInsert))
+check('and its grade must belong to that same school',
+  /el\.school_id = ay2\.school_id/.test(clsInsert),
+  'classes points at a grade and a year independently — this is the cross-school guard')
+
+check('a teacher may add a grade to their own school, INSERT only',
+  /CREATE POLICY "grades_teacher_insert" ON public\.grades\s*\n\s*FOR INSERT/.test(mig31) &&
+    /is_school_teacher\(el\.school_id\)/.test(policy31('grades_teacher_insert')))
+
+// The two deletes exist for rollbackClass and must never become a way to
+// destroy a class that has become real.
+check('both creator DELETE policies are bounded by class_is_unused',
+  /class_is_unused/.test(policy31('classes_creator_delete_unused')) &&
+    /class_is_unused/.test(policy31('teacher_assignments_creator_self_delete')))
+
+// ★ The recursion trap, found by validate-rls.mjs against a real database:
+// written inline, a policy on teacher_assignments that reads `classes` makes
+// Postgres evaluate `classes_select_assigned_or_admin`, which reads
+// teacher_assignments — 42P17, on every assignment write in the product,
+// including the administrator ones that worked before.
+check('the cross-table lookups go through SECURITY DEFINER helpers, not inline EXISTS',
+  !/FROM public\.classes/.test(taInsert + policy31('teacher_assignments_creator_self_delete')) &&
+    !/FROM public\.teacher_assignments/.test(policy31('classes_creator_delete_unused')),
+  'inline they recurse: 42P17 infinite recursion detected in policy for relation')
+check('and those helpers pin search_path, like every definer since 00003',
+  (mig31.match(/SECURITY DEFINER SET search_path = public, pg_temp/g) ?? []).length >= 3)
+
+// Additive, not a rewrite: administrators keep exactly the rights they had, and
+// permissive policies are ORed.
+// Named in the header prose, which is the point — the migration explains what
+// it is NOT changing. What must not appear is a statement touching them.
+for (const untouched of ['grades_admin_write', 'classes_admin_write', 'teacher_assignments_admin_write']) {
+  check(`${untouched} is left alone`,
+    !new RegExp(`(DROP|CREATE)\\s+POLICY[^\\n]*"${untouched}"`).test(mig31))
+}
+check('no teacher UPDATE is granted anywhere — renaming stays administrator-only',
+  !/FOR UPDATE/.test(mig31) && !/FOR ALL/.test(mig31),
+  'classes.name is generated from the grade; renaming is the half that can drift')
+
+// The dialog has to be *offered* to the teachers the policies now admit. It was
+// gated on `profiles.school_id` alone, and a joined teacher may have no profile
+// row at all — 00022 stamps the school with an UPDATE, and nothing in this
+// product ever creates that row for an ordinary signup.
+console.log('\nand the dialog is offered to everyone the policies admit:')
+check('the school is resolved from role grant, then assignment, then profile',
+  page.indexOf("from('user_roles')") < page.indexOf("academic_years!inner(school_id)") &&
+    page.indexOf("academic_years!inner(school_id)") <
+      page.indexOf("from('profiles')", page.indexOf('resolveSchoolId')),
+  'profiles.school_id is self-writable (00002) — it may hint, never decide')
+check('and a teacher with none of the three still gets no dialog',
+  /if \(schoolId\) \{/.test(page),
+  'no organisation is a real state — the empty state points at onboarding')
+
+console.log('\nand a refusal says the one thing a teacher can act on:')
+check('the refusal text is defined once, in lib/utils/rpc-errors',
+  read('lib/utils/rpc-errors.ts').includes('NOT_A_SCHOOL_TEACHER'))
+check('both writers on the create path import it rather than restating it',
+  gradeAction.includes("NOT_A_SCHOOL_TEACHER") && actions.includes('NOT_A_SCHOOL_TEACHER') &&
+    !/const NOT_A_SCHOOL_TEACHER\s*=/.test(gradeAction + actions))
+check('ensureGrade maps a policy refusal to it rather than to a retry prompt',
+  /error\.code === RLS_REFUSED/.test(gradeAction))
+check('and re-reads first, because a race has already produced the row',
+  /from\('grades'\)[\s\S]{0,200}\.eq\('name', name\)[\s\S]{0,200}raced/.test(gradeAction))
+check('the class insert maps it too', /classErr\?\.code === RLS_REFUSED/.test(actions))
+check('and so does the assignment insert', /assignErr\.code === RLS_REFUSED/.test(actions))
+
 if (failures > 0) {
   console.error(`\n${failures} failure(s).`)
   process.exit(1)

@@ -3,7 +3,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { logger } from '@/lib/utils/logger'
-import { khmerRpcError } from '@/lib/utils/rpc-errors'
+import { khmerRpcError, NOT_A_SCHOOL_TEACHER, RLS_REFUSED } from '@/lib/utils/rpc-errors'
 import { auditLog, auditLogBatch } from '@/lib/audit/log'
 import type { ActionResult } from '@/lib/types'
 import {
@@ -21,6 +21,18 @@ import { schemeForLevel } from '@/lib/grading/levelSchemes'
  * PostgREST write that the *existing* policies already permit, because all of
  * them gate on `is_school_admin()` and the owner role satisfies it. Nothing in
  * this file needs elevated rights.
+ *
+ * ★ THAT ARGUMENT ONLY EVER COVERED THE OWNER. `createClassAndAssign` is also
+ * the class-creation path for /classroom, where the caller may be a teacher who
+ * *joined* someone else's school — `approve_join_request` (00022) grants
+ * "exactly the `teacher` role — approval never grants admin", so
+ * `is_school_admin()` is false and all three inserts below returned "new row
+ * violates row-level security policy". 00031 adds the three narrow policies
+ * that admit a teacher of the school: create a grade, create a class, and staff
+ * *yourself* onto a class *you* created (`classes.created_by`). Renaming,
+ * deleting, and staffing anybody else stay administrator-only, so this file
+ * still needs no elevated rights — it just no longer needs the caller to be an
+ * administrator.
  */
 
 /**
@@ -346,6 +358,10 @@ export async function createClassAndAssign(input: {
     // `UNIQUE (grade_id, academic_year_id, name)` — the one collision a teacher
     // can actually cause, so it gets its own sentence rather than the generic.
     if (classErr?.code === '23505') return { error: 'ថ្នាក់នេះមានរួចហើយ។ សូមប្តូរផ្នែក។' }
+    // The policy refusing the row (00031): the caller does not teach at the
+    // school that owns this year. The generic text reads as a transient failure
+    // and invites a retry that cannot possibly work.
+    if (classErr?.code === RLS_REFUSED) return { error: NOT_A_SCHOOL_TEACHER }
     return { error: friendlyError(classErr) }
   }
 
@@ -367,7 +383,11 @@ export async function createClassAndAssign(input: {
   if (assignErr) {
     // The class row alone is harmless (no assignment ⇒ still legacy scope),
     // but remove it anyway so a retry does not hit the unique name constraint.
+    // That delete is the creator's own, which 00031's DELETE policy permits
+    // precisely while the class is still empty — before it, this rollback was a
+    // silent zero-row no-op for any teacher who was not an administrator.
     await rollbackClass(supabase, user.id, cls.id)
+    if (assignErr.code === RLS_REFUSED) return { error: NOT_A_SCHOOL_TEACHER }
     return { error: friendlyError(assignErr) }
   }
 

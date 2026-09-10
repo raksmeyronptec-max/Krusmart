@@ -55,6 +55,62 @@ export const metadata = { title: 'ថ្នាក់ និងសិស្ស' }
  * usual second guard, and a class the caller may not read simply does not come
  * back.
  */
+/**
+ * The school whose grades and years the create dialog should offer, or `null`.
+ *
+ * Three sources, in the order the database will actually accept them —
+ * `is_school_teacher()` (00031) admits the first two and refuses the third, so
+ * asking in this order means the dialog is offered to the teachers who can use
+ * it and, in the ordinary case, never to someone whose write will be refused:
+ *
+ *   1. a `user_roles` grant — the self-serve owner (00017) and the approved
+ *      joiner (00022), both written by an RPC rather than by the caller;
+ *   2. an active assignment — the teacher an administrator gave a class to and
+ *      nothing else (`assignTeacher` writes no role row);
+ *   3. `profiles.school_id`, LAST and deliberately, because
+ *      `profiles_update_own` (00002) lets any user write their own. It is a
+ *      home-school hint, not a membership record — good enough to decide which
+ *      school's grades to *show*, never good enough to authorise a write. A
+ *      caller whose only claim is this gets the dialog and a clear Khmer
+ *      refusal from the server, which is the same answer /admin gives them.
+ *
+ * RLS keeps every read here to the caller's own rows.
+ */
+async function resolveSchoolId(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+): Promise<string | null> {
+  const { data: roleRows } = await supabase
+    .from('user_roles')
+    .select('school_id')
+    .eq('user_id', userId)
+    .not('school_id', 'is', null)
+    .limit(1)
+
+  const fromRole = roleRows?.[0]?.school_id
+  if (typeof fromRole === 'string') return fromRole
+
+  const { data: assignmentRows } = await supabase
+    .from('teacher_assignments')
+    .select('academic_years!inner(school_id)')
+    .eq('teacher_id', userId)
+    .eq('status', 'active')
+    .limit(1)
+
+  const yearRel = (assignmentRows?.[0] as
+    { academic_years?: { school_id?: string } | { school_id?: string }[] } | undefined)?.academic_years
+  const fromAssignment = (Array.isArray(yearRel) ? yearRel[0] : yearRel)?.school_id
+  if (typeof fromAssignment === 'string') return fromAssignment
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('school_id')
+    .eq('id', userId)
+    .maybeSingle()
+
+  return typeof profile?.school_id === 'string' ? profile.school_id : null
+}
+
 export default async function ClassroomPage({
   searchParams,
 }: {
@@ -103,17 +159,22 @@ export default async function ClassroomPage({
    * anything the school does not hold, so this list is a convenience, never the
    * authorisation.
    *
-   * A teacher with no `profiles.school_id` has no organisation yet — they
-   * cannot hold a grade to create a class under, so the dialog is not offered
-   * and the empty state points at the step that is actually missing.
+   * ── The profile is the last answer, not the only one ─────────────────────
+   *
+   * This read used to be `profiles.school_id` alone. `create_teacher_organisation`
+   * (00017) stamps it, so an owner always has one — but a teacher who *joined*
+   * a school may not: 00022's `approve_join_request` runs
+   * `UPDATE profiles ... WHERE id = <them> AND school_id IS NULL`, and nothing
+   * in this product ever creates a `profiles` row for an ordinary signup, so
+   * for them that UPDATE matches nothing and quietly writes no school. The
+   * result was no grades, no years and no create dialog at all — for exactly
+   * the teachers 00031 exists to let create a class.
+   *
+   * A teacher with none of the three sources genuinely has no organisation yet
+   * — the dialog stays hidden and the empty state points at the step that is
+   * actually missing.
    */
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('school_id')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  const schoolId = typeof profile?.school_id === 'string' ? profile.school_id : null
+  const schoolId = await resolveSchoolId(supabase, user.id)
 
   let grades: GradeOption[] = []
   let years: { id: string; name: string }[] = []

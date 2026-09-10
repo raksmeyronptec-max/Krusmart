@@ -25,6 +25,13 @@ export function useOverlay(
 ) {
   /** Whatever had focus before the overlay opened, so it can be restored. */
   const restoreTo = useRef<HTMLElement | null>(null)
+  const onCloseRef = useRef(onClose)
+  const closeOnEscapeRef = useRef(closeOnEscape)
+
+  useEffect(() => {
+    onCloseRef.current = onClose
+    closeOnEscapeRef.current = closeOnEscape
+  })
 
   const focusable = useCallback(() => {
     const root = panelRef.current
@@ -41,14 +48,38 @@ export function useOverlay(
 
     restoreTo.current = document.activeElement as HTMLElement | null
 
-    // Move focus in, so the first Tab lands inside rather than in the page.
-    const first = focusable()[0] ?? panelRef.current
-    first?.focus?.()
+    // Move focus inside the overlay when opened.
+    // If the overlay contains form fields (input, textarea, select), prefer focusing the first field
+    // so user can type immediately instead of focusing the header's close button.
+    const timer = requestAnimationFrame(() => {
+      const root = panelRef.current
+      if (!root) return
+
+      // If focus is already inside the panel, do not interfere.
+      if (root.contains(document.activeElement)) return
+
+      const autoFocusEl = root.querySelector<HTMLElement>('[autofocus], [data-autofocus]')
+      if (autoFocusEl) {
+        autoFocusEl.focus()
+        return
+      }
+
+      const firstInput = root.querySelector<HTMLElement>(
+        'input:not([disabled]):not([type="hidden"]), textarea:not([disabled]), select:not([disabled])',
+      )
+      if (firstInput && (firstInput.offsetParent !== null || firstInput === document.activeElement)) {
+        firstInput.focus()
+        return
+      }
+
+      const first = focusable()[0] ?? root
+      first?.focus?.()
+    })
 
     const onKeyDown = (e: KeyboardEvent) => {
-      if (closeOnEscape && e.key === "Escape") {
+      if (closeOnEscapeRef.current && e.key === "Escape") {
         e.stopPropagation()
-        onClose()
+        onCloseRef.current()
         return
       }
       if (e.key !== "Tab") return
@@ -81,9 +112,11 @@ export function useOverlay(
     html.style.overflow = "hidden"
 
     return () => {
+      cancelAnimationFrame(timer)
       document.removeEventListener("keydown", onKeyDown, true)
       html.style.overflow = previousOverflow
       restoreTo.current?.focus?.()
+      restoreTo.current = null
     }
-  }, [open, onClose, panelRef, focusable, closeOnEscape])
+  }, [open, panelRef, focusable])
 }
