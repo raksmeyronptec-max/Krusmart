@@ -11,6 +11,7 @@ import { formatMark, letterOrDash } from '@/lib/utils/score-band'
 import { DEFAULT_SCHEME_CONFIG, type GradingSchemeConfig } from '@/lib/grading/scheme'
 import type { ColumnGroup, TotalledStudent } from './scoreTotalConfig'
 import type { Settings } from '@/lib/types'
+import { useDocumentClassName } from '@/lib/hooks/useDocumentClassName'
 
 /**
  * Print preview for the totals table.
@@ -57,6 +58,7 @@ export function ScoreTotalPrint({
   maxByColumn = {},
 }: ScoreTotalPrintProps) {
   const panelRef = useRef<HTMLDivElement>(null)
+  const docClassName = useDocumentClassName(settings?.class_name)
   const isClient = useIsClient()
   useOverlay(open, onClose, panelRef)
 
@@ -144,7 +146,7 @@ export function ScoreTotalPrint({
               <p className="font-bold">{settings?.school_name || 'សាលា......'}</p>
             </div>
             <div className="text-right leading-relaxed">
-              <p>ថ្នាក់៖ {settings?.class_name || '—'}</p>
+              <p>ថ្នាក់៖ {docClassName || '—'}</p>
               <p>ឆ្នាំសិក្សា៖ {academicYear}</p>
               <p>កាលបរិច្ឆេទ៖ {today}</p>
             </div>

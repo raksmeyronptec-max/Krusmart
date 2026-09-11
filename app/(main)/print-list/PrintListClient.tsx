@@ -8,10 +8,12 @@ import { ALIGN_CENTER, ALIGN_LEFT, emptyCell, khmerFont, moulFont, THIN_BORDER, 
 import { notify } from '@/components/ui/feedback/notify'
 import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
 import { ClassContextBar } from '@/components/shell/ClassContextBar'
+import { useDocumentClassName } from '@/lib/hooks/useDocumentClassName'
 
 export default function PrintListClient({ initialStudents, settings }: { initialStudents: Student[], settings: Settings | null }) {
 
     const total = initialStudents.length
+    const docClassName = useDocumentClassName(settings?.class_name)
     const female = initialStudents.filter(s => s.gender === 'ស្រី' || s.gender === 'F').length
 
     const checkMark = '✓'
@@ -48,7 +50,7 @@ export default function PrintListClient({ initialStudents, settings }: { initial
 
         const ws_data: SheetRow[] = []
         const merges: SheetMerge[] = []
-        const className = settings?.class_name || 'Class'
+        const className = docClassName || 'Class'
         const year = settings?.academic_year || 'Year'
 
         const BORDER = THIN_BORDER
@@ -285,7 +287,7 @@ export default function PrintListClient({ initialStudents, settings }: { initial
                     </div>
 
                     <div className="flex justify-between items-end mt-4 text-[11px] font-bold text-black px-2">
-                        <div><span className="text-blue-800">{settings?.class_name || "..."}</span> <span className="ml-2">ឆ្នាំសិក្សា <span className="text-blue-800">{settings?.academic_year || "..."}</span></span></div>
+                        <div><span className="text-blue-800">{docClassName || "..."}</span> <span className="ml-2">ឆ្នាំសិក្សា <span className="text-blue-800">{settings?.academic_year || "..."}</span></span></div>
                         <div>ឈ្មោះគ្រូ៖ <span className="text-blue-800 kh-moul">{settings?.teacher_name || "..."}</span></div>
                         <div>សិស្សសរុប៖ <span className="text-blue-800">{total}</span> នាក់</div>
                         <div>ស្រី៖ <span className="text-blue-800">{female}</span> នាក់</div>

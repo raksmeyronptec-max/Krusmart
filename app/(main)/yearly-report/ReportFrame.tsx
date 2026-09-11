@@ -7,6 +7,7 @@ import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
 import { ClassContextBar } from '@/components/shell/ClassContextBar'
 import { useClassHref } from '@/lib/hooks/useClassHref'
 import type { Settings } from '@/lib/types'
+import { useDocumentClassName } from '@/lib/hooks/useDocumentClassName'
 
 /**
  * The A4 frame every yearly sub-report prints inside.
@@ -44,6 +45,7 @@ export function ReportFrame({
 }) {
   // The back link keeps the class this sheet was generated for.
   const classHref = useClassHref()
+  const docClassName = useDocumentClassName(settings?.class_name)
   return (
     <PageContainer>
       <style jsx global>{`
@@ -112,7 +114,7 @@ export function ReportFrame({
         {summary && (
           <div className="mb-2 flex flex-wrap items-end justify-between gap-2 text-[11pt] font-bold">
             {summary}
-            <p>ថ្នាក់ទី៖ {settings?.class_name || '..........'}</p>
+            <p>ថ្នាក់ទី៖ {docClassName || '..........'}</p>
           </div>
         )}
 

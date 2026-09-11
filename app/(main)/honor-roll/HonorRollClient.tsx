@@ -3,7 +3,6 @@
 import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/actions/Button'
 import { ArrowLeft, Printer, Award, Calendar, Bookmark } from 'lucide-react'
-import { notify } from '@/components/ui/feedback/notify'
 import { getAllScoresByPeriod, getMonthlyScoresForYear } from '../score/total/actions'
 import Select from '@/components/ui/forms/Select'
 import type { Settings, Student } from '@/lib/types'
@@ -23,6 +22,10 @@ import type { ScoreScope } from '@/lib/scores/workspace'
 import { PageContainer } from '@/components/shell/PageContainer'
 import { ScoreWorkspaceHeader } from '@/components/score/ScoreWorkspaceHeader'
 import { ResultDocumentLink } from '@/components/reporting/ResultDocumentLink'
+import { ResultEmptyState } from '@/components/score/ResultEmptyState'
+import { EmptyState } from '@/components/ui/feedback/EmptyState'
+import { resultAvailability } from '@/lib/scores/resultAvailability'
+import { useDocumentClassName } from '@/lib/hooks/useDocumentClassName'
 
 /** A student decorated with the per-period scores and the derived ranking fields. */
 type RankedStudent = Student & {
@@ -45,6 +48,7 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
    * `?? undefined` keeps a pre-V2 account on `teacher_id` scoping, unchanged.
    */
   const scopeClassId = useActiveClass().classId ?? undefined
+  const docClassName = useDocumentClassName(settings?.class_name)
     // Was the literal `'2025-2026'`, which silently became the wrong year every
     // November — the same defect `/score/enter` and `/ranking` were corrected for.
     const [academicYear, setAcademicYear] = useState(getCurrentAcademicYear)
@@ -58,6 +62,9 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
     const [alsoEligible, setAlsoEligible] = useState<RankedStudent[]>([])
     const [loading, setLoading] = useState(false)
     const [showPreview, setShowPreview] = useState(false)
+    /** Why no podium, when there is none — see `loadData`. */
+    const [emptyState, setEmptyState] =
+        useState<'no-roster' | 'no-marks' | 'none-eligible' | null>(null)
     const [topStudents, setTopStudents] = useState<RankedStudent[]>([])
 
     /**
@@ -213,19 +220,31 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
         if (eligible.length === 0) {
             /*
              * A class can honour nobody, and saying so is the point of a
-             * criterion. The old message blamed missing data because the old
-             * rule could only fail that way; this one distinguishes "no marks
-             * yet" from "nobody cleared the bar", which are different answers
-             * and lead to different actions.
+             * criterion. Three different answers, and they lead to three
+             * different actions:
+             *
+             *   no pupils      the class is empty        -> enrol somebody
+             *   no marks       nothing to judge yet      -> enter marks
+             *   none eligible  judged, and nobody passed -> a RESULT, not an absence
+             *
+             * The first two are `resultAvailability`'s, shared with `/ranking`.
+             * The third is this screen's own and stays here, because a full set
+             * of marks with no honourees is a finding rather than a gap.
+             *
+             * On SCREEN rather than in a toast. This screen already had the
+             * right rule and announced it in a notification that was gone in
+             * four seconds, leaving a picker that looked like it had done
+             * nothing (F14-4).
              */
-            const anyMarks = results.some(r => r.average !== null)
-            notify.error(anyMarks
-                ? `គ្មានសិស្សណាឈានដល់លក្ខខណ្ឌទេ (${criteria.label})`
-                : 'មិនទាន់មានទិន្នន័យពិន្ទុគ្រប់គ្រាន់ទេ សូមបញ្ចូលពិន្ទុជាមុនសិន')
+            const marked = results.filter(r => r.average !== null).length
+            const availability = resultAvailability(initialStudents.length, marked)
+            setEmptyState(availability === 'ready' ? 'none-eligible' : availability)
+            setCriteriaLabel(criteria.label)
             setLoading(false)
             return
         }
 
+        setEmptyState(null)
         setCriteriaLabel(criteria.label)
         setTopStudents(eligible.slice(0, 5))
         setAlsoEligible(eligible.slice(5))
@@ -387,6 +406,28 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
                             </div>
                         )}
                         
+                        {/*
+                          The answer, on the screen and above the picker that
+                          produced it. `none-eligible` is not an empty state —
+                          the class WAS judged and nobody cleared the bar — so it
+                          names the rule it was judged against rather than
+                          sending the teacher off to enter marks they already
+                          have.
+                        */}
+                        {emptyState === 'none-eligible' ? (
+                            <div role="status" className="mb-4">
+                                <EmptyState
+                                    icon={<Award className="h-6 w-6" aria-hidden="true" />}
+                                    title="គ្មានសិស្សណាឈានដល់លក្ខខណ្ឌកិត្តិយសទេ"
+                                    description={criteriaLabel
+                                        ? `លក្ខខណ្ឌ៖ ${criteriaLabel}`
+                                        : 'សូមពិនិត្យលក្ខខណ្ឌកិត្តិយសម្តងទៀត។'}
+                                />
+                            </div>
+                        ) : emptyState ? (
+                            <ResultEmptyState state={emptyState} className="mb-4" />
+                        ) : null}
+
                         <div className="rounded-[1.5rem] border-t-4 border-gold bg-bg-surface/95 p-6 text-center shadow-[0_10px_30px_rgba(0,0,0,0.05)] backdrop-blur-md md:p-10">
                             <div className="flex justify-center mb-4">
                                 <div className="p-4 bg-gold/10 rounded-full text-gold border border-gold/30">
@@ -505,7 +546,7 @@ export default function HonorRollClient({ initialStudents, settings}: { initialS
                                             <p>{settings?.management_unit_1 || "មន្ទីរអប់រំ យុវជន និងកីឡា..."}</p>
                                             <p>{settings?.management_unit_2 || "ការិយាល័យអប់រំ..."}</p>
                                             <p className="mt-1">{settings?.school_name || "សាលា..."}</p>
-                                            <p>{settings?.class_name || "ថ្នាក់..."}</p>
+                                            <p>{docClassName || "ថ្នាក់..."}</p>
                                         </div>
                                     </div>
 

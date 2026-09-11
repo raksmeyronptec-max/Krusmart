@@ -15,6 +15,7 @@ import { resolveTemplate, SYSTEM_PRIMARY_TEMPLATE, usesLevelCurriculum } from '@
 import { applySelection } from '@/lib/scores/selection'
 import { assignRanks, periodDenominator, studentAverage } from '@/lib/scores/aggregate'
 import { placing } from '@/lib/scores/periodResults'
+import { documentClassName } from './document-identity'
 import { markFor } from '@/lib/attendance/status'
 import { schemeForLevel } from '@/lib/grading/levelSchemes'
 import { gradeFor, type GradingSchemeConfig } from '@/lib/grading/scheme'
@@ -288,15 +289,25 @@ async function resolveMonthlyClass(
     .maybeSingle()
   const settings = (settingsRow as Settings | null) ?? {}
 
-  let className = settings.class_name ?? ''
+  /*
+   * The class this document is ABOUT — the class row's own name, with the
+   * per-teacher `settings` value as the fallback a pre-V2 account needs.
+   *
+   * The rule moved to `documentClassName` so the print SCREENS could read the
+   * same one: they had been printing `settings.class_name` directly, which
+   * named the wrong class for every teacher holding more than one (F14-1). This
+   * branch is unchanged in behaviour — it is the definition the screens adopted.
+   */
+  let classRowName: string | null = null
   if (scope.mode === 'v2') {
     const { data } = await supabase
       .from('classes')
       .select('name')
       .eq('id', scope.classId)
       .maybeSingle()
-    className = data?.name ?? className
+    classRowName = data?.name ?? null
   }
+  const className = documentClassName(classRowName, settings.class_name)
 
   const monthLabel = MONTH_LABEL_BY_ID[request.period] ?? request.period
   const periodLabel = `ខែ${monthLabel} ឆ្នាំសិក្សា ${request.academicYear}`

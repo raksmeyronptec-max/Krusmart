@@ -21,8 +21,11 @@ import { periodKeysForSemester } from '@/lib/scores/calendar'
 import { useScoreCalendar } from '@/lib/hooks/useScoreCalendar'
 import { getCurrentAcademicYear } from '@/lib/constants/academic'
 import { ScoreWorkspaceHeader } from '@/components/score/ScoreWorkspaceHeader'
+import { ResultEmptyState } from '@/components/score/ResultEmptyState'
+import { resultAvailability } from '@/lib/scores/resultAvailability'
 import { ResultDocumentLink } from '@/components/reporting/ResultDocumentLink'
 import { PageContainer } from '@/components/shell/PageContainer'
+import { useDocumentClassName } from '@/lib/hooks/useDocumentClassName'
 
 /** A student decorated with the per-period scores and the derived ranking fields. */
 type RankedStudent = Student & {
@@ -58,6 +61,7 @@ function RankingClientInner({ initialStudents, settings }: RankingClientProps) {
    * `?? undefined` keeps a pre-V2 account on `teacher_id` scoping, unchanged.
    */
   const scopeClassId = useActiveClass().classId ?? undefined
+  const docClassName = useDocumentClassName(settings?.class_name)
     /*
      * Was the literal `'2025-2026'`, which silently became the wrong year every
      * November — the same defect `/score/enter` was corrected for, left in place
@@ -78,6 +82,8 @@ function RankingClientInner({ initialStudents, settings }: RankingClientProps) {
     const [currentPeriod, setCurrentPeriod] = useState('jan')
     const [loading, setLoading] = useState(false)
     const [showPreview, setShowPreview] = useState(false)
+    /** Why there is no sheet, when there is none — see `loadData`. */
+    const [emptyState, setEmptyState] = useState<'no-roster' | 'no-marks' | null>(null)
     const [studentsData, setStudentsData] = useState<RankedStudent[]>([])
 
     /**
@@ -268,8 +274,32 @@ function RankingClientInner({ initialStudents, settings }: RankingClientProps) {
             return result
         })
 
+        /*
+         * ── Nothing to rank ───────────────────────────────────────────────
+         *
+         * This used to fall straight through to `setShowPreview(true)` with no
+         * guard, so a class with no pupils produced the COMPLETE ministry sheet
+         * — letterhead, title, `0 នាក់ ស្រី 0 នាក់ 0.00%`, and signature lines
+         * for the នាយកសាលា and the គ្រូបន្ទុកថ្នាក់ — with print and Excel live
+         * beside it (F14-3). A teacher could hand in a signed empty document.
+         *
+         * `/honor-roll` has always refused in this situation and said which of
+         * the two reasons it was. This is that rule, moved into
+         * `lib/scores/resultAvailability.ts` so both screens read one copy.
+         */
+        const marked = processedStudents.filter(s => s.finalAverageForRank > 0).length
+        const availability = resultAvailability(initialStudents.length, marked)
+        if (availability !== 'ready') {
+            setEmptyState(availability)
+            setStudentsData([])
+            setLoading(false)
+            setShowPreview(false)
+            return
+        }
+
         // Restore original order based on order_index
         processedStudents.sort((a,b) => (a.order_index || 0) - (b.order_index || 0))
+        setEmptyState(null)
         setStudentsData(processedStudents)
         setLoading(false)
         setShowPreview(true)
@@ -397,6 +427,14 @@ function RankingClientInner({ initialStudents, settings }: RankingClientProps) {
                         }
                     />
 
+                    {/*
+                      Why the last attempt produced no sheet, stated on the
+                      screen rather than in a toast that has already gone. It
+                      sits ABOVE the picker so the answer and the control that
+                      changes it are visible together.
+                    */}
+                    {emptyState && <ResultEmptyState state={emptyState} className="mb-4" />}
+
                     <div className="bg-bg-surface rounded-xl shadow-sm border border-divider overflow-hidden grid grid-cols-1 lg:grid-cols-12">
                         <div className="lg:col-span-8 p-6 sm:p-8 border-b lg:border-b-0 lg:border-r border-divider bg-paper/30">
                             <div className="flex items-center gap-2 mb-6">
@@ -484,7 +522,7 @@ function RankingClientInner({ initialStudents, settings }: RankingClientProps) {
                             <p>{settings?.management_unit_1 || "មន្ទីរអប់រំ យុវជន និងកីឡា..."}</p>
                             <p>{settings?.management_unit_2 || "ការិយាល័យអប់រំ..."}</p>
                             <p className="mt-1">{settings?.school_name || "សាលា..."}</p>
-                            <p>{settings?.class_name || "ថ្នាក់..."}</p>
+                            <p>{docClassName || "ថ្នាក់..."}</p>
                             <p>ឆ្នាំសិក្សា៖ {toKhmerNumber(academicYear)}</p>
                         </div>
                         
@@ -518,7 +556,16 @@ function RankingClientInner({ initialStudents, settings }: RankingClientProps) {
                             {studentsData.map((stu, i) => (
                                 <tr key={stu.id}>
                                     <td className="border border-blue-900 p-1 font-bold">{i + 1}</td>
-                                    <td className="border border-blue-900 p-1 text-[9px] font-bold text-slate-500 font-mono">{stu.id}</td>
+                                    {/*
+                                        The pupil's own អត្តលេខ, not `stu.id`.
+                                        This printed the 36-character database
+                                        uuid — `b0000000-0000-0000-…` — in the
+                                        student-number column of a sheet handed
+                                        to the school director (F14-2). Every
+                                        other surface prints `student_id`; the
+                                        record book does it three files away.
+                                    */}
+                                    <td className="border border-blue-900 p-1 text-[10px] font-bold text-slate-600 font-mono">{toKhmerNumber(stu.student_id || '')}</td>
                                     <td className="border border-blue-900 p-1 text-left px-2 font-bold">{stu.name_kh || stu.full_name}</td>
                                     <td className="border border-blue-900 p-1">{stu.gender === 'ស្រី' || stu.gender === 'F' ? 'ស' : 'ប'}</td>
                                     <td className="border border-blue-900 p-1 font-bold">{stu.total}</td>

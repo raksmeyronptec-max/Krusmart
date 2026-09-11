@@ -15,6 +15,7 @@ import { createBookEntry, deleteBookEntry, listBookEntries, updateBookEntry } fr
 import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
 import { ClassContextBar } from '@/components/shell/ClassContextBar'
 import { useClassHref } from '@/lib/hooks/useClassHref'
+import { useDocumentClassName } from '@/lib/hooks/useDocumentClassName'
 
 /**
  * Editor and printable sheet for one of the 13 class-administration books.
@@ -44,6 +45,7 @@ export default function BookClient({
   settings: Settings | null
 }) {
   const [entries, setEntries] = useState<ClassAdminEntry[]>(initialEntries)
+  const docClassName = useDocumentClassName(settings?.class_name)
   const [form, setForm] = useState<Record<string, string>>(() => emptyForm(book))
   const [editId, setEditId] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
@@ -319,7 +321,7 @@ export default function BookClient({
 
         <h2 className="kh-moul mb-2 text-center text-[14pt]">{book.printTitle}</h2>
         <p className="mb-5 text-center text-[11pt] font-bold">
-          ថ្នាក់ទី {settings?.class_name || '.......'} ឆ្នាំសិក្សា {settings?.academic_year || '.......'}
+          ថ្នាក់ទី {docClassName || '.......'} ឆ្នាំសិក្សា {settings?.academic_year || '.......'}
         </p>
 
         <table className="admin-table">

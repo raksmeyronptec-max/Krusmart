@@ -18,6 +18,7 @@ import { useClassHref } from '@/lib/hooks/useClassHref'
 import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
 import { ClassContextBar } from '@/components/shell/ClassContextBar'
 import { useActiveClass } from '@/lib/hooks/useActiveClass'
+import { useDocumentClassName } from '@/lib/hooks/useDocumentClassName'
 
 /**
  * តារាងពិន្ទុតាមទម្រង់ក្រសួង — the ministry's printable score sheet.
@@ -79,6 +80,7 @@ export default function ScorePrintClient({
    * `?? undefined` keeps a pre-V2 account on `teacher_id` scoping, unchanged.
    */
   const scopeClassId = useActiveClass().classId ?? undefined
+  const docClassName = useDocumentClassName(settings?.class_name)
   // Keeps the working class on the way out: a link from this screen to
   // another class-scoped screen must still be about the same class.
   const classHref = useClassHref()
@@ -324,7 +326,7 @@ export default function ScorePrintClient({
 
         <h2 className="kh-moul text-center text-[13pt]">តារាងពិន្ទុ{periodLabel}</h2>
         <p className="mb-3 text-center text-[10pt] font-bold">
-          ថ្នាក់ទី {settings?.class_name || '.......'} ឆ្នាំសិក្សា {academicYear}
+          ថ្នាក់ទី {docClassName || '.......'} ឆ្នាំសិក្សា {academicYear}
         </p>
 
         <table className="moeys-table">

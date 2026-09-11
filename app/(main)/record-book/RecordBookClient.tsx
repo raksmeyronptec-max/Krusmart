@@ -12,6 +12,7 @@ import type { AttendanceRecord, Score, Settings, Student } from '@/lib/types'
 import { markFor } from '@/lib/attendance/status'
 import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
 import { ClassContextBar } from '@/components/shell/ClassContextBar'
+import { useDocumentClassName } from '@/lib/hooks/useDocumentClassName'
 
 /**
  * សៀវភៅសិក្ខាគារិក — one A4 landscape sheet per student.
@@ -91,6 +92,7 @@ export default function RecordBookClient({
   academicYear: string
 }) {
   const [selectedId, setSelectedId] = useState<string>('')
+  const docClassName = useDocumentClassName(settings?.class_name)
 
   // The class's grading scheme, resolved once for the whole book — the record
   // sheet prints an annual letter, which must be the letter every other
@@ -277,7 +279,7 @@ export default function RecordBookClient({
                 <p><b>ភេទ៖</b> {student.gender || DASH}</p>
                 <p><b>អត្តលេខ៖</b> {student.student_id || DASH}</p>
                 <p><b>គ្រឹះស្ថានសិក្សា៖</b> {settings?.school_name || DASH}</p>
-                <p><b>ថ្នាក់៖</b> {student.grade || settings?.class_name || DASH}</p>
+                <p><b>ថ្នាក់៖</b> {student.grade || docClassName || DASH}</p>
                 <p><b>ឆ្នាំសិក្សា៖</b> {academicYear}</p>
               </div>
 

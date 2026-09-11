@@ -10,6 +10,7 @@ import { COGNITIVE_LEVELS, type CognitiveAssessment, type Settings, type Student
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import { DEFAULT_SCHEME_CONFIG, letterFor } from '@/lib/grading/scheme'
 import { logger } from '@/lib/utils/logger'
+import { useDocumentClassName } from '@/lib/hooks/useDocumentClassName'
 
 /** The subset of the page's analytics this panel prints. */
 export interface StudentSummary {
@@ -61,6 +62,7 @@ export function CognitivePanel({
     classId?: string | null
 }) {
     const [studentId, setStudentId] = useState('')
+    const docClassName = useDocumentClassName(settings?.class_name)
     const [saved, setSaved] = useState<Record<string, CognitiveAssessment>>({})
     /**
      * Unsaved slider positions, tagged with the pupil they belong to.
@@ -249,7 +251,7 @@ export function CognitivePanel({
 
                     <div className="mb-4 text-[10pt] leading-relaxed">
                         <p>{settings?.school_name || 'សាលា......................'}</p>
-                        <p>ថ្នាក់៖ {settings?.class_name || '..........'} · ឆ្នាំសិក្សា {academicYear}</p>
+                        <p>ថ្នាក់៖ {docClassName || '..........'} · ឆ្នាំសិក្សា {academicYear}</p>
                     </div>
 
                     <h2 className="kh-moul mb-4 text-center text-[14pt] uppercase">

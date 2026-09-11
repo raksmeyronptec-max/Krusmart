@@ -21,6 +21,8 @@ import { buildPeriodResults } from '@/lib/scores/periodResults'
 import { periodKeysForSemester } from '@/lib/scores/calendar'
 import { useScoreCalendar } from '@/lib/hooks/useScoreCalendar'
 import type { ScoreScope } from '@/lib/scores/workspace'
+import { useDocumentClassName } from '@/lib/hooks/useDocumentClassName'
+import { ResultEmptyState } from '@/components/score/ResultEmptyState'
 
 /** A student decorated with the scores and ranking fields the certificate prints. */
 type ProcessedStudent = Student & {
@@ -44,6 +46,7 @@ export default function CertificateClient({ initialStudents, settings }: { initi
    * `?? undefined` keeps a pre-V2 account on `teacher_id` scoping, unchanged.
    */
   const scopeClassId = useActiveClass().classId ?? undefined
+  const docClassName = useDocumentClassName(settings?.class_name)
     /*
      * `annual`, not `yearly`.
      *
@@ -67,7 +70,7 @@ export default function CertificateClient({ initialStudents, settings }: { initi
     const [templateUrl, setTemplateUrl] = useState('')
     const [certOffice, setCertOffice] = useState(settings?.management_unit_1 || 'ការិយាល័យអប់រំ យុវជន និងកីឡា ស្រុកព្រះស្តេច')
     const [certSchool, setCertSchool] = useState(settings?.school_name || 'សាលាបឋមសិក្សាភក្សោ')
-    const [certClass, setCertClass] = useState(settings?.class_name || '៤')
+    const [certClass, setCertClass] = useState(() => docClassName || '៤')
     const [certProvince, setCertProvince] = useState(settings?.province_date || 'ព្រៃវែង')
     const [showPhoto, setShowPhoto] = useState(true)
 
@@ -473,8 +476,22 @@ export default function CertificateClient({ initialStudents, settings }: { initi
                                     {studentsData.length === 0 ? (
                                         <tr>
                                             <td colSpan={7} className="p-8 text-center text-text-muted">
-                                                <ListOrdered className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                                                សូមរង់ចាំបន្តិច ទិន្នន័យកំពុងទាញយក...
+                                                {/*
+                                                  "Please wait, loading…" used to be shown here
+                                                  whenever the list was empty — including for a
+                                                  class with no pupils, where nothing is coming and
+                                                  the teacher waits for ever (F14-4). An empty class
+                                                  is a terminal state with an action; only a class
+                                                  that HAS pupils is still computing.
+                                                */}
+                                                {initialStudents.length === 0 ? (
+                                                    <ResultEmptyState state="no-roster" />
+                                                ) : (
+                                                    <>
+                                                        <ListOrdered className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                                                        សូមរង់ចាំបន្តិច ទិន្នន័យកំពុងទាញយក...
+                                                    </>
+                                                )}
                                             </td>
                                         </tr>
                                     ) : studentsData.map(stu => (

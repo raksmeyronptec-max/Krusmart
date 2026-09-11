@@ -10,6 +10,7 @@ import { formatKhmerDate } from '@/lib/utils/date'
 import { notify } from '@/components/ui/feedback/notify'
 import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
 import { ClassContextBar } from '@/components/shell/ClassContextBar'
+import { useDocumentClassName } from '@/lib/hooks/useDocumentClassName'
 
 /**
  * The student's place of birth, with the administrative-unit prefix stripped
@@ -53,6 +54,7 @@ const getDriveImageUrl = (url: string) => {
 
 export default function IdStudentClient({ initialStudents, settings }: { initialStudents: Student[], settings: Settings | null }) {
     const [currentBgImage, setCurrentBgImage] = useState('/id-templates/2_id-student.jpg')
+    const docClassName = useDocumentClassName(settings?.class_name)
     const [signatureImageSrc, setSignatureImageSrc] = useState('')
     const [signatureScale, setSignatureScale] = useState(1)
 
@@ -86,7 +88,7 @@ export default function IdStudentClient({ initialStudents, settings }: { initial
     const managementUnit1 = settings?.management_unit_1 || ''
     const schoolName = settings?.school_name || ''
     const academicYear = toKhmerNumber(settings?.academic_year || '២០២៤-២០២៥')
-    const className = settings?.class_name || '១ «ក»'
+    const className = docClassName || '១ «ក»'
     const director = settings?.director_name || 'នាយកសាលា'
     const provinceDate = settings?.province_date || 'ភ្នំពេញ'
     const schoolLogoUrl = settings?.school_logo || ''

@@ -4,6 +4,7 @@ import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import { studentTotals, type HomeworkScores } from './scores'
 import type { HomeworkDay } from './period'
 import type { Settings, Student } from '@/lib/types'
+import { useDocumentClassName } from '@/lib/hooks/useDocumentClassName'
 
 /**
  * The A4 sheet a teacher files — the ministry's 26th-to-25th homework form.
@@ -35,6 +36,7 @@ export function HomeworkPrintSheet({
   monthLabel,
 }: HomeworkPrintSheetProps) {
   const femaleTotal = students.filter((s) => s.gender === 'ស្រី' || s.gender === 'F').length
+  const docClassName = useDocumentClassName(settings?.class_name)
 
   return (
     <div className="hidden print:block">
@@ -61,7 +63,7 @@ export function HomeworkPrintSheet({
         <p>
           សិស្សសរុប {toKhmerNumber(students.length)} នាក់ · ស្រី {toKhmerNumber(femaleTotal)} នាក់
         </p>
-        <p>ថ្នាក់ទី៖ {settings?.class_name || '..........'}</p>
+        <p>ថ្នាក់ទី៖ {docClassName || '..........'}</p>
       </div>
 
       <table className="hw-print-table">

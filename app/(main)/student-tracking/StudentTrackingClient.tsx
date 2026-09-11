@@ -12,11 +12,13 @@ import { letterFor } from '@/lib/grading/scheme'
 import { useScoreTemplate } from '@/lib/hooks/useScoreTemplate'
 import { maxScoreByColumn } from '@/lib/scores/template'
 import { studentAverage } from '@/lib/scores/aggregate'
+import { useDocumentClassName } from '@/lib/hooks/useDocumentClassName'
 
 export default function StudentTrackingClient({ initialStudents, scoresData, settings, academicYear }: { 
     initialStudents: Student[], scoresData: Score[], settings: Settings | null, academicYear: string 
 }) {
     const [selectedYear, setSelectedYear] = useState(academicYear)
+    const docClassName = useDocumentClassName(settings?.class_name)
     const [searchTerm, setSearchTerm] = useState('')
     const [reportType, setReportType] = useState('monthly')
     const [selectedMonth, setSelectedMonth] = useState('01')
@@ -261,7 +263,7 @@ export default function StudentTrackingClient({ initialStudents, scoresData, set
                                 screen reader with no single page title. */}
                             <h2 className="kh-moul text-lg mb-1 tracking-wider">សៀវភៅតាមដានលទ្ធផលសិក្សារបស់សិស្ស</h2>
                             <div className="inline-block border-2 border-[#1e40af] px-4 py-1.5 rounded-lg font-bold text-sm bg-blue-50/50 shadow-sm">
-                                ថ្នាក់ទី {settings?.class_name || "១២ ក"} | ឆ្នាំសិក្សា {selectedYear}
+                                ថ្នាក់ទី {docClassName || "១២ ក"} | ឆ្នាំសិក្សា {selectedYear}
                             </div>
                         </div>
 

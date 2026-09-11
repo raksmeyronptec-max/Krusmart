@@ -19,6 +19,7 @@ import { maxScoreByColumn } from '@/lib/scores/template'
 import { FALLBACK_NUMERIC_KEYS, numericColumnKeys, studentAverage } from '@/lib/scores/aggregate'
 import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
 import { ClassContextBar } from '@/components/shell/ClassContextBar'
+import { useDocumentClassName } from '@/lib/hooks/useDocumentClassName'
 
 const subjectsConfig = [
     { key: 'kh_listen', label: 'ភាសាខ្មែរ (ស្តាប់)' }, { key: 'kh_speak', label: 'ភាសាខ្មែរ (និយាយ)' },
@@ -73,6 +74,7 @@ interface ReportData {
 
 export default function ParentReportClient({ initialStudents, settings }: { initialStudents: Student[], settings: Settings | null }) {
     const [academicYear, setAcademicYear] = useState('2025-2026')
+    const docClassName = useDocumentClassName(settings?.class_name)
     const [month, setMonth] = useState('nov')
     const [studentId, setStudentId] = useState('')
     const [loading, setLoading] = useState(false)
@@ -430,7 +432,7 @@ export default function ParentReportClient({ initialStudents, settings }: { init
                             <p className="kh-moul text-[13px]">{settings?.management_unit_1 || "មន្ទីរអប់រំ យុវជន និងកីឡា"}</p>
                             <p className="kh-moul text-[13px]">{settings?.management_unit_2 || "ការិយាល័យអប់រំ យុវជន និងកីឡា"}</p>
                             <p className="kh-moul text-[13px]">{settings?.school_name || "សាលារបស់អ្នក"}</p>
-                            <p className="kh-moul text-[13px] mt-2 print:mt-1"> <span className="text-blue-700">{settings?.class_name || "ថ្នាក់ដើម"}</span></p>
+                            <p className="kh-moul text-[13px] mt-2 print:mt-1"> <span className="text-blue-700">{docClassName || "ថ្នាក់ដើម"}</span></p>
                         </div>
                         <div className="text-center">
                             <p className="kh-moul text-[14px]">ព្រះរាជាណាចក្រកម្ពុជា</p>

@@ -9,6 +9,7 @@ import type { Settings, Student } from '@/lib/types'
 import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
 import { ClassContextBar } from '@/components/shell/ClassContextBar'
 import { calculateAge } from '@/lib/utils/date'
+import { useDocumentClassName } from '@/lib/hooks/useDocumentClassName'
 
 /** Mean of a list, or null when there is nothing to average. */
 function mean(values: number[]): number | null {
@@ -27,6 +28,7 @@ export default function PrintStudentAgeClient({ initialStudents, settings, acade
     heights: Record<string, number>
 }) {
     const MIN_AGE = 5
+    const docClassName = useDocumentClassName(settings?.class_name)
     const MAX_AGE = 20
 
     const {
@@ -289,7 +291,7 @@ export default function PrintStudentAgeClient({ initialStudents, settings, acade
                 
                 <div className="flex justify-between items-end mb-2 font-bold text-[11pt]">
                     <p>ចំនួនសិស្សសរុប {allTotal} នាក់ ស្រី {totalF} នាក់</p>
-                    <p>ថ្នាក់ទី៖ {settings?.class_name || "១២ ក"}</p>
+                    <p>ថ្នាក់ទី៖ {docClassName || "១២ ក"}</p>
                 </div>
 
                 <table className="report-table">
