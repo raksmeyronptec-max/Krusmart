@@ -378,8 +378,20 @@ const main = async () => {
   r = await as(c, E, () => rows(c, `DELETE FROM public.classes WHERE id=$1 RETURNING id`, [kE]))
   check('the creator CAN delete it while it is still empty (rollbackClass)',
     r.ok && r.value.length === 1, r.ok ? `${r.value?.length} row(s) deleted` : `${r.code} ${r.error}`)
+  /*
+   * A pupil of its OWN, not A.st.
+   *
+   * This used to enrol A.st — who is already actively enrolled in A.k — purely
+   * to make the class non-empty, and so depended on a pupil being active in two
+   * classes at once. 00035 forbids that, and caught this line the moment it
+   * was applied: the harness had quietly been asserting the absence of the
+   * invariant it now proves. The check's meaning is unchanged; only its fixture
+   * stopped borrowing another class's pupil.
+   */
+  const stE = (await one(`INSERT INTO public.students (teacher_id,school_id,student_id,grade,name_kh,gender,dob)
+                 VALUES ($1,$2,'S-E','ថ្នាក់ទី៥','សិស្ស ថ្នាក់E','ប្រុស','2015-04-04') RETURNING id`, [E, A.sc])).id
   await c.query(`INSERT INTO public.student_enrollments (student_id,class_id,academic_year_id,status)
-                 VALUES ($1,$2,$3,'active')`, [A.st, kE, A.y])
+                 VALUES ($1,$2,$3,'active')`, [stE, kE, A.y])
   r = await as(c, E, () => rows(c, `DELETE FROM public.classes WHERE id=$1 RETURNING id`, [kE]))
   check('...and CANNOT once a pupil is enrolled — from then on it is archived, never deleted',
     r.ok && r.value.length === 0, r.ok ? `${r.value.length} row(s) deleted` : r.error)
@@ -418,9 +430,24 @@ const main = async () => {
   check('a form master CAN close an enrolment in their own class',
     r.ok && r.value.length === 1, r.ok ? `${r.value.length} row(s)` : `${r.code} ${r.error}`)
 
-  r = await as(c, A.t, () => rows(c, `INSERT INTO public.student_enrollments
-      (student_id,class_id,academic_year_id,status) VALUES ($1,$2,$3,'active') RETURNING id`,
-      [A.st, kA3, A.y]))
+  /*
+   * Close AND open in ONE `as()` block, because that is what a transfer is —
+   * `moveEnrolment` stamps the source row before inserting the destination,
+   * and says why.
+   *
+   * These were two separate blocks, and `as()` rolls back, so the open ran
+   * against a pupil who was still actively enrolled in the source class. It
+   * passed only because nothing forbade a second active enrolment: what it
+   * actually proved was that a form master could DUPLICATE a pupil into a
+   * second class. 00035 refuses that, correctly, and the check now exercises
+   * the operation it always claimed to.
+   */
+  r = await as(c, A.t, async () => {
+    await c.query(`UPDATE public.student_enrollments SET status='transferred', left_at=now() WHERE id=$1`, [openRow])
+    return rows(c, `INSERT INTO public.student_enrollments
+        (student_id,class_id,academic_year_id,status) VALUES ($1,$2,$3,'active') RETURNING id`,
+        [A.st, kA3, A.y])
+  })
   check('...and open one in another class they are form master of',
     r.ok && r.value.length === 1, r.ok ? '' : `${r.code} ${r.error}`)
 
@@ -602,6 +629,100 @@ const main = async () => {
   check('...while a real correction still goes through',
     r.ok && r.value.length === 1, r.ok ? '' : `${r.code} ${r.error}`)
 
+  // ------------------------- cross-class discovery + enrolment (00035) ------
+  // Phase 18's question: can a teacher find a pupil in a COLLEAGUE'S class and
+  // enrol them? Every sweep above compares two teachers in DIFFERENT SCHOOLS;
+  // the note at the foot of this file records the same-school, different-class
+  // case as unswept. It is the case the whole phase is about, so it is swept
+  // here — and then the invariant that makes "enrol" unable to become a silent
+  // duplicate is proved.
+  log('\ncross-class discovery (Phase 18)')
+
+  // A second teacher in A's OWN school, with their own class and pupil.
+  const C2 = (await one(`INSERT INTO auth.users (email) VALUES ('colleague@example.com') RETURNING id`)).id
+  const gradeC = (await one(`SELECT g.id FROM public.grades g
+                               JOIN public.education_levels el ON el.id = g.education_level_id
+                              WHERE el.school_id = $1 LIMIT 1`, [A.sc])).id
+  const kC = (await one(`INSERT INTO public.classes (grade_id,academic_year_id,name)
+                         VALUES ($1,$2,'៧ខ') RETURNING id`, [gradeC, A.y])).id
+  await c.query(`INSERT INTO public.teacher_assignments (teacher_id,class_id,academic_year_id,is_homeroom,status)
+                 VALUES ($1,$2,$3,true,'active')`, [C2, kC, A.y])
+  const stC = (await one(`INSERT INTO public.students (teacher_id,school_id,student_id,grade,name_kh,gender,dob)
+                 VALUES ($1,$2,'S-C','ថ្នាក់ទី៥','សិស្ស សហការី','ស្រី','2015-02-02') RETURNING id`, [C2, A.sc])).id
+  await c.query(`INSERT INTO public.student_enrollments (student_id,class_id,academic_year_id,status)
+                 VALUES ($1,$2,$3,'active')`, [stC, kC, A.y])
+
+  // --- discovery: A shares a school with C2 and must still see nothing ------
+  /*
+   * Measured as E, not A. By this point A holds `owner` in their own school
+   * (the join-request section grants it), and a school owner SHOULD see the
+   * whole school — `is_school_admin` is a branch of both select policies. E
+   * holds exactly `teacher` and is form master of their own class, which is
+   * the actor this phase is about.
+   */
+  r = await as(c, E, () => rows(c, `SELECT id FROM public.students WHERE id=$1`, [stC]))
+  check("a plain teacher CANNOT read a colleague's pupil in the SAME school",
+    r.ok && r.value.length === 0, `${r.value?.length} row(s)`)
+  r = await as(c, E, () => rows(c, `SELECT name_kh, student_id FROM public.students WHERE student_id='S-C'`))
+  check('...not even name and number, searched by student number', r.ok && r.value.length === 0,
+    'a minimal projection is still a disclosure if the row is not theirs')
+  r = await as(c, E, () => rows(c, `SELECT id FROM public.student_enrollments WHERE student_id=$1`, [stC]))
+  check("...nor which class they are in", r.ok && r.value.length === 0, `${r.value?.length} row(s)`)
+  r = await as(c, E, () => rows(c, `SELECT id FROM public.classes WHERE id=$1`, [kC]))
+  check("...nor that the colleague's class exists", r.ok && r.value.length === 0, `${r.value?.length} row(s)`)
+
+  // The admin branch is not a leak — it is the policy working. Stated, so the
+  // contrast above is a measured distinction rather than an unexamined pass.
+  r = await as(c, A.t, () => rows(c, `SELECT id FROM public.student_enrollments WHERE student_id=$1`, [stC]))
+  check("...while the school OWNER legitimately does see them  ← is_school_admin",
+    r.ok && r.value.length === 1, `${r.value?.length} row(s)`)
+
+  // --- enrolment: the write side of the same question ----------------------
+  r = await as(c, E, () => rows(c, `INSERT INTO public.student_enrollments (student_id,class_id,academic_year_id,status)
+      VALUES ($1,$2,$3,'active') RETURNING id`, [stC, kE, A.y]))
+  check("a plain teacher CANNOT enrol a colleague's pupil into their own class", !r.ok,
+    r.ok ? 'INSERT SUCCEEDED — policy too wide' : r.code)
+
+  /*
+   * The creator tail. `can_enrol_student` grants on `students.teacher_id`,
+   * which is the LEGACY roster column and cannot be narrowed — a pre-V2
+   * account's whole roster is that column. So a teacher who created a pupil
+   * keeps the right to enrol them even after the pupil has moved on, and
+   * before 00035 that produced a DUPLICATE rather than a move: the pupil went
+   * active in both classes and appeared in both rosters, with neither teacher
+   * told. The index is what makes that impossible now.
+   */
+  const stMoved = (await one(`INSERT INTO public.students (teacher_id,school_id,student_id,grade,name_kh,gender,dob)
+                 VALUES ($1,$2,'S-M','ថ្នាក់ទី៥','សិស្ស ចល័ត','ស្រី','2015-03-03') RETURNING id`, [A.t, A.sc])).id
+  await c.query(`INSERT INTO public.student_enrollments (student_id,class_id,academic_year_id,status)
+                 VALUES ($1,$2,$3,'active')`, [stMoved, kC, A.y])
+  r = await as(c, A.t, () => rows(c, `INSERT INTO public.student_enrollments (student_id,class_id,academic_year_id,status)
+      VALUES ($1,$2,$3,'active') RETURNING id`, [stMoved, A.k, A.y]))
+  check('a pupil CANNOT be actively enrolled in two classes at once  ← 00035',
+    !r.ok && r.code === '23505',
+    r.ok ? 'INSERT SUCCEEDED — the pupil is now in two rosters' : r.code)
+
+  // ...and the legitimate route still works: close, then open.
+  r = await as(c, A.t, async () => {
+    await c.query(`UPDATE public.student_enrollments SET status='transferred', left_at=now()
+                    WHERE student_id=$1 AND class_id=$2`, [stMoved, kC])
+    return rows(c, `INSERT INTO public.student_enrollments (student_id,class_id,academic_year_id,status)
+                    VALUES ($1,$2,$3,'active') RETURNING id`, [stMoved, A.k, A.y])
+  })
+  check('...while a TRANSFER — close the old row, then open the new — still works',
+    r.ok && r.value.length === 1, r.ok ? '' : `${r.code} ${r.error}`)
+
+  // History must stay recordable: the index is partial for this reason.
+  r = await as(c, A.t, async () => {
+    await c.query(`UPDATE public.student_enrollments SET status='transferred', left_at=now()
+                    WHERE student_id=$1 AND status='active'`, [A.st])
+    await c.query(`INSERT INTO public.student_enrollments (student_id,class_id,academic_year_id,status)
+                   VALUES ($1,$2,$3,'promoted')`, [A.st, kC, A.y])
+    return rows(c, `SELECT id FROM public.student_enrollments WHERE student_id=$1`, [A.st])
+  })
+  check("...and a pupil's closed history stays recordable", r.ok && r.value.length >= 2,
+    r.ok ? `${r.value.length} row(s)` : `${r.code} ${r.error}`)
+
   await c.end()
   const a1 = await conn('postgres'); await a1.query(`DROP DATABASE IF EXISTS ${DB} WITH (FORCE)`); await a1.end()
 
@@ -628,7 +749,9 @@ main().catch(e => { console.error('HARNESS ERROR:', e); process.exit(2) })
  *    over-broad `select=*,related(*)`.
  * 4. Denial is proven for a teacher in a DIFFERENT school and allowance for a
  *    colleague on the SAME class. The middle case — same school, different
- *    class, no shared assignment — is not swept per table.
+ *    class, no shared assignment — is swept for `students`, `classes` and
+ *    `student_enrollments` by the Phase 18 section, and is still not swept for
+ *    the other tables.
  * 5. Nothing here tests concurrency: two teachers writing the same score row
  *    at once is governed by scores_owner_period_uniq, not by RLS.
  * ------------------------------------------------------------------------- */
