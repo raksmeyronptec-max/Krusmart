@@ -10,7 +10,6 @@ import {
   ClipboardList,
   FileSpreadsheet,
   FileText,
-  GraduationCap,
   Printer,
   ScrollText,
   Search,
@@ -20,6 +19,7 @@ import {
 } from 'lucide-react'
 
 import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
+import { ClassContextBar } from '@/components/shell/ClassContextBar'
 import { Badge } from '@/components/ui/feedback/Badge'
 import { EmptyState } from '@/components/ui/feedback/EmptyState'
 import { controlClass } from '@/components/ui/forms/fieldStyles'
@@ -126,7 +126,6 @@ function formatsShown(report: ReportDefinition, availability: ReportAvailability
 export default function PrintCenterClient({
   classId,
   className,
-  gradeNumber,
   academicYear,
   initialCategory = null,
   initialReport = null,
@@ -135,7 +134,6 @@ export default function PrintCenterClient({
 }: {
   classId: string | null
   className: string
-  gradeNumber: number | null
   academicYear: string
   /**
    * The family to open on, from `?category=` — already validated by the page.
@@ -229,11 +227,34 @@ export default function PrintCenterClient({
         description="បង្កើត ពិនិត្យ បោះពុម្ព និងទាញយកឯកសារសិក្សា"
       />
 
-      <ContextBar
-        className={className}
-        gradeNumber={gradeNumber}
-        academicYear={academicYear}
-        scoped={classId !== null}
+      {/*
+        The SHARED strip (Phase 12 F8). This page used to render a private copy
+        — same three facts, its own markup — so a class whose grade row is named
+        unusually read differently here than on `/student-list`, and the one
+        screen a teacher arrives at from four others stated its context in a
+        fourth way.
+
+        Two things the private copy knew are passed rather than dropped, which
+        is why the shared component grew exactly two optional props:
+
+          the YEAR   this page honours `?year=`, so it can legitimately be about
+                     a year that is not the active assignment's — which is what
+                     `useActiveClass()` would otherwise report.
+          the LEGACY a pre-V2 account has no class row and the shared strip
+             CASE   renders nothing for it. Here there IS a true answer:
+                    `settings.class_name`, the name that account prints on every
+                    sheet, plus the fact that reports cover the whole roster.
+
+        The grade is no longer threaded through this page at all: the strip
+        reads it from `useActiveClass()` like everywhere else, so the server
+        stopped resolving a class template just to print one number.
+      */}
+      <ClassContextBar
+        yearLabel={academicYear}
+        legacy={{
+          label: className || 'សិស្សរបស់អ្នក',
+          note: 'របាយការណ៍ប្រើបញ្ជីសិស្សរបស់អ្នកទាំងអស់។',
+        }}
       />
 
       {/* ---------------------------------------------------------- search */}
@@ -383,66 +404,6 @@ export default function PrintCenterClient({
   )
 }
 
-/* ------------------------------------------------------------------ context */
-
-/**
- * Which class, grade and year every document on this page will be about (§7).
- *
- * Read-only on purpose. The app shell already carries a class switcher in the
- * top bar on every breakpoint, and a second selector here would be two controls
- * for one piece of state — the drift §7 warns about. This states the answer and
- * says where to change it.
- */
-function ContextBar({
-  className,
-  gradeNumber,
-  academicYear,
-  scoped,
-}: {
-  className: string
-  gradeNumber: number | null
-  academicYear: string
-  /** True when a class is resolved; false for a pre-V2, roster-scoped account. */
-  scoped: boolean
-}) {
-  return (
-    <section
-      aria-label="បរិបទរបាយការណ៍"
-      className="mb-4 flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border border-divider bg-bg-surface px-4 py-3 shadow-sm"
-    >
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-100 text-brand dark:bg-brand-900/40">
-        <GraduationCap className="h-[18px] w-[18px]" aria-hidden="true" />
-      </span>
-
-      <dl className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-3">
-        <ContextField
-          label="ថ្នាក់"
-          value={className || (scoped ? '—' : 'សិស្សរបស់អ្នក')}
-        />
-        <ContextField
-          label="ថ្នាក់ទី"
-          value={gradeNumber ? toKhmerNumber(gradeNumber) : '—'}
-        />
-        <ContextField label="ឆ្នាំសិក្សា" value={academicYear} />
-      </dl>
-
-      <p className="ml-auto max-w-full text-[11px] text-text-muted">
-        {scoped
-          ? 'ប្ដូរថ្នាក់នៅរបារខាងលើ។'
-          : 'របាយការណ៍ប្រើបញ្ជីសិស្សរបស់អ្នកទាំងអស់។'}
-      </p>
-    </section>
-  )
-}
-
-function ContextField({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="min-w-0">
-      <dt className="text-[11px] text-text-muted">{label}</dt>
-      <dd className="truncate text-sm font-bold text-text-heading">{value}</dd>
-    </div>
-  )
-}
 
 /* --------------------------------------------------------------- navigation */
 

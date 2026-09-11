@@ -343,13 +343,8 @@ fixture teacher, class ៤ក:
 
 **Deliberately not taken, with the reason:**
 
-- **F8 — the Print Center's private `ContextBar`.** The audit's own §23 listed converging it onto
-  the shared `ClassContextBar`; it is not in this brief's §1 P1 set, and converging it would be a
-  **regression**. The private bar renders for a pre-V2 account (from `settings.class_name`) and
-  carries the scope hint *"របាយការណ៍ប្រើបញ្ជីសិស្សរបស់អ្នកទាំងអស់។"*; `ClassContextBar` deliberately
-  renders nothing for a legacy account. Swapping it would blank the context on exactly the accounts
-  whose reports still work. Doing this properly means teaching the shared bar a legacy state — a
-  change to a component 26 routes render, which the flow work does not require.
+- **F8 — the Print Center's private `ContextBar`.** Deferred at first, then **done** — see §14.
+  The reason for the initial deferral was real and is what §14 had to solve, not wave away.
 - **F12 — three implementations of the class strip.** Same component, same reason; `/class-admin`'s
   inline section is the third.
 - **F1 / F19** (the new pupil off-screen), **F2** (edit vs transfer), **F3** (no next step after
@@ -445,6 +440,87 @@ browses.**
 | `npm run verify` | 32/32 |
 | `npm run verify:live` | **35/35** |
 | `scripts/validate-rls.mjs` | **64/64** |
+
+---
+
+---
+
+## 14. Follow-up — the Print Center adopts the shared class strip (F8)
+
+Done after §13, on a re-run of the Phase 13 brief that made this an explicit acceptance criterion
+("*Print Center is clearly the document hub and uses the shared class context presentation*").
+
+**Everything else in that brief was already in place** and was verified rather than rebuilt: the
+four result→document joins, the ranking decision, the honour-roll integration, the annual entry
+point, the attendance rider, the deep-link validation, and all five routes. The audit step found
+exactly one outstanding item.
+
+### Why it was deferred, and what that cost
+
+`PrintCenterClient` rendered a private `ContextBar` — the same three facts, its own markup. A
+straight swap for `<ClassContextBar />` would have **lost two things**, which is why §12 recorded
+it as a regression risk rather than a tidy-up:
+
+1. **A pre-V2 account would have shown nothing.** The shared strip returns `null` for a legacy
+   account by design — *"a label over an absence is worse than nothing"*. But here there **is** a
+   true answer: `settings.class_name`, the name that account prints on every sheet it produces,
+   plus the fact that reports cover the whole roster.
+2. **The year would have been wrong.** `useActiveClass()` reports the year of the current
+   *assignment*. Since §9 this page honours `?year=`, so a teacher can legitimately be looking at
+   last year's documents — the strip would have stated one year while the dialog worked in another.
+   **This defect did not exist before Phase 13 created it**, and a naive convergence would have
+   shipped it.
+
+### What was done instead
+
+`ClassContextBar` grew **two optional presentational props**, both defaulting to undefined, so the
+other twenty-five call sites are byte-identical:
+
+| Prop | For |
+| --- | --- |
+| `yearLabel` | a page that resolves its own year (`?year=`) rather than inheriting the assignment's |
+| `legacy: { label, note }` | what to say for a pre-V2 account — **words only** |
+
+The guard that keeps this from being a loophole: **the component still decides whether the account
+is roster-scoped**, from the same `useActiveClass()` every other consumer reads. A page supplies
+the words for that case; it does not get to declare the case. Pinned in `verify-class-context.mts`.
+
+No state was added, the strip is still not interactive, and class resolution is not duplicated.
+
+### Also removed
+
+`/print-center`'s server component no longer calls `resolveClassTemplateContext()`. It existed
+purely to feed a grade number to the private strip; the shared one reads the grade from
+`useActiveClass()` like every other screen, so the page is down to **one** metadata query.
+
+### Verified in the browser
+
+| Check | Result |
+| --- | --- |
+| class A (៤ក) → ranking → Print Center | stays ៤ក — dialog and strip agree |
+| class B (៤ខ តេស្ត) → ranking → Print Center | stays ៤ខ តេស្ត, no revert to default |
+| non-current year (`?year=2024-2025`) | strip reads ឆ្នាំសិក្សា ២០២៤-២០២៥, matching the dialog |
+| pre-V2 account | `ថ្នាក់ទី៣ · ឆ្នាំសិក្សា ២០២៥-២០២៦ · របាយការណ៍ប្រើបញ្ជីសិស្សរបស់អ្នកទាំងអស់។` — nothing lost |
+| pre-V2 on `/student-list` | still renders nothing, as before |
+| `?category=`/`?report=`/`?year=`/`?month=` all invalid | no dialog, full index, current year — degrades, never dead-ends |
+| 360px | one line, no overflow (the private `<dl>` was taller) |
+
+The legacy case was exercised by temporarily deactivating the fixture teacher's assignments and
+**restoring them afterwards**; the restore is confirmed by `verify:live` passing 35/35 again.
+
+| Gate | Result |
+| --- | --- |
+| `npm run lint` / `typecheck` | clean |
+| `npm run verify` | **32/32** |
+| `npm run build` | compiled |
+| `npm run verify:live` | **35/35** |
+| `scripts/validate-rls.mjs` | **64/64** |
+
+### Still deferred
+
+`/class-admin` renders the third private copy of the strip (F12). It is named in
+`PRIVATE_CONTEXT_BARS` in `verify-class-context.mts` so the count is a checked fact rather than an
+aspiration — when it converges, delete the entry and the check tightens on its own.
 
 ---
 

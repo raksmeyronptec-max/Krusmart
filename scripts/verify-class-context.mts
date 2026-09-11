@@ -332,6 +332,53 @@ check('an unresolved grade prints an honest dash, never a derived number',
   'classes.name is free text by the time it reaches the client — deriving the grade back out is a guess')
 
 /**
+ * ── One strip, not three (Phase 12 F8) ────────────────────────────────────
+ *
+ * `/print-center` and `/class-admin` each rendered a private copy of this bar:
+ * the same three facts, their own markup, and a different answer where they
+ * differed — the shared bar prefers the grade row's own `gradeName` while the
+ * private ones only ever received a number, so a class whose grade is named
+ * unusually read differently on the one screen a teacher arrives at from four
+ * others.
+ *
+ * `/print-center` is converged. `/class-admin` is not yet, and is named here so
+ * the count is a fact rather than an aspiration: when it converges, drop it
+ * from the list and this check tightens on its own.
+ */
+const PRIVATE_CONTEXT_BARS = ['app/(main)/class-admin/page.tsx']
+check('the count of private context strips is what this file says it is',
+  PRIVATE_CONTEXT_BARS.every((f) => existsSync(join(root, f))),
+  'a stale entry here would make the next convergence look already done')
+
+/** Same stripper the context bar itself is read through, above. */
+const codeOf = (f: string) =>
+  read(join(root, f))
+    .replace(/(^|[\s{;,()=>])\/\*[\s\S]*?\*\//g, '$1')
+    .replace(/^[ \t]*\/\/.*$/gm, '')
+
+const printCentre = codeOf('app/(main)/print-center/PrintCenterClient.tsx')
+check('the print centre renders the SHARED strip',
+  printCentre.includes('<ClassContextBar'),
+  'it is the destination of every results→documents link; it must state context the same way')
+check('...and holds no private copy of it any more',
+  !/function ContextBar\(/.test(printCentre))
+check('...nor resolves a class template just to print a grade',
+  !codeOf('app/(main)/print-center/page.tsx').includes('resolveClassTemplateContext'),
+  'the strip reads the grade from useActiveClass(); the second query went with the private bar')
+
+/**
+ * The two props that convergence needed. Both are PRESENTATION — the page
+ * supplies words, never the decision — and the guard is that the component
+ * still decides for itself whether the account is roster-scoped.
+ */
+check('the legacy case is still decided by the component, not by a prop',
+  contextBarCode.includes('const rosterScoped = isLegacy || !classLabel'),
+  'a page may say what to render for a pre-V2 account; it may not declare that it is one')
+check('...and a page that resolves its own year may state it',
+  contextBarCode.includes('yearOverride ??'),
+  '/print-center honours ?year=, so the assignment year would be the wrong claim')
+
+/**
  * Grade reaches the client through the assignment read that was already
  * happening, not through a second query or a new column.
  */

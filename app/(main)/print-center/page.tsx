@@ -2,7 +2,6 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import {
   classIdFromSearchParams,
-  resolveClassTemplateContext,
   resolveServerScope,
 } from '@/lib/utils/serverScope'
 import { getCurrentAcademicYear } from '@/lib/constants/academic'
@@ -115,18 +114,21 @@ export default async function PrintCenterPage({
   const initialSemester =
     requestedSemester === 'sem1' || requestedSemester === 'sem2' ? requestedSemester : null
 
-  // Class name and grade for the header (§6). Both are context, not report
-  // data: the centre must not fetch a single mark to render itself (§33) — two
-  // metadata rows, no scores, whatever the catalogue grows to.
+  /*
+   * The class NAME, and nothing else (§6).
+   *
+   * Context, not report data: the centre must not fetch a single mark to render
+   * itself (§33) — one metadata row, no scores, whatever the catalogue grows
+   * to. It used to resolve the class's whole template alongside this, purely to
+   * print a grade number in a private context strip; that strip is
+   * `ClassContextBar` now, which reads the grade from `useActiveClass()` like
+   * every other screen, so the second query went with it.
+   */
   let className = ''
-  let gradeNumber: number | null = null
   if (scope.mode === 'v2') {
-    const [{ data }, context] = await Promise.all([
-      supabase.from('classes').select('name').eq('id', scope.classId).maybeSingle(),
-      resolveClassTemplateContext(scope.classId),
-    ])
+    const { data } = await supabase
+      .from('classes').select('name').eq('id', scope.classId).maybeSingle()
     className = data?.name ?? ''
-    gradeNumber = context?.gradeNumber ?? null
   } else {
     // A pre-V2 account has no `classes` row, but it does have the class name it
     // prints on every sheet. Without this the context bar would read "—" for
@@ -144,7 +146,6 @@ export default async function PrintCenterPage({
     <PrintCenterClient
       classId={scope.mode === 'v2' ? scope.classId : null}
       className={className}
-      gradeNumber={gradeNumber}
       academicYear={academicYear}
       initialCategory={initialCategory}
       initialReport={initialReport}
