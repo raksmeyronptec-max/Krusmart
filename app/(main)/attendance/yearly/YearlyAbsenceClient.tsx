@@ -1,9 +1,8 @@
 'use client'
 
 import { Fragment, useMemo } from 'react'
-import Link from 'next/link'
 import * as XLSX from 'xlsx-js-style'
-import { ArrowLeft, Printer, FileSpreadsheet } from 'lucide-react'
+import { Printer, FileSpreadsheet } from 'lucide-react'
 import { Button } from '@/components/ui/actions/Button'
 import { EmptyState } from '@/components/ui/feedback/EmptyState'
 import { MONTHS_BY_ACADEMIC_YEAR } from '@/lib/constants/months'
@@ -11,7 +10,8 @@ import { resolveCalendarYear } from '@/lib/constants/academic'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import type { AttendanceRecord, Settings, Student } from '@/lib/types'
 import { markFor } from '@/lib/attendance/status'
-import { useClassHref } from '@/lib/hooks/useClassHref'
+import { AttendanceViewNav } from '@/components/attendance/AttendanceViewNav'
+import { useDocumentClassName } from '@/lib/hooks/useDocumentClassName'
 import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
 import { ClassContextBar } from '@/components/shell/ClassContextBar'
 
@@ -66,9 +66,14 @@ export function YearlyAbsenceClient({
   settings: Settings | null
   academicYear: string
 }) {
-  // Keeps the working class on the way out: a link from this screen to
-  // another class-scoped screen must still be about the same class.
-  const classHref = useClassHref()
+  /*
+   * Which class this sheet totals (Phase 16 F16-2). Was `settings.class_name`,
+   * the legacy per-TEACHER value — see the note in the monthly client and in
+   * `lib/reporting/document-identity.ts`. Read by the sheet and the .xlsx
+   * alike, so a download cannot name a different class from the preview.
+   */
+  const documentClass = useDocumentClassName(settings?.class_name)
+
   const rows = useMemo<Row[]>(() => {
     // `YYYY-MM` → month id, so each record is bucketed by string comparison
     // rather than by constructing a Date per row.
@@ -156,7 +161,7 @@ export function YearlyAbsenceClient({
 
     const ws = XLSX.utils.aoa_to_sheet([
       ['ចំនួនសរុបអវត្តមានសិស្សប្រចាំឆ្នាំ'],
-      [`ឆ្នាំសិក្សា ${academicYear} · ថ្នាក់ ${settings?.class_name || ''}`],
+      [`ឆ្នាំសិក្សា ${academicYear} · ថ្នាក់ ${documentClass}`],
       [],
       head1,
       head2,
@@ -188,12 +193,7 @@ export function YearlyAbsenceClient({
           description="សម្រង់អវត្តមានសិស្សពេញមួយឆ្នាំសិក្សា សម្រាប់បោះពុម្ព"
           actions={
             <>
-              <Link
-                href={classHref("/attendance/monthly")}
-                className="inline-flex min-h-11 w-fit items-center gap-2 rounded-lg border border-divider bg-bg-surface px-4 text-[13px] font-bold text-brand transition hover:border-brand-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-              >
-                <ArrowLeft className="h-4 w-4" aria-hidden="true" /> វត្តមានប្រចាំខែ
-              </Link>
+              <AttendanceViewNav current="yearly" />
               <Button variant="secondary" printHidden={false} onClick={exportExcel} icon={<FileSpreadsheet className="h-4 w-4" />}>
                 នាំចេញ Excel
               </Button>
@@ -226,7 +226,7 @@ export function YearlyAbsenceClient({
           <p>
             សិស្សសរុប {toKhmerNumber(students.length)} នាក់ · ច្បាប់ {toKhmerNumber(totals.L)} · អត់ច្បាប់ {toKhmerNumber(totals.A)}
           </p>
-          <p>ថ្នាក់ទី៖ {settings?.class_name || '..........'} · ឆ្នាំសិក្សា {academicYear}</p>
+          <p>ថ្នាក់៖ {documentClass || '..........'} · ឆ្នាំសិក្សា {academicYear}</p>
         </div>
 
         {students.length === 0 ? (

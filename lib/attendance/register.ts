@@ -1,5 +1,5 @@
 /**
- * The daily register, as the screen reasons about it.
+ * The register, as the screens reason about it — a day, and a month.
  *
  * `/attendance/layout` is a daily tool: open it, everyone is present, correct
  * the two who are not, done. The three derivations that flow needs — which
@@ -164,4 +164,87 @@ export function nextMarkInCycle(status: string | undefined): AttendanceStatus {
     (m) => m.inClass === current.inClass && m.excused === current.excused,
   )
   return ENTRY_MARKS[(index + 1) % ENTRY_MARKS.length].code
+}
+
+// ---------------------------------------------------------------------------
+// A period, not a day
+// ---------------------------------------------------------------------------
+
+/** `date` → `studentId` → the mark stored for that pupil on that day. */
+export type MarksByDate = Record<string, Record<string, { status?: string | null }>>
+
+export interface PeriodSummary {
+  /** Pupils on the roster the period is being read for. */
+  students: number
+  /** Days on which at least one roster pupil was marked. The rate's context. */
+  daysRecorded: number
+  present: number
+  excused: number
+  unexcused: number
+  /** `excused + unexcused` — what the ministry sheets column separately. */
+  absences: number
+  /** In-class rate over the marks RECORDED, or `null` when nothing is. */
+  rate: number | null
+}
+
+/**
+ * What a month — or any span of days — came to.
+ *
+ * ── Why this exists (Phase 16 F16-3) ──────────────────────────────────────
+ *
+ * `/attendance/monthly` renders a 297mm ministry sheet and nothing else. The
+ * only aggregates on it are the per-pupil `អ`/`ច្ប` columns at the right-hand
+ * edge, which on a phone sit off-screen inside a horizontal scroller. A teacher
+ * asking "how was this month?" read twenty-eight numbers and added them up.
+ *
+ * The arithmetic is `tallyAttendance` — the same call the printed sheets, the
+ * daily strip and the parent portal make — so the figure above the preview
+ * cannot disagree with the absence columns printed below it. Writing a private
+ * loop here would have been the twelfth reading of a status that
+ * `lib/attendance/status.ts` exists to prevent.
+ *
+ * ── Two deliberate bounds ─────────────────────────────────────────────────
+ *
+ * Only ROSTER pupils are counted. Both attendance reads are scoped by
+ * `teacher_id` and not by class, so the rows handed to this function can
+ * include pupils from the teacher's other classes; the sheet already renders
+ * only the roster, and a summary over a wider set than the sheet would be a
+ * different month from the one on screen.
+ *
+ * `daysRecorded` counts days actually marked, never days in the month — a
+ * register kept for nine days of twenty describes nine days, which is the same
+ * rule `tallyAttendance` applies to its own denominator.
+ */
+export function periodSummary(
+  students: readonly RosterEntry[],
+  marksByDate: MarksByDate,
+): PeriodSummary {
+  const roster = new Set(students.map((s) => s.id))
+  const rows: { status?: string | null }[] = []
+  let daysRecorded = 0
+
+  for (const day of Object.values(marksByDate)) {
+    let anyThisDay = false
+    for (const [studentId, mark] of Object.entries(day)) {
+      if (!roster.has(studentId)) continue
+      // A row this application does not recognise is still a row somebody
+      // wrote; `tallyAttendance` counts it as unknown and keeps it out of the
+      // rate rather than folding it into something it is not.
+      if (markFor(mark?.status) === null) continue
+      rows.push({ status: mark?.status })
+      anyThisDay = true
+    }
+    if (anyThisDay) daysRecorded += 1
+  }
+
+  const t = tallyAttendance(rows)
+  return {
+    students: students.length,
+    daysRecorded,
+    present: t.present,
+    excused: t.excused,
+    unexcused: t.unexcused,
+    absences: t.absent,
+    rate: t.rate,
+  }
 }

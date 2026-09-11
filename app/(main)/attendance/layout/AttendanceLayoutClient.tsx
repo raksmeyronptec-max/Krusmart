@@ -20,6 +20,7 @@ import { controlClass } from '@/components/ui/forms/fieldStyles'
 import { Tabs, tabPanelProps } from '@/components/ui/navigation/Tabs'
 import { RosterCheckIn, type FailedMark, type MarkStatus, type SaveState } from './RosterCheckIn'
 import { RegisterTally } from './RegisterTally'
+import { AttendanceViewNav } from '@/components/attendance/AttendanceViewNav'
 import { useActiveClass } from '@/lib/hooks/useActiveClass'
 import { useClassHref } from '@/lib/hooks/useClassHref'
 import { markFor } from '@/lib/attendance/status'
@@ -179,8 +180,25 @@ export default function AttendanceLayoutClient({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [refreshLock])
 
+    /**
+     * Move the register to another day.
+     *
+     * `initialDate` is today, resolved on the SERVER so the two sides cannot
+     * name different days — and it is also the ceiling. The date input carries
+     * `max={initialDate}`, but that only paints the control invalid: `onChange`
+     * still fires for a typed or pasted future date, and this handler used to
+     * accept whatever it was given (Phase 16 F16-5). A register for tomorrow is
+     * a register for a day nobody has attended.
+     *
+     * No new policy is invented — the server still accepts such a row, exactly
+     * as before. This makes the claim already on screen true.
+     */
     const changeDate = (newDate: string) => {
         if (!newDate) return
+        if (newDate > initialDate) {
+            notify.error('មិនអាចចុះវត្តមានសម្រាប់ថ្ងៃអនាគតបានទេ')
+            return
+        }
         setDate(newDate)
         setFailed({})
         setLastOutcome('none')
@@ -605,6 +623,19 @@ export default function AttendanceLayoutClient({
             {/* Which class is being marked present. Self-gating: renders only on class-scoped routes,
                 and nothing at all for a pre-V2 account. */}
             <ClassContextBar />
+
+            {/*
+              Where today's register leads (Phase 16 F16-1).
+
+              The register had exactly one outbound link — `/enrollment`, and
+              only when the roster was empty — while the two review sheets
+              linked to each other and to nothing else. Three screens of one job
+              wired as a two-node loop with the daily action outside it. The set
+              is declared once in `lib/attendance/views.ts`; this renders the
+              other two, carrying `?class=` so the month a teacher opens is the
+              month of the class they are marking.
+            */}
+            <AttendanceViewNav current="register" className="mb-3" />
 
             {isLocked && (
                 <div

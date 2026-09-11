@@ -3,8 +3,7 @@
 import React, { useState, useCallback, useEffect } from 'react'
 import { Button } from '@/components/ui/actions/Button'
 import { getMonthlyAttendance, getTeacherSettings } from './actions'
-import { CalendarRange, FileDown, FileSpreadsheet, Printer } from 'lucide-react'
-import Link from 'next/link'
+import { FileDown, FileSpreadsheet, Printer } from 'lucide-react'
 import { PageContainer, PageHeader } from '@/components/shell/PageContainer'
 import { ClassContextBar } from '@/components/shell/ClassContextBar'
 import { controlClass, fieldLabel } from '@/components/ui/forms/fieldStyles'
@@ -27,8 +26,12 @@ import { markFor } from '@/lib/attendance/status'
 import { logger } from '@/lib/utils/logger'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import { KHMER_MONTH_LABELS, KHMER_WEEKDAYS } from '@/lib/constants/months'
+import { getCurrentAcademicYear } from '@/lib/constants/academic'
 import { ALIGN_CENTER, ALIGN_LEFT, ALIGN_RIGHT, emptyCell, khmerFont, moulFont, THIN_BORDER, type SheetMerge, type SheetRow, type SheetRowMeta } from '@/lib/utils/xlsx'
-import { useClassHref } from '@/lib/hooks/useClassHref'
+import { AttendanceViewNav } from '@/components/attendance/AttendanceViewNav'
+import { EmptyState } from '@/components/ui/feedback/EmptyState'
+import { periodSummary } from '@/lib/attendance/register'
+import { useDocumentClassName } from '@/lib/hooks/useDocumentClassName'
 
 /** The shared list — the report engine prints the same sheet from it. */
 const days = KHMER_WEEKDAYS
@@ -58,9 +61,6 @@ export default function MonthlyAttendanceClient({
     initialRecords: AttendanceRecord[]
     initialSettings: Settings | null
 }) {
-    // Keeps the working class on the way out: a link from this screen to
-    // another class-scoped screen must still be about the same class.
-    const classHref = useClassHref()
     const today = new Date()
     const [month, setMonth] = useState(initialMonth)
     const [year, setYear] = useState(initialYear)
@@ -68,6 +68,70 @@ export default function MonthlyAttendanceClient({
     const [attendance, setAttendance] = useState<AttendanceByDate>(() => indexByDate(initialRecords))
     const [settings, setSettings] = useState<Settings | null>(initialSettings)
     const [isDownloading, setIsDownloading] = useState(false)
+
+    /*
+     * Which class this sheet is a register FOR (Phase 16 F16-2).
+     *
+     * It read `settings.class_name` — the legacy per-TEACHER row, one value for
+     * the whole account — so a teacher holding three classes printed every
+     * month of every class under whichever name happened to be stored there.
+     * That is the defect Phase 14 closed on nineteen screens; attendance was
+     * the deferred case, named as a known gap in `verify-document-identity`.
+     *
+     * `useDocumentClassName` is that same rule: the active class's own name,
+     * falling back to settings only for a pre-V2 account which has no class
+     * row at all. The rows below come from `?class=`, so the letterhead and
+     * the register underneath it are the same class by construction.
+     */
+    const documentClass = useDocumentClassName(settings?.class_name)
+
+    /*
+     * Which academic year this month belongs to — derived once and read by BOTH
+     * the sheet and the .xlsx (Phase 16 F16-2).
+     *
+     * Two defects met here. The export carried a hard-coded
+     * `ឆ្នាំសិក្សា ២០២៤-២០២៥` and a literal row of dots for the class, so a
+     * download disagreed with the preview it was taken from. And the sheet
+     * derived the year itself, from `month >= 8` — a SEPTEMBER boundary, in a
+     * product whose school year runs November → October. Observed on
+     * 11 September 2026: the sheet printed ឆ្នាំសិក្សា ២០២៦-២០២៧ directly
+     * beneath a class bar reading ឆ្នាំសិក្សា ២០២៥-២០២៦, on the same screen.
+     *
+     * `getCurrentAcademicYear` is the product's own rule (`lib/constants/
+     * academic.ts`), applied to the month being PRINTED rather than to today —
+     * so browsing back to មីនា ២០២៦ still prints ២០២៥-២០២៦.
+     */
+    const academicYearText = `ឆ្នាំសិក្សា ${toKhmerNumber(getCurrentAcademicYear(new Date(year, month, 1)))}`
+
+    const rosterSize = initialStudents.length
+
+    /*
+     * ចំនួនសិស្ស is a legacy paper-form affordance: it limits how many rows the
+     * sheet prints. Two things made it dangerous (Phase 16 F16-4).
+     *
+     * Clearing the field made the ENTIRE preview disappear with no message:
+     * `parseInt('')` is NaN, `Math.min(NaN, n)` is NaN, `NaN === 0` is false so
+     * the empty guard never fired, and `while (current <= NaN)` never ran.
+     *
+     * And it silently truncates the printed sheet AND the .xlsx — set it to 10
+     * for a class of 30 and twenty pupils are simply not in the register, with
+     * nothing anywhere saying so. It is bounded to the roster here and the
+     * truncation is stated on screen below.
+     */
+    const onCountChange = (raw: string) => {
+        const n = parseInt(raw, 10)
+        if (Number.isNaN(n)) { setStudentCount(rosterSize); return }
+        setStudentCount(Math.max(1, Math.min(n, rosterSize)))
+    }
+
+    /*
+     * What this month came to, over the same marks the sheet below prints and
+     * through the same `tallyAttendance` the parent portal and the printed
+     * reports use. The sheet's own totals are per-pupil and sit at the far
+     * right of a 297mm page; this answers the class-level question the screen
+     * could not answer at all.
+     */
+    const summary = periodSummary(initialStudents, attendance)
 
     const loadData = useCallback(async () => {
         const records = await getMonthlyAttendance(year, month)
@@ -128,8 +192,8 @@ export default function MonthlyAttendanceClient({
         ws_data.push(r6); merges.push({s:{r:6, c:0}, e:{r:6, c:totalCols-1}})
 
         const r7 = Array(totalCols).fill(null).map(() => emptyCell())
-        r7[0] = { v: 'ថ្នាក់ទី..................', t: 's', s: { font: FONT_BOLD, alignment: ALIGN_LEFT } }
-        r7[totalCols - 3] = { v: `ឆ្នាំសិក្សា ២០២៤-២០២៥`, t: 's', s: { font: FONT_BOLD, alignment: ALIGN_RIGHT } }
+        r7[0] = { v: `ថ្នាក់៖ ${documentClass || '..................'}`, t: 's', s: { font: FONT_BOLD, alignment: ALIGN_LEFT } }
+        r7[totalCols - 3] = { v: academicYearText, t: 's', s: { font: FONT_BOLD, alignment: ALIGN_RIGHT } }
         ws_data.push(r7)
         merges.push({s:{r:7, c:0}, e:{r:7, c:5}})
         merges.push({s:{r:7, c:totalCols-3}, e:{r:7, c:totalCols-1}})
@@ -307,13 +371,11 @@ export default function MonthlyAttendanceClient({
 
         let pageNum = 1
 
-        const className = settings?.class_name || "........"
+        const className = documentClass || "........"
         const schoolName = settings?.school_name || "........"
         const teacherName = settings?.homeroom_teacher || "........"
         const managerRole = settings?.manager_role || "នាយកសាលា"
 
-        const sy = month >= 8 ? year : year - 1
-        const academicYearText = `ឆ្នាំសិក្សា ${toKhmerNumber(sy)}-${toKhmerNumber(sy + 1)}`
         const classDisplay = `ថ្នាក់៖ ${className}`
 
         while (current <= total) {
@@ -507,6 +569,7 @@ export default function MonthlyAttendanceClient({
                 title="បញ្ជីវត្តមានប្រចាំខែ"
                 description="សម្រង់អវត្តមានប្រចាំខែ សម្រាប់បោះពុម្ព និងទាញយក"
                 className="print-hide"
+                actions={<AttendanceViewNav current="monthly" />}
             />
 
             {/* Which class this sheet is a register for. Self-gating: renders only on class-scoped routes,
@@ -540,8 +603,8 @@ export default function MonthlyAttendanceClient({
                         id="monthly-attendance-count"
                         type="number"
                         value={studentCount}
-                        onChange={e => setStudentCount(parseInt(e.target.value))}
-                        max={100}
+                        onChange={e => onCountChange(e.target.value)}
+                        max={rosterSize || 1}
                         min={1}
                         className={controlClass()}
                     />
@@ -557,25 +620,83 @@ export default function MonthlyAttendanceClient({
                     <Button printHidden={false} onClick={() => window.print()} icon={<Printer className="h-4 w-4" />}>
                         បោះពុម្ព
                     </Button>
-                    <Link
-                        href={classHref("/attendance/yearly")}
-                        className="tap-target inline-flex items-center gap-2 rounded-lg border border-divider bg-bg-surface px-4 py-2 text-sm font-bold text-text-heading transition hover:bg-paper print:hidden"
-                    >
-                        <CalendarRange className="h-4 w-4" aria-hidden="true" /> អវត្តមានប្រចាំឆ្នាំ
-                    </Link>
                 </div>
             </div>
+
+            {/*
+              What the month came to, before the paper version of it.
+
+              The sheet below is a ministry document 297mm wide: its totals are
+              per pupil and sit at the far right, off-screen on a phone. This
+              strip answers the class-level question the screen could not answer
+              at all, in the same compact form the daily register uses, and
+              through the same shared arithmetic — so it cannot disagree with
+              the absence columns printed beneath it.
+            */}
+            {rosterSize > 0 && (
+                <div
+                    role="status"
+                    aria-label={`សម្រង់ខែ ${KHMER_MONTH_LABELS[month]}`}
+                    className="print-hide mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-divider bg-bg-surface px-3 py-2 text-[13px]"
+                >
+                    <span className="font-bold text-text-heading tabular-nums">
+                        {toKhmerNumber(summary.students)} សិស្ស
+                    </span>
+                    <span className="text-text-muted tabular-nums">
+                        · កត់ត្រា {toKhmerNumber(summary.daysRecorded)} ថ្ងៃ
+                    </span>
+                    <span className="inline-flex items-center gap-1 tabular-nums text-warning-text">
+                        <span aria-hidden="true">○</span>
+                        <span className="font-bold">{toKhmerNumber(summary.excused)}</span>
+                        <span className="text-text-muted">ច្បាប់</span>
+                    </span>
+                    <span className="inline-flex items-center gap-1 tabular-nums text-danger-text">
+                        <span aria-hidden="true">×</span>
+                        <span className="font-bold">{toKhmerNumber(summary.unexcused)}</span>
+                        <span className="text-text-muted">អវត្តមាន</span>
+                    </span>
+                    {summary.rate !== null && (
+                        <span className="ml-auto text-text-muted tabular-nums">
+                            មក {toKhmerNumber(summary.rate)}%
+                        </span>
+                    )}
+                </div>
+            )}
+
+            {/*
+              The sheet prints fewer pupils than the class has. Said here rather
+              than discovered on paper — the control that does it is three
+              fields to the left and gives no sign of what it excluded.
+            */}
+            {rosterSize > 0 && studentCount < rosterSize && (
+                <p role="status" className="print-hide mb-4 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-[13px] text-warning-text">
+                    សន្លឹកនេះបោះពុម្ពត្រឹម {toKhmerNumber(studentCount)} នាក់ ក្នុងចំណោម {toKhmerNumber(rosterSize)} នាក់។
+                    កែប្រែប្រអប់ «ចំនួនសិស្ស» ដើម្បីបោះពុម្ពទាំងអស់។
+                </p>
+            )}
 
             {/*
               The preview is 297mm wide — wider than a phone — so it scrolls
               inside its own box rather than pushing the page sideways. The
               overflow is dropped when printing, where the sheet is the page.
             */}
-            <div className="overflow-x-auto print:overflow-visible">
-                <div id="printArea" className="preview-scroll mx-auto w-full max-w-[297mm]">
-                    {renderPages()}
+            {rosterSize === 0 ? (
+                /*
+                 * It rendered a blank white area. `renderPages()` returns null
+                 * for an empty roster and nothing said why, so the screen was
+                 * indistinguishable from one that had failed to load.
+                 */
+                <EmptyState
+                    title="មិនទាន់មានសិស្សក្នុងថ្នាក់នេះ"
+                    description="បញ្ចូលសិស្សជាមុនសិន ទើបសន្លឹកវត្តមានប្រចាំខែមានទិន្នន័យបោះពុម្ព។"
+                />
+            ) : (
+                <div className="overflow-x-auto print:overflow-visible">
+                    <div id="printArea" className="preview-scroll mx-auto w-full max-w-[297mm]">
+                        {renderPages()}
+                    </div>
                 </div>
-            </div>
+            )}
         </PageContainer>
     )
 }

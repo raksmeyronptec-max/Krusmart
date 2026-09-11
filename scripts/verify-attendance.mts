@@ -51,7 +51,9 @@ import {
   registerSummary,
   searchRoster,
   visibleRoster,
+  periodSummary,
 } from '../lib/attendance/register.ts'
+import { ATTENDANCE_VIEWS, otherAttendanceViews } from '../lib/attendance/views.ts'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 
@@ -308,6 +310,106 @@ check('RosterCheckIn reads the roster through the register module',
 check('the summary strip counts through registerSummary', /registerSummary/.test(tallyStrip))
 check('the screen offers the primary action in the entry vocabulary',
   /មកទាំងអស់/.test(roster), 'the "everyone is here" button is the daily flow')
+
+// ---------------------------------------------------------------------------
+// A8 · three screens, one job  (Phase 16)
+// ---------------------------------------------------------------------------
+console.log('\nA8 · mark the day, read the month, read the year')
+
+/*
+ * Taking a register, reviewing the month and reviewing the year are three views
+ * of one record, and they were wired as a two-node loop with the daily action
+ * outside it: monthly ⇄ yearly, and `/attendance/layout` named by neither and
+ * naming neither. A teacher reading the month was, in the brief's words,
+ * trapped inside a report.
+ */
+check('the three views are declared once',
+  ATTENDANCE_VIEWS.map((v) => v.id).join(',') === 'register,monthly,yearly',
+  ATTENDANCE_VIEWS.map((v) => v.id).join(','))
+check('the register is first — it is the only one that WRITES',
+  ATTENDANCE_VIEWS[0].href === '/attendance/layout')
+check('every view carries a Khmer label and the question it answers',
+  ATTENDANCE_VIEWS.every((v) => v.label.length > 0 && v.purpose.length > 0 && v.href.startsWith('/attendance/')))
+check('a screen never links to itself',
+  ATTENDANCE_VIEWS.every((v) => !otherAttendanceViews(v.id).some((o) => o.id === v.id)),
+  'a control that looks live and does nothing reads as a lost tap')
+check('...and offers the other two',
+  ATTENDANCE_VIEWS.every((v) => otherAttendanceViews(v.id).length === ATTENDANCE_VIEWS.length - 1))
+
+const monthlyScreen = readFileSync(join(root, 'app', '(main)', 'attendance', 'monthly', 'MonthlyAttendanceClient.tsx'), 'utf8')
+const yearlyScreen = readFileSync(join(root, 'app', '(main)', 'attendance', 'yearly', 'YearlyAbsenceClient.tsx'), 'utf8')
+const viewNav = readFileSync(join(root, 'components', 'attendance', 'AttendanceViewNav.tsx'), 'utf8')
+
+for (const [name, src, id] of [
+  ['the register', layout, 'register'],
+  ['the monthly sheet', monthlyScreen, 'monthly'],
+  ['the yearly sheet', yearlyScreen, 'yearly'],
+] as const) {
+  check(`${name} renders the shared join`,
+    new RegExp(`<AttendanceViewNav[^>]*current="${id}"`).test(code(src)),
+    'a per-screen list of where it links to is how the register fell out of the loop')
+}
+check('the join carries the class',
+  /useClassHref/.test(viewNav) && /classHref\(view\.href\)/.test(code(viewNav)),
+  'without ?class= the month opens on the default class while the chip says another')
+check('...and no screen keeps a hand-rolled attendance link',
+  !/href=\{classHref\("\/attendance/.test(code(monthlyScreen) + code(yearlyScreen)),
+  'the two sheets each owned a private copy of the other half of the loop')
+
+/*
+ * The month is counted through `tallyAttendance`, like the day is. A private
+ * loop here would be a second arithmetic for the same marks, one rendered above
+ * the other on the same screen.
+ */
+const monthMarks = {
+  '2026-09-01': { s1: { status: 'P' }, s2: { status: 'L' }, s3: { status: 'A' } },
+  '2026-09-02': { s1: { status: 'P' }, s2: { status: 'P' }, s9: { status: 'A' } },
+  '2026-09-03': { s9: { status: 'A' } },
+}
+const month = periodSummary(pupils, monthMarks)
+check('the period counts only the roster', month.present === 3 && month.unexcused === 1,
+  'both attendance reads are teacher-scoped, so another class\'s pupils arrive in the same payload')
+check('...excused and unexcused stay apart', month.excused === 1 && month.absences === 2)
+check('days recorded counts days MARKED, not days in the month', month.daysRecorded === 2,
+  'the third day holds only a pupil who is not on this roster')
+check('the rate is tallyAttendance\'s, over marks recorded', month.rate === 60,
+  String(month.rate))
+check('an unmarked month has no rate, not a zero one',
+  periodSummary(pupils, {}).rate === null && periodSummary(pupils, {}).daysRecorded === 0)
+check('the monthly screen counts through the shared module',
+  /periodSummary/.test(code(monthlyScreen)),
+  'the sheet\'s per-pupil totals and the strip above it must be one arithmetic')
+
+/*
+ * The date input claims `max={initialDate}`. That paints the control invalid
+ * and does not stop `onChange` firing, so the handler has to honour it or the
+ * claim is markup only.
+ */
+check('the register refuses a future date in the handler, not just in the markup',
+  /newDate > initialDate/.test(code(layout)),
+  'a register for tomorrow is a register for a day nobody has attended')
+
+/*
+ * The sheet derived its own academic year from `month >= 8` — a SEPTEMBER
+ * boundary, in a product whose school year runs November → October. On
+ * 11 September 2026 it printed ២០២៦-២០២៧ directly beneath a class bar reading
+ * ២០២៥-២០២៦. Three private academic-year rules is two too many.
+ */
+check('the monthly sheet reads the product\'s academic-year rule',
+  /getCurrentAcademicYear\(/.test(code(monthlyScreen)) && !/month >= 8/.test(code(monthlyScreen)),
+  'a September boundary disagreed with the class bar on the same screen')
+check('...and the .xlsx carries no hard-coded year',
+  !/ឆ្នាំសិក្សា ២០២៤-២០២៥/.test(code(monthlyScreen)),
+  'every export said 2024-2025 whatever month it was taken from')
+check('...and names the class rather than a row of dots',
+  /ថ្នាក់៖ \$\{documentClass/.test(code(monthlyScreen)))
+
+/* The monthly sheet used to render a blank white area for an empty class. */
+check('an empty class is explained, not left blank',
+  /<EmptyState/.test(code(monthlyScreen)))
+check('...and the row-count control cannot blank the preview',
+  /Number\.isNaN/.test(code(monthlyScreen)),
+  "parseInt('') is NaN, and `while (current <= NaN)` renders nothing at all")
 
 // ---------------------------------------------------------------------------
 console.log(failures === 0 ? '\n✓ one register, one vocabulary.\n' : `\n✗ ${failures} failure(s)\n`)

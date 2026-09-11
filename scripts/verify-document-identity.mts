@@ -116,6 +116,14 @@ check('the client half reads the active class, not a prop',
  * it as the value. Stripping the hook call is what separates the two.
  */
 const PRINT_SCREENS = [
+  /*
+   * The two attendance sheets, added in Phase 16. They were the deferred case:
+   * excluded from the Phase 14 audit because the register was being rewritten,
+   * and recorded below as a known gap until F16-2 closed it. Both print a
+   * ministry document for ONE class, so both must name that class and not the
+   * account's legacy label.
+   */
+  'attendance/monthly/MonthlyAttendanceClient', 'attendance/yearly/YearlyAbsenceClient',
   'certificate/CertificateClient', 'class-admin/[book]/BookClient',
   'homework/enter/HomeworkPrintSheet', 'honor-roll/HonorRollClient',
   'id-student/IdStudentClient', 'parent-report/ParentReportClient',
@@ -134,9 +142,9 @@ for (const screen of PRINT_SCREENS) {
 
 /**
  * Two screens legitimately still read it, and are named so the exception is a
- * checked fact rather than an oversight. Attendance is absent from this list on
- * purpose: its screens were excluded from the Phase 14 audit because the
- * register was being rewritten at the time, so they are a KNOWN gap.
+ * checked fact rather than an oversight. Attendance used to be a third entry
+ * here — a KNOWN gap, deferred while the register was rewritten. Phase 16
+ * closed it, and the two sheets are in `PRINT_SCREENS` above.
  */
 const SETTINGS_BY_DESIGN: Record<string, string> = {
   'app/(main)/inventory/InventoryClient.tsx': 'the room, not the class — /inventory is not class-scoped',
