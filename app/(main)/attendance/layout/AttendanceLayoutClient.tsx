@@ -1,9 +1,13 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
+import Link from 'next/link'
 import { Button } from '@/components/ui/actions/Button'
 import { Badge, ATTENDANCE_BADGE } from '@/components/ui/feedback/Badge'
-import { ArrowLeft, LayoutTemplate, Save, User, X, Users, Search, Check, Grid3x3, List, Box, Lock, Unlock } from 'lucide-react'
+import {
+  LayoutTemplate, Save, User, X, Users, Search, Check, Grid3x3, List, Box, Lock, Unlock,
+  CalendarDays, Plus, Pencil,
+} from 'lucide-react'
 import { saveAttendance, saveAttendanceBulk, getAttendanceForDate, getLockedDates, setDateLock } from './actions'
 import ThreeClassroom from './ThreeClassroom'
 import Select from '@/components/ui/forms/Select'
@@ -13,30 +17,46 @@ import { BottomSheet } from '@/components/ui/overlay/BottomSheet'
 import { useConfirm } from '@/components/ui/overlay/ConfirmDialog'
 import { notify } from '@/components/ui/feedback/notify'
 import { controlClass } from '@/components/ui/forms/fieldStyles'
-import { RosterCheckIn, type MarkStatus } from './RosterCheckIn'
+import { Tabs, tabPanelProps } from '@/components/ui/navigation/Tabs'
+import { RosterCheckIn, type FailedMark, type MarkStatus, type SaveState } from './RosterCheckIn'
 import { RegisterTally } from './RegisterTally'
 import { useActiveClass } from '@/lib/hooks/useActiveClass'
+import { useClassHref } from '@/lib/hooks/useClassHref'
+import { markFor } from '@/lib/attendance/status'
+import { nextMarkInCycle, registerSummary, type DayMarks } from '@/lib/attendance/register'
+import { formatKhmerDate } from '@/lib/utils/date'
+import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import type { AttendanceRecord, Student } from '@/lib/types'
 import { STORAGE_KEYS } from '@/lib/constants/storage'
 
 /**
- * Three ways to take the same register.
+ * The daily register.
  *
- *   បញ្ជី     a list — one row per pupil, three labelled buttons. Works on a
- *             phone held in one hand, which is where a register is actually
- *             taken. The default below `lg`.
- *   ប្លង់តុ    the seating plan. A desk tool: 600px at its narrowest and it has
- *             to be arranged before it is useful, but it is the fastest way to
- *             mark a class you can see in front of you.
- *   ត្រីមាត្រ  the 3D view, unchanged.
+ *   open → the active class and today are already chosen → ✓ មកទាំងអស់ →
+ *   correct the exceptions → it is saved as you go → done → ចាក់សោថ្ងៃនេះ.
  *
- * All three write the same `attendance` rows through the same actions.
+ * Three ways to write the same `attendance` rows through the same actions:
  *
- * The page used to render its own navy navigation bar with a home link, a
- * `វត្តមានបញ្ជី` / `វត្តមានប្លង់តុ` pair, and a hard-coded `ថ្នាក់ទី ១២ក`
- * label that showed the same class to every teacher. The app shell provides
- * all of that now — and the class label comes from the real active class — so
- * the bar is gone.
+ *   បញ្ជី     the list — the daily tool, and the only view at every width.
+ *   ប្លង់តុ    the seating plan, from `lg` up. A desk tool that has to be
+ *             arranged before it is useful; arranging it is a separate mode
+ *             that cannot write a mark.
+ *   ត្រីមាត្រ  the 3D room, from `lg` up. A visualisation, unchanged.
+ *
+ * ── Saving ────────────────────────────────────────────────────────────────
+ *
+ * Every mark is painted optimistically and the previous value is captured so
+ * a failed save puts it back. Two things are tracked on top of that, both
+ * because a register's worst failure is one that looks like success:
+ *
+ *   `pendingIds`  rows whose save is in flight — the row shows a spinner and
+ *                 the bar says កំពុងរក្សាទុក...
+ *   `failed`      rows whose save was refused, with the mark that was MEANT.
+ *                 The row is reverted, says មិនទាន់បានធ្វើសមកាលកម្ម, and
+ *                 offers ព្យាយាមម្តងទៀត, which re-issues that exact mark.
+ *
+ * The page never waits on the network: a tap returns immediately and the
+ * outcome arrives on the row.
  */
 
 /** Which view is showing. Persisted only for the session, not to storage. */
@@ -45,7 +65,21 @@ type ViewMode = 'list' | '2d' | '3d'
 /** Client-side counterpart of `LOCKED_MESSAGE` in `actions.ts`. */
 const LOCKED_HINT = 'ថ្ងៃនេះត្រូវបានចាក់សោ។ សូមដោះសោជាមុនសិន ដើម្បីកែប្រែវត្តមាន។'
 
-export type DayMarks = Record<string, { status: string, note: string }>
+export type { DayMarks }
+
+const VIEW_TABS = [
+  { id: 'list', label: 'បញ្ជី', icon: List },
+  { id: '2d', label: 'ប្លង់តុ', icon: Grid3x3 },
+  { id: '3d', label: 'ត្រីមាត្រ', icon: Box },
+] as const
+
+/** How a seat on the plan reads a mark: fill, border, and a glyph. Never colour alone. */
+const SEAT_TONE: Record<string, { cls: string; glyph: string }> = {
+  P: { cls: 'bg-success/15 border-success', glyph: '✓' },
+  L: { cls: 'bg-warning/15 border-warning', glyph: '○' },
+  A: { cls: 'bg-danger/15 border-danger', glyph: '×' },
+  AP: { cls: 'bg-warning/15 border-warning', glyph: '○' },
+}
 
 export default function AttendanceLayoutClient({
     initialStudents,
@@ -59,9 +93,11 @@ export default function AttendanceLayoutClient({
     initialAttendance: DayMarks
 }) {
     const students = initialStudents
-    const { classId, className } = useActiveClass()
+    const { classId } = useActiveClass()
+    const href = useClassHref()
     const { confirm, dialog } = useConfirm()
     const [date, setDate] = useState(initialDate)
+    const isToday = date === initialDate
 
     // Layout State
     const [isEditMode, setIsEditMode] = useState(false)
@@ -70,7 +106,7 @@ export default function AttendanceLayoutClient({
     const [attendanceHistory, setAttendanceHistory] = useState<Record<string, DayMarks>>(
         { [initialDate]: initialAttendance },
     )
-    const [isSaving, setIsSaving] = useState(false)
+    const [layoutSaved, setLayoutSaved] = useState<'clean' | 'dirty' | 'saved'>('clean')
     // Days closed to further edits. Held as a Set of ISO dates so switching date
     // is a lookup rather than another round trip.
     const [lockedDates, setLockedDates] = useState<Set<string>>(new Set())
@@ -80,10 +116,24 @@ export default function AttendanceLayoutClient({
     // width, and a teacher who wants the plan is one tap away from it.
     const [viewMode, setViewMode] = useState<ViewMode>('list')
 
+    // Save tracking — see the header comment.
+    const [pendingIds, setPendingIds] = useState<Set<string>>(new Set())
+    const [failed, setFailed] = useState<Record<string, FailedMark>>({})
+    const [lastOutcome, setLastOutcome] = useState<'none' | 'ok'>('none')
+
     // Modal State
     const [showModal, setShowModal] = useState(false)
     const [selectedSeatId, setSelectedSeatId] = useState<string | null>(null)
     const [searchQuery, setSearchQuery] = useState('')
+
+    const marks = useMemo(() => attendanceHistory[date] ?? {}, [attendanceHistory, date])
+    const summary = useMemo(() => registerSummary(students, marks), [students, marks])
+
+    const saveState: SaveState =
+        pendingIds.size > 0 ? 'saving'
+        : Object.keys(failed).length > 0 ? 'failed'
+        : lastOutcome === 'ok' ? 'saved'
+        : 'idle'
 
     const loadAttendanceFromDB = useCallback(async (selectedDate: string) => {
         const records = await getAttendanceForDate(selectedDate)
@@ -124,14 +174,16 @@ export default function AttendanceLayoutClient({
     useEffect(() => {
         // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch: refreshLock awaits getLockedDates before setting state, so nothing is set synchronously during the effect
         refreshLock(date)
-        // Deliberately not keyed on `date`: handleDateChange already refreshes
-        // on switch, and re-running here would double the request on every pick.
+        // Deliberately not keyed on `date`: changeDate already refreshes on
+        // switch, and re-running here would double the request on every pick.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [refreshLock])
 
-    const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const newDate = e.target.value
+    const changeDate = (newDate: string) => {
+        if (!newDate) return
         setDate(newDate)
+        setFailed({})
+        setLastOutcome('none')
         loadAttendanceFromDB(newDate)
         refreshLock(newDate)
     }
@@ -149,8 +201,9 @@ export default function AttendanceLayoutClient({
         if (!next) {
             const ok = await confirm({
                 title: 'ដោះសោវត្តមាន?',
-                message: `ថ្ងៃទី ${date} នឹងអាចកែប្រែបានម្តងទៀត។`,
+                message: `ថ្ងៃទី ${formatKhmerDate(date)} នឹងអាចកែប្រែបានម្តងទៀត។`,
                 confirmLabel: 'ដោះសោ',
+                tone: 'warning',
             })
             if (!ok) return
         }
@@ -173,18 +226,9 @@ export default function AttendanceLayoutClient({
         notify.success(next ? 'បានចាក់សោវត្តមានថ្ងៃនេះ' : 'បានដោះសោវត្តមានថ្ងៃនេះ')
     }
 
-    const toggleMode = () => {
-        if (isEditMode) {
-            handleSave()
-        }
-        if (!isEditMode && viewMode === '3d') {
-            setViewMode('2d')
-        }
-        setIsEditMode(!isEditMode)
-    }
-
     /** `layout` is the only string-valued key; the rest are counts. */
     const handleConfigChange = (key: string, value: string | number) => {
+        setLayoutSaved('dirty')
         setConfig(prev => {
             const newConfig = { ...prev, [key]: value }
 
@@ -198,15 +242,23 @@ export default function AttendanceLayoutClient({
         })
     }
 
+    const setPending = (id: string, on: boolean) =>
+        setPendingIds(prev => {
+            const next = new Set(prev)
+            if (on) next.add(id); else next.delete(id)
+            return next
+        })
+
     /**
      * Write one mark, optimistically.
      *
      * The previous value is captured before the update so a failed save can put
      * it back. Without that, a dropped request left the seat showing a mark the
      * database never received — the worst possible failure for a register,
-     * because it looks exactly like success.
+     * because it looks exactly like success. The failure is also remembered
+     * with the mark that was meant, so the row can offer a retry.
      */
-    const markStudent = useCallback(async (studentId: string, status: string, note: string) => {
+    const markStudent = useCallback(async (studentId: string, status: MarkStatus, note: string) => {
         // Refused here as well as on the server. The server is the boundary that
         // matters, but stopping it client-side means no optimistic mark is ever
         // painted and then rolled back — a flicker that reads as a lost tap.
@@ -221,9 +273,11 @@ export default function AttendanceLayoutClient({
             ...prev,
             [date]: { ...(prev[date] || {}), [studentId]: { status, note } }
         }))
+        setPending(studentId, true)
 
         const res = await saveAttendance(studentId, date, status, note, classId ?? undefined)
 
+        setPending(studentId, false)
         if (res.error) {
             setAttendanceHistory(prev => {
                 const day = { ...(prev[date] || {}) }
@@ -231,12 +285,29 @@ export default function AttendanceLayoutClient({
                 else delete day[studentId]
                 return { ...prev, [date]: day }
             })
+            setFailed(prev => ({ ...prev, [studentId]: { status, note } }))
+            // A lock refusal is a message, not a network failure: say it.
+            if (res.error === LOCKED_HINT) { notify.error(res.error); refreshLock(date) }
+        } else {
+            setFailed(prev => {
+                if (!(studentId in prev)) return prev
+                const next = { ...prev }
+                delete next[studentId]
+                return next
+            })
+            setLastOutcome('ok')
         }
         return res
-    }, [attendanceHistory, date, classId, lockedDates])
+    }, [attendanceHistory, date, classId, lockedDates, refreshLock])
+
+    const retryStudent = useCallback((studentId: string) => {
+        const meant = failed[studentId]
+        if (meant) void markStudent(studentId, meant.status, meant.note)
+    }, [failed, markStudent])
 
     const markAllStudents = useCallback(async (status: MarkStatus) => {
         if (lockedDates.has(date)) {
+            notify.error(LOCKED_HINT)
             return { error: LOCKED_HINT }
         }
 
@@ -247,45 +318,53 @@ export default function AttendanceLayoutClient({
             ...prev,
             [date]: Object.fromEntries(ids.map(id => [id, { status, note: '' }]))
         }))
+        setPendingIds(new Set(ids))
 
         const res = await saveAttendanceBulk(ids, date, status, classId ?? undefined)
+
+        setPendingIds(new Set())
         if (res.error) {
             setAttendanceHistory(prev => ({ ...prev, [date]: previousDay || {} }))
+            notify.error(res.error === LOCKED_HINT ? res.error : 'រក្សាទុកមិនបាន។ សូមពិនិត្យអ៊ីនធឺណិត រួចព្យាយាមម្តងទៀត។')
+            if (res.error === LOCKED_HINT) refreshLock(date)
+        } else {
+            setFailed({})
+            setLastOutcome('ok')
         }
         return res
-    }, [attendanceHistory, date, students, classId, lockedDates])
+    }, [attendanceHistory, date, students, classId, lockedDates, refreshLock])
 
+    /**
+     * A tap on a seat. In edit mode it assigns a pupil and can never write a
+     * mark; otherwise it cycles the pupil's mark (see `nextMarkInCycle`).
+     */
     const handleSeatClick = async (seatId: string) => {
         const studentId = seatingLayout[seatId]
 
-        if (!studentId) {
-            if (isEditMode) {
+        if (isEditMode) {
+            if (!studentId) {
                 setSelectedSeatId(seatId)
                 setShowModal(true)
                 setSearchQuery('')
             }
-        } else {
-            if (!isEditMode) {
-                // Cycle P -> L -> A -> P. The plan has one target per pupil, so
-                // cycling is the only way to reach three states from one tap;
-                // the list view offers the three as separate buttons instead.
-                const currentStatus = attendanceHistory[date]?.[studentId]?.status || 'P'
-                const flow: Record<string, string> = { 'P': 'L', 'L': 'A', 'A': 'P' }
-                const newStatus = flow[currentStatus]
-
-                // The existing note is carried across the status change. Passing
-                // `''` here used to wipe a reason a teacher had typed on the
-                // list view the moment they touched the same seat on the plan.
-                const note = attendanceHistory[date]?.[studentId]?.note || ''
-                const res = await markStudent(studentId, newStatus, note)
-                if (res.error) notify.error('រក្សាទុកវត្តមានមិនបាន')
-            }
+            return
         }
+        if (!studentId) return
+
+        const current = attendanceHistory[date]?.[studentId]
+        const newStatus = nextMarkInCycle(current?.status)
+
+        // The existing note is carried across the status change. Passing
+        // `''` here used to wipe a reason a teacher had typed on the
+        // list view the moment they touched the same seat on the plan.
+        const res = await markStudent(studentId, newStatus, current?.note || '')
+        if (res.error && res.error !== LOCKED_HINT) notify.error('រក្សាទុកមិនបាន')
     }
 
     const removeStudentFromSeat = (e: React.MouseEvent, seatId: string) => {
         e.stopPropagation()
         if (!isEditMode) return
+        setLayoutSaved('dirty')
         const newLayout = { ...seatingLayout }
         delete newLayout[seatId]
         setSeatingLayout(newLayout)
@@ -293,68 +372,95 @@ export default function AttendanceLayoutClient({
 
     const assignStudent = (studentId: string) => {
         if (selectedSeatId) {
+            setLayoutSaved('dirty')
             setSeatingLayout(prev => ({ ...prev, [selectedSeatId]: studentId }))
             setShowModal(false)
             setSelectedSeatId(null)
         }
     }
 
-    const handleSave = async () => {
-        setIsSaving(true)
+    const saveLayout = () => {
         localStorage.setItem(STORAGE_KEYS.seatingConfig, JSON.stringify(config))
         localStorage.setItem(STORAGE_KEYS.seatingLayout, JSON.stringify(seatingLayout))
-        
-        setTimeout(() => setIsSaving(false), 1000)
+        setLayoutSaved('saved')
+    }
+
+    const finishEditing = () => {
+        saveLayout()
+        setIsEditMode(false)
     }
 
     // Modal logic
     const seatedIds = Object.values(seatingLayout)
-    const availableStudents = students.filter(s => !seatedIds.includes(s.id || s.uid || ''))
+    const availableStudents = students.filter(s => !seatedIds.includes(s.id))
     const filteredStudents = availableStudents.filter(s => {
-        const name = (s.name_kh || s.full_name || '').toLowerCase()
-        const id = (s.student_id || s.student_code || s.id || '').toLowerCase()
+        const name = (s.name_kh || '').toLowerCase()
+        const id = (s.student_id || s.id || '').toLowerCase()
         return name.includes(searchQuery.toLowerCase()) || id.includes(searchQuery.toLowerCase())
     })
+    const unseatedCount = availableStudents.length
 
     // Renders
     const renderSeat = (tableNum: number, seatNum: number, isCircular = false) => {
         const seatId = `t${tableNum}-s${seatNum}`
         const studentId = seatingLayout[seatId]
-        const student = students.find(s => (s.id || s.uid || '') === studentId)
+        const student = students.find(s => s.id === studentId)
         const extraClasses = isCircular ? 'w-full h-full shadow-sm absolute' : 'flex-1 relative'
-        
+
         if (student) {
-            const status = attendanceHistory[date]?.[studentId]?.status || 'P'
-            // Status is carried by the seat's fill and border; the student's
-            // name stays on the heading colour so it is legible at 11px and does
-            // not depend on colour vision to be read.
-            const statusColors: Record<string, string> = {
-                'P': 'bg-success/15 border-success text-text-heading',
-                'L': 'bg-warning/15 border-warning text-text-heading',
-                'A': 'bg-danger/15 border-danger text-text-heading'
-            }
+            const mark = markFor(attendanceHistory[date]?.[studentId]?.status)
+            const tone = mark ? SEAT_TONE[mark.code] : null
+            // Status is carried by the seat's fill, its border AND a glyph; an
+            // unmarked pupil is dashed and grey, distinct from marked present.
+            const statusCls = tone ? tone.cls : 'border-dashed border-divider bg-bg-surface'
+            const label = isEditMode
+                ? `${student.name_kh} · ដកចេញពីកៅអី`
+                : `${student.name_kh} · ${mark ? mark.label : 'មិនទាន់សម្គាល់'} · ចុចដើម្បីប្តូរ`
 
             return (
-                <div key={seatId} onClick={() => handleSeatClick(seatId)} 
-                     className={`seat filled ${extraClasses} min-h-[44px] border-2 rounded-xl p-1 flex flex-col items-center justify-center text-center cursor-pointer transition-transform hover:scale-105 ${statusColors[status]} ${isEditMode ? 'hover:shadow-lg z-10' : ''}`}>
-                    
+                <div key={seatId} className={`${extraClasses} min-h-[44px]`}>
+                    <button
+                        type="button"
+                        onClick={() => handleSeatClick(seatId)}
+                        disabled={!isEditMode && isLocked}
+                        aria-label={label}
+                        className={`seat filled flex h-full w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 p-1 text-center text-text-heading transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:cursor-not-allowed ${statusCls} ${isEditMode ? 'hover:shadow-lg' : 'hover:brightness-95'}`}
+                    >
+                        <span className="kh-truncate w-full text-[11px] font-bold leading-tight" title={student.name_kh}>{student.name_kh}</span>
+                        <span className="text-[10px] tabular-nums opacity-80">
+                            {mark ? (
+                                <span className="font-bold" aria-hidden="true">{tone?.glyph} </span>
+                            ) : (
+                                <span aria-hidden="true">— </span>
+                            )}
+                            {student.student_id || student.id.slice(0, 4)}
+                        </span>
+                    </button>
                     {isEditMode && (
-                        <div onClick={(e) => removeStudentFromSeat(e, seatId)} 
-                             className="absolute -top-2 -right-2 bg-danger text-white rounded-full p-0.5 w-5 h-5 flex items-center justify-center text-xs z-20 hover:opacity-90 transition-colors">
-                            <X className="w-3 h-3" />
-                        </div>
+                        <button
+                            type="button"
+                            onClick={(e) => removeStudentFromSeat(e, seatId)}
+                            aria-label={`ដក ${student.name_kh} ចេញពីកៅអី`}
+                            className="absolute -top-2 -right-2 z-20 flex h-6 w-6 items-center justify-center rounded-full bg-danger text-white shadow hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                        >
+                            <X className="h-3 w-3" aria-hidden="true" />
+                        </button>
                     )}
-                    <div className="font-bold text-[11px] leading-tight line-clamp-2" title={student.name_kh || student.full_name || ''}>{student.name_kh || student.full_name}</div>
-                    <div className="text-[9px] opacity-80">{student.student_id || student.student_code || student.id.slice(0, 4)}</div>
                 </div>
             )
         }
 
         return (
-            <div key={seatId} onClick={() => handleSeatClick(seatId)} 
-                 className={`seat empty ${extraClasses} border-2 border-dashed border-divider bg-paper text-text-muted rounded-xl flex items-center justify-center text-xs font-bold cursor-pointer transition-colors hover:border-brand-500 hover:bg-brand-soft hover:text-brand-500`}>
-                <span>+</span>
-            </div>
+            <button
+                key={seatId}
+                type="button"
+                onClick={() => handleSeatClick(seatId)}
+                disabled={!isEditMode}
+                aria-label={isEditMode ? 'កៅអីទំនេរ · ដាក់សិស្ស' : 'កៅអីទំនេរ'}
+                className={`seat empty ${extraClasses} flex min-h-[44px] items-center justify-center gap-1 rounded-xl border-2 border-dashed border-divider bg-paper text-[11px] font-bold text-text-muted transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${isEditMode ? 'cursor-pointer hover:border-brand-500 hover:bg-brand-soft hover:text-brand-on-soft' : 'cursor-default'}`}
+            >
+                {isEditMode ? <><Plus className="h-3.5 w-3.5" aria-hidden="true" />ដាក់សិស្ស</> : 'ទំនេរ'}
+            </button>
         )
     }
 
@@ -390,9 +496,9 @@ export default function AttendanceLayoutClient({
         }
 
         return (
-            <div key={i} className="bg-bg-surface rounded-xl p-4 shadow-sm border border-divider flex flex-col gap-3 flex-1 min-w-[150px]">
+            <div key={i} className="bg-bg-surface rounded-xl p-3 shadow-sm border border-divider flex flex-col gap-2 flex-1 min-w-[150px]">
                 <div className="text-center text-xs font-bold text-text-muted uppercase tracking-wider">តុទី {i}</div>
-                <div className="flex gap-3 h-24 relative">
+                <div className="flex gap-2 h-20 relative">
                     {Array.from({ length: config.seatsPerTable }).map((_, idx) => renderSeat(i, idx + 1))}
                 </div>
             </div>
@@ -401,8 +507,8 @@ export default function AttendanceLayoutClient({
 
     const renderGrid = () => {
         const tables = Array.from({ length: config.totalTables }).map((_, i) => renderTable(i + 1))
-        
-        let gridClass = "grid gap-6 min-w-[600px] w-full"
+
+        let gridClass = "grid gap-4 min-w-[600px] w-full"
         let gridStyle = { gridTemplateColumns: `repeat(${config.gridCols}, minmax(0, 1fr))` }
 
         if (config.layout.startsWith('group-')) {
@@ -434,7 +540,7 @@ export default function AttendanceLayoutClient({
                     bottomHtml.push(renderTable(currentTable++))
                 }
                 uShapeItems.push(
-                    <div key="bottom" style={{ gridColumn: `span ${cols}` }} className="flex justify-center gap-6">
+                    <div key="bottom" style={{ gridColumn: `span ${cols}` }} className="flex justify-center gap-4">
                         {bottomHtml}
                     </div>
                 )
@@ -445,37 +551,54 @@ export default function AttendanceLayoutClient({
         return <div className={gridClass} style={gridStyle}>{tables}</div>
     }
 
-    const viewOptions: { id: ViewMode; label: string; icon: typeof List }[] = [
-        { id: 'list', label: 'បញ្ជី', icon: List },
-        { id: '2d', label: 'ប្លង់តុ', icon: Grid3x3 },
-        { id: '3d', label: 'ត្រីមាត្រ', icon: Box },
-    ]
+    const lockControl = (
+        <Button
+            variant={isLocked ? 'warning' : 'secondary'}
+            size="sm"
+            printHidden={false}
+            onClick={toggleLock}
+            loading={isTogglingLock}
+            icon={isLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+        >
+            {isLocked ? 'ដោះសោ' : 'ចាក់សោ'}
+        </Button>
+    )
 
     return (
         <PageContainer>
             <PageHeader
-                title="ចុះវត្តមានសិស្ស"
-                description={className ? `ថ្នាក់ ${className}` : 'ជ្រើសរើសកាលបរិច្ឆេទ រួចសម្គាល់វត្តមានសិស្ស'}
+                title="វត្តមាន"
+                description={
+                    <span className="inline-flex flex-wrap items-center gap-x-2">
+                        <CalendarDays className="h-4 w-4 text-brand" aria-hidden="true" />
+                        <span className="font-bold text-text-heading">{formatKhmerDate(date)}</span>
+                        {isToday && <span>· ថ្ងៃនេះ</span>}
+                        {summary.total > 0 && !summary.complete && (
+                            <span className="tabular-nums">· នៅសល់ {toKhmerNumber(summary.unmarked)} នាក់</span>
+                        )}
+                    </span>
+                }
                 actions={
-                    <div className="flex flex-wrap items-center gap-2">
+                    <>
                         <label className="sr-only" htmlFor="attendance-date">កាលបរិច្ឆេទ</label>
                         <input
                             id="attendance-date"
                             type="date"
                             value={date}
-                            onChange={handleDateChange}
+                            max={initialDate}
+                            onChange={(e) => changeDate(e.target.value)}
                             className={controlClass(false, 'w-auto font-bold text-brand')}
                         />
-                        <Button
-                            variant={isLocked ? 'warning' : 'secondary'}
-                            printHidden={false}
-                            onClick={toggleLock}
-                            loading={isTogglingLock}
-                            icon={isLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
-                        >
-                            {isLocked ? 'ដោះសោ' : 'ចាក់សោ'}
-                        </Button>
-                    </div>
+                        {!isToday && (
+                            <Button variant="ghost" size="sm" printHidden={false} onClick={() => changeDate(initialDate)}>
+                                ថ្ងៃនេះ
+                            </Button>
+                        )}
+                        {/* Locking is a finalisation, not the main action: it is
+                            offered quietly here and prominently only once the
+                            register is complete. */}
+                        {(isLocked || !summary.complete) && lockControl}
+                    </>
                 }
             />
 
@@ -486,7 +609,7 @@ export default function AttendanceLayoutClient({
             {isLocked && (
                 <div
                     role="status"
-                    className="mb-4 flex items-start gap-2 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-text print:hidden"
+                    className="mb-3 flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2.5 text-[13px] text-warning-text print:hidden"
                 >
                     <Lock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
                     <span>{LOCKED_HINT}</span>
@@ -494,43 +617,83 @@ export default function AttendanceLayoutClient({
             )}
 
             {/* Have I finished? Above the switcher, so all three views answer it. */}
-            <RegisterTally students={students} marks={attendanceHistory[date] ?? {}} />
+            <RegisterTally students={students} marks={marks} />
 
             {/*
-              The view switcher. `2d` and `3d` are hidden below `lg` rather than
-              disabled: the seating plan has a 600px minimum width and the 3D
-              canvas needs a pointer to orbit, so offering either on a phone
-              would be offering something that does not work.
+              The view switcher, from `lg` up only. The seating plan has a 600px
+              minimum width and the 3D canvas needs a pointer to orbit, so on a
+              phone the list is the whole screen and a one-tab strip would be
+              noise.
             */}
-            <div className="mb-4 flex flex-wrap items-center gap-2 print:hidden">
-                <div role="tablist" aria-label="របៀបបង្ហាញ" className="flex gap-1 rounded-xl border border-divider bg-paper p-1">
-                    {viewOptions.map((v) => {
-                        const Icon = v.icon
-                        const on = viewMode === v.id
-                        return (
-                            <button
-                                key={v.id}
-                                type="button"
-                                role="tab"
-                                aria-selected={on}
-                                onClick={() => { setViewMode(v.id); if (v.id !== '2d') setIsEditMode(false) }}
-                                className={`flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-[13px] font-bold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${
-                                    on ? 'bg-bg-surface text-brand shadow-sm' : 'text-text-muted hover:text-text-body'
-                                } ${v.id === 'list' ? '' : 'hidden lg:flex'}`}
-                            >
-                                <Icon className="h-4 w-4" aria-hidden="true" />
-                                {v.label}
-                            </button>
-                        )
-                    })}
-                </div>
+            <div className="mb-3 hidden flex-wrap items-center gap-2 lg:flex print:hidden">
+                <Tabs
+                    label="របៀបបង្ហាញ"
+                    idBase="attendance-view"
+                    fill={false}
+                    items={VIEW_TABS}
+                    value={viewMode}
+                    onChange={(v) => { setViewMode(v); if (v !== '2d') setIsEditMode(false) }}
+                />
+                {viewMode === '2d' && !isEditMode && (
+                    <Button variant="secondary" size="sm" printHidden={false} onClick={() => setIsEditMode(true)} icon={<Pencil className="h-4 w-4" />}>
+                        រៀបចំប្លង់តុ
+                    </Button>
+                )}
+            </div>
 
-                {viewMode === '2d' && (
-                    isEditMode ? (
-                        <div className="flex flex-wrap items-center gap-2 rounded-xl bg-paper p-1">
-                            <button onClick={toggleMode} className="flex min-h-11 items-center gap-1 whitespace-nowrap rounded-lg px-3 text-sm font-bold text-text-body transition hover:bg-bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring">
-                                <ArrowLeft className="h-4 w-4" /> ត្រឡប់
-                            </button>
+            {viewMode === 'list' && (
+                <div {...tabPanelProps('attendance-view', 'list')}>
+                    <RosterCheckIn
+                        students={students}
+                        marks={marks}
+                        pendingIds={pendingIds}
+                        failed={failed}
+                        saveState={saveState}
+                        locked={isLocked}
+                        onMark={markStudent}
+                        onMarkAll={markAllStudents}
+                        onRetry={retryStudent}
+                        completionAction={
+                            !isLocked && (
+                                <Button
+                                    variant="primary"
+                                    size="sm"
+                                    printHidden={false}
+                                    onClick={toggleLock}
+                                    loading={isTogglingLock}
+                                    icon={<Lock className="h-4 w-4" />}
+                                >
+                                    ចាក់សោថ្ងៃនេះ
+                                </Button>
+                            )
+                        }
+                        emptyAction={
+                            <Link
+                                href={href('/enrollment')}
+                                className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand px-4 text-sm font-bold text-brand-contrast hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                            >
+                                <Plus className="h-4 w-4" aria-hidden="true" />
+                                បញ្ចូលសិស្សថ្មី
+                            </Link>
+                        }
+                    />
+                </div>
+            )}
+
+            {viewMode === '2d' && (
+                <div {...tabPanelProps('attendance-view', '2d')} className="relative">
+                    {/*
+                      Arranging the room is a MODE, framed and named, so a tap
+                      while arranging can never write a mark and a tap while
+                      marking can never move a pupil.
+                    */}
+                    {isEditMode ? (
+                        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-brand/40 bg-brand-soft p-2 text-brand-on-soft">
+                            <span className="inline-flex items-center gap-1.5 px-1 text-[13px] font-bold">
+                                <Pencil className="h-4 w-4" aria-hidden="true" />
+                                កំពុងរៀបចំប្លង់តុ
+                                <span className="font-normal opacity-80">· មិនប៉ះពាល់វត្តមាន</span>
+                            </span>
 
                             <Select
                                 ariaLabel="ប្លង់តុ"
@@ -549,14 +712,14 @@ export default function AttendanceLayoutClient({
                                 wrapperClassName="w-[180px]"
                             />
 
-                            <div className="flex min-h-11 items-center gap-1 rounded-lg border border-divider bg-bg-surface px-2">
+                            <div className="flex min-h-11 items-center gap-1 rounded-lg border border-divider bg-bg-surface px-2 text-text-heading">
                                 <span className="whitespace-nowrap text-xs text-text-muted">តុ:</span>
-                                <input type="number" aria-label="ចំនួនតុ" value={config.totalTables} onChange={e => handleConfigChange('totalTables', parseInt(e.target.value) || 0)} className="w-10 bg-transparent text-center text-sm font-bold outline-none" />
+                                <input type="number" min={1} aria-label="ចំនួនតុ" value={config.totalTables} onChange={e => handleConfigChange('totalTables', parseInt(e.target.value) || 0)} className="w-10 bg-transparent text-center text-sm font-bold outline-none" />
                             </div>
 
-                            <div className="flex min-h-11 items-center gap-1 rounded-lg border border-divider bg-bg-surface px-2">
+                            <div className="flex min-h-11 items-center gap-1 rounded-lg border border-divider bg-bg-surface px-2 text-text-heading">
                                 <span className="whitespace-nowrap text-xs text-text-muted">ជួរ:</span>
-                                <input type="number" aria-label="ចំនួនជួរ" value={config.gridCols} onChange={e => handleConfigChange('gridCols', parseInt(e.target.value) || 1)} className="w-10 bg-transparent text-center text-sm font-bold outline-none" />
+                                <input type="number" min={1} aria-label="ចំនួនជួរ" value={config.gridCols} onChange={e => handleConfigChange('gridCols', parseInt(e.target.value) || 1)} className="w-10 bg-transparent text-center text-sm font-bold outline-none" />
                             </div>
 
                             <Select
@@ -570,62 +733,62 @@ export default function AttendanceLayoutClient({
                                 ]}
                             />
 
-                            <Button variant="success" printHidden={false} onClick={toggleMode} loading={isSaving} icon={<Check className="h-4 w-4" />}>
-                                បញ្ចប់
-                            </Button>
+                            <span className="ml-auto inline-flex items-center gap-2 text-xs">
+                                <span className="tabular-nums opacity-80">
+                                    {unseatedCount > 0 ? `${toKhmerNumber(unseatedCount)} នាក់មិនទាន់មានកៅអី` : 'សិស្សទាំងអស់មានកៅអី'}
+                                </span>
+                                <Button variant="secondary" size="sm" printHidden={false} onClick={saveLayout} icon={<Save className="h-4 w-4" />}>
+                                    រក្សាទុក
+                                </Button>
+                                <Button variant="success" size="sm" printHidden={false} onClick={finishEditing} icon={<Check className="h-4 w-4" />}>
+                                    បញ្ចប់
+                                </Button>
+                            </span>
                         </div>
                     ) : (
-                        <>
-                            <Button variant="secondary" printHidden={false} onClick={toggleMode} icon={<LayoutTemplate className="h-4 w-4" />}>
-                                កែសម្រួលប្លង់
-                            </Button>
-                            <Button printHidden={false} onClick={handleSave} loading={isSaving} icon={<Save className="h-4 w-4" />}>
-                                រក្សាទុក
-                            </Button>
-                        </>
-                    )
-                )}
-            </div>
-
-            {viewMode === 'list' && (
-                <RosterCheckIn
-                    students={students}
-                    marks={attendanceHistory[date] || {}}
-                    onMark={(id, status, note) => markStudent(id, status, note)}
-                    onMarkAll={markAllStudents}
-                />
-            )}
-
-            {viewMode === '2d' && (
-                <div className="relative overflow-x-auto pb-28">
-                    {/* Teacher desk and blackboard — the plan's orientation cues */}
-                    <div className="mb-10 flex min-w-[600px] flex-col gap-4">
-                        <div className="flex justify-start">
-                            <div className="flex -translate-y-2 items-center gap-3 rounded-xl border-b-4 border-brand bg-bg-surface px-6 py-3 shadow-sm">
-                                <User className="h-5 w-5 text-text-heading" />
-                                <span className="kh-moul text-lg font-bold text-text-heading">តុគ្រូបង្រៀន</span>
-                            </div>
-                        </div>
-
-                        <div className="flex w-full justify-center">
-                            <div className="relative flex h-10 w-full max-w-4xl items-center justify-center rounded-full border-2 border-warning/40 bg-[var(--text-heading)] shadow-lg">
-                                <span className="font-sans text-xs font-bold tracking-[0.2em] text-text-muted uppercase">ក្ដារខៀន</span>
-                            </div>
-                        </div>
-                        <div className="mt-2 w-full border-b-2 border-dashed border-divider"></div>
-                    </div>
-
-                    {renderGrid()}
-
-                    {!isEditMode && (
-                        <div className="sticky bottom-4 mx-auto mt-6 flex w-max items-center gap-4 rounded-full border border-divider bg-bg-surface px-6 py-3 shadow-lg">
-                            {(['P', 'L', 'A'] as const).map((code) => (
-                                <Badge key={code} variant={ATTENDANCE_BADGE[code].variant} size="sm">
-                                    {ATTENDANCE_BADGE[code].label}
-                                </Badge>
-                            ))}
+                        <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-muted">
+                            <span>ចុចកៅអី ដើម្បីប្តូរវត្តមាន៖ មិនទាន់ → ✓ → ○ → ×</span>
+                            {unseatedCount > 0 && (
+                                <span className="tabular-nums">
+                                    · {toKhmerNumber(unseatedCount)} នាក់មិនទាន់មានកៅអី — សម្គាល់ពួកគេនៅបញ្ជី
+                                </span>
+                            )}
+                            {layoutSaved === 'saved' && <span className="text-success">· បានរក្សាទុកប្លង់</span>}
+                            {layoutSaved === 'dirty' && <span className="text-warning-text">· ប្លង់មិនទាន់រក្សាទុក</span>}
                         </div>
                     )}
+
+                    <div className="overflow-x-auto pb-24">
+                        {/* Teacher desk and blackboard — the plan's orientation cues */}
+                        <div className="mb-8 flex min-w-[600px] flex-col gap-3">
+                            <div className="flex justify-start">
+                                <div className="flex -translate-y-2 items-center gap-3 rounded-xl border-b-4 border-brand bg-bg-surface px-6 py-2.5 shadow-sm">
+                                    <User className="h-5 w-5 text-text-heading" aria-hidden="true" />
+                                    <span className="kh-moul text-base font-bold text-text-heading">តុគ្រូបង្រៀន</span>
+                                </div>
+                            </div>
+
+                            <div className="flex w-full justify-center">
+                                <div className="relative flex h-9 w-full max-w-4xl items-center justify-center rounded-full border-2 border-warning/40 bg-[var(--text-heading)] shadow-lg">
+                                    <span className="font-sans text-xs font-bold tracking-[0.2em] text-text-muted uppercase">ក្ដារខៀន</span>
+                                </div>
+                            </div>
+                            <div className="mt-1 w-full border-b-2 border-dashed border-divider"></div>
+                        </div>
+
+                        {renderGrid()}
+
+                        {!isEditMode && (
+                            <div className="sticky bottom-4 mx-auto mt-6 flex w-max items-center gap-3 rounded-full border border-divider bg-bg-surface px-5 py-2.5 shadow-lg">
+                                {(['P', 'L', 'A'] as const).map((code) => (
+                                    <Badge key={code} variant={ATTENDANCE_BADGE[code].variant} size="sm">
+                                        <span aria-hidden="true">{SEAT_TONE[code].glyph}</span> {ATTENDANCE_BADGE[code].label}
+                                    </Badge>
+                                ))}
+                                <Badge variant="muted" size="sm"><span aria-hidden="true">—</span> មិនទាន់</Badge>
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
 
@@ -648,7 +811,7 @@ export default function AttendanceLayoutClient({
                             type="search"
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
-                            placeholder="ស្វែងរកឈ្មោះ ឬអត្តលេខសិស្ស"
+                            placeholder="ស្វែងរកឈ្មោះ ឬលេខសិស្ស"
                             aria-label="ស្វែងរកសិស្ស"
                             className={controlClass(false, 'pl-9')}
                         />
@@ -662,21 +825,21 @@ export default function AttendanceLayoutClient({
                             <p className="text-sm text-text-muted">មិនទាន់មានទិន្នន័យសិស្សទេ</p>
                         </div>
                     ) : filteredStudents.length === 0 ? (
-                        <p className="p-4 text-center text-sm text-text-muted">សិស្សទាំងអស់ត្រូវបានចាត់ចូលតុរួចរាល់ ឬរកមិនឃើញសិស្ស។</p>
+                        <p className="p-4 text-center text-sm text-text-muted">សិស្សទាំងអស់មានកៅអីរួចហើយ ឬរកមិនឃើញសិស្ស។</p>
                     ) : (
                         filteredStudents.map(s => (
                             <button
-                                key={s.id || s.uid || ''}
+                                key={s.id}
                                 type="button"
-                                onClick={() => assignStudent(s.id || s.uid || '')}
-                                className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-transparent p-3 text-left transition hover:border-divider hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring dark:hover:bg-brand-900/40"
+                                onClick={() => assignStudent(s.id)}
+                                className="flex min-h-11 w-full cursor-pointer items-center gap-3 rounded-xl border border-transparent p-3 text-left transition hover:border-divider hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
                             >
-                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-brand dark:bg-brand-900/60 dark:text-brand-300">
+                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xs font-bold text-brand-on-soft">
                                     {s.gender === 'ស្រី' ? 'ស' : 'ប'}
                                 </span>
                                 <span className="min-w-0 flex-1">
-                                    <span className="block truncate text-sm font-bold text-text-body">{s.name_kh || s.full_name || 'គ្មានឈ្មោះ'}</span>
-                                    <span className="block text-xs text-text-muted">{s.student_id || s.student_code || s.id.slice(0, 4)}</span>
+                                    <span className="kh-truncate block text-sm font-bold text-text-body">{s.name_kh || 'គ្មានឈ្មោះ'}</span>
+                                    <span className="block text-xs text-text-muted">{s.student_id || s.id.slice(0, 4)}</span>
                                 </span>
                             </button>
                         ))
@@ -685,15 +848,17 @@ export default function AttendanceLayoutClient({
             </BottomSheet>
 
             {viewMode === '3d' && (
-                <ThreeClassroom
-                    config={config}
-                    seatingLayout={seatingLayout}
-                    students={students}
-                    attendanceHistory={attendanceHistory}
-                    date={date}
-                    onSeatClick={handleSeatClick}
-                    onClose={() => setViewMode('2d')}
-                />
+                <div {...tabPanelProps('attendance-view', '3d')}>
+                    <ThreeClassroom
+                        config={config}
+                        seatingLayout={seatingLayout}
+                        students={students}
+                        attendanceHistory={attendanceHistory}
+                        date={date}
+                        onSeatClick={handleSeatClick}
+                        onClose={() => setViewMode('2d')}
+                    />
+                </div>
             )}
 
             {dialog}

@@ -62,7 +62,7 @@ export interface AttendanceMark {
 }
 
 export const ATTENDANCE_MARKS: readonly AttendanceMark[] = [
-  { code: 'P',  label: 'វត្តមាន',   short: '✓', inClass: true,  excused: false },
+  { code: 'P',  label: 'មក',        short: '✓', inClass: true,  excused: false },
   { code: 'L',  label: 'ច្បាប់',    short: 'ច', inClass: false, excused: true  },
   { code: 'A',  label: 'អវត្តមាន',  short: 'អ', inClass: false, excused: false },
   // Legacy synonym of `L`. Read, never written — see the note above.

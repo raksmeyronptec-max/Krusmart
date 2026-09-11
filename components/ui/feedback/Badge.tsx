@@ -75,7 +75,7 @@ export function Badge({
  * 3D view cannot drift apart about what colour a mark is.
  */
 export const ATTENDANCE_BADGE: Record<string, { label: string; variant: BadgeVariant }> = {
-  P: { label: "វត្តមាន", variant: "success" },
+  P: { label: "មក", variant: "success" },
   L: { label: "ច្បាប់", variant: "warning" },
   A: { label: "អវត្តមាន", variant: "danger" },
   /** Declared by the type but never written by any current screen. */

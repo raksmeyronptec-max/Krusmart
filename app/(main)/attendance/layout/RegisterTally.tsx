@@ -1,28 +1,23 @@
 'use client'
 
+import { Check, Circle, X, CircleDashed } from 'lucide-react'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
-import { tallyAttendance } from '@/lib/attendance/status'
-import type { DayMarks } from './AttendanceLayoutClient'
+import { registerSummary, type DayMarks } from '@/lib/attendance/register'
 
 /**
  * Have I finished the register?
  *
- * The brief asks every attendance surface for a completion indication, and the
- * app had one — inside `RosterCheckIn`, which is the **list** view only. A
- * teacher working from the seating plan or the 3D room, the two views a desk
- * user is most likely to pick, was never told that four pupils were still
- * unmarked; there is nothing on either of those views that distinguishes "not
- * marked" from "marked present" at a glance.
+ * One compact strip, not four dashboard cards: `៣៥ សិស្ស · ✓ ៣២ · ○ ២ · × ១ ·
+ * ៩១.៤%`. The list of pupils is the work; the summary is a glance. It sits
+ * above the view switcher so the seating plan and the 3D room — neither of
+ * which distinguishes "not marked" from "marked present" at a glance — answer
+ * "have I finished?" as well as the list does.
  *
- * So the strip moved up here, beside the view switcher, and all three views
- * carry it. It is computed once from the same `tallyAttendance` the sheets and
- * the parent portal use, so "៤ មិនទាន់" cannot disagree with what the printed
- * absence columns say about the same day.
- *
- * `unmarked` is the roster minus the recognised marks — a pupil carrying a
- * status this application does not know is counted as not yet marked, which is
- * the safe direction: it prompts a teacher to look rather than reporting a day
- * as done.
+ * The arithmetic is `registerSummary`, which is `tallyAttendance` — the same
+ * call the printed sheets and the parent portal make — so "៤ មិនទាន់" here
+ * cannot disagree with the absence columns the monthly register prints for
+ * the same day. Every figure carries a glyph and a label, never a colour
+ * alone.
  */
 export function RegisterTally({
   students,
@@ -31,27 +26,52 @@ export function RegisterTally({
   students: readonly { id: string }[]
   marks: DayMarks
 }) {
-  const t = tallyAttendance(students.map((s) => ({ status: marks[s.id]?.status })))
+  const s = registerSummary(students, marks)
+  const done = s.total - s.unmarked
 
   const cells = [
-    { label: 'វត្តមាន', value: t.present, cls: 'text-success' },
-    { label: 'ច្បាប់', value: t.excused, cls: 'text-warning-text' },
-    { label: 'អវត្តមាន', value: t.unexcused, cls: 'text-danger' },
-    { label: 'មិនទាន់', value: students.length - t.marked, cls: 'text-text-muted' },
+    { label: 'មក', value: s.present, icon: Check, cls: 'text-success' },
+    { label: 'ច្បាប់', value: s.excused, icon: Circle, cls: 'text-warning-text' },
+    { label: 'អវត្តមាន', value: s.unexcused, icon: X, cls: 'text-danger-text' },
   ]
 
   return (
     <div
-      className="mb-4 grid grid-cols-4 gap-2 print:hidden"
+      className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-divider bg-bg-surface px-3 py-2 text-[13px] print:hidden"
       role="status"
-      aria-label={`បានសម្គាល់ ${toKhmerNumber(t.marked)} ក្នុងចំណោម ${toKhmerNumber(students.length)}`}
+      aria-label={`បានសម្គាល់ ${toKhmerNumber(done)} ក្នុងចំណោម ${toKhmerNumber(s.total)} នាក់`}
     >
-      {cells.map((c) => (
-        <div key={c.label} className="rounded-xl border border-divider bg-bg-surface px-2 py-2.5 text-center">
-          <p className={`text-xl font-bold tabular-nums ${c.cls}`}>{toKhmerNumber(c.value)}</p>
-          <p className="text-[11px] text-text-muted">{c.label}</p>
-        </div>
-      ))}
+      <span className="font-bold text-text-heading tabular-nums">
+        {toKhmerNumber(s.total)} សិស្ស
+      </span>
+
+      {cells.map((c) => {
+        const Icon = c.icon
+        return (
+          <span key={c.label} className={`inline-flex items-center gap-1 tabular-nums ${c.cls}`}>
+            <Icon className="h-3.5 w-3.5" aria-hidden="true" strokeWidth={3} />
+            <span className="font-bold">{toKhmerNumber(c.value)}</span>
+            <span className="text-text-muted">{c.label}</span>
+          </span>
+        )
+      })}
+
+      {s.unmarked > 0 && (
+        <span className="inline-flex items-center gap-1 text-text-muted tabular-nums">
+          <CircleDashed className="h-3.5 w-3.5" aria-hidden="true" />
+          <span className="font-bold">{toKhmerNumber(s.unmarked)}</span> មិនទាន់
+        </span>
+      )}
+
+      {/* Rate over the pupils marked — never over the roster, which would
+          report a truancy nobody has recorded yet. */}
+      <span className="ml-auto text-text-muted tabular-nums">
+        {s.total === 0
+          ? '—'
+          : s.unmarked > 0
+            ? `${toKhmerNumber(done)}/${toKhmerNumber(s.total)}`
+            : `${toKhmerNumber(s.rate ?? 0)}%`}
+      </span>
     </div>
   )
 }

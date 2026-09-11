@@ -44,6 +44,14 @@ import {
   markFor,
   tallyAttendance,
 } from '../lib/attendance/status.ts'
+import {
+  ROSTER_FILTERS,
+  filterCounts,
+  nextMarkInCycle,
+  registerSummary,
+  searchRoster,
+  visibleRoster,
+} from '../lib/attendance/register.ts'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 
@@ -237,6 +245,69 @@ const layout = readFileSync(join(root, 'app', '(main)', 'attendance', 'layout', 
 check('...and the screen renders it, not one of its views',
   /<RegisterTally/.test(layout) && !/<RegisterTally/.test(roster),
   'all three views must answer "have I finished?"')
+
+// ---------------------------------------------------------------------------
+// A7 · the daily register's own derivations
+// ---------------------------------------------------------------------------
+console.log('\nA7 · the daily flow: everyone here, then the exceptions')
+
+/*
+ * `/attendance/layout` filters, searches and counts the roster through
+ * `lib/attendance/register.ts` rather than inline, so the list view, the
+ * summary strip and the completion panel cannot disagree about what "done"
+ * means. Run it, and pin the three properties the daily flow depends on.
+ */
+const pupils = [
+  { id: 's1', name_kh: 'សុខា', name_en: 'Sokha', student_id: 'A001' },
+  { id: 's2', name_kh: 'ដារា', name_en: 'Dara', student_id: 'A002' },
+  { id: 's3', name_kh: 'វិចិត្រ', name_en: null, student_id: 'B003' },
+  { id: 's4', name_kh: 'រតនា', name_en: null, student_id: null },
+]
+const day = {
+  s1: { status: 'P', note: '' },
+  s2: { status: 'AP', note: 'ឈឺ' },
+  s3: { status: 'ZZ', note: '' },
+}
+
+const summary = registerSummary(pupils, day)
+check('the summary counts through tallyAttendance', summary.present === 1 && summary.excused === 1 && summary.unexcused === 0)
+check('an unknown status is unmarked, not present', summary.unmarked === 2, String(summary.unmarked))
+check('...so the register is not complete', summary.complete === false)
+check('an empty roster is never "complete"', registerSummary([], {}).complete === false,
+  'a class with nobody in it has not taken attendance')
+check('everyone marked is complete',
+  registerSummary(pupils, { s1: { status: 'P', note: '' }, s2: { status: 'L', note: '' }, s3: { status: 'A', note: '' }, s4: { status: 'P', note: '' } }).complete === true)
+
+check('the filter chips are the entry marks plus all and unmarked',
+  ROSTER_FILTERS.map((f) => f.id).join(',') === 'all,P,L,A,unmarked',
+  ROSTER_FILTERS.map((f) => f.id).join(','))
+check('the L chip shows the legacy spelling too', visibleRoster(pupils, day, 'L').map((s) => s.id).join() === 's2')
+check('the unmarked chip shows the unknown status and the missing row',
+  visibleRoster(pupils, day, 'unmarked').map((s) => s.id).join() === 's3,s4')
+check('the A chip is empty when nobody is absent', visibleRoster(pupils, day, 'A').length === 0)
+const counts = filterCounts(pupils, day)
+check('chip counts agree with the chips', counts.all === 4 && counts.P === 1 && counts.L === 1 && counts.A === 0 && counts.unmarked === 2)
+
+check('search matches a Khmer name', searchRoster(pupils, 'សុខ').map((s) => s.id).join() === 's1')
+check('search matches a code, ignoring case and spaces', searchRoster(pupils, ' a00 ').map((s) => s.id).join() === 's1,s2')
+check('search matches a Latin name', searchRoster(pupils, 'dara').map((s) => s.id).join() === 's2')
+check('an empty query is the whole roster', searchRoster(pupils, '  ').length === 4)
+
+check('the seat cycle starts an unmarked pupil at present', nextMarkInCycle(undefined) === 'P')
+check('...and goes present → ច្បាប់ → absent → present',
+  nextMarkInCycle('P') === 'L' && nextMarkInCycle('L') === 'A' && nextMarkInCycle('A') === 'P')
+check('...treating the legacy spelling as ច្បាប់', nextMarkInCycle('AP') === 'A')
+check('...and never writes AP', ['P', 'L', 'A', 'AP', undefined].every((s) => nextMarkInCycle(s) !== 'AP'))
+
+/*
+ * The screen must reach these through the module. A private `filter(...)`
+ * over statuses in the list view is the twelfth reading waiting to happen.
+ */
+check('RosterCheckIn reads the roster through the register module',
+  /attendance\/register/.test(roster) && /visibleRoster|ROSTER_FILTERS/.test(roster))
+check('the summary strip counts through registerSummary', /registerSummary/.test(tallyStrip))
+check('the screen offers the primary action in the entry vocabulary',
+  /មកទាំងអស់/.test(roster), 'the "everyone is here" button is the daily flow')
 
 // ---------------------------------------------------------------------------
 console.log(failures === 0 ? '\n✓ one register, one vocabulary.\n' : `\n✗ ${failures} failure(s)\n`)
