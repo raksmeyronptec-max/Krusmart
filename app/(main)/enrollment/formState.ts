@@ -85,13 +85,35 @@ export const SECTIONS: SectionMeta[] = [
     required: ['studentId', 'grade', 'studentName', 'gender', 'dob'],
     optional: ['latinName', 'phone', 'photoUrl'],
   },
+  /*
+   * ── The birthplace does not gate a pupil's record (Phase 15 F15-1) ──────
+   *
+   * These four used to be `required`, so a teacher who had filled in every
+   * column the database actually demands — `student_id`, `grade`, `name_kh`,
+   * `gender`, `dob`, the five that are `NOT NULL` — pressed save, was refused,
+   * and was sent to four dependent dropdowns to produce the child's birth
+   * VILLAGE before the software would record their name. Measured on a phone:
+   * ៥/៩, four errors, 7.2 screens of form.
+   *
+   * All four columns are `is_nullable = YES`. The requirement was the form's
+   * own invention, and the repository's own fixtures disagree with it —
+   * `primary_ranking_teacher.sql` inserts pupils with no address at all.
+   *
+   * Nothing is removed: the section, the fields and the province → district →
+   * commune → village cascade are untouched, and a teacher who has the
+   * information still enters it here. It simply no longer stands between a
+   * child and their own name.
+   */
   {
     id: 'addresses', number: '២', label: 'អាសយដ្ឋាន',
     title: 'ព័ត៌មានទីតាំង និងអាសយដ្ឋាន',
-    description: 'ជ្រើសរើសតាមលំដាប់ រាជធានី/ខេត្ត → ក្រុង/ស្រុក/ខណ្ឌ → ឃុំ/សង្កាត់ → ភូមិ។',
+    description: 'ជ្រើសរើសតាមលំដាប់ រាជធានី/ខេត្ត → ក្រុង/ស្រុក/ខណ្ឌ → ឃុំ/សង្កាត់ → ភូមិ។ មិនចាំបាច់បំពេញភ្លាមទេ។',
     icon: MapPin,
-    required: ['birthProvince', 'birthDistrict', 'birthCommune', 'birthVillage'],
-    optional: ['currProvince', 'currDistrict', 'currCommune', 'currVillage'],
+    required: [],
+    optional: [
+      'birthProvince', 'birthDistrict', 'birthCommune', 'birthVillage',
+      'currProvince', 'currDistrict', 'currCommune', 'currVillage',
+    ],
   },
   {
     id: 'student-status', number: '៣', label: 'ស្ថានភាព',

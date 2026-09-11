@@ -485,6 +485,83 @@ check('the mark is distinct from the pupil\'s own សិស្សថ្មី fl
   code(join(root, 'components/ui/views/StudentCard.tsx')).includes("label: 'ទើបបញ្ចូល'"),
   'one is a fact about the year, the other about the last few seconds')
 
+// ---------------------------------------------------------------------------
+// Enrolling a pupil asks for what the pupil needs
+// ---------------------------------------------------------------------------
+/**
+ * Phase 15. The form used to gate saving on the child's birth VILLAGE: a
+ * teacher who had filled every column `students` declares `NOT NULL` pressed
+ * save, was refused, and was sent to four dependent dropdowns. Measured on a
+ * phone: ៥/៩ required, four errors, 7.2 screens of form.
+ *
+ * The requirement was the form's own — all four birth columns are nullable —
+ * and the repository's own fixture inserts pupils with no address at all.
+ */
+console.log('\nenrolling a pupil asks for what the pupil needs:')
+
+const formState = await import('../app/(main)/enrollment/formState.ts')
+const sections = formState.SECTIONS as { id: string; required: string[]; optional: string[] }[]
+const requiredFields = formState.REQUIRED_FIELDS as string[]
+
+/**
+ * The five the DATABASE requires. Kept as a literal on purpose: if a migration
+ * makes another column NOT NULL, this check should fail and be updated
+ * deliberately rather than tracking the form.
+ */
+const DB_REQUIRED = ['studentId', 'grade', 'studentName', 'gender', 'dob']
+check('the form requires exactly what the database does',
+  requiredFields.length === DB_REQUIRED.length &&
+  DB_REQUIRED.every((f) => requiredFields.includes(f)),
+  `required: ${requiredFields.join(', ')}`)
+
+const addresses = sections.find((sec) => sec.id === 'addresses')
+check('the birthplace does not gate a pupil\'s record',
+  addresses?.required.length === 0,
+  'birth_province/district/commune/village are all is_nullable = YES')
+check('...and none of those fields was deleted to achieve that',
+  (['birthProvince', 'birthDistrict', 'birthCommune', 'birthVillage'] as const)
+    .every((f) => addresses?.optional.includes(f)),
+  'a teacher who has the information must still be able to enter it')
+
+check('and the four fields no longer render a required marker',
+  !/LocationField label="[^"]+" required error=\{errors\.birth/.test(enrolClient),
+  'the asterisk and the rule have to agree')
+
+/** The class is known; re-keying it is how `students.grade` drifts from the enrolment. */
+check('a new pupil\'s class is prefilled, not typed',
+  enrolClient.includes('setClassPrefilled(true)') && enrolClient.includes('set("grade", className)'))
+check('...only for a NEW pupil — an edit shows the stored value',
+  /if \(!editingId && !classPrefilled/.test(enrolClient))
+check('...and never over something already typed or restored from a draft',
+  /!classPrefilled && contextMatchesTarget && className && !values\.grade/.test(enrolClient),
+  'the enrollmentDraft restore must survive this')
+/**
+ * The trap this walked into once. `className` is TeacherContext's, and `?class=`
+ * reaches that context through `ClassParamSync` — an effect, one render later.
+ * Prefilling on the first render with a name writes the teacher's DEFAULT class:
+ * arriving at `/enrollment?class=<៤ខ តេស្ត>` filled the box with ៤ក.
+ */
+check('...and waits for the context to catch up with ?class=',
+  enrolClient.includes('contextClassId === activeClassId'),
+  'prefilling before ClassParamSync runs writes the default class, not the requested one')
+
+/** Edit is not transfer, and the sentence that says so now has a door. */
+check('edit mode still says it does not move the pupil',
+  enrolClient.includes('ការកែនេះមិនប្តូរថ្នាក់របស់សិស្សទេ'))
+check('...and points at where a transfer actually happens',
+  /href=\{`\/students\/\$\{editingId\}`\}/.test(enrolClient),
+  'naming "the transfer" without saying where it is leaves the teacher to hunt')
+check('the two paths are still genuinely separate',
+  enrolClient.includes('updateStudent(editingId') && enrolClient.includes('createStudent('),
+  'they must not be merged into one write — see the transfer panel')
+
+/** A teacher is never shown the database's own words. */
+check('the save fallback does not print the raw error',
+  !/មានបញ្ហាក្នុងការរក្សាទុកទិន្នន័យ៖ \$\{error\.message\}/
+    .test(code(join(root, 'app/(main)/enrollment/actions.ts'))))
+check('...and logs it instead',
+  code(join(root, 'app/(main)/enrollment/actions.ts')).includes("logger.error('enrollment save:'"))
+
 console.log(
   failures === 0
     ? '\n✓ pupils: one profile, one enrolment rule, one document index.'

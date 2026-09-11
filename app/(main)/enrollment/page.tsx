@@ -127,6 +127,48 @@ export default function EnrollmentPage() {
   const set = useCallback((name: FieldName, value: string) => dispatch({ type: "set", name, value }), [])
   const blur = useCallback((name: FieldName) => dispatch({ type: "blur", name }), [])
 
+  /*
+   * ── The class is known; do not make the teacher type it (F15-2) ─────────
+   *
+   * `ថ្នាក់ទី` is required — `students.grade` is `NOT NULL` — but this page was
+   * reached from a link carrying `?class=` and states the class TWICE on
+   * screen, so asking for it again is re-keying a fact the software holds. A
+   * typo there produces a pupil whose `students.grade` disagrees with their own
+   * enrolment, and that column is the stale one: every roster read in the app
+   * uses `student_enrollments` instead.
+   *
+   * Prefilled, never forced. It stays editable, it is applied only to a NEW
+   * pupil (an edit must show the stored value, not the ambient class), and only
+   * while the field is still empty — so it cannot overwrite typed input or a
+   * restored `enrollmentDraft`.
+   *
+   * Adjusted during render rather than in an effect, the pattern
+   * `GenerateReportDialog` uses to re-seed: the alternative paints the form
+   * once with an empty box and again with a filled one. The flag is set only on
+   * a successful fill, so a still-hydrating `TeacherContext` retries on the
+   * next render instead of giving up.
+   *
+   * ── AND IT WAITS FOR THE CONTEXT TO CATCH UP WITH THE URL ───────────────
+   *
+   * `className` is `TeacherContext`'s, and `?class=` reaches that context
+   * through `ClassParamSync` — in an effect, one render LATER. Prefilling on
+   * the first render where a name exists therefore writes the teacher's
+   * *default* class: arriving at `/enrollment?class=<៤ខ តេស្ត>` filled the box
+   * with ៤ក, observed. The pupil would still have been enrolled into the right
+   * class (that comes from `activeClassId`, which prefers the URL) — it is the
+   * printed grade label that would have been wrong, which is the silent half.
+   *
+   * So it fills only once the context's own class IS the class this form will
+   * write into. With no `?class=` the two are equal immediately and nothing
+   * waits.
+   */
+  const [classPrefilled, setClassPrefilled] = useState(false)
+  const contextMatchesTarget = Boolean(contextClassId) && contextClassId === activeClassId
+  if (!editingId && !classPrefilled && contextMatchesTarget && className && !values.grade) {
+    setClassPrefilled(true)
+    set("grade", className)
+  }
+
   /* ─── Location tree ─── */
 
   useEffect(() => {
@@ -428,7 +470,25 @@ export default function EnrollmentPage() {
          */
         description={
           isEditing
-            ? 'កែព័ត៌មានសិស្សដែលមានស្រាប់។ ការកែនេះមិនប្តូរថ្នាក់របស់សិស្សទេ — ការប្តូរថ្នាក់ធ្វើឡើងដោយការផ្ទេរ។'
+            ? (
+                /*
+                  The sentence already said that an edit does not move a pupil,
+                  and then named "the transfer" without saying where it is
+                  (F15-5). A teacher who opened this form intending to move
+                  somebody was told the right thing and left to find the control
+                  on their own — it lives on the pupil's own page.
+                */
+                <>
+                  កែព័ត៌មានសិស្សដែលមានស្រាប់។ ការកែនេះមិនប្តូរថ្នាក់របស់សិស្សទេ — ការប្តូរថ្នាក់ធ្វើឡើងដោយ{' '}
+                  <Link
+                    href={`/students/${editingId}`}
+                    className="font-bold text-brand underline underline-offset-2 hover:text-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                  >
+                    ការផ្ទេរសិស្ស
+                  </Link>
+                  ។
+                </>
+              )
             : className
             ? `សិស្សនឹងចូលក្នុងថ្នាក់ខាងក្រោម — បំពេញព័ត៌មានចាំបាច់ជាមុនសិន ហើយបន្ថែមព័ត៌មានលម្អិតតាមតម្រូវការ។`
             : 'បំពេញព័ត៌មានចាំបាច់ជាមុនសិន ហើយបន្ថែមព័ត៌មានលម្អិតតាមតម្រូវការ។'
@@ -577,25 +637,25 @@ export default function EnrollmentPage() {
                     </div>
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <LocationField label="រាជធានី/ខេត្ត" required error={errors.birthProvince}>
+                    <LocationField label="រាជធានី/ខេត្ត" error={errors.birthProvince}>
                       <SearchableSelect id="birthProvince" name="birthProvince" ariaLabel="រាជធានី ឬខេត្តកំណើត"
                         placeholder="ជ្រើសរើសខេត្ត" options={provinces} value={values.birthProvince}
                         loading={locationsLoading} clearable
                         onChange={(value) => { set("birthProvince", value); blur("birthProvince") }} />
                     </LocationField>
-                    <LocationField label="ក្រុង/ស្រុក/ខណ្ឌ" required error={errors.birthDistrict}>
+                    <LocationField label="ក្រុង/ស្រុក/ខណ្ឌ" error={errors.birthDistrict}>
                       <SearchableSelect id="birthDistrict" name="birthDistrict" ariaLabel="ក្រុង ស្រុក ឬខណ្ឌកំណើត"
                         placeholder="ជ្រើសរើសក្រុង/ស្រុក" options={options(values.birthProvince)}
                         value={values.birthDistrict} disabled={!values.birthProvince} clearable
                         onChange={(value) => { set("birthDistrict", value); blur("birthDistrict") }} />
                     </LocationField>
-                    <LocationField label="ឃុំ/សង្កាត់" required error={errors.birthCommune}>
+                    <LocationField label="ឃុំ/សង្កាត់" error={errors.birthCommune}>
                       <SearchableSelect id="birthCommune" name="birthCommune" ariaLabel="ឃុំ ឬសង្កាត់កំណើត"
                         placeholder="ជ្រើសរើសឃុំ/សង្កាត់" options={options(values.birthProvince, values.birthDistrict)}
                         value={values.birthCommune} disabled={!values.birthDistrict} clearable
                         onChange={(value) => { set("birthCommune", value); blur("birthCommune") }} />
                     </LocationField>
-                    <LocationField label="ភូមិ" required error={errors.birthVillage}>
+                    <LocationField label="ភូមិ" error={errors.birthVillage}>
                       <SearchableSelect id="birthVillage" name="birthVillage" ariaLabel="ភូមិកំណើត"
                         placeholder="ជ្រើសរើសភូមិ"
                         options={options(values.birthProvince, values.birthDistrict, values.birthCommune)}

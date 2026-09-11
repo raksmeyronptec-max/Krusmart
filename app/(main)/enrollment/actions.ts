@@ -30,7 +30,16 @@ function friendlyDbError(error: { code?: string; message: string }, context: 'si
   if (error.code === '42501') {
     return 'អ្នកមិនមានសិទ្ធិបញ្ចូលសិស្សក្នុងថ្នាក់នេះទេ។'
   }
-  return `មានបញ្ហាក្នុងការរក្សាទុកទិន្នន័យ៖ ${error.message}`
+  /*
+   * The teacher gets a sentence; the DETAIL goes to the log (F15-6).
+   *
+   * This used to interpolate `error.message` — a raw Postgres/Supabase string,
+   * in English, naming columns and sometimes policies — into a Khmer toast. The
+   * mapped codes above are all handled properly; this is the path nobody
+   * anticipated, which is exactly the one a teacher should not be asked to read.
+   */
+  logger.error('enrollment save:', error)
+  return 'មានបញ្ហាក្នុងការរក្សាទុកទិន្នន័យ។ សូមព្យាយាមម្តងទៀត។'
 }
 
 /**
