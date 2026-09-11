@@ -6,6 +6,8 @@
  * Where the two disagree the divergence is called out inline.
  */
 
+import type { AttendanceStatus } from './attendance/status'
+
 // Type-only, so it is erased at compile time and creates no runtime cycle:
 // `lib/scores/template.ts` owns the column shape because both score clients and
 // the template rows describe the same thing, and it imports this file back for
@@ -123,8 +125,18 @@ export interface StudentImportRow {
   guardian_job?: string
 }
 
-/** Attendance mark: present / late / absent-with-leave / absent. */
-export type AttendanceStatus = 'P' | 'L' | 'A' | 'AP'
+/**
+ * Attendance mark. `P` present · `L` ច្បាប់ (absent WITH permission) · `A`
+ * absent without · `AP` a legacy spelling of `L` that nothing writes.
+ *
+ * Re-exported from `lib/attendance/status.ts`, which is the single declaration
+ * — what each code MEANS, what it is called, and how it counts all live there.
+ * This file used to declare its own copy of the union above a comment reading
+ * "present / **late** / absent-with-leave / absent", so the file every row type
+ * is looked up in told a developer that `L` was lateness. It is not, and never
+ * was: the only screen that writes a status labels that button ច្បាប់.
+ */
+export type { AttendanceStatus }
 
 /** `attendance` row. Unique on (student_id, date). */
 export interface AttendanceRecord {

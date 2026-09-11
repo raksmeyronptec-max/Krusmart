@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/actions/Button'
-import { Badge, ATTENDANCE_BADGE, ATTENDANCE_COLORS } from '@/components/ui/feedback/Badge'
+import { Badge, ATTENDANCE_BADGE, ATTENDANCE_COLORS, ATTENDANCE_UNMARKED_COLOR } from '@/components/ui/feedback/Badge'
+import { markFor, tallyAttendance } from '@/lib/attendance/status'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { logger } from '@/lib/utils/logger'
@@ -133,8 +134,24 @@ interface ThreeState {
 const STATUS3 = {
     P: { color: ATTENDANCE_COLORS.P.three, hex: ATTENDANCE_COLORS.P.hex },
     L: { color: ATTENDANCE_COLORS.L.three, hex: ATTENDANCE_COLORS.L.hex },
-    A: { color: ATTENDANCE_COLORS.A.three, hex: ATTENDANCE_COLORS.A.hex }
+    A: { color: ATTENDANCE_COLORS.A.three, hex: ATTENDANCE_COLORS.A.hex },
+    /* Not a mark — see ATTENDANCE_UNMARKED_COLOR. */
+    unmarked: { color: ATTENDANCE_UNMARKED_COLOR.three, hex: ATTENDANCE_UNMARKED_COLOR.hex },
 };
+
+/**
+ * The colour a seat wears, resolved through the shared vocabulary.
+ *
+ * `markFor` rather than a lookup on the raw string, so `AP` — a legacy
+ * spelling of `L` — wears ច្បាប់'s colour instead of falling through, and a
+ * value this application does not know wears the unmarked grey rather than
+ * being painted as something it is not.
+ */
+function seatTone3(status: string | undefined) {
+    const mark = markFor(status)
+    if (!mark) return STATUS3.unmarked
+    return mark.inClass ? STATUS3.P : mark.excused ? STATUS3.L : STATUS3.A
+}
 const easeOutBack3 = (x: number) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
 
 const DESK_D3 = 0.72, DESK_H3 = 0.74, TOP_T3 = 0.06, CHAIR_S3 = 0.46, SEAT_H3 = 0.46, SEAT_SP3 = 0.86;
@@ -161,7 +178,7 @@ function box3(w: number, h: number, dp: number, mat: THREE.Material) {
 
 export default function ThreeClassroom({ config, seatingLayout, students, attendanceHistory, date, onSeatClick, onClose }: ThreeClassroomProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null)
-    const [stats, setStats] = useState({ p: 0, l: 0, a: 0 })
+    const [stats, setStats] = useState({ p: 0, l: 0, a: 0, unmarked: 0 })
     const [current3DView, setCurrent3DView] = useState('teacher')
     const [labelsVisible, setLabelsVisible] = useState(true)
     const [autoSpin, setAutoSpin] = useState(false)
@@ -376,20 +393,41 @@ export default function ThreeClassroom({ config, seatingLayout, students, attend
 
 
     // Helpers
-    const getStatus3 = (ts: ThreeState, uid: string) => {
+    /*
+     * The stored mark for a seat, or `undefined` when the pupil has not been
+     * marked (Phase 17 D2).
+     *
+     * This used to end `|| 'P'`, so an UNMARKED pupil was coloured green and
+     * counted as present in the HUD below. Every other surface in the product
+     * distinguishes "not marked" from "marked present" — that distinction is
+     * the whole point of the register's មិនទាន់ count — and the 3D room, which
+     * is one of the two views a desk user is most likely to pick, quietly
+     * reported a class nobody had marked as fully present.
+     */
+    const getStatus3 = (ts: ThreeState, uid: string): string | undefined => {
         const { attendanceHistory, date } = ts.propsRef
-        return (attendanceHistory[date] && attendanceHistory[date][uid] && attendanceHistory[date][uid].status) || 'P';
+        return attendanceHistory[date]?.[uid]?.status
     }
 
     function update3DColors(ts: ThreeState) {
-        let p = 0, l = 0, a = 0;
+        /*
+         * Counted through `tallyAttendance`, like every other surface. It used
+         * to be `if (st === 'P') p++; else if (st === 'L') l++; else a++`,
+         * which folded `AP` — a permitted absence — and every unrecognised
+         * value into "absent". The variable was named `st`, not `status`, which
+         * is the only reason verify-attendance's A5 scan did not catch it.
+         */
+        const rows: { status?: string | null }[] = []
         for (const id in ts.seatObjects) {
-            const so = ts.seatObjects[id], st = getStatus3(ts, so.uid) as keyof typeof STATUS3;
-            so.cushionMat.color.setHex(STATUS3[st].color); so.cushionMat.emissive.setHex(STATUS3[st].color); so.cushionMat.emissiveIntensity = 0.22;
-            so.label.draw(STATUS3[st].hex);
-            if (st === 'P') p++; else if (st === 'L') l++; else a++;
+            const so = ts.seatObjects[id]
+            const status = getStatus3(ts, so.uid)
+            const tone = seatTone3(status)
+            so.cushionMat.color.setHex(tone.color); so.cushionMat.emissive.setHex(tone.color); so.cushionMat.emissiveIntensity = 0.22;
+            so.label.draw(tone.hex);
+            rows.push({ status })
         }
-        setStats({ p, l, a })
+        const t = tallyAttendance(rows)
+        setStats({ p: t.present, l: t.excused, a: t.unexcused, unmarked: rows.length - t.marked })
     }
 
     function rebuild3D(ts: ThreeState) {
@@ -566,17 +604,17 @@ export default function ThreeClassroom({ config, seatingLayout, students, attend
             const student = students.find(s => (s.id || s.uid) === uid);
             const name = (student && (student.name_kh || student.full_name)) || '—';
             const gender = student ? student.gender : 'ប្រុស';
-            const status = getStatus3(ts, uid) as keyof typeof STATUS3;
+            const tone = seatTone3(getStatus3(ts, uid));
             
             const { group: studentGroup } = buildStudentCharacter3(gender);
             studentGroup.position.set(lx, 0, lz);
             if (faceY !== undefined) studentGroup.rotation.y = faceY;
             parent.add(studentGroup);
 
-            cushionMat.color.setHex(STATUS3[status].color);
-            cushionMat.emissive.setHex(STATUS3[status].color);
+            cushionMat.color.setHex(tone.color);
+            cushionMat.emissive.setHex(tone.color);
             cushionMat.emissiveIntensity = 0.22;
-            const L = makeLabel3(name, STATUS3[status].hex);
+            const L = makeLabel3(name, tone.hex);
             L.sprite.position.set(lx, 1.42, lz); L.sprite.userData.baseY = 1.42; L.sprite.visible = ts.labelsVisible;
             parent.add(L.sprite);
             const hit = new THREE.Mesh(new THREE.BoxGeometry(0.62, 1.0, 0.62), new THREE.MeshBasicMaterial({ visible: false }));
@@ -710,6 +748,17 @@ export default function ThreeClassroom({ config, seatingLayout, students, attend
                             <span className="text-[9px] text-text-muted mt-0.5">អវត្ត</span>
                         </div>
                     </div>
+                    {/* Only when there is something to say: a finished register
+                        should not carry a permanent zero. */}
+                    {stats.unmarked > 0 && (
+                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-bg-surface/60">
+                            <span className="w-2.5 h-2.5 rounded" style={{ backgroundColor: ATTENDANCE_UNMARKED_COLOR.hex }}></span>
+                            <div className="flex flex-col leading-none">
+                                <span className="font-bold text-text-heading">{toKhmerNumber(stats.unmarked)}</span>
+                                <span className="text-[9px] text-text-muted mt-0.5">មិនទាន់</span>
+                            </div>
+                        </div>
+                    )}
                 </div>
                 
                 <div className="w-px h-6 bg-brand-950/10 mx-1"></div>

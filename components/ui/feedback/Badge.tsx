@@ -1,3 +1,5 @@
+import { ATTENDANCE_MARKS, type AttendanceStatus } from "@/lib/attendance/status"
+
 /**
  * Status pill for tables, rosters and score grids.
  *
@@ -62,25 +64,38 @@ export function Badge({
 }
 
 /**
- * The attendance marks, with the Khmer labels the teacher app actually uses.
+ * How each attendance mark LOOKS. What it means is not decided here.
  *
- * `attendance.status` only ever holds `P`, `L` or `A` — nothing in the app
- * writes `AP`, even though the type union allows it. Note that both teacher
- * views label `L` as **ច្បាប់** (excused), not "late": that is the vocabulary
- * teachers enter against, so it is the one recorded here. The parent portal's
- * i18n calls the same code `មកយឺត`; the two disagree, and the portal is the
- * one that should change, since attendance is entered on this side.
+ * ── Why this is derived and not typed out (Phase 17 D8) ───────────────────
  *
- * Keeping the mapping here means the seating plan, the monthly sheet and the
- * 3D view cannot drift apart about what colour a mark is.
+ * This map used to spell the four Khmer labels as string literals — a second
+ * copy of `ATTENDANCE_MARKS[].label`. Two copies of one vocabulary drift, and
+ * this one had: its own doc comment still asserted that the parent portal
+ * called `L` **មកយឺត** and "should change", long after the portal had changed.
+ * A comment describing a live contradiction that no longer exists is an
+ * invitation to resolve it in the wrong direction.
+ *
+ * So the labels come from `lib/attendance/status.ts`, which is the single
+ * declaration of what a mark is called. Only the *tone* is decided here,
+ * because a colour is a property of this badge and not of the mark — and it is
+ * never the only signal: the label always travels with it.
+ *
+ * `AP` is a legacy spelling of `L` that nothing writes, and it therefore takes
+ * `L`'s label and `L`'s tone. It used to carry its own word and its own colour,
+ * so one declared fact rendered two ways depending on which spelling was
+ * stored.
  */
-export const ATTENDANCE_BADGE: Record<string, { label: string; variant: BadgeVariant }> = {
-  P: { label: "មក", variant: "success" },
-  L: { label: "ច្បាប់", variant: "warning" },
-  A: { label: "អវត្តមាន", variant: "danger" },
-  /** Declared by the type but never written by any current screen. */
-  AP: { label: "សុំច្បាប់", variant: "info" },
+const BADGE_TONE: Record<AttendanceStatus, BadgeVariant> = {
+  P: "success",
+  L: "warning",
+  A: "danger",
+  AP: "warning",
 }
+
+export const ATTENDANCE_BADGE: Record<string, { label: string; variant: BadgeVariant }> =
+  Object.fromEntries(
+    ATTENDANCE_MARKS.map((m) => [m.code, { label: m.label, variant: BADGE_TONE[m.code] }]),
+  )
 
 /**
  * The same three marks as raw colours.
@@ -95,5 +110,14 @@ export const ATTENDANCE_COLORS: Record<"P" | "L" | "A", { hex: string; three: nu
   L: { hex: "#D99614", three: 0xd99614 },
   A: { hex: "#D9485F", three: 0xd9485f },
 }
+
+/**
+ * A pupil nobody has marked yet.
+ *
+ * Deliberately not one of the three: "not marked" is not a mark, and a seat
+ * that borrows the present colour for it is the 3D room's version of reporting
+ * a register as finished when it is not. Neutral grey, distinct from all three.
+ */
+export const ATTENDANCE_UNMARKED_COLOR = { hex: "#94A3B8", three: 0x94a3b8 } as const
 
 export default Badge

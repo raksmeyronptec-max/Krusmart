@@ -7,9 +7,18 @@ import { logger } from '@/lib/utils/logger'
 import { resolveServerScope } from '@/lib/utils/serverScope'
 import type { QueryScope } from '@/lib/utils/queryFilter'
 import { auditLog, auditLogBatch } from '@/lib/audit/log'
+import { isEnterableStatus } from '@/lib/attendance/status'
 
 /** Shown whenever a write is refused because the day is closed. */
 const LOCKED_MESSAGE = 'ថ្ងៃនេះត្រូវបានចាក់សោ។ សូមដោះសោជាមុនសិន ដើម្បីកែប្រែវត្តមាន។'
+
+/**
+ * Shown when a client sends a mark this application does not define.
+ *
+ * A teacher cannot produce this from the UI — the register renders its buttons
+ * from `ENTRY_MARKS`. It is the message for a forged or stale request.
+ */
+const INVALID_STATUS_MESSAGE = 'សញ្ញាវត្តមាននេះមិនត្រឹមត្រូវទេ។'
 
 /**
  * Is this day closed to edits?
@@ -48,6 +57,17 @@ export async function saveAttendance(studentId: string, date: string, status: st
 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'Unauthorized' }
+
+    /*
+     * The column is free TEXT with no CHECK constraint, so this is the only
+     * thing between a forged request and a register holding a value nothing
+     * can interpret. Checked before the scope is resolved: an invalid mark is
+     * refused whatever class it names. See `isEnterableStatus`.
+     */
+    if (!isEnterableStatus(status)) {
+        logger.error('Rejected attendance status:', status)
+        return { error: INVALID_STATUS_MESSAGE }
+    }
 
     // Stamp the V2 columns so new marks join the class structure.
     const scope = await resolveServerScope(user.id, classId)
@@ -118,6 +138,13 @@ export async function saveAttendanceBulk(
 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'Unauthorized' }
+
+    // Same guard as the single write — a bulk call must not be the way round it.
+    if (!isEnterableStatus(status)) {
+        logger.error('Rejected attendance status (bulk):', status)
+        return { error: INVALID_STATUS_MESSAGE }
+    }
+
     if (studentIds.length === 0) return { success: true }
 
     const scope = await resolveServerScope(user.id, classId)

@@ -4,6 +4,7 @@ import { CalendarCheck, CheckCircle2, XCircle, FileText } from 'lucide-react'
 import { PortalHeader, EmptyState } from '../../PortalHeader'
 import { useParent } from '../../ParentContext'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
+import { formatKhmerDate } from '@/lib/utils/date'
 import type { AttendanceRecord } from '@/lib/types'
 import type { AttendanceSummary } from '../../queries'
 
@@ -86,7 +87,16 @@ export default function AttendanceClient({
                     </span>
                     <div>
                       <p className="text-sm font-semibold text-pp">
-                        {new Date(r.date).toLocaleDateString('km-KH', { day: 'numeric', month: 'long', year: 'numeric' })}
+                        {/*
+                          `formatKhmerDate`, not `toLocaleDateString('km-KH')`.
+                          The locale API resolved differently on the two sides —
+                          the server rendered `១១ កញ្ញា 2026` and the browser
+                          `September 11, 2026` — so React threw a hydration
+                          mismatch and regenerated the list. The shared helper is
+                          pure string formatting over `YYYY-MM-DD`, so both sides
+                          produce the same Khmer date by construction.
+                        */}
+                        {formatKhmerDate(r.date)}
                       </p>
                       {r.reason && <p className="text-xs text-pp-muted">{r.reason}</p>}
                     </div>

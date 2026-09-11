@@ -556,6 +556,52 @@ const main = async () => {
   check("a teacher CANNOT publish homework owned by somebody else", !r.ok,
     r.ok ? 'INSERT SUCCEEDED — policy too wide' : r.code)
 
+  // ------------------------------ attendance status domain (00034) ----------
+  // RLS was never the issue here, which is why this sits at the end rather than
+  // among the policy sweeps. `attendance.status` was TEXT with no CHECK, so a
+  // teacher writing to THEIR OWN row — a write every policy is right to allow —
+  // could store any string at all. Demonstrated through PostgREST before 00034:
+  //
+  //     PATCH /rest/v1/attendance?…  { "status": "late123" }  -> 200, updated
+  //
+  // and /students/[id] then printed `late123` verbatim as that pupil's mark.
+  // The application guard (`isEnterableStatus`) covers the two server actions;
+  // this covers a client that never calls them.
+  log('\nattendance status domain (00034)')
+
+  const att = async (status) => as(c, A.t, () => rows(c,
+    `INSERT INTO public.attendance (teacher_id,student_id,date,status)
+     VALUES ($1,$2,$3,$4) RETURNING id`, [A.t, A.st, '2026-03-0' + (attDay++), status]))
+  let attDay = 1
+
+  r = await att('P')
+  check('a teacher CAN record a declared mark on their own pupil',
+    r.ok && r.value.length === 1, r.ok ? '' : `${r.code} ${r.error}`)
+  r = await att('L')
+  check('...ច្បាប់ too', r.ok && r.value.length === 1, r.ok ? '' : `${r.code} ${r.error}`)
+  r = await att('AP')
+  check('...and the legacy spelling stays writable  ← historical rows must not become unwritable',
+    r.ok && r.value.length === 1, r.ok ? '' : `${r.code} ${r.error}`)
+  r = await att('late123')
+  check('a teacher CANNOT store a mark this product does not define  ← the fix',
+    !r.ok && r.code === '23514', r.ok ? 'INSERT SUCCEEDED — column unconstrained' : r.code)
+  r = await att('')
+  check('...nor an empty one', !r.ok && r.code === '23514',
+    r.ok ? 'INSERT SUCCEEDED' : r.code)
+  // Seeded OUTSIDE `as()`, which always rolls back — an UPDATE inside it would
+  // otherwise match the zero rows its own INSERT left behind and prove nothing.
+  const attRow = (await one(
+    `INSERT INTO public.attendance (teacher_id,student_id,date,status)
+     VALUES ($1,$2,'2026-04-01','P') RETURNING id`, [A.t, A.st])).id
+  r = await as(c, A.t, () => rows(c,
+    `UPDATE public.attendance SET status='T' WHERE id=$1 RETURNING id`, [attRow]))
+  check('...nor rewrite an existing mark to one', !r.ok && r.code === '23514',
+    r.ok ? `UPDATE SUCCEEDED (${r.value.length} row(s))` : r.code)
+  r = await as(c, A.t, () => rows(c,
+    `UPDATE public.attendance SET status='A' WHERE id=$1 RETURNING id`, [attRow]))
+  check('...while a real correction still goes through',
+    r.ok && r.value.length === 1, r.ok ? '' : `${r.code} ${r.error}`)
+
   await c.end()
   const a1 = await conn('postgres'); await a1.query(`DROP DATABASE IF EXISTS ${DB} WITH (FORCE)`); await a1.end()
 

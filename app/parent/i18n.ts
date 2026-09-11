@@ -66,7 +66,19 @@ const km = {
   attendance_title: 'តាមដានវត្តមាន',
   present: 'មានវត្តមាន',
   absent: 'អវត្តមាន',
-  late: 'មកយឺត',
+  /*
+   * `L` is ច្បាប់ — an absence the school PERMITTED. There is deliberately no
+   * `late` key here any more: this file used to carry `late: 'មកយឺត'`, the
+   * portal rendered `L` with it, and counted that day toward the attendance
+   * rate. A pupil their teacher had recorded as away with permission was shown
+   * to their own parent as present and on time, so the printed report and the
+   * portal stated different rates for the same child.
+   *
+   * The reading was fixed in `lib/attendance/status.ts`; the key stayed behind
+   * with no consumer, which is how the same mistake gets wired up a second
+   * time. Nothing in this product records lateness — see
+   * docs/phase17-attendance-semantics.md.
+   */
   permission: 'សុំច្បាប់',
   attendance_rate: 'អត្រាវត្តមាន',
   total_days: 'ចំនួនថ្ងៃសរុប',
@@ -164,7 +176,7 @@ const en: Record<Keys, string> = {
   attendance_title: 'Attendance',
   present: 'Present',
   absent: 'Absent',
-  late: 'Late',
+  // No `late`: see the note in `km`. `L` is an excused ABSENCE.
   permission: 'Excused',
   attendance_rate: 'Attendance rate',
   total_days: 'Total days',

@@ -41,6 +41,7 @@ import {
   ATTENDANCE_MARKS,
   ENTRY_MARKS,
   isAbsence,
+  isEnterableStatus,
   markFor,
   tallyAttendance,
 } from '../lib/attendance/status.ts'
@@ -192,11 +193,49 @@ const COUNTERS = [
   'lib/reporting/report-data.ts',
 ]
 
-const HANDWRITTEN = /status\s*(?:===|!==)\s*['"](?:P|L|A|AP)['"]/g
+/*
+ * ANY identifier compared against a status literal, not just one spelled
+ * `status` (Phase 17 D2).
+ *
+ * The old pattern was `/status\s*(?:===|!==)…/`, which enforced the rule only
+ * where the variable happened to be called `status`. `ThreeClassroom.tsx`
+ * counted the whole 3D room with
+ *
+ *     if (st === 'P') p++; else if (st === 'L') l++; else a++;
+ *
+ * — folding `AP` and every unrecognised value into "absent" — and passed this
+ * scan for years because its variable was named `st`. A rule enforced by a
+ * regex that matches one variable name is not enforced.
+ *
+ * The identifier is CAPTURED so two other domains that share these letters can
+ * be told apart from an attendance mark — see `NOT_ATTENDANCE` below.
+ */
+const HANDWRITTEN = /\b([A-Za-z_$][\w$]*(?:\.[\w$]+|\[[^\]]*\])*)\s*(?:===|!==)\s*['"](?:P|L|A|AP)['"]/g
+
+/**
+ * Identifiers that are not a stored attendance status, matched on the LAST
+ * path segment so `stu.grade` and `grade` are both caught.
+ *
+ *   grade / niddesc / letter / band  the A-F letter grade — a different axis
+ *                                    that happens to share the letter `A`.
+ *   kind                             the return of `absenceKind()`, which has
+ *                                    already been through `markFor`. Comparing
+ *                                    a value the module produced is reading the
+ *                                    rule, not re-deriving it.
+ */
+const NOT_ATTENDANCE = /(?:^|\.)(?:grade|niddesc|letter|band|kind)\w*$/i
+
+function handwrittenHits(src: string): number {
+  let hits = 0
+  for (const m of src.matchAll(HANDWRITTEN)) {
+    if (!NOT_ATTENDANCE.test(m[1])) hits += 1
+  }
+  return hits
+}
 
 for (const rel of COUNTERS) {
   const src = code(readFileSync(join(root, rel), 'utf8'))
-  const hits = (src.match(HANDWRITTEN) ?? []).length
+  const hits = handwrittenHits(src)
   check(`${rel} does not re-derive the rule`, hits === 0, `${hits} hand-written comparison(s)`)
 }
 
@@ -217,7 +256,7 @@ for (const f of [...walk(join(root, 'app')), ...walk(join(root, 'lib')), ...walk
   const src = code(readFileSync(f, 'utf8'))
   // Only files that actually read the attendance table or its rows.
   if (!/attendance|AttendanceRecord/i.test(src)) continue
-  const hits = (src.match(HANDWRITTEN) ?? []).length
+  const hits = handwrittenHits(src)
   if (hits > 0 && !COUNTERS.includes(rel)) strays.push(`${rel} (${hits})`)
 }
 check('no other attendance surface compares statuses by hand', strays.length === 0,
@@ -410,6 +449,92 @@ check('an empty class is explained, not left blank',
 check('...and the row-count control cannot blank the preview',
   /Number\.isNaN/.test(code(monthlyScreen)),
   "parseInt('') is NaN, and `while (current <= NaN)` renders nothing at all")
+
+// ---------------------------------------------------------------------------
+// A9 · one status, one meaning, one word  (Phase 17)
+// ---------------------------------------------------------------------------
+console.log('\nA9 · a mark means one thing, and is called one thing')
+
+/*
+ * The column is free TEXT with no CHECK constraint, and `saveAttendance` used
+ * to put its `status: string` parameter straight into the upsert. Demonstrated
+ * against the live stack: an authenticated teacher PATCHed a row to
+ * `status: "late123"`, the database accepted it, and /students/[id] printed
+ * **late123** verbatim as that pupil's mark for the day.
+ */
+check('the three entry marks are enterable',
+  ENTRY_MARKS.every((m) => isEnterableStatus(m.code)))
+check('AP is NOT enterable — it is readable legacy only',
+  !isEnterableStatus('AP'),
+  'offering it would be offering a second spelling of ច្បាប់')
+check('garbage is refused', ['late123', '', 'undefined', 'p', ' P', 'T'].every((v) => !isEnterableStatus(v)))
+check('...and so is anything that is not a string',
+  [null, undefined, 42, {}, ['P']].every((v) => !isEnterableStatus(v)))
+
+const actions = code(readFileSync(join(root, 'app', '(main)', 'attendance', 'layout', 'actions.ts'), 'utf8'))
+check('both server writers validate before they write',
+  (actions.match(/isEnterableStatus\(status\)/g) ?? []).length === 2,
+  'a bulk call must not be the way round the single-write guard')
+check('...and the guard runs before the scope is resolved',
+  // The first CALL, not the import line at the top of the file.
+  actions.indexOf('isEnterableStatus(status)') < actions.indexOf('resolveServerScope(user.id'),
+  'an invalid mark is refused whatever class it names')
+
+/*
+ * One declared fact must not carry two Khmer words. `AP` is a legacy spelling
+ * of `L` — identical `inClass`, `excused` and `short` — and it used to carry
+ * its own label (សុំច្បាប់) and its own badge colour, so the same permitted
+ * absence rendered two ways depending on which spelling was stored.
+ */
+const l = markFor('L')!, ap = markFor('AP')!
+check('AP is L in every respect, including its label',
+  ap.label === l.label && ap.short === l.short && ap.inClass === l.inClass && ap.excused === l.excused,
+  `${ap.label} vs ${l.label}`)
+
+const badge = code(readFileSync(join(root, 'components', 'ui', 'feedback', 'Badge.tsx'), 'utf8'))
+check('the badge map is DERIVED from the vocabulary, not typed out',
+  /ATTENDANCE_MARKS\.map/.test(badge) && /ATTENDANCE_MARKS/.test(badge),
+  'a second copy of the labels is a second thing to drift')
+check('...and no longer spells the Khmer labels itself',
+  !/label:\s*"[^"]*\u1780[^"]*"/.test(badge),
+  'only the tone is decided there — a colour is a property of the badge, not of the mark')
+
+const typesFile = code(readFileSync(join(root, 'lib', 'types.ts'), 'utf8'))
+check('lib/types.ts does not declare its own status union',
+  !/export type AttendanceStatus\s*=/.test(typesFile),
+  "it declared one above a comment reading 'present / late / …', so the file every row type is looked up in called L lateness")
+check('...it re-exports the single declaration instead',
+  /export type \{ AttendanceStatus \}/.test(typesFile) && /attendance\/status/.test(typesFile))
+
+/*
+ * The parent portal counted `L` as attending and labelled it មកយឺត. The
+ * reading was fixed; the translation key stayed behind with no consumer, which
+ * is how the same mistake gets wired up a second time.
+ */
+const i18n = readFileSync(join(root, 'app', 'parent', 'i18n.ts'), 'utf8')
+check('the portal has no late translation key left to wire up',
+  !/^\s*late:\s*'/m.test(code(i18n)),
+  'nothing in this product records lateness')
+const portal = code(readFileSync(join(root, 'app', 'parent', '(portal)', 'attendance', 'AttendanceClient.tsx'), 'utf8'))
+check('the portal maps L and AP to the SAME tile',
+  /L:\s*\{[^}]*key:\s*'permission'/.test(portal) && /AP:\s*\{[^}]*key:\s*'permission'/.test(portal),
+  'they are one mark; two tiles would be two answers to one question')
+check('...and counts through the shared tally',
+  /tallyAttendance/.test(code(readFileSync(join(root, 'app', 'parent', 'queries.ts'), 'utf8'))))
+
+/*
+ * The 3D room defaulted an unmarked pupil to 'P' — colouring and counting them
+ * as present — and folded AP and every unknown value into "absent".
+ */
+const three = code(readFileSync(join(root, 'app', '(main)', 'attendance', 'layout', 'ThreeClassroom.tsx'), 'utf8'))
+check('the 3D room counts through tallyAttendance',
+  /tallyAttendance\(/.test(three),
+  'it kept a private p/l/a loop that no other surface agreed with')
+check('...and no longer calls an unmarked pupil present',
+  !/\|\|\s*'P'/.test(three),
+  "getStatus3 ended `|| 'P'`, so a class nobody had marked read as fully present")
+check('...and resolves its colours through markFor',
+  /markFor\(/.test(three) && /seatTone3/.test(three))
 
 // ---------------------------------------------------------------------------
 console.log(failures === 0 ? '\n✓ one register, one vocabulary.\n' : `\n✗ ${failures} failure(s)\n`)
