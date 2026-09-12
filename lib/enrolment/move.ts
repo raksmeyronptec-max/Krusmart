@@ -36,9 +36,15 @@ import type { ActionResult, StudentEnrollment } from '@/lib/types'
  *
  * A pupil's past is never deleted. The open row is CLOSED by stamping `status`
  * and `left_at` — that row *is* the history entry for the year being left — and
- * a new row is inserted for the destination. Reading a pupil's history is then
- * just selecting their enrolments in order, which is what
- * `enrolmentHistory` does and why `/students/[id]` can show it.
+ * the destination row is opened. Reading a pupil's history is then just
+ * selecting their enrolments in order, which is what `enrolmentHistory` does and
+ * why `/students/[id]` can show it.
+ *
+ * "Opened" is not always "inserted": `UNIQUE (student_id, class_id,
+ * academic_year_id)` ignores `status`, so a pupil returning to a class they
+ * already left this year has no second row available and the existing one is
+ * revived instead. The full reasoning, and the one thing that costs, is at the
+ * lookup in `moveEnrolment`.
  */
 
 /** The open enrolment for a pupil, if any. */
@@ -97,6 +103,38 @@ export async function moveEnrolment(input: MoveEnrolmentInput): Promise<ActionRe
     return { error: 'សិស្សនេះស្ថិតនៅក្នុងថ្នាក់នេះរួចហើយ' }
   }
 
+  /*
+   * Has this pupil been in the destination class before, THIS year?
+   *
+   * `UNIQUE (student_id, class_id, academic_year_id)` (00003) does not look at
+   * `status`, so a closed row occupies the destination just as firmly as an
+   * open one. A teacher who moves a pupil ៤ក → ៤ខ and then moves them back is
+   * therefore inserting a row that already exists, and the insert is refused —
+   * AFTER step 1 has already closed ៤ខ. Measured:
+   *
+   *     close ៤ខ : OK (1 row)
+   *     open  ៤ក : 23505
+   *     >>> the pupil now has 0 ACTIVE enrolment(s)
+   *
+   * which is the same orphaned pupil 00036 exists to prevent, reached by a
+   * different road and available to every teacher including the pupil's
+   * creator. So the destination is REVIVED when it is already there, and only
+   * inserted when it is genuinely new.
+   *
+   * Reviving costs one thing and it is recorded here rather than discovered
+   * later: the earlier stint's `left_at` is cleared, so a pupil who leaves a
+   * class and returns within one academic year reads as having never left it.
+   * Keeping both stints needs a second row, which that UNIQUE forbids — a
+   * schema change, not a bug fix, and out of scope here.
+   */
+  const { data: priorAtTarget } = await supabase
+    .from('student_enrollments')
+    .select('id, status')
+    .eq('student_id', studentId)
+    .eq('class_id', targetClass.id)
+    .eq('academic_year_id', targetClass.academic_year_id)
+    .maybeSingle()
+
   // 1. Close the existing enrolment. Kept, not deleted.
   if (current) {
     const { data: closed, error } = await supabase
@@ -120,23 +158,66 @@ export async function moveEnrolment(input: MoveEnrolmentInput): Promise<ActionRe
     }
   }
 
-  // 2. Open the new one. `ON CONFLICT` is not available through PostgREST, so a
-  //    repeated submission is caught by the unique constraint and reported
-  //    rather than silently duplicating.
-  const { error: insErr } = await supabase.from('student_enrollments').insert({
-    student_id: studentId,
-    class_id: targetClass.id,
-    academic_year_id: targetClass.academic_year_id,
-    status: 'active',
-  })
+  /**
+   * Put the pupil back where they were.
+   *
+   * Step 1 and step 2 are two PostgREST calls and therefore two committed
+   * transactions — there is no `BEGIN` spanning them. Every early return below
+   * step 1 must therefore undo it, or the pupil is left closed out of the class
+   * they came from and enrolled in nothing: off every roster in the product,
+   * and off it silently, because a roster read simply stops matching them.
+   *
+   * The reopen is authorised by the branch 00036 added — form master of a class
+   * the pupil holds a row in, whatever its status — which is exactly the row
+   * being reopened.
+   */
+  const restoreSource = async () => {
+    if (!current) return
+    const { error } = await supabase
+      .from('student_enrollments')
+      .update({ status: 'active', left_at: null })
+      .eq('id', current.id)
+    if (error) logger.error('moveEnrolment: could not restore the source enrolment', error)
+  }
 
-  if (insErr) {
-    // 23505 = unique_violation: the pupil is already enrolled there.
-    if (insErr.code === '23505') {
-      return { error: 'សិស្សនេះមានការចុះឈ្មោះក្នុងថ្នាក់នេះរួចហើយ' }
+  // 2. Open the destination — revived if the pupil has been there this year,
+  //    inserted if not.
+  if (priorAtTarget) {
+    const { data: revived, error: revErr } = await supabase
+      .from('student_enrollments')
+      .update({ status: 'active', left_at: null })
+      .eq('id', priorAtTarget.id)
+      .select('id')
+
+    if (revErr) {
+      logger.error(revErr)
+      await restoreSource()
+      return { error: revErr.message }
     }
-    logger.error(insErr)
-    return { error: insErr.message }
+    // Zero rows is a policy refusal, exactly as in step 1.
+    if (!revived || revived.length === 0) {
+      await restoreSource()
+      return { error: 'មិនមានសិទ្ធិបញ្ចូលសិស្សទៅថ្នាក់នេះទេ' }
+    }
+  } else {
+    const { error: insErr } = await supabase.from('student_enrollments').insert({
+      student_id: studentId,
+      class_id: targetClass.id,
+      academic_year_id: targetClass.academic_year_id,
+      status: 'active',
+    })
+
+    if (insErr) {
+      await restoreSource()
+      // 23505 = unique_violation. The read above means this is now a race —
+      // a concurrent write put the pupil there between the two calls — rather
+      // than the ordinary return-transfer it used to be.
+      if (insErr.code === '23505') {
+        return { error: 'សិស្សនេះមានការចុះឈ្មោះក្នុងថ្នាក់នេះរួចហើយ' }
+      }
+      logger.error(insErr)
+      return { error: insErr.message }
+    }
   }
 
   await auditLog({

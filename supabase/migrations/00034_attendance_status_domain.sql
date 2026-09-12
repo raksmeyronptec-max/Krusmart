@@ -61,6 +61,13 @@
 --     ALTER TABLE public.attendance VALIDATE CONSTRAINT attendance_status_known;
 --
 -- No policy, grant, index or column is touched. RLS is unchanged.
+--
+-- ROLLBACK
+--   ALTER TABLE public.attendance DROP CONSTRAINT IF EXISTS attendance_status_known;
+-- Changes no data either way — the constraint is NOT VALID, so no existing row
+-- was rewritten to satisfy it and none becomes invalid when it goes. Reverting
+-- re-opens the table to a fifth mark that lib/attendance/status.ts does not
+-- declare and every counting surface would read as `unknown`.
 -- =============================================================================
 
 DO $$

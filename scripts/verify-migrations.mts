@@ -20,8 +20,12 @@ const DIR = 'supabase/migrations'
 // 00031 (teacher class creation) adds three policies and a column, 00032
 // (homework class scope) adds a column, a definer predicate and three replaced
 // policies, and 00033 (enrolment requires a relationship) replaces one — all
-// exactly the shape this file exists to keep idempotent.
-const PENDING = /^000(1[89]|2[0-9]|3[0-3])_/
+// exactly the shape this file exists to keep idempotent. 00034 (attendance
+// status domain) adds a CHECK, 00035 (one active enrolment) a partial unique
+// index, and 00036 (finishing a transfer) replaces a definer function; the
+// window had stopped short of all three, so nothing was checking the newest
+// migrations — which is precisely when a lost place in a runbook costs most.
+const PENDING = /^000(1[89]|2[0-9]|3[0-6])_/
 
 let failures = 0
 let checks = 0
@@ -41,8 +45,8 @@ function executable(sql: string): string {
 }
 
 const files = readdirSync(DIR).filter(f => PENDING.test(f)).sort()
-if (files.length !== 16) {
-  console.log(`FAIL: expected 16 pending migrations, found ${files.length}`)
+if (files.length !== 19) {
+  console.log(`FAIL: expected 19 pending migrations, found ${files.length}`)
   process.exit(1)
 }
 

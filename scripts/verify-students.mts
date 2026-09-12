@@ -410,6 +410,33 @@ check('a teacher transfer never stamps `promoted`',
   teacherEnrol.includes("closingStatus: 'transferred'") && !teacherEnrol.includes("'promoted'"),
   'promotion is a year-end decision made across a class, not a side effect of fixing a typo')
 
+/**
+ * Neither half of the move may leave the pupil on NO roster.
+ *
+ * The two halves are two PostgREST calls and therefore two committed
+ * transactions. Both of the ways the second half could fail were reachable and
+ * both produced the same silent damage — a pupil closed out of the class they
+ * came from and enrolled in nothing, matched by no roster read in the product:
+ *
+ *   * a form master who did not CREATE the pupil was refused the second call,
+ *     because closing the first row destroyed the authorisation the policy
+ *     re-checks. Fixed in SQL by 00036.
+ *   * a pupil moved back to a class they already left THIS year collided with
+ *     their own history row, because `UNIQUE (student_id, class_id,
+ *     academic_year_id)` ignores `status`. Fixed here, by reviving that row.
+ *
+ * `scripts/validate-rls.mjs` proves both against a real database; these two
+ * checks keep the code that depends on it from quietly going back.
+ */
+check('a pupil returning to a class revives the row rather than inserting a second',
+  sharedMove.includes('priorAtTarget'),
+  'UNIQUE (student_id, class_id, academic_year_id) ignores status, so the insert is refused AFTER the source is closed',
+)
+check('and a failed second half puts the pupil back',
+  sharedMove.includes('restoreSource'),
+  'without the compensation the pupil is on no roster at all, and the teacher is not told',
+)
+
 // ---------------------------------------------------------------------------
 // The pupil a teacher just created is on the screen they are returned to
 // ---------------------------------------------------------------------------

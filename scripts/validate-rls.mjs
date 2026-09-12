@@ -655,10 +655,13 @@ const main = async () => {
   // --- discovery: A shares a school with C2 and must still see nothing ------
   /*
    * Measured as E, not A. By this point A holds `owner` in their own school
-   * (the join-request section grants it), and a school owner SHOULD see the
-   * whole school — `is_school_admin` is a branch of both select policies. E
-   * holds exactly `teacher` and is form master of their own class, which is
-   * the actor this phase is about.
+   * (the join-request section grants it). E holds exactly `teacher` and is form
+   * master of their own class, which is the actor Phase 18 was about.
+   *
+   * `is_school_admin` is a branch of the `student_enrollments` select policy —
+   * NOT of the `students` one, which is `teacher_id OR can_access_student OR
+   * is_parent_of` and nothing else (00010). The two are measured separately
+   * below rather than assumed to agree.
    */
   r = await as(c, E, () => rows(c, `SELECT id FROM public.students WHERE id=$1`, [stC]))
   check("a plain teacher CANNOT read a colleague's pupil in the SAME school",
@@ -676,6 +679,18 @@ const main = async () => {
   r = await as(c, A.t, () => rows(c, `SELECT id FROM public.student_enrollments WHERE student_id=$1`, [stC]))
   check("...while the school OWNER legitimately does see them  ← is_school_admin",
     r.ok && r.value.length === 1, `${r.value?.length} row(s)`)
+
+  /*
+   * ...but only their ENROLMENTS. `students_select_own_or_assigned` (00010) has
+   * no `is_school_admin` branch, so an owner reads which class a pupil is in and
+   * not the pupil. Measured because it is surprising, and because the contrast
+   * above would otherwise read as "an admin sees everything", which is not what
+   * the policies say. Recorded as the current behaviour, not as an endorsement
+   * of it — see docs/phase19-student-ownership-audit.md §5.
+   */
+  r = await as(c, A.t, () => rows(c, `SELECT id FROM public.students WHERE id=$1`, [stC]))
+  check('...though NOT the pupil row itself  ← students SELECT has no admin branch',
+    r.ok && r.value.length === 0, `${r.value?.length} row(s)`)
 
   // --- enrolment: the write side of the same question ----------------------
   r = await as(c, E, () => rows(c, `INSERT INTO public.student_enrollments (student_id,class_id,academic_year_id,status)
@@ -722,6 +737,216 @@ const main = async () => {
   })
   check("...and a pupil's closed history stays recordable", r.ok && r.value.length >= 2,
     r.ok ? `${r.value.length} row(s)` : `${r.code} ${r.error}`)
+
+  // ------------------------ finishing a transfer you may start (00036) ------
+  // `moveEnrolment` is TWO PostgREST calls — close the source, then insert the
+  // destination — and the write policy resolves through `can_access_student`,
+  // which needs an ACTIVE enrolment. Closing the source destroyed the caller's
+  // own authorisation before the second call ran, so a homeroom teacher who did
+  // not CREATE the pupil closed the row, was refused the insert, and left the
+  // pupil on no roster at all with no way to undo it.
+  //
+  // These run as separate COMMITTED statements, not inside `as()`, because the
+  // rollback in `as()` is exactly what hid the defect: the second call has to
+  // see the first call's effect, as PostgREST does.
+  log('\nfinishing a transfer (00036)')
+
+  const stmt = async (uid, sql, params) => {
+    await c.query('BEGIN')
+    try {
+      await c.query(`SET LOCAL ROLE authenticated`)
+      await c.query(`SELECT set_config('request.jwt.claims',$1,true)`,
+        [JSON.stringify({ sub: uid, role: 'authenticated' })])
+      const res = await c.query(sql, params)
+      await c.query('COMMIT')
+      return { ok: true, n: res.rowCount }
+    } catch (e) { await c.query('ROLLBACK').catch(()=>{}); return { ok: false, code: e.code } }
+  }
+
+  // MV is homeroom of two classes and creator of neither pupil below.
+  const MV = (await one(`INSERT INTO auth.users (email) VALUES ('mover@example.com') RETURNING id`)).id
+  const gradeF = (await one(`SELECT g.id FROM public.grades g
+                               JOIN public.education_levels el ON el.id = g.education_level_id
+                              WHERE el.school_id = $1 LIMIT 1`, [A.sc])).id
+  const kF1 = (await one(`INSERT INTO public.classes (grade_id,academic_year_id,name) VALUES ($1,$2,'៨ក') RETURNING id`, [gradeF, A.y])).id
+  const kF2 = (await one(`INSERT INTO public.classes (grade_id,academic_year_id,name) VALUES ($1,$2,'៨ខ') RETURNING id`, [gradeF, A.y])).id
+  for (const k of [kF1, kF2])
+    await c.query(`INSERT INTO public.teacher_assignments (teacher_id,class_id,academic_year_id,is_homeroom,status)
+                   VALUES ($1,$2,$3,true,'active')`, [MV, k, A.y])
+  // Created by A — NOT by MV — and sitting in MV's first class.
+  const stF = (await one(`INSERT INTO public.students (teacher_id,school_id,student_id,grade,name_kh,gender,dob)
+                 VALUES ($1,$2,'S-MV','ថ្នាក់ទី៨','សិស្ស ផ្ទេរ','ស្រី','2014-06-06') RETURNING id`, [A.t, A.sc])).id
+  await c.query(`INSERT INTO public.student_enrollments (student_id,class_id,academic_year_id,status)
+                 VALUES ($1,$2,$3,'active')`, [stF, kF1, A.y])
+
+  let step = await stmt(MV, `UPDATE public.student_enrollments SET status='transferred', left_at=now()
+                             WHERE student_id=$1 AND class_id=$2 AND status='active'`, [stF, kF1])
+  check('a form master CAN close the source row of a pupil they did not create',
+    step.ok && step.n === 1, step.ok ? `${step.n} row(s)` : step.code)
+
+  step = await stmt(MV, `INSERT INTO public.student_enrollments (student_id,class_id,academic_year_id,status)
+                        VALUES ($1,$2,$3,'active')`, [stF, kF2, A.y])
+  check('...and CAN then open the destination  ← 00036, the pupil is not orphaned',
+    step.ok && step.n === 1,
+    step.ok ? '' : `${step.code} — the pupil is now on NO roster and the teacher cannot undo it`)
+
+  const act = await rows(c, `SELECT count(*)::int AS n FROM public.student_enrollments
+                              WHERE student_id=$1 AND status='active'`, [stF])
+  check('...leaving exactly one active enrolment  ← 00035 still holds', act[0].n === 1, `${act[0].n}`)
+
+  /*
+   * The branch is narrow: it needs an enrolment row in a class the caller is
+   * HOMEROOM of. A teacher with no such row for this pupil gains nothing.
+   */
+  const G2 = (await one(`INSERT INTO auth.users (email) VALUES ('bystander@example.com') RETURNING id`)).id
+  const kG = (await one(`INSERT INTO public.classes (grade_id,academic_year_id,name) VALUES ($1,$2,'៨គ') RETURNING id`, [gradeF, A.y])).id
+  await c.query(`INSERT INTO public.teacher_assignments (teacher_id,class_id,academic_year_id,is_homeroom,status)
+                 VALUES ($1,$2,$3,true,'active')`, [G2, kG, A.y])
+  const stFree = (await one(`INSERT INTO public.students (teacher_id,school_id,student_id,grade,name_kh,gender,dob)
+                 VALUES ($1,$2,'S-FR','ថ្នាក់ទី៨','សិស្ស សេរី','ស្រី','2014-07-07') RETURNING id`, [A.t, A.sc])).id
+  await c.query(`INSERT INTO public.student_enrollments (student_id,class_id,academic_year_id,status,left_at)
+                 VALUES ($1,$2,$3,'withdrawn',now())`, [stFree, kF1, A.y])
+  r = await as(c, G2, () => rows(c, `INSERT INTO public.student_enrollments (student_id,class_id,academic_year_id,status)
+      VALUES ($1,$2,$3,'active') RETURNING id`, [stFree, kG, A.y]))
+  check('a form master with NO enrolment row for a pupil still cannot enrol them',
+    !r.ok, r.ok ? 'INSERT SUCCEEDED — the branch is too wide' : r.code)
+  r = await as(c, B.t, () => rows(c, `INSERT INTO public.student_enrollments (student_id,class_id,academic_year_id,status)
+      VALUES ($1,$2,$3,'active') RETURNING id`, [stF, B.k, B.y]))
+  check('...and another school still cannot  ← 00036 widened nothing across schools',
+    !r.ok, r.ok ? 'INSERT SUCCEEDED' : r.code)
+
+  // Reads were not touched. Stated so a future change to can_access_student
+  // cannot quietly ride in on this function.
+  r = await as(c, G2, () => rows(c, `SELECT id FROM public.students WHERE id=$1`, [stF]))
+  check('...and 00036 granted no new READ of a pupil', r.ok && r.value.length === 0,
+    `${r.value?.length} row(s)`)
+
+  /*
+   * The branch's real boundary is DISPLACEMENT, and it is worth stating with a
+   * test rather than with a sentence in a header.
+   *
+   * `stF` is now active in kF2. OLD is form master of kF1, where that pupil
+   * holds the 'transferred' row the move left behind — so OLD satisfies the new
+   * branch. OLD must still not be able to take the pupil back, because doing so
+   * means closing an ACTIVE row in a class OLD does not hold, and 00035 refuses
+   * the second active row while it stands.
+   */
+  const OLD = (await one(`INSERT INTO auth.users (email) VALUES ('formerform@example.com') RETURNING id`)).id
+  const kOld = (await one(`INSERT INTO public.classes (grade_id,academic_year_id,name) VALUES ($1,$2,'៨ឃ') RETURNING id`, [gradeF, A.y])).id
+  for (const k of [kF1, kOld])
+    await c.query(`INSERT INTO public.teacher_assignments (teacher_id,class_id,academic_year_id,is_homeroom,status)
+                   VALUES ($1,$2,$3,true,'active')`, [OLD, k, A.y])
+
+  r = await as(c, OLD, () => rows(c, `INSERT INTO public.student_enrollments (student_id,class_id,academic_year_id,status)
+      VALUES ($1,$2,$3,'active') RETURNING id`, [stF, kOld, A.y]))
+  check('a FORMER form master cannot take back a pupil who is active elsewhere  ← 00035 holds the line',
+    !r.ok && r.code === '23505', r.ok ? 'INSERT SUCCEEDED — the pupil is in two classes' : r.code)
+
+  r = await as(c, OLD, () => rows(c, `UPDATE public.student_enrollments SET status='transferred', left_at=now()
+      WHERE student_id=$1 AND class_id=$2 AND status='active' RETURNING id`, [stF, kF2]))
+  check('...and cannot free them by closing the row of a class they do not hold',
+    r.ok && r.value.length === 0,
+    r.ok ? `${r.value.length} row(s)` : r.code)
+
+  /*
+   * `AND ta.is_homeroom` in the new branch is load-bearing, so test the flag
+   * itself rather than trusting the header.
+   *
+   * SUB is a SUBJECT teacher of kF1 — the very class holding `stF`'s closed
+   * 'transferred' row, which is the row the new branch keys on. Everything the
+   * branch wants is present except the flag. Drop `is_homeroom` from 00036 and
+   * this check flips to true, which is what makes it worth running.
+   */
+  const SUB = (await one(`INSERT INTO auth.users (email) VALUES ('subjectonly@example.com') RETURNING id`)).id
+  await c.query(`INSERT INTO public.teacher_assignments (teacher_id,class_id,academic_year_id,is_homeroom,status)
+                 VALUES ($1,$2,$3,false,'active')`, [SUB, kF1, A.y])
+  r = await as(c, SUB, () => rows(c, `SELECT public.can_enrol_student($1) AS ok`, [stF]))
+  check('a SUBJECT teacher of the class holding the closed row gains nothing  ← is_homeroom',
+    r.ok && r.value[0].ok === false, r.ok ? `${r.value[0].ok}` : r.code)
+
+  /*
+   * The OTHER way the second half of a move could fail, and it needed no
+   * policy at all: `UNIQUE (student_id, class_id, academic_year_id)` (00003)
+   * ignores `status`, so a pupil returning to a class they already left THIS
+   * year has no second row available. The insert was refused with 23505 AFTER
+   * the source had been closed — the same orphaned pupil, reachable by every
+   * teacher including the pupil's own creator.
+   *
+   * `moveEnrolment` now reads the destination first and REVIVES that row. This
+   * replays the corrected sequence as the committed statements the app issues.
+   */
+  log('\nmoving a pupil BACK to a class they already left')
+
+  const backPrior = async (cls) => (await rows(c,
+    `SELECT id FROM public.student_enrollments WHERE student_id=$1 AND class_id=$2 AND academic_year_id=$3`,
+    [stF, cls, A.y]))[0]
+  const activeCount = async () => (await rows(c,
+    `SELECT count(*)::int AS n FROM public.student_enrollments WHERE student_id=$1 AND status='active'`, [stF]))[0].n
+
+  // stF is active in kF2 and holds a closed row in kF1. Move it back.
+  const prior = await backPrior(kF1)
+  check('the destination row is already there, closed  ← this is what 23505 was', !!prior,
+    prior ? '1 row' : 'no prior row — the scenario did not set up')
+
+  step = await stmt(MV, `UPDATE public.student_enrollments SET status='transferred', left_at=now()
+                          WHERE student_id=$1 AND class_id=$2 AND status='active'`, [stF, kF2])
+  check('close the source again', step.ok && step.n === 1, step.ok ? `${step.n} row(s)` : step.code)
+
+  step = await stmt(MV, `UPDATE public.student_enrollments SET status='active', left_at=NULL WHERE id=$1`,
+    [prior.id])
+  check('...and REVIVE the old row rather than inserting a second  ← the pupil is not orphaned',
+    step.ok && step.n === 1, step.ok ? '' : step.code)
+  check('...leaving exactly one active enrolment', (await activeCount()) === 1, `${await activeCount()}`)
+
+  // What the old code did, for contrast: the insert is still refused, which is
+  // why reviving rather than inserting is the fix and not a stylistic choice.
+  step = await stmt(MV, `INSERT INTO public.student_enrollments (student_id,class_id,academic_year_id,status)
+                         VALUES ($1,$2,$3,'active')`, [stF, kF1, A.y])
+  check('...while a second row in that class is still refused  ← 00003 UNIQUE ignores status',
+    !step.ok && step.code === '23505', step.ok ? 'INSERT SUCCEEDED' : step.code)
+
+  // ---------------------------- the pre-V2 account (mandatory, Phase 19 §20) -
+  /*
+   * The legacy path is not a compatibility shim — it is how every account that
+   * predates V2 still works. Such a teacher has a `students.teacher_id` roster,
+   * NO `teacher_assignments` row and NO `student_enrollments` row, so
+   * `can_access_student` is false for every pupil they own and the whole
+   * account runs on the owner branch of `can_write_for_student`.
+   *
+   * That branch is the one a future phase will want to narrow, which is exactly
+   * why the account is pinned here first: any change that quietly removes it
+   * empties a real teacher's roster, their marks and their register at once,
+   * and does it silently, because RLS denies by returning nothing.
+   */
+  log('\nthe pre-V2 legacy account')
+
+  const LG = (await one(`INSERT INTO auth.users (email) VALUES ('legacy@example.com') RETURNING id`)).id
+  const lgSt = (await one(`INSERT INTO public.students (teacher_id,student_id,grade,name_kh,gender,dob)
+                 VALUES ($1,'S-LG','ថ្នាក់ទី៣','សិស្ស ចាស់','ប្រុស','2016-03-03') RETURNING id`, [LG])).id
+
+  const noAssign = await rows(c, `SELECT count(*)::int AS n FROM public.teacher_assignments WHERE teacher_id=$1`, [LG])
+  const noEnrol  = await rows(c, `SELECT count(*)::int AS n FROM public.student_enrollments WHERE student_id=$1`, [lgSt])
+  check('the account really is pre-V2: no assignment, no enrolment',
+    noAssign[0].n === 0 && noEnrol[0].n === 0, `${noAssign[0].n} assignment(s), ${noEnrol[0].n} enrolment(s)`)
+
+  r = await as(c, LG, () => rows(c, `SELECT id FROM public.students WHERE teacher_id=$1`, [LG]))
+  check('their roster still appears', r.ok && r.value.length === 1, `${r.value?.length} row(s)`)
+  r = await as(c, LG, () => rows(c, `INSERT INTO public.students (teacher_id,student_id,grade,name_kh,gender,dob)
+      VALUES ($1,'S-LG2','ថ្នាក់ទី៣','សិស្ស ថ្មី','ស្រី','2016-04-04') RETURNING id`, [LG]))
+  check('...they can still CREATE a pupil', r.ok && r.value.length === 1, r.ok ? '' : r.code)
+  r = await as(c, LG, () => rows(c, `UPDATE public.students SET phone='012345678' WHERE id=$1 RETURNING id`, [lgSt]))
+  check('...and EDIT one', r.ok && r.value.length === 1, `${r.value?.length} row(s)`)
+  r = await as(c, LG, () => rows(c, `INSERT INTO public.scores (teacher_id,student_id,subject,score_period,score_type,score_value)
+      VALUES ($1,$2,'kh_read','11-2025-2026','monthly',7) RETURNING id`, [LG, lgSt]))
+  check('...and write a MARK  ← can_write_for_student, owner branch', r.ok && r.value.length === 1, r.ok ? '' : r.code)
+  r = await as(c, LG, () => rows(c, `INSERT INTO public.attendance (teacher_id,student_id,date,status)
+      VALUES ($1,$2,'2026-02-02','P') RETURNING id`, [LG, lgSt]))
+  check('...and write ATTENDANCE', r.ok && r.value.length === 1, r.ok ? '' : r.code)
+  r = await as(c, A.t, () => rows(c, `SELECT id FROM public.students WHERE id=$1`, [lgSt]))
+  check('...while another teacher still reads none of it', r.ok && r.value.length === 0, `${r.value?.length} row(s)`)
+  r = await as(c, LG, () => rows(c, `SELECT public.can_access_student($1) AS ok`, [lgSt]))
+  check('...and none of this came from a class relationship  ← can_access_student is FALSE',
+    r.ok && r.value[0].ok === false, r.ok ? `${r.value[0].ok}` : r.code)
 
   await c.end()
   const a1 = await conn('postgres'); await a1.query(`DROP DATABASE IF EXISTS ${DB} WITH (FORCE)`); await a1.end()

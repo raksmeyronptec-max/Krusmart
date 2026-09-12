@@ -67,6 +67,13 @@
 --
 -- Resolve each by closing the enrolment the pupil has actually left
 -- (`status = 'transferred'`, `left_at = now()`), then re-run.
+--
+-- ROLLBACK
+--   DROP INDEX IF EXISTS public.student_enrollments_one_active_per_year;
+-- Changes no data either way, and no row written under this migration becomes
+-- invalid. Reverting re-opens the duplicate demonstrated in the header: one
+-- child on two teachers' rosters, each marking attendance and entering scores
+-- without being told about the other.
 -- =============================================================================
 
 DO $$
