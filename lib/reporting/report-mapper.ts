@@ -101,6 +101,31 @@ export interface ReportRow {
 }
 
 /**
+ * How many of a payload's rows would actually print something.
+ *
+ * Here rather than in the Print Center's action because it is a fact about the
+ * PAYLOAD, and this module already owns what a payload is. It is a description,
+ * not a rule: a row counts as filled if the document would write a value into
+ * it, which is the only definition a generated sheet can be held to.
+ *
+ * `subjectValues` first, because the variable region is what a result sheet is
+ * for; then the row's own scalars minus the ones every row carries whether or
+ * not the pupil was ever assessed — a register with a name and a sequence
+ * number in every row is still an empty register, and counting those would make
+ * `filledRows` equal `studentCount` for every report in the product.
+ */
+const ALWAYS_PRESENT = new Set(['row.no', 'row.name', 'row.gender', 'row.dob', 'row.subject'])
+
+export function filledRowCount(rows: ReportRow[]): number {
+  const has = (v: CellValue) => v !== null && v !== undefined && v !== ''
+  return rows.filter(
+    (row) =>
+      row.subjectValues.some(has) ||
+      Object.entries(row.values).some(([key, value]) => !ALWAYS_PRESENT.has(key) && has(value)),
+  ).length
+}
+
+/**
  * Everything a template needs, resolved and ready to write.
  *
  * The contract between a report's data resolver and the generator: a resolver

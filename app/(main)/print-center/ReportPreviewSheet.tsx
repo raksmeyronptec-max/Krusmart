@@ -79,6 +79,20 @@ export interface ReportPreviewSheetProps {
    */
   documentLabel?: string
   contextLabel?: string
+  /**
+   * The facts a teacher checks before committing paper — and only the ones
+   * actually known.
+   *
+   * `studentCount` and `subjectCount` come from the resolver that built this
+   * very sheet. The paper size and orientation come from the workbook's own
+   * page setup, read back in `previewWorkbook`, so a template that declares
+   * none shows none. There is deliberately no PAGE COUNT: pagination depends on
+   * the printer, the driver and the scale, none of which is knowable here, and
+   * a made-up "៤ ទំព័រ" is worse than silence because it looks checkable.
+   */
+  studentCount?: number
+  subjectCount?: number
+  formatLabel?: string
 }
 
 export function ReportPreviewSheet({
@@ -86,10 +100,22 @@ export function ReportPreviewSheet({
   templateLabel,
   documentLabel,
   contextLabel,
+  studentCount,
+  subjectCount,
+  formatLabel,
 }: ReportPreviewSheetProps) {
   const [zoom, setZoom] = useState<number>(0.75)
 
   const totalWidth = sheet.columnWidths.reduce<number>((sum, w) => sum + widthPx(w), 0)
+
+  /** Only what is known. Every entry here is a value somebody measured. */
+  const facts = [
+    studentCount !== undefined ? `សិស្ស ${toKhmerNumber(studentCount)} នាក់` : null,
+    subjectCount ? `មុខវិជ្ជា ${toKhmerNumber(subjectCount)}` : null,
+    sheet.paper ?? null,
+    sheet.orientation === 'landscape' ? 'ផ្ដេក' : sheet.orientation === 'portrait' ? 'បញ្ឈរ' : null,
+    formatLabel ?? null,
+  ].filter((f): f is string => Boolean(f))
 
   return (
     <div className="rounded-lg border border-divider">
@@ -109,6 +135,14 @@ export function ReportPreviewSheet({
             {contextLabel && templateLabel && <span aria-hidden="true">·</span>}
             {templateLabel && <span className="min-w-0">{templateLabel}</span>}
           </p>
+
+          {facts.length > 0 && (
+            <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-text-body [&>span+span]:before:mr-2 [&>span+span]:before:content-['·']">
+              {facts.map((fact) => (
+                <span key={fact}>{fact}</span>
+              ))}
+            </p>
+          )}
         </div>
 
         <div className="flex items-center gap-1" role="group" aria-label="ពង្រីក">

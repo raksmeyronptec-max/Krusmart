@@ -65,6 +65,20 @@ export interface SheetPreview {
    * so rather than quietly showing a short class.
    */
   omittedRows: number
+  /**
+   * How the template says it wants to be printed, when it says.
+   *
+   * READ FROM THE WORKBOOK, never assumed. A teacher checking a preview is
+   * deciding whether to commit paper to it, and `A4 ផ្ដេក` is one of the few
+   * things that makes that decision concrete — but a template that declares no
+   * page setup leaves both of these `undefined`, and the UI then says nothing
+   * rather than guessing. There is deliberately no page COUNT here: pagination
+   * depends on the printer, the driver and the scale, and none of that is known
+   * on this side of the download.
+   */
+  orientation?: 'portrait' | 'landscape'
+  /** `A4` only when the sheet actually declares the A4 paper size. */
+  paper?: 'A4'
 }
 
 /** `FFEFF6FF` -> `#eff6ff`. Returns undefined for absent or unusable values. */
@@ -145,6 +159,18 @@ export async function previewWorkbook(
     }
   }
 
+  /*
+   * exceljs exposes the paper size as the raw OOXML enum; 9 is A4. Anything
+   * else is left undefined rather than translated, because the only claim worth
+   * making here is one the sheet actually made.
+   */
+  const setup = sheet.pageSetup
+  const orientation =
+    setup?.orientation === 'landscape' || setup?.orientation === 'portrait'
+      ? setup.orientation
+      : undefined
+  const paper = setup?.paperSize === 9 ? ('A4' as const) : undefined
+
   const columnCount = Math.max(sheet.columnCount, 1)
   const columnWidths: (number | undefined)[] = []
   for (let c = 1; c <= columnCount; c++) columnWidths.push(sheet.getColumn(c).width)
@@ -188,5 +214,7 @@ export async function previewWorkbook(
     columnWidths,
     rows,
     omittedRows: options.omittedRows ?? 0,
+    orientation,
+    paper,
   }
 }

@@ -3,13 +3,12 @@
 import { useCallback, useEffect, useId, useState } from 'react'
 import Link from 'next/link'
 import {
+  AlertTriangle,
   CheckCircle2,
   ChevronDown,
   Download,
-  FileCheck2,
   Loader2,
   Sliders,
-  Users,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/actions/Button'
@@ -19,10 +18,14 @@ import { Skeleton } from '@/components/ui/feedback/Skeleton'
 import Select from '@/components/ui/forms/Select'
 import { fieldLabel } from '@/components/ui/forms/fieldStyles'
 
-import { ACADEMIC_MONTH_OPTIONS_BY_ID } from '@/lib/constants/months'
+import { ACADEMIC_MONTH_OPTIONS_BY_ID, type MonthId } from '@/lib/constants/months'
+import { resolvePeriod } from '@/lib/reporting/print-period'
+import type { SemesterId } from '@/lib/scores/semester'
 import { toKhmerNumber } from '@/lib/utils/khmer-num'
 import { activeTemplate, templatesFor } from '@/lib/reporting/report-template'
 import { FORMAT_LABELS, type ReportDefinition } from '@/lib/reporting/report-types'
+import type { Readiness } from '@/lib/reporting/readiness'
+import { withClassParam } from '@/lib/utils/classHref'
 import { generateReport, listCertificateCandidates, previewReport } from './actions'
 import { ReportPreviewSheet } from './ReportPreviewSheet'
 import type { SheetPreview } from '@/lib/reporting/xlsx-preview'
@@ -122,11 +125,30 @@ export function GenerateReportDialog({
    */
   const [sheet, setSheet] = useState<SheetPreview | null>(null)
   const [sheetMissing, setSheetMissing] = useState<'docx' | 'failed' | null>(null)
+  /*
+   * Whether the document will say anything, and whether the class has a
+   * curriculum to say it about. Two separate facts on purpose: a class can have
+   * a full month of marks and an unconfigured template, or the reverse, and one
+   * ladder holding both would hide whichever came second.
+   */
+  const [readiness, setReadiness] = useState<Readiness | null>(null)
+  const [noSubjects, setNoSubjects] = useState(false)
   const [loading, setLoading] = useState(false)
   const [busy, setBusy] = useState(false)
   /** Step ៣, folded away unless it holds a choice the teacher must make. */
   const [optionsOpen, setOptionsOpen] = useState(false)
   const optionsId = useId()
+  /**
+   * Step ២ is ANSWERED on arrival, so it is stated rather than asked.
+   *
+   * The Print Center's period bar is the choice; repeating it as an open
+   * dropdown here made the flow ask a second time for something the teacher had
+   * already said, and a control that is usually left alone still reads as a
+   * decision to make. It opens on one tap for the teacher who genuinely wants
+   * this document for a different month.
+   */
+  const [periodOpen, setPeriodOpen] = useState(false)
+  const periodId = useId()
 
   /**
    * The finished document, held in memory until the dialog closes.
@@ -137,6 +159,9 @@ export function GenerateReportDialog({
   const [generated, setGenerated] = useState<{
     blob: Blob; fileName: string
     rowCount: number; subjectCount: number; templateLabel: string
+    /** Captured at generation time: the panel must describe the file that was
+        made, not whatever the selectors say afterwards. */
+    periodLabel: string; formatLabel: string
   } | null>(null)
 
   /**
@@ -177,6 +202,8 @@ export function GenerateReportDialog({
     setSummary(null)
     setSheet(null)
     setSheetMissing(null)
+    setReadiness(null)
+    setNoSubjects(false)
     /*
      * The ACTIVE version, not the newest one.
      *
@@ -195,6 +222,7 @@ export function GenerateReportDialog({
     setGenerated(null)
     // Open only where the step holds something the teacher has to answer.
     setOptionsOpen(report?.type === 'certificate')
+    setPeriodOpen(false)
   }
 
   const loadPreview = useCallback(async () => {
@@ -217,11 +245,15 @@ export function GenerateReportDialog({
         setSummary(null)
         setSheet(null)
         setSheetMissing(null)
+        setReadiness(null)
+        setNoSubjects(false)
         return
       }
       setSummary(res.summary ?? null)
       setSheet(res.preview ?? null)
       setSheetMissing(res.previewUnavailable ?? null)
+      setReadiness(res.readiness ?? null)
+      setNoSubjects(res.noSubjects ?? false)
     } finally {
       setLoading(false)
     }
@@ -277,6 +309,22 @@ export function GenerateReportDialog({
     URL.revokeObjectURL(url)
   }
 
+  /*
+   * The period, in the app's own words and its own numerals.
+   *
+   * NOT `summary.periodLabel`, which the resolver builds for the DOCUMENT — it
+   * prints the academic year in Latin digits because that is what the school's
+   * form does. Rendered beside `ឆ្នាំសិក្សា ២០២៥-២០២៦` in the same seven-row
+   * list, that read as two different years. The sheet keeps its own wording;
+   * the dialog uses the one `resolvePeriod` gives every other surface, so
+   * step ២ and the confirmation cannot say the period differently either.
+   */
+  const periodPhrase = resolvePeriod(
+    report?.period ?? 'none',
+    { scope: 'monthly', month: period as MonthId, semester: semester as SemesterId },
+    academicYear,
+  ).label
+
   const submit = async () => {
     if (!report) return
     setBusy(true)
@@ -314,6 +362,8 @@ export function GenerateReportDialog({
         subjectCount: res.meta?.subjectCount ?? 0,
         templateLabel:
           templates.find((t) => t.id === res.meta?.templateId)?.label ?? '',
+        periodLabel: periodPhrase,
+        formatLabel: FORMAT_LABELS[outputFormat],
       })
       notify.success(`បានបង្កើត ${res.fileName}`)
     } finally {
@@ -323,12 +373,8 @@ export function GenerateReportDialog({
 
   if (!report) return null
 
-  const hasStudents = (summary?.studentCount ?? 0) > 0
-  const hasMarks = summary !== null && summary.average !== null
-  /** A result sheet with nobody marked prints a blank grid, which is legitimate
-      and never what a teacher expected when they pressed the button. */
-  const expectsMarks = report.period !== 'none' && report.category !== 'attendance'
   const downloadLabel = `ទាញយក ${FORMAT_LABELS[outputFormat]}`
+
 
   return (
     <Dialog
@@ -379,21 +425,31 @@ export function GenerateReportDialog({
         >
           <p className="flex items-center gap-2 text-sm font-bold text-text-heading">
             <CheckCircle2 className="h-4 w-4 shrink-0 text-success" aria-hidden="true" />
-            បង្កើតឯកសារបានសម្រេច
+            បានបង្កើតឯកសាររួចរាល់
           </p>
 
-          <p className="break-all text-xs text-text-body">{generated.fileName}</p>
-
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
-            <Stat label="ជួរដេក" value={`${toKhmerNumber(generated.rowCount)}`} />
-            <Stat label="មុខវិជ្ជា" value={`${toKhmerNumber(generated.subjectCount)}`} />
+          {/*
+            WHAT was made, in the same words the confirmation used a moment ago.
+            A browser that saves silently to a Downloads folder gives no
+            evidence anything happened, and "done ✓" beside a filename full of
+            Khmer and a timestamp is not evidence a teacher can check.
+          */}
+          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
+            <Fact label="ឯកសារ" value={report.label} />
+            {generated.periodLabel && <Fact label="រយៈពេល" value={generated.periodLabel} />}
+            <Fact label="ទម្រង់" value={generated.formatLabel} />
+            <Fact label="ជួរដេក" value={`${toKhmerNumber(generated.rowCount)}`} />
+            {generated.subjectCount > 0 && (
+              <Fact label="មុខវិជ្ជា" value={`${toKhmerNumber(generated.subjectCount)}`} />
+            )}
             {generated.templateLabel && (
-              <div className="col-span-2">
-                <dt className="text-text-muted">ទម្រង់ឯកសារ</dt>
-                <dd className="font-bold text-text-heading">{generated.templateLabel}</dd>
-              </div>
+              <Fact label="ទម្រង់ឯកសារ" value={generated.templateLabel} />
             )}
           </dl>
+
+          <p className="break-all border-t border-success/30 pt-2 text-[11px] text-text-muted">
+            {generated.fileName}
+          </p>
 
           <p className="text-[11px] text-text-muted">
             ឯកសារត្រូវបានទាញយករួចហើយ។ ប្រសិនបើរកមិនឃើញ សូមចុច «ទាញយកម្ដងទៀត»។
@@ -443,40 +499,60 @@ export function GenerateReportDialog({
         </Step>
 
         {/* -------------------------------------------------- ២ · the period */}
-        {report.period === 'month' && (
+        {report.period !== 'none' && (
           <Step n={2} title="រយៈពេល">
-            <label className={fieldLabel} htmlFor="report-month">ខែ</label>
-            <Select
-              id="report-month"
-              ariaLabel="ខែ"
-              value={period}
-              onChange={setPeriod}
-              options={ACADEMIC_MONTH_OPTIONS_BY_ID}
-            />
-          </Step>
-        )}
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-divider bg-paper px-3 py-2">
+              {/* The SHARED phrase, so the row a teacher pressed and the dialog
+                  that opened name the period identically. The semester's value
+                  lives in `semester` and the month's in `period` — reading the
+                  wrong one is how a dialog comes to state ឆមាសទី១ while
+                  generating ឆមាសទី២. */}
+              <p className="min-w-0 flex-1 text-xs font-bold text-text-heading">{periodPhrase}</p>
 
-        {report.period === 'semester' && (
-          <Step n={2} title="រយៈពេល">
-            <label className={fieldLabel} htmlFor="report-semester">ឆមាស</label>
-            <Select
-              id="report-semester"
-              ariaLabel="ឆមាស"
-              value={semester}
-              onChange={setSemester}
-              options={[
-                { value: 'sem1', label: 'ឆមាសទី១' },
-                { value: 'sem2', label: 'ឆមាសទី២' },
-              ]}
-            />
-          </Step>
-        )}
+              {/* A year has one value and nothing to change; a month and a
+                  semester have a choice, offered and not pressed. */}
+              {report.period !== 'year' && !periodOpen && (
+                <button
+                  type="button"
+                  onClick={() => setPeriodOpen(true)}
+                  aria-expanded={false}
+                  aria-controls={periodId}
+                  className="min-h-11 shrink-0 cursor-pointer rounded-md px-2 text-[11px] font-bold text-brand underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                >
+                  ប្តូររយៈពេល
+                </button>
+              )}
+            </div>
 
-        {report.period === 'year' && (
-          <Step n={2} title="រយៈពេល">
-            <p className="rounded-lg border border-divider bg-paper p-3 text-xs font-bold text-text-heading">
-              ឆ្នាំសិក្សា {toKhmerNumber(academicYear)}
-            </p>
+            <div id={periodId} hidden={!periodOpen} className="mt-2">
+              {report.period === 'month' && (
+                <>
+                  <label className={fieldLabel} htmlFor="report-month">ខែ</label>
+                  <Select
+                    id="report-month"
+                    ariaLabel="ខែ"
+                    value={period}
+                    onChange={setPeriod}
+                    options={ACADEMIC_MONTH_OPTIONS_BY_ID}
+                  />
+                </>
+              )}
+              {report.period === 'semester' && (
+                <>
+                  <label className={fieldLabel} htmlFor="report-semester">ឆមាស</label>
+                  <Select
+                    id="report-semester"
+                    ariaLabel="ឆមាស"
+                    value={semester}
+                    onChange={setSemester}
+                    options={[
+                      { value: 'sem1', label: 'ឆមាសទី១' },
+                      { value: 'sem2', label: 'ឆមាសទី២' },
+                    ]}
+                  />
+                </>
+              )}
+            </div>
           </Step>
         )}
 
@@ -528,7 +604,10 @@ export function GenerateReportDialog({
                 <div className="rounded-lg border border-divider">
                   <div className="flex flex-wrap items-center justify-between gap-2 border-b border-divider px-3 py-2">
                     <p className="text-xs font-bold text-text-heading">
-                      សិស្សទទួលបណ្ណសរសើរ ({toKhmerNumber(chosen.size)} នាក់)
+                      សិស្សដែលមានសិទ្ធិ
+                      <span className="ml-1.5 font-normal text-text-muted">
+                        បានជ្រើស {toKhmerNumber(chosen.size)} នាក់
+                      </span>
                     </p>
                     {candidates && candidates.length > 0 && (
                       <div className="flex gap-1.5">
@@ -536,9 +615,9 @@ export function GenerateReportDialog({
                           សិស្សឡើងថ្នាក់
                         </ChipButton>
                         <ChipButton onClick={() => setChosen(new Set(candidates.map((c) => c.id)))}>
-                          ទាំងអស់
+                          ជ្រើសទាំងអស់
                         </ChipButton>
-                        <ChipButton onClick={() => setChosen(new Set())}>សម្អាត</ChipButton>
+                        <ChipButton onClick={() => setChosen(new Set())}>ដកជម្រើសទាំងអស់</ChipButton>
                       </div>
                     )}
                   </div>
@@ -594,90 +673,131 @@ export function GenerateReportDialog({
 
         {/* --------------------------------------------------- ៤ · the check */}
         <Step n={4} title="ពិនិត្យ">
-          <div className="rounded-lg border border-divider p-3">
-            <p className="mb-2 flex items-center gap-1.5 text-xs font-bold text-text-heading">
-              <FileCheck2 className="h-3.5 w-3.5 text-brand" aria-hidden="true" />
-              ពិនិត្យទិន្នន័យមុនបង្កើត
+          {loading ? (
+            <div className="flex flex-col gap-1.5 rounded-lg border border-divider p-3" role="status" aria-busy="true">
+              <span className="sr-only">កំពុងពិនិត្យទិន្នន័យ...</span>
+              <Skeleton className="h-4 w-2/3 rounded" />
+              <Skeleton className="h-4 w-1/2 rounded" />
+            </div>
+          ) : !summary ? (
+            <p className="rounded-lg border border-divider p-3 text-xs text-text-muted">
+              មិនអាចពិនិត្យទិន្នន័យបានទេ។
             </p>
-
-            {loading ? (
-              <div className="flex flex-col gap-1.5" role="status" aria-busy="true">
-                <span className="sr-only">កំពុងពិនិត្យទិន្នន័យ...</span>
-                <Skeleton className="h-4 w-2/3 rounded" />
-                <Skeleton className="h-4 w-1/2 rounded" />
-              </div>
-            ) : summary ? (
-              <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
-                <Stat label="សិស្ស" value={`${toKhmerNumber(summary.studentCount)} នាក់`} />
-                <Stat label="មុខវិជ្ជា" value={`${toKhmerNumber(summary.subjectCount)}`} />
-                <Stat
-                  label="មធ្យមភាគថ្នាក់"
-                  value={summary.average === null ? '—' : summary.average.toFixed(2)}
-                />
-                <Stat label="គ្រា" value={summary.periodLabel} />
-                {/* An honour report's headline figure is how many qualified,
-                    which is not derivable from the other three. */}
-                {summary.honorCount !== undefined && (
-                  <Stat label="ទទួលកិត្តិយស" value={`${toKhmerNumber(summary.honorCount)} នាក់`} />
-                )}
-              </dl>
-            ) : (
-              <p className="text-xs text-text-muted">មិនអាចពិនិត្យទិន្នន័យបានទេ។</p>
-            )}
-
-            {/* The rule, and whether it is official — stated before the teacher
-                generates, not discovered on the printed sheet. */}
-            {!loading && summary?.criteriaLabel && (
-              <div className="mt-2 rounded-md border border-warning/40 bg-warning/5 p-2">
-                <p className="text-[11px] text-text-body">
-                  លក្ខណៈវិនិច្ឆ័យ៖ {summary.criteriaLabel}
-                </p>
-                {summary.criteriaProvisional && (
-                  <p className="mt-0.5 text-[11px] font-bold text-warning-text">
-                    លក្ខណៈវិនិច្ឆ័យនេះជាបណ្ដោះអាសន្ន — មិនមែនច្បាប់ផ្លូវការពីក្រសួងទេ។
+          ) : (
+            <div className="flex flex-col gap-2">
+              {/*
+                What is missing, said before the file is made rather than
+                discovered on paper. It never disables the button: an empty
+                register is a legitimate thing to print and fill in by hand, and
+                a part-marked month is a legitimate mid-month snapshot — both
+                are the product's existing semantics, stated rather than
+                changed.
+              */}
+              {readiness && readiness.level !== 'ready' && (
+                <div
+                  className={`rounded-lg border p-2.5 text-[11px] ${
+                    readiness.level === 'partial'
+                      ? 'border-warning/40 bg-warning/5'
+                      : 'border-divider bg-paper'
+                  }`}
+                  role="status"
+                >
+                  <p className="flex items-center gap-1.5 font-bold text-text-heading">
+                    <AlertTriangle
+                      className={`h-3.5 w-3.5 shrink-0 ${
+                        readiness.level === 'partial' ? 'text-warning-text' : 'text-text-muted'
+                      }`}
+                      aria-hidden="true"
+                    />
+                    {readiness.title}
                   </p>
+                  <p className="mt-0.5 text-text-body">
+                    {readiness.detail}
+                    {readiness.fixHref && readiness.fixLabel && (
+                      <>
+                        {' '}
+                        <Link
+                          href={withClassParam(readiness.fixHref, classId)}
+                          className="font-bold underline underline-offset-2 hover:text-brand"
+                        >
+                          {readiness.fixLabel}
+                        </Link>
+                      </>
+                    )}
+                  </p>
+                </div>
+              )}
+
+              {/* The class has nothing this document can print columns for.
+                  Orthogonal to the readiness ladder above, so it is its own
+                  line and points at the score template rather than the marks. */}
+              {noSubjects && (
+                <p className="rounded-lg border border-divider bg-paper p-2.5 text-[11px] text-text-body">
+                  មិនទាន់មានមុខវិជ្ជាក្នុងទម្រង់ពិន្ទុទេ — ជួរឈរមុខវិជ្ជានឹងទទេ។{' '}
+                  <Link
+                    href={withClassParam('/score/subjects', classId)}
+                    className="font-bold underline underline-offset-2 hover:text-brand"
+                  >
+                    ទៅកំណត់មុខវិជ្ជា
+                  </Link>
+                </p>
+              )}
+
+              {/*
+                THE CONFIRMATION. Seven facts, in the order a teacher would
+                check them, immediately above the button that commits to them.
+
+                It restates the class, the year and the period that steps ១ and
+                ២ already showed, and that repetition is the point: by the time
+                a landscape sheet has been drawn, those steps are three
+                screenfuls up, and the last thing before ទាញយក should be able to
+                be read on its own. Everything in it comes from the resolver
+                that built the payload — nothing here is computed in the
+                browser.
+              */}
+              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-lg border border-divider bg-paper p-3 text-xs">
+                <Fact label="ឯកសារ" value={report.label} />
+                <Fact label="ថ្នាក់" value={summary.className || className || '—'} />
+                <Fact label="ឆ្នាំសិក្សា" value={toKhmerNumber(academicYear)} />
+                <Fact label="រយៈពេល" value={periodPhrase} />
+                <Fact
+                  label="សិស្ស"
+                  value={
+                    needsStudents
+                      ? `${toKhmerNumber(chosen.size)} នាក់ (ជ្រើសរើស)`
+                      : `${toKhmerNumber(summary.studentCount)} នាក់`
+                  }
+                />
+                {summary.subjectCount > 0 && (
+                  <Fact label="មុខវិជ្ជា" value={toKhmerNumber(summary.subjectCount)} />
                 )}
-              </div>
-            )}
+                {summary.average !== null && (
+                  <Fact label="មធ្យមភាគថ្នាក់" value={summary.average.toFixed(2)} />
+                )}
+                {/* An honour report's headline figure is how many qualified,
+                    which is not derivable from the other rows. */}
+                {summary.honorCount !== undefined && (
+                  <Fact label="ទទួលកិត្តិយស" value={`${toKhmerNumber(summary.honorCount)} នាក់`} />
+                )}
+                <Fact label="ទម្រង់" value={FORMAT_LABELS[outputFormat]} />
+              </dl>
 
-            {/*
-              The three honest empty states. Each says what is missing and,
-              where there is one, the screen that fixes it — an empty document
-              is a legitimate output and never a surprise a teacher should meet
-              on paper.
-            */}
-            {!loading && summary && !hasStudents && (
-              <p className="mt-2 flex items-center gap-1.5 text-[11px] text-warning-text">
-                <Users className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                មិនទាន់មានសិស្សក្នុងថ្នាក់ — ឯកសារនឹងចេញជាទម្រង់ទទេសម្រាប់បំពេញដោយដៃ។
-              </p>
-            )}
-
-            {!loading && summary && hasStudents && summary.subjectCount === 0 && (
-              <p className="mt-2 text-[11px] text-warning-text">
-                មិនទាន់មានមុខវិជ្ជាក្នុងទម្រង់ពិន្ទុទេ — ជួរឈរមុខវិជ្ជានឹងទទេ។{' '}
-                <Link
-                  href={classId ? `/score/subjects?class=${encodeURIComponent(classId)}` : '/score/subjects'}
-                  className="font-bold underline underline-offset-2 hover:text-brand"
-                >
-                  ទៅកំណត់មុខវិជ្ជា
-                </Link>
-              </p>
-            )}
-
-            {!loading && summary && hasStudents && summary.subjectCount > 0
-              && expectsMarks && !hasMarks && (
-              <p className="mt-2 text-[11px] text-warning-text">
-                មិនទាន់មានពិន្ទុក្នុងគ្រានេះទេ — តារាងនឹងចេញជាទម្រង់ទទេ។{' '}
-                <Link
-                  href={classId ? `/score/enter?class=${encodeURIComponent(classId)}` : '/score/enter'}
-                  className="font-bold underline underline-offset-2 hover:text-brand"
-                >
-                  ទៅបញ្ចូលពិន្ទុ
-                </Link>
-              </p>
-            )}
-          </div>
+              {/* The rule, and whether it is official — stated before the
+                  teacher generates, not discovered on the printed sheet. */}
+              {summary.criteriaLabel && (
+                <div className="rounded-md border border-warning/40 bg-warning/5 p-2">
+                  <p className="text-[11px] text-text-body">
+                    លក្ខណៈវិនិច្ឆ័យ៖ {summary.criteriaLabel}
+                  </p>
+                  {summary.criteriaProvisional && (
+                    <p className="mt-0.5 text-[11px] font-bold text-warning-text">
+                      លក្ខណៈវិនិច្ឆ័យនេះជាបណ្ដោះអាសន្ន — មិនមែនច្បាប់ផ្លូវការពីក្រសួងទេ។
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </Step>
 
         {/* ------------------------------------------------- the sheet itself */}
@@ -692,32 +812,27 @@ export function GenerateReportDialog({
             sheet={sheet}
             templateLabel={chosenTemplate?.label}
             documentLabel={report.label}
-            contextLabel={`${className || '—'} · ${summary?.periodLabel ?? ''}`}
+            contextLabel={`${className || '—'} · ${periodPhrase}`}
+            studentCount={summary?.studentCount}
+            subjectCount={summary?.subjectCount}
+            formatLabel={FORMAT_LABELS[outputFormat]}
           />
         ) : sheetMissing === 'docx' ? (
           /* A Word document is a page per pupil, not a sheet — say that rather
              than draw an approximation of a layout nobody will receive. */
-          <p className="rounded-lg border border-divider p-3 text-[11px] text-text-muted">
-            ការមើលឯកសារជាមុនមានសម្រាប់ឯកសារ Excel។ ឯកសារ Word នេះនឹងបង្កើត ១ ទំព័រក្នុងមួយសិស្ស។
-          </p>
+          <div className="rounded-lg border border-divider p-3 text-[11px]">
+            <p className="font-bold text-text-heading">ការមើលជាមុនមិនអាចបង្ហាញបានទេ</p>
+            <p className="mt-0.5 text-text-muted">
+              ឯកសារនេះត្រូវបានបង្កើតជាទម្រង់ {FORMAT_LABELS[outputFormat]} — ១ ទំព័រក្នុងមួយសិស្ស។
+              អ្នកនៅតែអាចបន្តបង្កើតឯកសារបាន។
+            </p>
+          </div>
         ) : sheetMissing === 'failed' ? (
-          <p className="rounded-lg border border-warning/40 bg-warning/5 p-3 text-[11px] text-text-body">
-            មិនអាចបង្ហាញឯកសារជាមុនបានទេ — ប៉ុន្តែការបង្កើតឯកសារនៅដំណើរការធម្មតា។
-          </p>
+          <div className="rounded-lg border border-warning/40 bg-warning/5 p-3 text-[11px]">
+            <p className="font-bold text-text-heading">មើលជាមុនមិនបាន</p>
+            <p className="mt-0.5 text-text-body">ប៉ុន្តែអ្នកអាចបន្តបង្កើតឯកសារ។</p>
+          </div>
         ) : null}
-
-        {/* ------------------------------------------------ ៥ · the hand-over */}
-        {!loading && summary && (
-          <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-lg border border-divider bg-paper p-3 text-[11px] text-text-muted">
-            <span className="font-bold text-text-heading">ត្រៀមរួចរាល់</span>
-            <span aria-hidden="true">·</span>
-            <span>សិស្ស {toKhmerNumber(summary.studentCount)} នាក់</span>
-            <span aria-hidden="true">·</span>
-            <span>{summary.periodLabel}</span>
-            <span aria-hidden="true">·</span>
-            <span>{FORMAT_LABELS[outputFormat]}</span>
-          </p>
-        )}
 
         {busy && (
           <p className="flex items-center gap-2 text-xs text-text-muted" role="status">
@@ -803,11 +918,13 @@ function ChipButton({ onClick, children }: { onClick: () => void; children: Reac
   )
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+/** One labelled fact in the confirmation list. Label left, value right. */
+function Fact({ label, value }: { label: string; value: string }) {
   return (
-    <div>
+    <>
       <dt className="text-text-muted">{label}</dt>
-      <dd className="font-bold text-text-heading tabular-nums">{value}</dd>
-    </div>
+      <dd className="min-w-0 break-words font-bold text-text-heading tabular-nums">{value}</dd>
+    </>
   )
 }
+

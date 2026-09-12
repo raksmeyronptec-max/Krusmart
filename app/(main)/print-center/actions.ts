@@ -14,13 +14,17 @@ import { loadTemplateFile } from '@/lib/reporting/report-storage'
 import { activeTemplate, downloadFileName, templateById } from '@/lib/reporting/report-template'
 import { fillXlsxTemplate } from '@/lib/reporting/xlsx-writer'
 import { previewWorkbook, type SheetPreview } from '@/lib/reporting/xlsx-preview'
+import { filledRowCount } from '@/lib/reporting/report-mapper'
+import { documentReadiness, subjectsMissing, type Readiness } from '@/lib/reporting/readiness'
 import { fillDocxTemplate } from '@/lib/reporting/docx-writer'
 import {
   fillTppMasterWorkbook,
   fillTppSectionWorkbook,
   type TppMasterPayload,
 } from '@/lib/reporting/tpp-master-writer'
-import { isReportType, reportDefinition } from '@/lib/reporting/report-types'
+import {
+  hasSubjectRegion, isReportType, reportDefinition, rowBasis,
+} from '@/lib/reporting/report-types'
 
 /**
  * The one endpoint that generates a document.
@@ -82,6 +86,21 @@ export interface PreviewResult {
     periodLabel: string; className: string
     honorCount?: number; criteriaLabel?: string; criteriaProvisional?: boolean
   }
+  /**
+   * Whether the document will say anything, described from the payload that was
+   * just built rather than guessed at from the counts.
+   *
+   * `studentCount > 0` and `subjectCount > 0` are jointly compatible with a
+   * completely blank grid, which is the document a teacher then hands to a
+   * class. Computed here — on the server, from `resolved.payload`, with no
+   * second query — because the payload is the only thing that knows what will
+   * actually be written into the sheet.
+   */
+  readiness?: Readiness
+  /** How many of the document's rows carry a value. */
+  filledRows?: number
+  /** The class teaches nothing this document can print columns for. */
+  noSubjects?: boolean
   /** The filled sheet, for spreadsheet reports. */
   preview?: SheetPreview
   /** The template the preview was drawn from, so the UI can name it. */
@@ -135,21 +154,47 @@ export async function previewReport(
 
   const summary = resolved.summary
 
+  /*
+   * Derived once and attached to every return below, including the ones that
+   * cannot draw a sheet: a Word report and a preview that failed to build still
+   * need to tell the teacher whether the month has been marked. It is the
+   * `previewUnavailable` paths that made this worth hoisting — they were
+   * returning counts and nothing else, which is the state a teacher is least
+   * able to check by eye.
+   */
+  const definition = reportDefinition(request.reportType)
+  const filledRows = filledRowCount(resolved.payload.rows)
+  const facts = {
+    filledRows,
+    readiness: documentReadiness({
+      studentCount: summary.studentCount,
+      rowCount: resolved.payload.rows.length,
+      filledRows,
+      subjectCount: summary.subjectCount,
+      category: definition?.category ?? 'scores',
+      basis: rowBasis(request.reportType),
+    }),
+    noSubjects: subjectsMissing({
+      subjectCount: summary.subjectCount,
+      hasRegion: hasSubjectRegion(request.reportType),
+    }),
+  }
+
   const template = templateId ? templateById(templateId) : activeTemplate(request.reportType)
-  if (!template || template.reportType !== request.reportType) return { summary }
+  if (!template || template.reportType !== request.reportType) return { summary, ...facts }
   if (
     template.format === 'docx' ||
     request.reportType === 'tpp_master_book' ||
     template.id.includes('tpp')
   ) {
-    return { summary, previewUnavailable: 'docx' }
+    return { summary, ...facts, previewUnavailable: 'docx' }
   }
 
   // A preview that cannot be built must never block the document that can. Every
   // failure below returns the counts and lets the teacher generate anyway.
   try {
     const loaded = await loadTemplateFile(template.id)
-    if ('error' in loaded) return { summary, previewUnavailable: 'failed' }
+    if ('error' in loaded) return { summary, ...facts, previewUnavailable: 'failed' }
 
     const omittedRows = Math.max(0, resolved.payload.rows.length - PREVIEW_ROW_LIMIT)
     const buffer = await fillXlsxTemplate(loaded.buffer, {
@@ -159,12 +204,13 @@ export async function previewReport(
 
     return {
       summary,
+      ...facts,
       preview: await previewWorkbook(buffer, { omittedRows }),
       templateId: template.id,
     }
   } catch (e) {
     logger.error('previewReport:', e)
-    return { summary, previewUnavailable: 'failed' }
+    return { summary, ...facts, previewUnavailable: 'failed' }
   }
 }
 

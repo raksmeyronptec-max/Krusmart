@@ -85,7 +85,7 @@ export const REPORT_CATEGORIES: { id: ReportCategory; label: string; description
    * rota is catalogued rather than excused. `/inventory` stays excused: a
    * stock list of equipment is not a document about the class.
    */
-  { id: 'classroom', label: 'រៀបចំថ្នាក់រៀន', description: 'សៀវភៅរដ្ឋបាល និងវេនប្រចាំថ្នាក់' },
+  { id: 'classroom', label: 'ការរៀបចំថ្នាក់', description: 'សៀវភៅរដ្ឋបាល និងវេនប្រចាំថ្នាក់' },
   /*
    * ឯកសារសិស្ស — the per-pupil paperwork.
    *
@@ -605,7 +605,7 @@ export const REPORT_SECTIONS: ReportSection[] = [
   },
   {
     id: 'classAdmin',
-    label: 'ឯកសាររដ្ឋបាលថ្នាក់',
+    label: 'រៀបចំថ្នាក់រៀន',
     description: 'សៀវភៅតាមដាន សៀវភៅរដ្ឋបាល និងការរៀបចំថ្នាក់',
     groups: [
       { label: 'សៀវភៅតាមដាន', categories: ['tracking'] },
@@ -675,23 +675,120 @@ export function reportPriority(type: ReportType): 0 | 1 | 2 {
   return 1
 }
 
+/* ────────────────────────────────────────────────────────────────────────
+ * WHAT A REPORT'S ROWS ARE
+ * ────────────────────────────────────────────────────────────────────────
+ *
+ * Most reports print one row per pupil on the roster, which is what makes
+ * "thirty pupils, four rows carry a mark" a meaningful sentence — it is the
+ * difference between a part-marked month and a finished one.
+ *
+ * Four reports do not. `honor`, `certificate`, `annual_promoted_students` and
+ * `annual_repeated_students` print the pupils who QUALIFIED, so an empty one
+ * does not mean the class is empty or unmarked — it means nobody met the rule,
+ * which is frequently the correct and expected answer. Judged against the
+ * roster they each reported a confident falsehood: a class of thirty with a
+ * fully marked September was told `មិនទាន់មានពិន្ទុ` by its honour roll, and
+ * `មិនទាន់មានសិស្សក្នុងថ្នាក់ · ទៅបញ្ចូលសិស្ស` by its promotion list.
+ *
+ * `tpp_master_book` is a third case again: its data travels in `meta.tppMaster`
+ * and its `payload.rows` is always empty, so nothing about it can be read off
+ * the rows at all. `other` means exactly that — say nothing rather than guess.
+ *
+ * Declared here because it is a fact about each report, and read by
+ * `lib/reporting/readiness.ts`, which is pure and must not know report names.
+ */
+export type RowBasis = 'roster' | 'selection' | 'other'
+
+const ROW_BASIS: Partial<Record<ReportType, RowBasis>> = {
+  honor: 'selection',
+  certificate: 'selection',
+  annual_promoted_students: 'selection',
+  annual_repeated_students: 'selection',
+  tpp_master_book: 'other',
+}
+
+/** One row per pupil on the roster unless the report says otherwise. */
+export function rowBasis(type: ReportType): RowBasis {
+  return ROW_BASIS[type] ?? 'roster'
+}
+
 /**
- * The four documents the quick-print row offers, in order.
+ * Reports that print NO variable subject region, by design.
+ *
+ * Most documents in this product widen to fit the class's curriculum — that is
+ * what `ReportPayload.subjects` is for, and `subjectCount === 0` on one of them
+ * means the class has configured nothing and the columns will come out blank.
+ *
+ * These four do not have the region at all. A certificate is a page of prose
+ * with a pupil's name on it; the year's totals and the two promotion lists are
+ * fixed tables of decisions. Reading their zero as "you have not configured
+ * your subjects" sent a teacher to `/score/subjects` to fix a document that has
+ * never had a subject column and never will.
+ *
+ * `verify-report-preview.mts` has carried this same set as a local `NO_REGION`
+ * constant since the previews were written; that is the harness's copy of a
+ * fact about the catalogue, and this is the catalogue stating it.
+ */
+const WITHOUT_SUBJECT_REGION: readonly ReportType[] = [
+  'certificate',
+  'annual_summary',
+  'annual_promoted_students',
+  'annual_repeated_students',
+]
+
+export function hasSubjectRegion(type: ReportType): boolean {
+  return !WITHOUT_SUBJECT_REGION.includes(type)
+}
+
+/**
+ * The four documents the quick-print row offers, in order and in proportion.
  *
  * Deliberately a short fixed list and not "everything P0": a quick action is a
  * row of large targets at the top of the page, and seven of them is a second
  * index above the index. Each resolves against the period bar's current
- * selection, so "ពិន្ទុខែនេះ" means the month on screen.
+ * selection, so the score card means the month on screen.
  *
  * Every entry must be generatable — `verify-reporting.mts` checks it — because
  * the one thing a quick action may not do is be the biggest button on the page
- * and then say មិនទាន់មាន.
+ * and then say កំពុងរៀបចំ.
+ *
+ * ── Why the label is not the report's own ─────────────────────────────────
+ *
+ * This is not a duplicate of `ReportDefinition.label`; it is a different piece
+ * of information. The catalogue's label names the DOCUMENT — `តារាងពិន្ទុប្រចាំខែ`
+ * — which is what a teacher scanning an index needs. A quick action names the
+ * ERRAND, in the two or three syllables that survive at a glance above four
+ * cards. The document's full name is still what the shelf row below says, and
+ * still what the dialog is titled with.
+ *
+ * It says `ពិន្ទុ` and not `ពិន្ទុខែនេះ` for a reason worth keeping: the card
+ * carries the resolved period on its second line, so a teacher who moves the
+ * period bar to ខែធ្នូ would be reading "this month" directly above
+ * `ខែធ្នូ ២០២៥`. The noun plus the real period says the same thing and stays
+ * true when the period moves.
+ *
+ * ── Why they are not four identical cards ─────────────────────────────────
+ *
+ * They are not four equal errands. Entering and printing the month's marks is
+ * the job; the register and the ranking are the two that usually follow it; the
+ * year's totals belong here so they can be found in October and are noise in
+ * February. `emphasis` is that ordering, declared once.
  */
-export const QUICK_ACTION_REPORTS: readonly ReportType[] = [
-  'score_monthly',
-  'attendance_monthly',
-  'ranking_monthly',
-  'annual_summary',
+export type QuickActionEmphasis = 'primary' | 'secondary' | 'quiet'
+
+export interface QuickAction {
+  type: ReportType
+  /** The errand, in a glance. Never the document's own name. */
+  label: string
+  emphasis: QuickActionEmphasis
+}
+
+export const QUICK_ACTION_REPORTS: readonly QuickAction[] = [
+  { type: 'score_monthly', label: 'ពិន្ទុ', emphasis: 'primary' },
+  { type: 'attendance_monthly', label: 'វត្តមាន', emphasis: 'secondary' },
+  { type: 'ranking_monthly', label: 'ចំណាត់ថ្នាក់', emphasis: 'secondary' },
+  { type: 'annual_summary', label: 'លទ្ធផលប្រចាំឆ្នាំ', emphasis: 'quiet' },
 ]
 
 /* ────────────────────────────────────────────────────────────────────────

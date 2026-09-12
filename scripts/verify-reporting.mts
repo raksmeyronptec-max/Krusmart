@@ -19,13 +19,16 @@ import ExcelJS from 'exceljs'
 import { readFile } from 'node:fs/promises'
 import { fillXlsxTemplate } from '../lib/reporting/xlsx-writer.ts'
 import {
-  emptyPayload, fillText, hasToken, resolveToken,
-  type ReportPayload,
+  emptyPayload, fillText, filledRowCount, hasToken, resolveToken,
+  type ReportPayload, type ReportRow,
 } from '../lib/reporting/report-mapper.ts'
+import { documentReadiness, subjectsMissing } from '../lib/reporting/readiness.ts'
+import { inventory, inventoryState } from './report-inventory.mts'
 import {
   REPORT_DEFINITIONS, REPORT_CATEGORIES, isReportType, reportsByCategory,
   REPORT_SECTIONS, PLANNED_DOCUMENT_GROUPS, PRIMARY_DOCUMENTS, QUICK_ACTION_REPORTS,
-  categoriesInSection, reportDefinition, reportsInSection, sectionForCategory,
+  categoriesInSection, hasSubjectRegion, reportDefinition, reportsInSection, rowBasis,
+  sectionForCategory,
 } from '../lib/reporting/report-types.ts'
 import {
   academicYearLabel, monthLabel, resolvePeriod, scopeForPeriodKind,
@@ -48,6 +51,13 @@ import { SECONDARY_SCHEME_CONFIG } from '../lib/grading/scheme.ts'
 
 const byTypeGlobal = (t: string) =>
   REPORT_DEFINITIONS.find(r => r.type === t)!
+
+/** The fix route the readiness ladder offers, for the purity check below. */
+const ladderFix = (studentCount: number, filledRows: number) =>
+  documentReadiness({
+    studentCount, rowCount: studentCount, filledRows, subjectCount: 5,
+    category: 'scores', basis: 'roster',
+  }).fixHref
 
 let failures = 0
 function check(name: string, ok: boolean, detail = '') {
@@ -145,12 +155,23 @@ console.log('\nShelves — the errand above the category')
    * checked against the same availability model the row renders.
    */
   check('every quick action names a real report',
-    QUICK_ACTION_REPORTS.every((t) => reportDefinition(t) !== undefined),
-    QUICK_ACTION_REPORTS.filter((t) => !reportDefinition(t)).join(', '))
+    QUICK_ACTION_REPORTS.every((q) => reportDefinition(q.type) !== undefined),
+    QUICK_ACTION_REPORTS.filter((q) => !reportDefinition(q.type)).map((q) => q.type).join(', '))
   check('and every one of them can actually generate',
-    QUICK_ACTION_REPORTS.every((t) => reportAvailability(reportDefinition(t)!).action === 'generate'),
+    QUICK_ACTION_REPORTS.every(
+      (q) => reportAvailability(reportDefinition(q.type)!).action === 'generate'),
     QUICK_ACTION_REPORTS.filter(
-      (t) => reportAvailability(reportDefinition(t)!).action !== 'generate').join(', '))
+      (q) => reportAvailability(reportDefinition(q.type)!).action !== 'generate')
+      .map((q) => q.type).join(', '))
+  /*
+   * A quick action's label is the errand, and it must not silently become the
+   * document's own name — at which point the row is four long titles and the
+   * shelf below says each of them a second time.
+   */
+  check('a quick action names the errand, not the document',
+    QUICK_ACTION_REPORTS.every((q) => q.label !== reportDefinition(q.type)!.label))
+  check('exactly one quick action leads',
+    QUICK_ACTION_REPORTS.filter((q) => q.emphasis === 'primary').length === 1)
   check('the everyday documents are real reports too',
     PRIMARY_DOCUMENTS.every((t) => reportDefinition(t) !== undefined))
 
@@ -192,6 +213,176 @@ console.log('\nShelves — the errand above the category')
     && scopeForPeriodKind('year') === 'annual'
     && scopeForPeriodKind('none') === null,
     'a fourth name for annual is what lib/scores/workspace.ts exists to prevent')
+}
+
+// ---------------------------------------------------------------------------
+/*
+ * DOCUMENT CORRECTNESS — will the file say anything, and does the page say so?
+ *
+ * `documentReadiness` is a DESCRIPTION of the resolved payload, never a rule
+ * about whether a document may be produced. The product has always allowed an
+ * empty register to be printed and filled in by hand, and a part-marked month
+ * to be printed mid-month; the two properties worth pinning are that those
+ * states are distinguished from a complete one, and that none of them is ever
+ * reported as a reason to stop.
+ */
+console.log('\nDocument readiness — the sheet says what it will contain')
+{
+  const row = (values: Record<string, string | number | null>, subjects: (string | number | null)[] = []): ReportRow =>
+    ({ values, subjectValues: subjects })
+
+  // A register with a name and a sequence number in every row is still empty.
+  check('a row carrying only the always-present columns is not filled',
+    filledRowCount([row({ 'row.no': '1', 'row.name': 'សុខា', 'row.gender': 'ស' })]) === 0)
+  check('one mark in the variable region fills the row',
+    filledRowCount([row({ 'row.no': '1', 'row.name': 'សុខា' }, [8])]) === 1)
+  check('a scalar the pupil earned fills it too',
+    filledRowCount([row({ 'row.no': '1', 'row.name': 'សុខា', 'row.average': 8.2 })]) === 1)
+  check('an empty string is not a value',
+    filledRowCount([row({ 'row.no': '1', 'row.average': '' }, ['', null])]) === 0)
+
+  const ladder = (studentCount: number, filledRows: number) =>
+    documentReadiness({
+      studentCount, rowCount: studentCount, filledRows, subjectCount: 5,
+      category: 'scores', basis: 'roster',
+    }).level
+
+  check('no pupils is its own state', ladder(0, 0) === 'no_students')
+  check('pupils but nothing marked reads empty', ladder(35, 0) === 'empty')
+  check('some marked reads partial', ladder(35, 12) === 'partial')
+  check('all marked reads ready', ladder(35, 35) === 'ready')
+  check('a ready document has nothing to warn about',
+    documentReadiness({
+      studentCount: 3, rowCount: 3, filledRows: 3, subjectCount: 2,
+      category: 'scores', basis: 'roster',
+    }).detail === '')
+
+  /*
+   * THE FALSE DIAGNOSIS this input exists to prevent. Four reports print the
+   * pupils who QUALIFIED, so an empty one means nobody met the rule — not that
+   * the class is unmarked, and certainly not that it has no pupils. Judged as a
+   * roster, a fully marked class of thirty was told by its own honour roll that
+   * it had no marks, and by its promotion list to go and enrol some pupils.
+   */
+  const honourRoll = documentReadiness({
+    studentCount: 30, rowCount: 0, filledRows: 0, subjectCount: 8,
+    category: 'honor', basis: 'selection',
+  })
+  check('an empty qualifying-subset report says nobody qualified',
+    honourRoll.level === 'none_qualified', honourRoll.level)
+  check('and never blames the marks or the roster',
+    !honourRoll.title.includes('ពិន្ទុ') && !honourRoll.title.includes('សិស្សក្នុងថ្នាក់'),
+    honourRoll.title)
+  check('and offers no fix, because an empty honour roll is not a fault',
+    honourRoll.fixHref === null && honourRoll.fixLabel === null)
+  check('a qualifying-subset report with rows is simply ready',
+    documentReadiness({
+      studentCount: 30, rowCount: 4, filledRows: 4, subjectCount: 8,
+      category: 'honor', basis: 'selection',
+    }).level === 'ready')
+
+  /*
+   * The TPP master carries its data in `meta.tppMaster` and always ships an
+   * empty `rows`, so nothing about it can be read off the rows. Silence is the
+   * only honest output.
+   */
+  check('a report whose rows are not its data is never judged',
+    documentReadiness({
+      studentCount: 30, rowCount: 0, filledRows: 0, subjectCount: 8,
+      category: 'tracking', basis: 'other',
+    }).level === 'ready')
+
+  check('the catalogue names exactly the four qualifying-subset reports',
+    (['honor', 'certificate', 'annual_promoted_students', 'annual_repeated_students'] as const)
+      .every((t) => rowBasis(t) === 'selection')
+    && rowBasis('tpp_master_book') === 'other'
+    && rowBasis('score_monthly') === 'roster'
+    && rowBasis('attendance_monthly') === 'roster')
+
+  /*
+   * The missing thing is named after the screen that fixes it, and attendance
+   * is the one category whose missing data is not marks.
+   */
+  const attendance = documentReadiness({
+    studentCount: 35, rowCount: 35, filledRows: 0, subjectCount: 30,
+    category: 'attendance', basis: 'roster',
+  })
+  check('an empty register talks about វត្តមាន, not ពិន្ទុ',
+    attendance.title.includes('វត្តមាន') && attendance.fixHref === '/attendance/layout',
+    `${attendance.title} -> ${attendance.fixHref}`)
+  const scores = documentReadiness({
+    studentCount: 35, rowCount: 35, filledRows: 0, subjectCount: 8,
+    category: 'scores', basis: 'roster',
+  })
+  check('an empty mark sheet talks about ពិន្ទុ',
+    scores.title.includes('ពិន្ទុ') && scores.fixHref === '/score/enter',
+    `${scores.title} -> ${scores.fixHref}`)
+
+  check('the fix route carries no class of its own — the caller scopes it',
+    ['no_students', 'empty', 'partial'].every((level) => {
+      const r = level === 'no_students' ? ladderFix(0, 0) : ladderFix(35, level === 'empty' ? 0 : 5)
+      return r === null || !r.includes('?')
+    }),
+    'readiness.ts is pure and must not learn what a class id is')
+
+  // An unconfigured curriculum is a SEPARATE problem from unmarked pupils: a
+  // class can have either, both or neither, and one ladder holding both hides
+  // whichever came second.
+  check('no subjects is reported apart from the readiness ladder',
+    subjectsMissing({ subjectCount: 0, hasRegion: true })
+    && !subjectsMissing({ subjectCount: 8, hasRegion: true }))
+  /*
+   * The certificate is a page of prose and the two promotion lists are fixed
+   * tables of decisions: their subject count is permanently and correctly zero.
+   * Read as "configure your subjects" it sent teachers to /score/subjects to
+   * fix a document that has never had a subject column.
+   */
+  check('and never for a report that has no subject region at all',
+    !subjectsMissing({ subjectCount: 0, hasRegion: false }))
+  check('the catalogue names the four region-less reports',
+    (['certificate', 'annual_summary', 'annual_promoted_students', 'annual_repeated_students'] as const)
+      .every((t) => !hasSubjectRegion(t))
+    && hasSubjectRegion('score_monthly')
+    && hasSubjectRegion('attendance_monthly')
+    && hasSubjectRegion('ranking_annual'))
+}
+
+// ---------------------------------------------------------------------------
+/*
+ * THE INVENTORY. `scripts/report-inventory.mts` is what a developer reads to
+ * decide what to build next, so what it must never do is invent a ready state.
+ */
+console.log('\nDocument inventory — no report claims more than it can do')
+{
+  const rows = inventory()
+
+  check('the inventory covers the whole catalogue',
+    rows.length === REPORT_DEFINITIONS.length)
+  check('READY means a resolver AND an active template — nothing else',
+    rows.filter((r) => r.state === 'READY').every(
+      (r) => r.resolver && r.templateId !== null && r.action === 'generate'),
+    rows.filter((r) => r.state === 'READY' && (!r.resolver || !r.templateId)).map((r) => r.type).join(', '))
+  check('LEGACY_OPEN means a working screen and no generation',
+    rows.filter((r) => r.state === 'LEGACY_OPEN').every(
+      (r) => r.legacyHref !== null && r.action === 'open' && r.output === 'screen'))
+  check('every catalogued legacy route actually exists on disk',
+    rows.every((r) => r.legacyExists !== false),
+    rows.filter((r) => r.legacyExists === false).map((r) => `${r.type} -> ${r.legacyHref}`).join(', '))
+  check('no row reports an output it cannot produce',
+    rows.every((r) => (r.output === '—') === (r.action === 'none')))
+  check('the inventory state agrees with the availability model',
+    REPORT_DEFINITIONS.every((d) => {
+      const state = inventoryState(d)
+      const status = reportAvailability(d).status
+      return (
+        (status === 'engine_ready') === (state === 'READY')
+        && (status === 'needs_template') === (state === 'PENDING_TEMPLATE')
+      )
+    }),
+    'the six-state roadmap is a renaming of the four-state model, never a second one')
+  check('every quick action is READY — the biggest buttons cannot be pending',
+    rows.filter((r) => r.quickAction).every((r) => r.state === 'READY'),
+    rows.filter((r) => r.quickAction && r.state !== 'READY').map((r) => r.type).join(', '))
 }
 
 // ---------------------------------------------------------------------------
