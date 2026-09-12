@@ -38,6 +38,9 @@ export type ReportType =
   | 'student_tracking_record_book'
   | 'student_tracking_sheet'
   | 'class_admin_books'
+  | 'tpp_master_book'
+  // classroom arrangement — the rota a form master prints and pins up
+  | 'class_cleaning_rota'
   // attendance
   | 'attendance_monthly'
   | 'attendance_yearly'
@@ -56,6 +59,7 @@ export type ReportCategory =
   | 'certificate'
   | 'yearly'
   | 'tracking'
+  | 'classroom'
   | 'student'
 
 export const REPORT_CATEGORIES: { id: ReportCategory; label: string; description: string }[] = [
@@ -66,6 +70,22 @@ export const REPORT_CATEGORIES: { id: ReportCategory; label: string; description
   { id: 'certificate', label: 'វិញ្ញាបនបត្រ', description: 'ឯកសារផ្លូវការសម្រាប់សិស្ស' },
   { id: 'yearly', label: 'របាយការណ៍ប្រចាំឆ្នាំ', description: 'លទ្ធផលចុងឆ្នាំសិក្សា' },
   { id: 'tracking', label: 'សៀវភៅតាមដាន', description: 'កំណត់ត្រាតាមដានសិស្ស' },
+  /*
+   * រៀបចំថ្នាក់រៀន — the paperwork about running the room.
+   *
+   * Split out of សៀវភៅតាមដាន because the two answer different questions: a
+   * tracking book follows a pupil through the year, while the thirteen MoEYS
+   * administration books and the cleaning rota are about the class as an
+   * organisation. Filed together they made the tracking family read as a
+   * miscellany, which is the shape a teacher cannot scan.
+   *
+   * `/cleaning-schedule` was recorded in `verify-students.mts` as `the room,
+   * not the class` — a judgement made when the centre indexed class RESULT
+   * sheets only. The centre is the classroom document workspace now, so the
+   * rota is catalogued rather than excused. `/inventory` stays excused: a
+   * stock list of equipment is not a document about the class.
+   */
+  { id: 'classroom', label: 'រៀបចំថ្នាក់រៀន', description: 'សៀវភៅរដ្ឋបាល និងវេនប្រចាំថ្នាក់' },
   /*
    * ឯកសារសិស្ស — the per-pupil paperwork.
    *
@@ -78,9 +98,9 @@ export const REPORT_CATEGORIES: { id: ReportCategory; label: string; description
    * only.
    *
    * Nothing moved. Each entry is `legacy_only`: it has a working screen and no
-   * engine resolver, so `reportAvailability` labels the card ទំព័រដើម and its
-   * button opens the screen. Listing them is a claim about where they can be
-   * *found*, never about how they are produced.
+   * engine resolver, so `reportAvailability` labels the row បោះពុម្ពពីអេក្រង់
+   * and its button opens the screen. Listing them is a claim about where they
+   * can be *found*, never about how they are produced.
    */
   { id: 'student', label: 'ឯកសារសិស្ស', description: 'ឯកសារ និងបញ្ជីសម្រាប់សិស្សម្នាក់ៗ' },
 ]
@@ -94,7 +114,22 @@ export const REPORT_CATEGORIES: { id: ReportCategory; label: string; description
 export type PeriodKind = 'month' | 'semester' | 'year' | 'none'
 
 /** How a report's document is produced. */
-export type ReportFormat = 'xlsx' | 'docx' | 'html'
+export type ReportFormat = 'xlsx' | 'docx' | 'html' | 'xlsm'
+
+/**
+ * What the teacher is told they will get.
+ *
+ * Here rather than in a component because two surfaces render it — the index's
+ * rows and the generation flow's download button — and a file that a row calls
+ * `Excel` must not become `xlsx` one dialog later. `html` is not a file at all:
+ * it is the screen's own browser print, so it is named as the action it is.
+ */
+export const FORMAT_LABELS: Record<ReportFormat, string> = {
+  xlsx: 'Excel',
+  xlsm: 'Excel (VBA)',
+  docx: 'Word',
+  html: 'បោះពុម្ពពីអេក្រង់',
+}
 
 export interface ReportDefinition {
   type: ReportType
@@ -284,7 +319,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     formats: ['xlsx'],
     legacyHref: '/yearly-report',
     resolver: true,
-    group: 'លទ្ធផលសរុបប្រចាំឆ្នាំ',
+    group: 'លទ្ធផលសិក្សា',
   },
   {
     type: 'annual_monthly_ranking',
@@ -295,7 +330,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     formats: ['xlsx'],
     legacyHref: '/yearly-report',
     resolver: true,
-    group: 'លទ្ធផលសរុបប្រចាំឆ្នាំ',
+    group: 'លទ្ធផលសិក្សា',
   },
   {
     type: 'annual_monthly_average',
@@ -306,7 +341,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     formats: ['xlsx'],
     legacyHref: '/yearly-report',
     resolver: true,
-    group: 'លទ្ធផលសរុបប្រចាំឆ្នាំ',
+    group: 'លទ្ធផលសិក្សា',
   },
   {
     type: 'annual_subject',
@@ -339,7 +374,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     formats: ['xlsx'],
     legacyHref: '/yearly-report/promoted',
     resolver: true,
-    group: 'ការសម្រេចចុងឆ្នាំ',
+    group: 'លទ្ធផលឡើងថ្នាក់',
   },
   {
     type: 'annual_repeated_students',
@@ -350,7 +385,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     formats: ['xlsx'],
     legacyHref: '/yearly-report/repeated',
     resolver: true,
-    group: 'ការសម្រេចចុងឆ្នាំ',
+    group: 'លទ្ធផលឡើងថ្នាក់',
   },
 
   // -------------------------------------------------------------- tracking
@@ -389,13 +424,33 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
   },
   {
     type: 'class_admin_books',
-    category: 'tracking',
+    category: 'classroom',
     label: 'រដ្ឋបាលថ្នាក់រៀន (១៣ សៀវភៅ)',
     description: 'សៀវភៅរដ្ឋបាលថ្នាក់រៀនតាមទម្រង់ក្រសួង ១៣ ប្រភេទ',
     period: 'none',
     formats: ['html'],
     legacyHref: '/class-admin',
     resolver: false,
+  },
+  {
+    type: 'class_cleaning_rota',
+    category: 'classroom',
+    label: 'វេនសម្អាតថ្នាក់',
+    description: 'តារាងវេនសម្អាតថ្នាក់ សម្រាប់បោះពុម្ព និងបិទក្នុងថ្នាក់',
+    period: 'none',
+    formats: ['html'],
+    legacyHref: '/cleaning-schedule',
+    resolver: false,
+  },
+  {
+    type: 'tpp_master_book',
+    category: 'tracking',
+    label: 'សៀវភៅតាមដាន TPP 2026 (VBA Form)',
+    description: 'សៀវភៅតាមដាន និងគ្រប់គ្រងពិន្ទុសិស្ស TPP 2026 ពេញលេញ ១៤៥ សន្លឹក — បំពេញទិន្នន័យស្វ័យប្រវត្តិ',
+    period: 'month',
+    formats: ['xlsx', 'xlsm'],
+    legacyHref: null,
+    resolver: true,
   },
 
   // ------------------------------------------------------ student documents
@@ -476,3 +531,230 @@ export function reportDefinition(type: ReportType): ReportDefinition | undefined
 export function isReportType(value: unknown): value is ReportType {
   return typeof value === 'string' && REPORT_DEFINITIONS.some((r) => r.type === value)
 }
+
+/* ═════════════════════════════════════════════════════════════════════════
+ * THE SHELF THE DOCUMENTS SIT ON
+ * ═════════════════════════════════════════════════════════════════════════
+ *
+ * A category answers "what kind of document is this?". It is the right key for
+ * a deep link (`?category=student`) and the wrong unit to lay a page out in,
+ * because a teacher does not arrive looking for a kind — they arrive with an
+ * errand. Nine categories rendered as nine equal panels is the wall this
+ * replaces: ពិន្ទុ, ចំណាត់ថ្នាក់, កិត្តិយស and វិញ្ញាបនបត្រ are four kinds and one
+ * errand ("the paperwork I file upward"), while វត្តមាន is one kind and an
+ * errand of its own that was buried third in a row of nine.
+ *
+ * So a SECTION groups categories by errand, and it lives here rather than in
+ * `PrintCenterClient` for exactly the reason `group` does: a second list of
+ * groupings inside a React component is the drift the catalogue exists to
+ * prevent. The Print Center renders this; it decides none of it.
+ *
+ * Categories are unchanged and still canonical — every one of them belongs to
+ * exactly one section, which `verify-reporting.mts` checks, so `?category=`
+ * keeps resolving and nothing that links here had to be rewritten.
+ */
+
+export type ReportSectionId = 'official' | 'attendance' | 'annual' | 'classAdmin' | 'student'
+
+export interface ReportSectionGroup {
+  /**
+   * The run's heading inside the section, or `null` for a section whose
+   * documents list flat.
+   *
+   * Not always one category: កិត្តិយស and វិញ្ញាបនបត្រ hold one report each and
+   * are one shelf to a teacher, so they share a run rather than each becoming a
+   * heading above a single line.
+   */
+  label: string | null
+  categories: ReportCategory[]
+}
+
+export interface ReportSection {
+  id: ReportSectionId
+  label: string
+  /** One line on the errand, shown under the heading. */
+  description: string
+  groups: ReportSectionGroup[]
+}
+
+export const REPORT_SECTIONS: ReportSection[] = [
+  {
+    id: 'official',
+    label: 'របាយការណ៍ផ្លូវការ',
+    description: 'តារាងពិន្ទុ ចំណាត់ថ្នាក់ និងឯកសារកិត្តិយសសម្រាប់ដាក់ជូនសាលា',
+    groups: [
+      { label: 'ពិន្ទុ', categories: ['scores'] },
+      { label: 'ចំណាត់ថ្នាក់', categories: ['ranking'] },
+      { label: 'កិត្តិយស និងវិញ្ញាបនបត្រ', categories: ['honor', 'certificate'] },
+    ],
+  },
+  {
+    id: 'attendance',
+    label: 'វត្តមាន',
+    description: 'បញ្ជីវត្តមានប្រចាំខែ និងសរុបអវត្តមានប្រចាំឆ្នាំ',
+    groups: [{ label: null, categories: ['attendance'] }],
+  },
+  {
+    id: 'annual',
+    label: 'លទ្ធផលប្រចាំឆ្នាំ',
+    description: 'លទ្ធផលដំណាច់ឆ្នាំ និងការសម្រេចឡើងថ្នាក់',
+    // Flat here on purpose: the seven annual reports already carry `group`,
+    // which splits them into the three errands a teacher comes for. A second
+    // split at this level would be the same cut made twice.
+    groups: [{ label: null, categories: ['yearly'] }],
+  },
+  {
+    id: 'classAdmin',
+    label: 'ឯកសាររដ្ឋបាលថ្នាក់',
+    description: 'សៀវភៅតាមដាន សៀវភៅរដ្ឋបាល និងការរៀបចំថ្នាក់',
+    groups: [
+      { label: 'សៀវភៅតាមដាន', categories: ['tracking'] },
+      { label: 'ការរៀបចំថ្នាក់', categories: ['classroom'] },
+    ],
+  },
+  {
+    id: 'student',
+    label: 'ឯកសារសិស្ស',
+    description: 'ឯកសារ និងបញ្ជីសម្រាប់សិស្សម្នាក់ៗ',
+    groups: [{ label: null, categories: ['student'] }],
+  },
+]
+
+/** Every category the section holds, in section order. */
+export function categoriesInSection(id: ReportSectionId): ReportCategory[] {
+  return (REPORT_SECTIONS.find((s) => s.id === id)?.groups ?? []).flatMap((g) => g.categories)
+}
+
+/** Which shelf a category sits on. Every category sits on exactly one. */
+export function sectionForCategory(category: ReportCategory): ReportSection | undefined {
+  return REPORT_SECTIONS.find((s) => s.groups.some((g) => g.categories.includes(category)))
+}
+
+/** Every report on a shelf, in catalogue order. */
+export function reportsInSection(id: ReportSectionId): ReportDefinition[] {
+  const categories = new Set(categoriesInSection(id))
+  return REPORT_DEFINITIONS.filter((r) => categories.has(r.category))
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * HOW LOUDLY A DOCUMENT SHOULD SPEAK
+ * ────────────────────────────────────────────────────────────────────────
+ *
+ * Twenty-seven documents cannot all be equally important, and a page that
+ * pretends otherwise makes the teacher read all of them every visit. Two short
+ * lists rather than a field on all twenty-seven definitions: the default is the
+ * middle, and only the ends are a claim worth making.
+ *
+ * P0 decides which shelves open on arrival. It does NOT reorder anything —
+ * catalogue order is the order a teacher learns, and shuffling it by
+ * "importance" would move a document every time the list changed.
+ */
+
+/** The documents a primary form master reaches for in an ordinary month. */
+export const PRIMARY_DOCUMENTS: readonly ReportType[] = [
+  'score_monthly',
+  'score_semester',
+  'ranking_monthly',
+  'ranking_semester',
+  'ranking_annual',
+  'attendance_monthly',
+  'annual_summary',
+]
+
+/** Paperwork that is real, needed, and needed rarely. */
+export const OCCASIONAL_DOCUMENTS: readonly ReportType[] = [
+  'tpp_master_book',
+  'class_admin_books',
+  'class_cleaning_rota',
+  'student_tracking_sheet',
+]
+
+export function reportPriority(type: ReportType): 0 | 1 | 2 {
+  if (PRIMARY_DOCUMENTS.includes(type)) return 0
+  if (OCCASIONAL_DOCUMENTS.includes(type)) return 2
+  return 1
+}
+
+/**
+ * The four documents the quick-print row offers, in order.
+ *
+ * Deliberately a short fixed list and not "everything P0": a quick action is a
+ * row of large targets at the top of the page, and seven of them is a second
+ * index above the index. Each resolves against the period bar's current
+ * selection, so "ពិន្ទុខែនេះ" means the month on screen.
+ *
+ * Every entry must be generatable — `verify-reporting.mts` checks it — because
+ * the one thing a quick action may not do is be the biggest button on the page
+ * and then say មិនទាន់មាន.
+ */
+export const QUICK_ACTION_REPORTS: readonly ReportType[] = [
+  'score_monthly',
+  'attendance_monthly',
+  'ranking_monthly',
+  'annual_summary',
+]
+
+/* ────────────────────────────────────────────────────────────────────────
+ * DOCUMENTS THAT DO NOT EXIST YET
+ * ────────────────────────────────────────────────────────────────────────
+ *
+ * Named here as PLAIN TEXT, deliberately carrying no `ReportType`, no category
+ * and no availability.
+ *
+ * The catalogue's own invariant — pinned twice, by `verify-reporting.mts` and
+ * `verify-students.mts` — is that no entry may be both resolver-less and
+ * screen-less, because such an entry renders as a row that offers nothing. That
+ * invariant is what keeps every line in the index actionable, and announcing
+ * four planned families by minting fourteen schema identifiers for documents
+ * with no screen, no data and no template would break it for a roadmap.
+ *
+ * So the roadmap is a roadmap: one quiet collapsed block at the foot of the
+ * page, saying what is coming and that it is not here. It costs the teacher one
+ * line of screen and answers the question ("is KruSmart going to print my GEIP
+ * plan?") that would otherwise be answered by a fruitless search.
+ *
+ * When one of these is built it gains a screen or a resolver and MOVES into
+ * `REPORT_DEFINITIONS` — it never graduates by being given an identifier here.
+ */
+export interface PlannedDocumentGroup {
+  id: string
+  label: string
+  description: string
+  /** Documents, by the name a teacher would call them. */
+  documents: string[]
+  /** A caveat the teacher needs before they plan around it. */
+  note?: string
+}
+
+export const PLANNED_DOCUMENT_GROUPS: PlannedDocumentGroup[] = [
+  {
+    id: 'assessment',
+    label: 'តេស្ត និងការវាស់ស្ទង់',
+    description: 'លទ្ធផលវាស់ស្ទង់សមត្ថភាពដើមឆ្នាំ និងចុងឆ្នាំ',
+    documents: ['CALM ដើមឆ្នាំ', 'CALM ចុងឆ្នាំ', 'ប្រៀបធៀបដើម–ចុងឆ្នាំ'],
+    note: 'លទ្ធផលពី PLP · មិនរាប់ចូលការឡើងថ្នាក់',
+  },
+  {
+    id: 'teaching_plan',
+    label: 'ផែនការបង្រៀន',
+    description: 'ផែនការបង្រៀនតាមរយៈពេល (GEIP)',
+    documents: [
+      'ផែនការបង្រៀន ៣ ឆ្នាំ',
+      'ផែនការបង្រៀន ១ ឆ្នាំ',
+      'ផែនការបង្រៀន ១ ឆ្នាំ + ៣ ខែ',
+      'ផែនការបង្រៀន ៣ ខែ',
+    ],
+  },
+  {
+    id: 'learning_plan',
+    label: 'ផែនការសិក្សារបស់សិស្ស',
+    description: 'ផែនការជួយសិស្សតាមលទ្ធផលនិទ្ទេស',
+    documents: ['បញ្ជីសិស្សរៀនឡើងនិទ្ទេស', 'សៀវភៅផែនការសិស្សម្នាក់ៗ'],
+  },
+  {
+    id: 'agreement',
+    label: 'កិច្ចព្រមព្រៀង',
+    description: 'កិច្ចព្រមព្រៀងសមិទ្ធកម្មប្រចាំឆ្នាំ',
+    documents: ['កិច្ចព្រមព្រៀងគ្រូ–មាតាបិតា', 'កិច្ចព្រមព្រៀងសមិទ្ធកម្ម គ្រូ–នាយក'],
+  },
+]

@@ -24,7 +24,12 @@ import {
 } from '../lib/reporting/report-mapper.ts'
 import {
   REPORT_DEFINITIONS, REPORT_CATEGORIES, isReportType, reportsByCategory,
+  REPORT_SECTIONS, PLANNED_DOCUMENT_GROUPS, PRIMARY_DOCUMENTS, QUICK_ACTION_REPORTS,
+  categoriesInSection, reportDefinition, reportsInSection, sectionForCategory,
 } from '../lib/reporting/report-types.ts'
+import {
+  academicYearLabel, monthLabel, resolvePeriod, scopeForPeriodKind,
+} from '../lib/reporting/print-period.ts'
 import {
   TEMPLATE_REGISTRY, activeTemplate, hasTemplate, templatesFor, templateById,
   reportAvailability,
@@ -77,11 +82,12 @@ console.log('\nCatalogue (§19)')
   // menu items under សិស្ស and so were invisible to anyone who looked for them
   // in the one place §8 says documents are found. All five are `legacy_only`:
   // indexed, not rebuilt. Pinned so a report cannot appear or vanish from the
-  // Twenty-five with the two remaining §8 documents — the សៀវភៅតាមដាន screen and
-  // the thirteen class-administration books — which print from the browser and
-  // appeared in no index at all. Pinned so a report cannot appear or vanish
-  // from the catalogue without someone saying so.
-  check('the twenty-five catalogued reports exist', REPORT_DEFINITIONS.length === 25,
+  // Twenty-six with tpp_master_book — the official 145-sheet TPP 2026 gradebook.
+  // Twenty-seven with class_cleaning_rota: `/cleaning-schedule` was excused in
+  // `verify-students.mts` as `the room, not the class`, a judgement made when
+  // the centre indexed class RESULT sheets only. The centre is the classroom
+  // document workspace now, so the rota is catalogued rather than excused.
+  check('the twenty-seven catalogued reports exist', REPORT_DEFINITIONS.length === 27,
     `got ${REPORT_DEFINITIONS.length}`)
   check('the two attendance sheets are catalogued, generate, and keep their screens',
     reportsByCategory('attendance').map(r => r.type).join(',')
@@ -102,6 +108,93 @@ console.log('\nCatalogue (§19)')
 }
 
 // ---------------------------------------------------------------------------
+/*
+ * The SHELVES, and the three promises the Print Center's top half makes.
+ *
+ * The centre renders `REPORT_SECTIONS`; it decides none of it. What has to hold
+ * for that to be safe is that the mapping is total and unambiguous — every
+ * category on exactly one shelf — because a category on none is a document a
+ * teacher cannot reach from the index, and a category on two is a document
+ * listed twice with no way to tell the copies apart.
+ */
+console.log('\nShelves — the errand above the category')
+{
+  const onShelf = REPORT_SECTIONS.flatMap((s) => s.groups.flatMap((g) => g.categories))
+
+  check('every category sits on a shelf',
+    REPORT_CATEGORIES.every((c) => onShelf.includes(c.id)),
+    REPORT_CATEGORIES.filter((c) => !onShelf.includes(c.id)).map((c) => c.id).join(', '))
+  check('and on exactly one — a document listed twice cannot be told apart',
+    new Set(onShelf).size === onShelf.length,
+    onShelf.filter((c, i) => onShelf.indexOf(c) !== i).join(', '))
+  check('every shelf holds something — an empty shelf is a dead end',
+    REPORT_SECTIONS.every((s) => reportsInSection(s.id).length > 0),
+    REPORT_SECTIONS.filter((s) => reportsInSection(s.id).length === 0).map((s) => s.id).join(', '))
+  check('every shelf accounts for all of its own reports',
+    REPORT_SECTIONS.every(
+      (s) => reportsInSection(s.id).length
+        === REPORT_DEFINITIONS.filter((r) => categoriesInSection(s.id).includes(r.category)).length))
+  check('and a category resolves back to the shelf that holds it',
+    REPORT_CATEGORIES.every((c) => categoriesInSection(sectionForCategory(c.id)!.id).includes(c.id)))
+  check('the shelves cover the whole catalogue',
+    REPORT_SECTIONS.flatMap((s) => reportsInSection(s.id)).length === REPORT_DEFINITIONS.length)
+
+  /*
+   * A quick action is the biggest control on the page. The one thing it may not
+   * do is be pressed and say កំពុងរៀបចំ — so every one of them must generate,
+   * checked against the same availability model the row renders.
+   */
+  check('every quick action names a real report',
+    QUICK_ACTION_REPORTS.every((t) => reportDefinition(t) !== undefined),
+    QUICK_ACTION_REPORTS.filter((t) => !reportDefinition(t)).join(', '))
+  check('and every one of them can actually generate',
+    QUICK_ACTION_REPORTS.every((t) => reportAvailability(reportDefinition(t)!).action === 'generate'),
+    QUICK_ACTION_REPORTS.filter(
+      (t) => reportAvailability(reportDefinition(t)!).action !== 'generate').join(', '))
+  check('the everyday documents are real reports too',
+    PRIMARY_DOCUMENTS.every((t) => reportDefinition(t) !== undefined))
+
+  /*
+   * The roadmap is NOT the catalogue. These four families have no screen, no
+   * data and no template; giving them `ReportType` identifiers would put four
+   * dead ends in an index whose whole invariant — two files above — is that
+   * every row in it is actionable.
+   */
+  check('no planned document has smuggled itself into the catalogue',
+    PLANNED_DOCUMENT_GROUPS.every(
+      (g) => !REPORT_DEFINITIONS.some((r) => r.label === g.label)))
+  check('and every planned group names something',
+    PLANNED_DOCUMENT_GROUPS.every((g) => g.documents.length > 0))
+
+  /*
+   * One period, three renderers. The index's row, the quick-print card and the
+   * dialog all read `resolvePeriod`, so the words cannot drift — and a report
+   * reads the ONE rung it declares, ignoring the rest of the selection.
+   */
+  const selection = { scope: 'monthly' as const, month: 'sep' as MonthId, semester: 'sem1' as const }
+  check('a month report reads the month, with the calendar year it falls in',
+    resolvePeriod('month', selection, '2025-2026').value === 'sep'
+    && resolvePeriod('month', selection, '2025-2026').label === monthLabel('sep', '2025-2026'))
+  check('និង ខែធ្នូ of the same academic year is the EARLIER calendar year',
+    monthLabel('dec', '2025-2026').includes('២០២៥')
+    && monthLabel('sep', '2025-2026').includes('២០២៦'),
+    `${monthLabel('dec', '2025-2026')} / ${monthLabel('sep', '2025-2026')}`)
+  check('a semester report ignores the month entirely',
+    resolvePeriod('semester', selection, '2025-2026').value === 'sem1')
+  check('a year report resolves the year',
+    resolvePeriod('year', selection, '2025-2026').value === '2025-2026'
+    && resolvePeriod('year', selection, '2025-2026').label === academicYearLabel('2025-2026'))
+  check('a report with no period claims no month',
+    resolvePeriod('none', selection, '2025-2026').label === 'គ្រប់ពេល')
+  check('the catalogue\'s period kinds map onto the score workspace\'s rungs',
+    scopeForPeriodKind('month') === 'monthly'
+    && scopeForPeriodKind('semester') === 'semester'
+    && scopeForPeriodKind('year') === 'annual'
+    && scopeForPeriodKind('none') === null,
+    'a fourth name for annual is what lib/scores/workspace.ts exists to prevent')
+}
+
+// ---------------------------------------------------------------------------
 console.log('\nTemplate registry (§6/§7)')
 {
   check('score_monthly has an active template', hasTemplate('score_monthly'))
@@ -119,7 +212,7 @@ console.log('\nTemplate registry (§6/§7)')
     TEMPLATE_REGISTRY.filter(t => t.isActive).length ===
       new Set(TEMPLATE_REGISTRY.filter(t => t.isActive).map(t => t.reportType)).size)
   check('versions sort newest first',
-    templatesFor('score_monthly').map(t => t.version).join(',') === '2,1')
+    templatesFor('score_monthly').map(t => t.version).join(',') === '3,2,1')
   check('provenance is stated honestly',
     activeTemplate('score_monthly')?.provenance === 'derived')
 }
@@ -1089,7 +1182,7 @@ console.log('\nthe school-supplied form — every report on it (§5/§11/§28)')
   }
 
   const xlsxReports = TEMPLATE_REGISTRY
-    .filter(t => t.isActive && t.format === 'xlsx')
+    .filter(t => t.isActive && t.format === 'xlsx' && t.reportType !== 'tpp_master_book')
     .map(t => t.reportType)
 
   check('every xlsx report has a form layout declared here',

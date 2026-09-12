@@ -1,4 +1,8 @@
-import { MONTHS_BY_CALENDAR } from './months'
+// With the extension, so node can load this module directly — the same shape
+// `lib/scores/workspace.ts` and `lib/reporting/print-period.ts` use, and for
+// the same reason: the offline harnesses import these pure modules through
+// node's ESM resolver, which does not guess at a missing `.ts`.
+import { MONTHS_BY_CALENDAR } from './months.ts'
 
 /**
  * The Cambodian school year runs November → October, so the academic year is

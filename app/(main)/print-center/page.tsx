@@ -13,9 +13,10 @@ import {
   type ReportType,
 } from '@/lib/reporting/report-types'
 import { isMonthId } from '@/lib/constants/months'
+import { currentMonthId } from '@/lib/reporting/print-period'
 import PrintCenterClient from './PrintCenterClient'
 
-export const metadata = { title: 'មជ្ឈមណ្ឌលរបាយការណ៍ និងបោះពុម្ព' }
+export const metadata = { title: 'មជ្ឈមណ្ឌលឯកសារ និងបោះពុម្ព' }
 
 /**
  * មជ្ឈមណ្ឌលបោះពុម្ព — one place for every printable document.
@@ -60,8 +61,8 @@ export default async function PrintCenterPage({
    * results→documents join exists to remove.
    *
    * A request, never an instruction: an unknown type, or one whose report
-   * cannot currently produce a file, degrades to the family view rather than
-   * opening a dialog over a row that would only say មិនទាន់មាន. The centre
+   * cannot currently produce a file, degrades to the shelf view rather than
+   * opening a dialog over a row that would only say កំពុងរៀបចំ. The centre
    * decides what may be offered through `reportAvailability`, here as
    * everywhere — this parameter only says which row to start on.
    */
@@ -110,6 +111,21 @@ export default async function PrintCenterPage({
   // score screens cannot disagree about what a month id is.
   const requestedMonth = one('month')
   const initialPeriod = requestedMonth && isMonthId(requestedMonth) ? requestedMonth : null
+
+  /*
+   * The month the period bar opens on when the URL names none.
+   *
+   * Resolved HERE rather than in the client, and that placement is the whole
+   * point: `new Date()` inside a component renders one month during SSR and
+   * possibly the next one in the browser, which React reports as a hydration
+   * mismatch. Resolved once on the server, it is a value like any other prop.
+   *
+   * It also replaces a constant. The generation flow used to fall back to
+   * `nov`, the first month of the academic year — correct for one month in
+   * twelve, and silently wrong for the other eleven, which is exactly the kind
+   * of default a teacher discovers on paper.
+   */
+  const defaultMonth = currentMonthId()
   const requestedSemester = one('semester')
   const initialSemester =
     requestedSemester === 'sem1' || requestedSemester === 'sem2' ? requestedSemester : null
@@ -147,6 +163,7 @@ export default async function PrintCenterPage({
       classId={scope.mode === 'v2' ? scope.classId : null}
       className={className}
       academicYear={academicYear}
+      defaultMonth={defaultMonth}
       initialCategory={initialCategory}
       initialReport={initialReport}
       initialPeriod={initialPeriod}

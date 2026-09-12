@@ -46,7 +46,7 @@ console.log('\nA. catalogue and availability (§26/§27)')
 
   const avail = reportAvailability(def)
   check('it is engine_ready', avail.status === 'engine_ready', avail.status)
-  check('and offers បង្កើតរបាយការណ៍', avail.actionLabel === 'បង្កើតរបាយការណ៍')
+  check('and offers បើក', avail.actionLabel === 'បើក')
   check('on a derived template (§31)',
     avail.template?.provenance === 'derived' && avail.template?.id === 'score_semester_v2')
   check('exactly one active template', activeTemplate('score_semester')?.version === 2)

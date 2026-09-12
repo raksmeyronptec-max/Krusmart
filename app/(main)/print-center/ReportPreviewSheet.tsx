@@ -65,9 +65,28 @@ export interface ReportPreviewSheetProps {
   sheet: SheetPreview
   /** Named under the sheet, so the teacher knows which version they are seeing. */
   templateLabel?: string
+  /**
+   * The document being looked at, and the class and period it covers.
+   *
+   * A preview inside a dialog inherits its title from the dialog, which is
+   * three screenfuls up once a landscape sheet is open and the panel is
+   * scrolled. Repeating the two facts that make the picture mean anything —
+   * WHICH document, and WHOSE — is not duplication; it is the caption a
+   * document review needs to be a review rather than a rendering.
+   *
+   * Both optional: the caption degrades to the heading it has always had rather
+   * than to an empty line.
+   */
+  documentLabel?: string
+  contextLabel?: string
 }
 
-export function ReportPreviewSheet({ sheet, templateLabel }: ReportPreviewSheetProps) {
+export function ReportPreviewSheet({
+  sheet,
+  templateLabel,
+  documentLabel,
+  contextLabel,
+}: ReportPreviewSheetProps) {
   const [zoom, setZoom] = useState<number>(0.75)
 
   const totalWidth = sheet.columnWidths.reduce<number>((sum, w) => sum + widthPx(w), 0)
@@ -75,12 +94,22 @@ export function ReportPreviewSheet({ sheet, templateLabel }: ReportPreviewSheetP
   return (
     <div className="rounded-lg border border-divider">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-divider px-3 py-2">
-        <p className="text-xs font-bold text-text-heading">
-          មើលឯកសារជាមុន
-          {templateLabel && (
-            <span className="ml-1.5 font-normal text-text-muted">· {templateLabel}</span>
-          )}
-        </p>
+        <div className="min-w-0">
+          <p className="text-xs font-bold text-text-heading">
+            {documentLabel ?? 'មើលឯកសារជាមុន'}
+          </p>
+          {/*
+            The three facts under the title, quietest last: whose document,
+            which period, which layout version. The layout is last because a
+            teacher checking a preview is checking the data first and the
+            version only when they were choosing between versions.
+          */}
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[11px] text-text-muted">
+            {contextLabel && <span>{contextLabel}</span>}
+            {contextLabel && templateLabel && <span aria-hidden="true">·</span>}
+            {templateLabel && <span className="min-w-0">{templateLabel}</span>}
+          </p>
+        </div>
 
         <div className="flex items-center gap-1" role="group" aria-label="ពង្រីក">
           {ZOOMS.map((z) => (

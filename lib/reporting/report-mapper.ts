@@ -113,6 +113,8 @@ export interface ReportPayload {
   /** The dynamic subject columns, left to right. */
   subjects: ReportSubjectColumn[]
   rows: ReportRow[]
+  /** Optional metadata for specialized document templates (e.g. TPP master data). */
+  meta?: Record<string, unknown>
 }
 
 /**

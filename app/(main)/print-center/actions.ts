@@ -15,6 +15,11 @@ import { activeTemplate, downloadFileName, templateById } from '@/lib/reporting/
 import { fillXlsxTemplate } from '@/lib/reporting/xlsx-writer'
 import { previewWorkbook, type SheetPreview } from '@/lib/reporting/xlsx-preview'
 import { fillDocxTemplate } from '@/lib/reporting/docx-writer'
+import {
+  fillTppMasterWorkbook,
+  fillTppSectionWorkbook,
+  type TppMasterPayload,
+} from '@/lib/reporting/tpp-master-writer'
 import { isReportType, reportDefinition } from '@/lib/reporting/report-types'
 
 /**
@@ -52,6 +57,7 @@ export interface GenerateResult {
 
 const MIME: Record<string, string> = {
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  xlsm: 'application/vnd.ms-excel.sheet.macroEnabled.12',
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 }
 
@@ -131,7 +137,13 @@ export async function previewReport(
 
   const template = templateId ? templateById(templateId) : activeTemplate(request.reportType)
   if (!template || template.reportType !== request.reportType) return { summary }
-  if (template.format === 'docx') return { summary, previewUnavailable: 'docx' }
+  if (
+    template.format === 'docx' ||
+    request.reportType === 'tpp_master_book' ||
+    template.id.includes('tpp')
+  ) {
+    return { summary, previewUnavailable: 'docx' }
+  }
 
   // A preview that cannot be built must never block the document that can. Every
   // failure below returns the counts and lets the teacher generate anyway.
@@ -214,9 +226,29 @@ export async function generateReport(
 
   let buffer: Buffer
   try {
-    buffer = template.format === 'docx'
-      ? await fillDocxTemplate(loaded.buffer, resolved.payload)
-      : await fillXlsxTemplate(loaded.buffer, resolved.payload)
+    const tppData = resolved.payload.meta?.tppMaster as TppMasterPayload | undefined
+    if (template.id === 'score_monthly_tpp' || template.id === 'tpp_section_monthly') {
+      if (!tppData) throw new Error('TPP data missing')
+      buffer = await fillTppSectionWorkbook(loaded.buffer, 'monthly', tppData)
+    } else if (template.id === 'ranking_monthly_tpp') {
+      if (!tppData) throw new Error('TPP data missing')
+      buffer = await fillTppSectionWorkbook(loaded.buffer, 'ranking_monthly', tppData)
+    } else if (template.id === 'score_semester_tpp' || template.id === 'tpp_section_semester') {
+      if (!tppData) throw new Error('TPP data missing')
+      buffer = await fillTppSectionWorkbook(loaded.buffer, 'semester', tppData)
+    } else if (template.id === 'ranking_semester_tpp') {
+      if (!tppData) throw new Error('TPP data missing')
+      buffer = await fillTppSectionWorkbook(loaded.buffer, 'ranking_semester', tppData)
+    } else if (request.reportType === 'tpp_master_book') {
+      if (!tppData) throw new Error('TPP data missing')
+      buffer = await fillTppMasterWorkbook(loaded.buffer, tppData, {
+        format: template.format as 'xlsm' | 'xlsx',
+      })
+    } else {
+      buffer = template.format === 'docx'
+        ? await fillDocxTemplate(loaded.buffer, resolved.payload)
+        : await fillXlsxTemplate(loaded.buffer, resolved.payload)
+    }
   } catch (e) {
     logger.error('generateReport:', e)
     return { error: 'បង្កើតឯកសារមិនបានសម្រេច' }

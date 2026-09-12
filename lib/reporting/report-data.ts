@@ -47,6 +47,13 @@ import { resolveCalendarYear } from '@/lib/constants/academic'
 import type { AttendanceRecord, Score, Settings, Student } from '@/lib/types'
 import type { CellValue, ReportPayload, ReportRow, ReportSubjectColumn } from './report-mapper'
 import type { ReportType } from './report-types'
+import {
+  MONTH_TO_TPP_SHEET,
+  type TppMasterPayload,
+  type TppMonthlyScores,
+  type TppStudentData,
+  type TppTeacherData,
+} from './tpp-master-writer'
 
 /**
  * Turning the database into a report payload.
@@ -356,6 +363,69 @@ function headerScalars(data: MonthlyClassData, academicYear: string) {
   }
 }
 
+/** Builds teacher metadata for the Cambodian TPP 2026 gradebook sheets. */
+export function buildTppTeacher(
+  settings: Settings,
+  className: string,
+  academicYear: string,
+): TppTeacherData {
+  const today = new Date()
+  const day = toKhmerNumber(today.getDate())
+  const solarDate = `ថ្ងៃទី ${day} ខែ ${KHMER_MONTH_LABELS[today.getMonth()]} ឆ្នាំ ${toKhmerNumber(today.getFullYear())}`
+  const lunarDate = toKhmerLunarDate(today).lunarDateText
+
+  return {
+    teacherName:
+      settings?.homeroom_teacher ||
+      settings?.teacher_name ||
+      'គ្រូបន្ទុកថ្នាក់',
+    gender: settings?.gender || 'ប្រុស',
+    schoolName: settings?.school_name || 'សាលាបឋមសិក្សា',
+    schoolCode: settings?.school_code || '',
+    className: className || 'ថ្នាក់',
+    academicYear: toKhmerNumber(academicYear),
+    phone: settings?.phone || '',
+    directorName:
+      settings?.director_name || settings?.manager_name || 'នាយកសាលា',
+    directorRole: settings?.manager_role || 'នាយកសាលា',
+    managementUnit1: settings?.management_unit_1 || '',
+    managementUnit2: settings?.management_unit_2 || '',
+    lunarDate,
+    solarDate,
+  }
+}
+
+/** Builds student demographics for inforS of the Cambodian TPP 2026 gradebook sheets. */
+export function buildTppStudents(students: { student: Student }[]): TppStudentData[] {
+  return students.map(({ student }) => {
+    const rawName = (student.name_kh || '').trim()
+    const nameParts = rawName.split(/\s+/)
+    const lastName = nameParts[0] || ''
+    const firstName = nameParts.slice(1).join(' ') || nameParts[0] || ''
+
+    return {
+      id: student.id,
+      studentId: student.student_id || '',
+      lastName,
+      firstName,
+      nameEn: student.name_en || '',
+      gender:
+        student.gender === 'female' || student.gender === 'ស្រី' || student.gender === 'ស'
+          ? 'ស'
+          : 'ប',
+      dob: student.dob || '',
+      village: student.birth_village || student.curr_village || '',
+      commune: student.birth_commune || student.curr_commune || '',
+      district: student.birth_district || student.curr_district || '',
+      province: student.birth_province || student.curr_province || '',
+      fatherName: student.father_name || '',
+      fatherJob: student.father_job || '',
+      motherName: student.mother_name || '',
+      motherJob: student.mother_job || '',
+    }
+  })
+}
+
 /**
  * `score_monthly` — the marks grid, in register order (§20 of the engine phase).
  */
@@ -398,6 +468,25 @@ export async function resolveScoreMonthly(
     average: c.average, female: isFemale(c.student.gender),
   }))
 
+  const selectedMonth =
+    request.period && request.period in MONTH_TO_TPP_SHEET ? request.period : 'nov'
+
+  const tppMaster: TppMasterPayload = {
+    teacher: buildTppTeacher(data.settings, data.className, request.academicYear),
+    students: buildTppStudents(data.students),
+    monthlyScores: {
+      monthId: selectedMonth,
+      denominator: data.numericKeys.length || data.subjects.length,
+      students: data.students.map((c) => ({
+        studentId: c.student.id,
+        scores: c.scores,
+        total: c.total,
+        average: c.average,
+        rank: c.rank,
+      })),
+    },
+  }
+
   return {
     payload: {
       scalars: {
@@ -409,6 +498,9 @@ export async function resolveScoreMonthly(
       },
       subjects: data.subjects,
       rows,
+      meta: {
+        tppMaster,
+      },
     },
     summary: {
       studentCount: data.students.length,
@@ -486,6 +578,25 @@ export async function resolveRankingMonthly(
     average: c.average, female: isFemale(c.student.gender),
   }))
 
+  const selectedMonth =
+    request.period && request.period in MONTH_TO_TPP_SHEET ? request.period : 'nov'
+
+  const tppMaster: TppMasterPayload = {
+    teacher: buildTppTeacher(data.settings, data.className, request.academicYear),
+    students: buildTppStudents(data.students),
+    monthlyScores: {
+      monthId: selectedMonth,
+      denominator: data.numericKeys.length || data.subjects.length,
+      students: data.students.map((c) => ({
+        studentId: c.student.id,
+        scores: c.scores,
+        total: c.total,
+        average: c.average,
+        rank: c.rank,
+      })),
+    },
+  }
+
   return {
     payload: {
       scalars: {
@@ -499,6 +610,9 @@ export async function resolveRankingMonthly(
       },
       subjects: data.subjects,
       rows,
+      meta: {
+        tppMaster,
+      },
     },
     summary: {
       studentCount: data.students.length,
@@ -767,11 +881,30 @@ export async function resolveScoreSemester(
     subjectValues: semesterSubjectValues(c, data.base.subjects),
   }))
 
+  const tppMaster: TppMasterPayload = {
+    teacher: buildTppTeacher(data.base.settings, data.base.className, request.academicYear),
+    students: buildTppStudents(data.students),
+    monthlyScores: {
+      monthId: data.semester,
+      denominator: data.base.numericKeys.length || data.base.subjects.length,
+      students: data.students.map((c) => ({
+        studentId: c.student.id,
+        scores: c.scores,
+        total: c.total,
+        average: c.average,
+        rank: c.rank,
+      })),
+    },
+  }
+
   return {
     payload: {
       scalars: semesterScalars(data, request.academicYear),
       subjects: data.base.subjects,
       rows,
+      meta: {
+        tppMaster,
+      },
     },
     summary: {
       studentCount: data.base.students.length,
@@ -810,11 +943,30 @@ export async function resolveRankingSemester(
     subjectValues: semesterSubjectValues(c, data.base.subjects),
   }))
 
+  const tppMaster: TppMasterPayload = {
+    teacher: buildTppTeacher(data.base.settings, data.base.className, request.academicYear),
+    students: buildTppStudents(data.students),
+    monthlyScores: {
+      monthId: data.semester,
+      denominator: data.base.numericKeys.length || data.base.subjects.length,
+      students: data.students.map((c) => ({
+        studentId: c.student.id,
+        scores: c.scores,
+        total: c.total,
+        average: c.average,
+        rank: c.rank,
+      })),
+    },
+  }
+
   return {
     payload: {
       scalars: semesterScalars(data, request.academicYear),
       subjects: data.base.subjects,
       rows,
+      meta: {
+        tppMaster,
+      },
     },
     summary: {
       studentCount: data.base.students.length,
@@ -2318,6 +2470,109 @@ export async function resolveCertificateCandidates(
 }
 
 /**
+ * Resolver for the Cambodian TPP 2026 Master Gradebook (145 worksheets).
+ * Gathers complete teacher, school, and student demographics to inject into inforT and inforS.
+ */
+export async function resolveTppMasterBook(
+  request: ReportRequest,
+): Promise<ResolvedReport | { error: string }> {
+  const isSemester = request.period === 'sem1' || request.period === 'sem2'
+
+  if (isSemester) {
+    const sem = await resolveSemesterClass(request)
+    if ('error' in sem) return sem
+
+    const teacher = buildTppTeacher(sem.base.settings, sem.base.className, request.academicYear)
+    const students = buildTppStudents(sem.students)
+    const monthlyScores: TppMonthlyScores = {
+      monthId: sem.semester,
+      denominator: sem.base.numericKeys.length || sem.base.subjects.length,
+      students: sem.students.map((c) => ({
+        studentId: c.student.id,
+        scores: c.scores,
+        total: c.total,
+        average: c.average,
+        rank: c.rank,
+      })),
+    }
+    const tppMaster: TppMasterPayload = { teacher, students, monthlyScores }
+
+    return {
+      payload: {
+        scalars: {
+          'school.name': teacher.schoolName,
+          'class.name': teacher.className,
+          'teacher.name': teacher.teacherName,
+          'period.year': request.academicYear,
+          'period.month': sem.periodLabel,
+        },
+        rows: [],
+        subjects: sem.base.subjects,
+        meta: { tppMaster },
+      },
+      summary: {
+        studentCount: students.length,
+        subjectCount: sem.base.subjects.length,
+        average: sem.classAverage,
+        periodLabel: sem.periodLabel,
+        className: teacher.className,
+      },
+    }
+  }
+
+  const selectedMonth =
+    request.period && request.period in MONTH_TO_TPP_SHEET ? request.period : 'nov'
+
+  const monthly = await resolveMonthlyClass({ ...request, period: selectedMonth })
+  if ('error' in monthly) return monthly
+
+  const teacher = buildTppTeacher(monthly.settings, monthly.className, request.academicYear)
+  const students = buildTppStudents(monthly.students)
+
+  const monthlyScores: TppMonthlyScores = {
+    monthId: selectedMonth,
+    denominator: monthly.numericKeys.length || monthly.subjects.length,
+    students: monthly.students.map((c) => ({
+      studentId: c.student.id,
+      scores: c.scores,
+      total: c.total,
+      average: c.average,
+      rank: c.rank,
+    })),
+  }
+
+  const tppMaster: TppMasterPayload = {
+    teacher,
+    students,
+    monthlyScores,
+  }
+
+  return {
+    payload: {
+      scalars: {
+        'school.name': teacher.schoolName,
+        'class.name': teacher.className,
+        'teacher.name': teacher.teacherName,
+        'period.year': request.academicYear,
+        'period.month': monthly.periodLabel,
+      },
+      rows: [],
+      subjects: monthly.subjects,
+      meta: {
+        tppMaster,
+      },
+    },
+    summary: {
+      studentCount: students.length,
+      subjectCount: monthly.subjects.length,
+      average: monthly.classAverage,
+      periodLabel: monthly.periodLabel,
+      className: teacher.className,
+    },
+  }
+}
+
+/**
  * Dispatch to a report's resolver.
  *
  * One `switch`, and every unmigrated report falls through it with an honest
@@ -2359,6 +2614,8 @@ export async function resolveReport(
       return resolveAnnualRepeated(request)
     case 'student_tracking_record_book':
       return resolveRecordBook(request)
+    case 'tpp_master_book':
+      return resolveTppMasterBook(request)
     case 'attendance_monthly':
       return resolveAttendanceMonthly(request)
     case 'attendance_yearly':

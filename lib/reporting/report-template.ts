@@ -143,6 +143,20 @@ export const TEMPLATE_REGISTRY: DocumentTemplate[] = [
       + 'មកពីប្រព័ន្ធគណនារបស់កម្មវិធី មិនមែនពីរូបមន្តក្នុងសន្លឹកទេ។',
   },
   {
+    id: 'score_monthly_tpp',
+    reportType: 'score_monthly',
+    version: 3,
+    label: 'តារាងពិន្ទុប្រចាំខែ — ទម្រង់ TPP 2026 (VBA Form បឋមសិក្សា)',
+    format: 'xlsx',
+    file: 'tracking/tpp2026_master.xlsm',
+    educationLevel: 'primary',
+    grades: [],
+    isActive: false,
+    provenance: 'official',
+    notes:
+      'ទម្រង់តារាងពិន្ទុប្រចាំខែដកស្រង់ចេញពី VBA TPP 2026 ផ្លូវការ — មានបំណិនរងគ្រប់មុខវិជ្ជា និងរូបមន្តត្រឹមត្រូវ។',
+  },
+  {
     id: 'ranking_monthly_v1',
     reportType: 'ranking_monthly',
     version: 1,
@@ -174,6 +188,20 @@ export const TEMPLATE_REGISTRY: DocumentTemplate[] = [
       + 'តួលេខទាំងអស់មកពីប្រព័ន្ធគណនារបស់កម្មវិធី មិនមែនពីរូបមន្តក្នុងសន្លឹកទេ។',
   },
   {
+    id: 'ranking_monthly_tpp',
+    reportType: 'ranking_monthly',
+    version: 3,
+    label: 'តារាងចំណាត់ថ្នាក់ប្រចាំខែ — ទម្រង់ TPP 2026 (VBA Form)',
+    format: 'xlsx',
+    file: 'tracking/tpp2026_master.xlsm',
+    educationLevel: 'primary',
+    grades: [],
+    isActive: false,
+    provenance: 'official',
+    notes:
+      'ទម្រង់តារាងចំណាត់ថ្នាក់ប្រចាំខែដកស្រង់ចេញពី VBA TPP 2026 ផ្លូវការ។',
+  },
+  {
     id: 'ranking_semester_v1',
     reportType: 'ranking_semester',
     version: 1,
@@ -203,6 +231,20 @@ export const TEMPLATE_REGISTRY: DocumentTemplate[] = [
     notes:
       'ក្បាលលិខិតពីរជួរ បញ្ជីសង្ខេប និងកន្លែងចុះហត្ថលេខា តាមទម្រង់ដែលសាលាផ្តល់មក។ '
       + 'តួលេខទាំងអស់មកពីប្រព័ន្ធគណនារបស់កម្មវិធី មិនមែនពីរូបមន្តក្នុងសន្លឹកទេ។',
+  },
+  {
+    id: 'ranking_semester_tpp',
+    reportType: 'ranking_semester',
+    version: 3,
+    label: 'តារាងចំណាត់ថ្នាក់ឆមាស — ទម្រង់ TPP 2026 (VBA Form)',
+    format: 'xlsx',
+    file: 'tracking/tpp2026_master.xlsm',
+    educationLevel: 'primary',
+    grades: [],
+    isActive: false,
+    provenance: 'official',
+    notes:
+      'ទម្រង់តារាងចំណាត់ថ្នាក់ឆមាសដកស្រង់ចេញពី VBA TPP 2026 ផ្លូវការ (ឆមាសទី១ ឬ ឆមាសទី២)។',
   },
   {
     id: 'honor_v1',
@@ -513,6 +555,64 @@ export const TEMPLATE_REGISTRY: DocumentTemplate[] = [
       'ឯកសារ Word មួយទំព័រក្នុងមួយសិស្ស (A4 ផ្តេក) — មុខវិជ្ជាមកពីទម្រង់ពិន្ទុរបស់ថ្នាក់ និងអវត្តមានចែកតាមប្រតិទិនពិន្ទុរបស់ថ្នាក់។ ទំព័រ /record-book ដើមនៅដំណើរការដដែល។',
   },
   {
+    id: 'tpp_master_v1',
+    reportType: 'tpp_master_book',
+    version: 1,
+    label: 'ទម្រង់ TPP 2026 (Excel ធម្មតា — គ្មាន Macro ដំណើរការគ្រប់ Device)',
+    format: 'xlsx',
+    file: 'tracking/tpp2026_master.xlsm',
+    educationLevel: 'primary',
+    grades: [],
+    isActive: true,
+    provenance: 'official',
+    notes:
+      'សៀវភៅតាមដាន និងគ្រប់គ្រងពិន្ទុ TPP 2026 (១៤៥ សន្លឹក បំលែងជា Excel ធម្មតា គ្មាន Macro Warning)។ '
+      + 'បំពេញព័ត៌មានគ្រូ សាលា បញ្ជីសិស្ស និងពិន្ទុស្វ័យប្រវត្តិចេញពីប្រព័ន្ធ។',
+  },
+  {
+    id: 'tpp_master_xlsm',
+    reportType: 'tpp_master_book',
+    version: 2,
+    label: 'ទម្រង់ TPP 2026 VBA (Macro Enabled — មានប៊ូតុងចុចបញ្ជា)',
+    format: 'xlsm',
+    file: 'tracking/tpp2026_master.xlsm',
+    educationLevel: 'primary',
+    grades: [],
+    isActive: false,
+    provenance: 'official',
+    notes:
+      'សៀវភៅតាមដាន និងគ្រប់គ្រងពិន្ទុ TPP 2026 VBA ដើម (មាន Macro និងប៊ូតុងចុចផ្លាស់ប្តូរសន្លឹកកិច្ចការ)។ '
+      + 'បំពេញព័ត៌មានគ្រូ សាលា បញ្ជីសិស្ស និងពិន្ទុស្វ័យប្រវត្តិចេញពីប្រព័ន្ធ។',
+  },
+  {
+    id: 'tpp_section_monthly',
+    reportType: 'tpp_master_book',
+    version: 3,
+    label: 'ទាញយកតែផ្នែក ៖ តារាងពិន្ទុប្រចាំខែ (Single Monthly Score Sheet)',
+    format: 'xlsx',
+    file: 'tracking/tpp2026_master.xlsm',
+    educationLevel: 'primary',
+    grades: [],
+    isActive: false,
+    provenance: 'official',
+    notes:
+      'ទាញយកតែសន្លឹកកិច្ចការតារាងពិន្ទុប្រចាំខែដែលបានជ្រើសរើស (ទំហំស្រាល ~១.៥ MB បើកលឿន)។',
+  },
+  {
+    id: 'tpp_section_semester',
+    reportType: 'tpp_master_book',
+    version: 4,
+    label: 'ទាញយកតែផ្នែក ៖ តារាងពិន្ទុឆមាស (Single Semester Score Sheet)',
+    format: 'xlsx',
+    file: 'tracking/tpp2026_master.xlsm',
+    educationLevel: 'primary',
+    grades: [],
+    isActive: false,
+    provenance: 'official',
+    notes:
+      'ទាញយកតែសន្លឹកកិច្ចការតារាងពិន្ទុឆមាសទី១ ឬ ឆមាសទី២ (ទំហំស្រាល ~១.៥ MB បើកលឿន)។',
+  },
+  {
     id: 'score_semester_v1',
     reportType: 'score_semester',
     version: 1,
@@ -542,6 +642,20 @@ export const TEMPLATE_REGISTRY: DocumentTemplate[] = [
     notes:
       'ក្បាលលិខិតពីរជួរ បញ្ជីសង្ខេប និងកន្លែងចុះហត្ថលេខា តាមទម្រង់ដែលសាលាផ្តល់មក។ '
       + 'តួលេខទាំងអស់មកពីប្រព័ន្ធគណនារបស់កម្មវិធី មិនមែនពីរូបមន្តក្នុងសន្លឹកទេ។',
+  },
+  {
+    id: 'score_semester_tpp',
+    reportType: 'score_semester',
+    version: 3,
+    label: 'តារាងពិន្ទុឆមាស — ទម្រង់ TPP 2026 (VBA Form បឋមសិក្សា)',
+    format: 'xlsx',
+    file: 'tracking/tpp2026_master.xlsm',
+    educationLevel: 'primary',
+    grades: [],
+    isActive: false,
+    provenance: 'official',
+    notes:
+      'ទម្រង់តារាងពិន្ទុឆមាសដកស្រង់ចេញពី VBA TPP 2026 ផ្លូវការ (ឆមាសទី១ ឬ ឆមាសទី២)។',
   },
 ]
 
@@ -595,7 +709,20 @@ export type ReportStatus = 'engine_ready' | 'needs_template' | 'legacy_only' | '
 
 export interface ReportAvailability {
   status: ReportStatus
-  /** Khmer badge text. */
+  /**
+   * Khmer badge text — what the TEACHER is told, in words about the document.
+   *
+   * The four labels used to be written from the engine's point of view: a
+   * report with a resolver and no document template read `ត្រូវកំណត់ Template`,
+   * which names an internal artefact the teacher cannot supply, cannot see and
+   * has never heard of. A report with a working screen read `ទំព័រដើម` — "the
+   * original page" — which describes the migration state of this codebase and
+   * not what pressing the button does.
+   *
+   * They say what happens instead: it is ready, it prints from its own screen,
+   * or it is still being built. The four `status` values above are unchanged
+   * and are what anything keying on availability must read; these are display.
+   */
   label: string
   tone: 'success' | 'warning' | 'muted'
   /** What the card's primary control does. */
@@ -614,7 +741,12 @@ export function reportAvailability(definition: ReportDefinition): ReportAvailabi
       label: 'រួចរាល់',
       tone: 'success',
       action: 'generate',
-      actionLabel: 'បង្កើតរបាយការណ៍',
+      // `បើក` and not `បង្កើតរបាយការណ៍`, because the button does not create
+      // anything: it opens the flow where the teacher picks the period, reads
+      // the preview and then decides. Naming it after the last step of a flow
+      // it only starts is how a teacher comes to believe a file has already
+      // been written when they click away.
+      actionLabel: 'បើក',
       template,
     }
   }
@@ -622,12 +754,15 @@ export function reportAvailability(definition: ReportDefinition): ReportAvailabi
   if (definition.resolver && !template) {
     return {
       status: 'needs_template',
-      label: 'ត្រូវកំណត់ Template',
-      tone: 'warning',
+      // The teacher is told what they can do, never what the build is missing.
+      // With a screen behind it this is indistinguishable, to them, from
+      // `legacy_only` — and it should be: both print from a page.
+      label: definition.legacyHref ? 'បោះពុម្ពពីអេក្រង់' : 'កំពុងរៀបចំ',
+      tone: 'muted',
       // A resolver with no template cannot produce a file, so the card offers
       // the legacy screen if there is one rather than a button that fails.
       action: definition.legacyHref ? 'open' : 'none',
-      actionLabel: 'បើករបាយការណ៍',
+      actionLabel: 'បើកទំព័រ',
       template: null,
     }
   }
@@ -635,17 +770,17 @@ export function reportAvailability(definition: ReportDefinition): ReportAvailabi
   if (definition.legacyHref) {
     return {
       status: 'legacy_only',
-      label: 'ទំព័រដើម',
+      label: 'បោះពុម្ពពីអេក្រង់',
       tone: 'muted',
       action: 'open',
-      actionLabel: 'បើករបាយការណ៍',
+      actionLabel: 'បើកទំព័រ',
       template: null,
     }
   }
 
   return {
     status: 'not_implemented',
-    label: 'មិនទាន់មាន',
+    label: 'កំពុងរៀបចំ',
     tone: 'muted',
     action: 'none',
     actionLabel: '',

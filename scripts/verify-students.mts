@@ -134,7 +134,15 @@ console.log('\n1. every printable screen is findable in the Print Center:')
  * To add a screen here you have to state which of those it is.
  */
 const NOT_DOCUMENTS: Record<string, string> = {
-  '/cleaning-schedule': 'the room, not the class',
+  /*
+   * `/cleaning-schedule` WAS excused here as `the room, not the class`. It is
+   * catalogued now, as `class_cleaning_rota` under រៀបចំថ្នាក់រៀន: the judgement
+   * was made when the centre indexed class RESULT sheets only, and the centre
+   * is the classroom document workspace now — a rota a form master prints and
+   * pins to the wall is one of its documents. `/inventory` keeps the excuse,
+   * and keeps it for the reason originally given: a stock list of equipment is
+   * about the room's contents, not about the class.
+   */
   '/inventory': 'the room, not the class',
   '/homework/enter': 'an entry grid that prints',
   '/score-analyse': 'an entry grid that prints',

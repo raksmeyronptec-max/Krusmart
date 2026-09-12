@@ -66,7 +66,14 @@ console.log('\nB. availability (§27)')
   const avail = reportAvailability(def)
   check('resolver + active template = engine_ready', avail.status === 'engine_ready', avail.status)
   check('the card offers generation, not the legacy screen', avail.action === 'generate')
-  check('and says so in Khmer (§43)', avail.actionLabel === 'បង្កើតរបាយការណ៍')
+  /*
+   * The label is `បើក` and no longer `បង្កើតរបាយការណ៍`, because the control does
+   * not create anything: it opens the flow where the teacher picks the period,
+   * reads the preview and then decides. What is pinned is unchanged — the
+   * action is named, in Khmer, by the availability model rather than by each
+   * surface that renders it.
+   */
+  check('and says so in Khmer (§43)', avail.actionLabel === 'បើក')
   check('the template version is recorded (§44)',
     avail.template?.id === 'ranking_annual_v2' && avail.template?.version === 2)
   check('provenance is derived, never claimed official (§31)',

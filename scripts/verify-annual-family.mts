@@ -86,8 +86,11 @@ console.log('\nB. availability (§27/§28)')
     const def = REPORT_DEFINITIONS.find((r) => r.type === type)!
     const avail = reportAvailability(def)
     check(`${type} is engine_ready`, avail.status === 'engine_ready', avail.status)
-    check(`  and offers បង្កើតរបាយការណ៍`,
-      avail.action === 'generate' && avail.actionLabel === 'បង្កើតរបាយការណ៍')
+    // `បើក` since the Print Center rewrite: the button opens the generation
+    // flow, and naming it after the flow's last step made teachers believe a
+    // file had already been written when they clicked away.
+    check(`  and offers បើក`,
+      avail.action === 'generate' && avail.actionLabel === 'បើក')
     check(`  on a derived template, never claimed official (§31)`,
       avail.template?.provenance === 'derived'
       && avail.template?.id === ACTIVE_TEMPLATE_ID[type], avail.template?.id)
